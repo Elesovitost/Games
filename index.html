@@ -215,6 +215,8 @@
     let isLocked = false;
 	let currentMode = null;
 	let correctAnswer = null;
+	const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 
 
     function updateScoreDisplay() {
@@ -656,11 +658,13 @@ window.addEventListener('resize', resizeCanvas);
 
 
 document.getElementById('mobile-input').addEventListener('input', (e) => {
+  if (!isMobile) return; // tím se vyhneš duplikaci na desktopu a s BT klávesnicí
   const char = e.target.value;
   e.target.value = '';
   if (currentMode === 'writing') handleKey({ key: char });
   else if (currentMode === 'math') handleMathKey({ key: char });
 });
+
 
 
   </script>
