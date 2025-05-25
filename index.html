@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Písmenková hra</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    .topbar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 30px;
+      margin-bottom: 20px;
+    }
+    .score-label {
+      font-size: 20px;
+    }
+    .score {
+      font-size: 20px;
+    }
+    .score .good { color: green; margin-right: 10px; }
+    .score .bad { color: red; }
+
+    .letter-box {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 1px solid #ccc;
+      font-size: 30px;
+      line-height: 40px;
+      margin: 2px;
+    }
+
+    .correct { border-color: green; color: green; }
+    .incorrect { border-color: red; color: red; }
+
+    #image { max-height: 200px; margin-bottom: 20px; }
+    canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
+
+    #reading-word { font-size: 32px; margin: 20px; }
+    #reading-options {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    #reading-options img {
+      height: 150px;
+      cursor: pointer;
+      border: 2px solid #333; /* jemný černý rámeček */
+      transition: border 0.2s;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="menu">
+      <button onclick="startGame('writing')">Psaní</button>
+      <button onclick="startGame('reading')">Čtení</button>
+    </div>
+    <div class="score-label">Skóre:</div>
+    <div class="score">
+      <span class="good" id="score-good">0</span>
+      <span class="bad" id="score-bad">0</span>
+    </div>
+  </div>
+
+  <img id="image" src="" alt="obrázek" hidden />
+  <div id="letters"></div>
+
+  <div id="reading-word"></div>
+  <div id="reading-options"></div>
+
+  <canvas id="fireworks"></canvas>
+  <audio id="fanfare" src="fanfara.mp3"></audio>
+
+  <script>
+    const words = ['holub', 'kalhoty', 'kočka', 'pes', 'tričko'];
+    const data = words.map(word => ({
+      img: `abeceda/${word}.jpg`,
+      word: word
+    }));
+
+    let currentWord = '';
+    let userInput = [];
+    let scoreGood = 0;
+    let scoreBad = 0;
+    let isLocked = false; // zámek vstupu
+
+    function updateScoreDisplay() {
+      document.getElementById('score-good').textContent = scoreGood;
+      document.getElementById('score-bad').textContent = scoreBad;
+    }
+
+    function startGame(mode) {
+      if (mode === 'writing') {
+        document.removeEventListener('keydown', handleKey);
+        loadRandom();
+        document.getElementById('image').hidden = false;
+        document.getElementById('letters').style.display = 'block';
+        document.getElementById('reading-word').textContent = '';
+        document.getElementById('reading-options').innerHTML = '';
+        document.addEventListener('keydown', handleKey);
+      } else if (mode === 'reading') {
+        document.removeEventListener('keydown', handleKey);
+        document.getElementById('image').hidden = true;
+        document.getElementById('letters').style.display = 'none';
+        loadReadingTask();
+      }
+    }
+
+    function loadRandom() {
+      const random = data[Math.floor(Math.random() * data.length)];
+      currentWord = random.word;
+      userInput = [];
+      isLocked = false;
+
+      const img = document.getElementById('image');
+      img.src = random.img;
+      img.hidden = false;
+
+      const lettersDiv = document.getElementById('letters');
+      lettersDiv.innerHTML = '';
+
+      for (let i = 0; i < currentWord.length; i++) {
+        const span = document.createElement('span');
+        span.className = 'letter-box';
+        span.textContent = '';
+        lettersDiv.appendChild(span);
+      }
+    }
+
+    function handleKey(e) {
+      if (isLocked) return;
+
+      const key = e.key;
+      const index = userInput.length;
+
+      if (key.length === 1 && key.match(/[a-zA-Zá-žÁ-Ž]/i)) {
+        if (index < currentWord.length) {
+          const correctChar = currentWord[index];
+
+          if (key.toLowerCase() === correctChar.toLowerCase()) {
+            userInput.push(key);
+            scoreGood++;
+            updateScoreDisplay();
+            updateDisplay();
+          } else {
+            userInput.push(key);
+            scoreBad++;
+            updateScoreDisplay();
+            updateDisplay();
+
+            isLocked = true;
+            setTimeout(() => {
+              if (
+                userInput[index] &&
+                userInput[index].toLowerCase() !== correctChar.toLowerCase()
+              ) {
+                userInput.splice(index, 1);
+                updateDisplay();
+              }
+              isLocked = false;
+            }, 2000);
+          }
+        }
+      } else if (e.key === 'Backspace') {
+        userInput.pop();
+        updateDisplay();
+      }
+    }
+
+    function updateDisplay() {
+      const letters = document.getElementById('letters').children;
+
+      for (let i = 0; i < currentWord.length; i++) {
+        const box = letters[i];
+        const inputChar = userInput[i];
+
+        box.textContent = inputChar || '';
+
+        if (!inputChar) {
+          box.className = 'letter-box';
+        } else if (inputChar.toLowerCase() === currentWord[i].toLowerCase()) {
+          box.className = 'letter-box correct';
+        } else {
+          box.className = 'letter-box incorrect';
+        }
+      }
+
+      if (
+        userInput.length === currentWord.length &&
+        userInput.join('').toLowerCase() === currentWord.toLowerCase()
+      ) {
+        launchFireworks();
+        setTimeout(() => {
+          stopFireworks();
+          loadRandom();
+        }, 3000);
+      }
+    }
+
+    function loadReadingTask() {
+      const correct = data[Math.floor(Math.random() * data.length)];
+      currentWord = correct.word;
+
+      document.getElementById('reading-word').textContent = currentWord;
+      const container = document.getElementById('reading-options');
+      container.innerHTML = '';
+
+      const shuffled = [...data]
+        .filter(item => item.word !== currentWord)
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 4);
+
+      shuffled.push(correct);
+      shuffled.sort(() => 0.5 - Math.random());
+
+      shuffled.forEach(item => {
+        const img = document.createElement('img');
+        img.src = item.img;
+        img.alt = item.word;
+        img.addEventListener('mouseenter', () => img.style.border = '2px solid blue');
+        img.addEventListener('mouseleave', () => img.style.border = '2px solid #333');
+        img.addEventListener('click', () => handleReadingClick(img, item.word === currentWord));
+        container.appendChild(img);
+      });
+    }
+
+    function handleReadingClick(img, isCorrect) {
+      const all = document.querySelectorAll('#reading-options img');
+
+      if (isCorrect) {
+        img.style.border = '2px solid green';
+        scoreGood++;
+        updateScoreDisplay();
+        launchFireworks();
+        setTimeout(() => {
+          stopFireworks();
+          loadReadingTask();
+        }, 3000);
+      } else {
+        img.style.border = '2px solid red';
+        scoreBad++;
+        updateScoreDisplay();
+        setTimeout(() => {
+          all.forEach(el => el.remove());
+          loadReadingTask();
+        }, 2000);
+      }
+    }
+
+    const canvas = document.getElementById('fireworks');
+    const ctx = canvas.getContext('2d');
+    let fireworksInterval;
+
+    function launchFireworks() {
+      resizeCanvas();
+      fireworksInterval = setInterval(drawFirework, 100);
+
+      const audio = document.getElementById('fanfare');
+      if (audio) {
+        audio.currentTime = 0;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
+            console.warn('Nepodařilo se přehrát fanfáru:', err);
+          });
+        }
+      }
+    }
+
+    function stopFireworks() {
+      clearInterval(fireworksInterval);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawFirework() {
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * canvas.height / 2;
+      const radius = 50;
+      for (let i = 0; i < 20; i++) {
+        const angle = i * (Math.PI * 2) / 20;
+        const dx = Math.cos(angle) * radius;
+        const dy = Math.sin(angle) * radius;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + dx, y + dy);
+        ctx.strokeStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
+        ctx.stroke();
+      }
+    }
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+  </script>
+</body>
+</html>
