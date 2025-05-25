@@ -170,6 +170,8 @@
   </div>
 </div>
 
+<input id="mobile-input" type="text" inputmode="text" style="position: absolute; opacity: 0; height: 0; width: 0; border: none;" />
+
 
   <img id="image" class="framed-image" src="" alt="obrázek" hidden />
   <div id="letters"></div>
@@ -357,6 +359,7 @@ function startGame(mode) {
     }
   }, 2000);
 }
+enableLetterBoxKeyboard();
 
     }
 
@@ -498,6 +501,8 @@ for (let i = 0; i < b; i++) {
   }
 
   taskDiv.appendChild(lettersDiv);
+  enableLetterBoxKeyboard();
+
 }
 
 
@@ -645,6 +650,23 @@ function resizeCanvas() {
 }
 
 window.addEventListener('resize', resizeCanvas);
+
+function enableLetterBoxKeyboard() {
+  const input = document.getElementById('mobile-input');
+  document.querySelectorAll('.letter-box').forEach(box => {
+    box.onclick = () => {
+      input.focus();
+    };
+  });
+}
+
+document.getElementById('mobile-input').addEventListener('input', (e) => {
+  const char = e.target.value;
+  e.target.value = '';
+  if (currentMode === 'writing') handleKey({ key: char });
+  else if (currentMode === 'math') handleMathKey({ key: char });
+});
+
 
   </script>
 </body>
