@@ -62,42 +62,42 @@
 	  box-shadow: 4px 4px 10px rgba(0,0,0,0.3);
 	}
 
-.framed-image {
-  border: 2px solid #333;
-  max-height: 200px;
-  margin-bottom: 20px;
-}
+	.framed-image {
+	  border: 2px solid #333;
+	  max-height: 200px;
+	  margin-bottom: 20px;
+	}
 
-.apple-group {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 4px;
-  max-width: 150px;
-  font-size: 22px;
-  background: transparent;
-  padding: 6px;
-}
+	.apple-group {
+	  display: flex;
+	  flex-wrap: wrap;
+	  justify-content: center;
+	  gap: 4px;
+	  max-width: 150px;
+	  font-size: 22px;
+	  background: transparent;
+	  padding: 6px;
+	}
 
-.apple-group div {
-  width: 24px;
-  text-align: center;
-}
+	.apple-group div {
+	  width: 24px;
+	  text-align: center;
+	}
 
 
-.math-row {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 48px;
-  gap: 40px;
-  margin-bottom: 10px;
-}
-.math-column {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+	.math-row {
+	  display: flex;
+	  justify-content: center;
+	  align-items: center;
+	  font-size: 48px;
+	  gap: 40px;
+	  margin-bottom: 10px;
+	}
+	.math-column {
+	  display: flex;
+	  flex-direction: column;
+	  align-items: center;
+	}
 
 
     .score-label {
@@ -125,16 +125,16 @@
     #image { max-height: 200px; margin-bottom: 20px; }
     canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
 
-#fireworks {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 1000;
-  background: transparent;
-}
+	#fireworks {
+	  position: fixed;
+	  top: 0;
+	  left: 0;
+	  width: 100%;
+	  height: 100%;
+	  pointer-events: none;
+	  z-index: 1000;
+	  background: transparent;
+	}
 
 
     #reading-word { font-size: 32px; margin: 20px; }
@@ -170,8 +170,7 @@
   </div>
 </div>
 
-<input id="mobile-input" type="text" inputmode="text" style="position: absolute; opacity: 0; height: 0; width: 0; border: none;" />
-
+<input id="mobile-input" type="text" inputmode="text" style="position: absolute; top: -100px; left: -100px; width: 1px; height: 1px; opacity: 0; border: none;" />
 
   <img id="image" class="framed-image" src="" alt="obrázek" hidden />
   <div id="letters"></div>
@@ -345,22 +344,21 @@ function startGame(mode) {
       }
 
       if (
-  userInput.length === currentWord.length &&
-  userInput.join('').toLowerCase() === currentWord.toLowerCase()
-) {
-  playSound('sound-win');
-  launchFireworks();
-  isLocked = true;
-  setTimeout(() => {
-    stopFireworks();
-    if (currentMode === 'writing') {
-      loadRandom();
-      isLocked = false;
-    }
-  }, 2000);
-}
-enableLetterBoxKeyboard();
-
+		  userInput.length === currentWord.length &&
+		  userInput.join('').toLowerCase() === currentWord.toLowerCase()
+		) {
+		  playSound('sound-win');
+		  launchFireworks();
+		  isLocked = true;
+		  setTimeout(() => {
+			stopFireworks();
+			if (currentMode === 'writing') {
+			  loadRandom();
+			  isLocked = false;
+			}
+		  }, 2000);
+		}
+		enableLetterBoxKeyboard();
     }
 
     function loadReadingTask() {
@@ -448,26 +446,33 @@ correctAnswer = op === '+' ? a + b : a - b;
   const row = document.createElement('div');
   row.className = 'math-row';
 
-  const colA = document.createElement('div');
-  colA.className = 'math-column';
-  colA.innerHTML = `<div>${a}</div>`;
+	const colA = document.createElement('div');
+	colA.className = 'math-column';
 
-  const applesA = document.createElement('div');
-  applesA.className = 'apple-group';
+	const divA = document.createElement('div');
+	divA.textContent = a;
+	colA.appendChild(divA);
+
+	const applesA = document.createElement('div');
+	applesA.className = 'apple-group';
 	for (let i = 0; i < a; i++) {
 	  const apple = document.createElement('div');
 	  apple.textContent = '🍎';
 	  applesA.appendChild(apple);
 	}
+	colA.appendChild(applesA);
 
-  colA.appendChild(applesA);
 
   const colOp = document.createElement('div');
   colOp.innerHTML = op;
 
-  const colB = document.createElement('div');
-  colB.className = 'math-column';
-  colB.innerHTML = `<div>${b}</div>`;
+	const colB = document.createElement('div');
+	colB.className = 'math-column';
+
+	const divB = document.createElement('div');
+	divB.textContent = b;
+	colB.appendChild(divB);
+
 
   const applesB = document.createElement('div');
   applesB.className = 'apple-group';
