@@ -250,12 +250,14 @@ function startGame(mode) {
     document.getElementById('image').hidden = false;
     document.getElementById('letters').style.display = 'block';
     document.addEventListener('keydown', handleKey);
+	document.getElementById('mobile-input').focus();
   } else if (mode === 'reading') {
     readingPool = [...data];
     loadReadingTask();
   } else if (mode === 'math') {
     loadMathTask();
     document.addEventListener('keydown', handleMathKey);
+	document.getElementById('mobile-input').focus();
   }
 }
 
@@ -358,7 +360,6 @@ function startGame(mode) {
 			}
 		  }, 2000);
 		}
-		enableLetterBoxKeyboard();
     }
 
     function loadReadingTask() {
@@ -504,10 +505,7 @@ for (let i = 0; i < b; i++) {
     span.textContent = '';
     lettersDiv.appendChild(span);
   }
-
   taskDiv.appendChild(lettersDiv);
-  enableLetterBoxKeyboard();
-
 }
 
 
@@ -656,14 +654,6 @@ function resizeCanvas() {
 
 window.addEventListener('resize', resizeCanvas);
 
-function enableLetterBoxKeyboard() {
-  const input = document.getElementById('mobile-input');
-  document.querySelectorAll('.letter-box').forEach(box => {
-    box.onclick = () => {
-      input.focus();
-    };
-  });
-}
 
 document.getElementById('mobile-input').addEventListener('input', (e) => {
   const char = e.target.value;
