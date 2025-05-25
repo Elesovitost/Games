@@ -72,18 +72,18 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
-  max-width: 140px;
+  gap: 4px;
+  max-width: 150px;
   font-size: 22px;
-  background: #f0f0f0;
-  padding: 8px;
-  border-radius: 8px;
-  box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+  background: transparent;
+  padding: 6px;
 }
+
 .apple-group div {
   width: 24px;
   text-align: center;
 }
+
 
 .math-row {
   display: flex;
@@ -188,8 +188,7 @@
   <audio id="sound-win" src="win.mp3"></audio>
 
   <script>
-    const words = ['auto', 'bagr', 'bazén', 'bota', 'bunda', 'holub', 'kalhoty', 'kočka', 'letadlo', 'motorka', 'myš', 'ovce', 'pes', 'raketa', 'ruka', 'telefon', 'tričko', 'vidlička', 'židle'];
-
+    const words = ['auto', 'autobus', 'bagr', 'bazén', 'bota', 'bunda', 'gepard', 'hodinky', 'holub', 'kalhoty', 'kavka', 'kolo', 'kočka', 'letadlo', 'motorka', 'myš', 'ovce', 'pes', 'raketa', 'ruka', 'slon', 'tank', 'telefon', 'tramvaj', 'triko', 'tygr', 'vidlička', 'vlak', 'vodopád', 'zebra', 'židle', 'žirafa'];
     const data = words.map(word => ({
       word: word,
       img: `${word}.jpg`
@@ -411,15 +410,18 @@ function startGame(mode) {
     }
   }, 2000);
 }
- else {
-        img.style.filter = 'brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)';
-        scoreBad++;
-        updateScoreDisplay();
-        playSound('sound-wrong');
-        setTimeout(() => {
-          loadReadingTask();
-        }, 1000);
-      }
+else {
+  img.style.filter = 'brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)';
+  scoreBad++;
+  updateScoreDisplay();
+  playSound('sound-wrong');
+  setTimeout(() => {
+    if (currentMode === 'reading') {
+      loadReadingTask();
+    }
+  }, 1000);
+}
+
     }
 
 function loadMathTask() {
@@ -528,15 +530,19 @@ setTimeout(() => {
 }, 2000);
 
   } else if (userInput.length === correctAnswer.toString().length) {
-    scoreBad++;
-    updateScoreDisplay();
-    playSound('sound-wrong');
+  scoreBad++;
+  updateScoreDisplay();
+  playSound('sound-wrong');
+  if (currentMode === 'math') {
     markMathIncorrect();
-    isLocked = true;
-    setTimeout(() => {
-      loadMathTask();
-    }, 1000);
   }
+  isLocked = true;
+  setTimeout(() => {
+    if (currentMode === 'math') {
+      loadMathTask();
+    }
+  }, 1000);
+}
 }
 
 function updateMathDisplay() {

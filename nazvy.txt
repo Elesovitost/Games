@@ -1,1 +1,1 @@
-const words = ['auto', 'bagr', 'bazén', 'bota', 'bunda', 'holub', 'kalhoty', 'koèka', 'letadlo', 'motorka', 'myš', 'ovce', 'pes', 'raketa', 'ruka', 'telefon', 'trièko', 'vidlièka', 'židle'];
+const words = ['auto', 'autobus', 'bagr', 'bazén', 'bota', 'bunda', 'gepard', 'hodinky', 'holub', 'kalhoty', 'kavka', 'kolo', 'koèka', 'letadlo', 'motorka', 'myš', 'ovce', 'pes', 'raketa', 'ruka', 'slon', 'tank', 'telefon', 'tramvaj', 'triko', 'tygr', 'vidlièka', 'vlak', 'vodopád', 'zebra', 'židle', 'žirafa'];
