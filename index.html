@@ -103,7 +103,7 @@
 
 
     .score-label {
-      font-size: 20px;
+      font-size: 16px;
     }
     .score {
       font-size: 20px;
@@ -138,6 +138,14 @@
 	  background: transparent;
 	}
 
+@media (max-width: 699px) {
+  #gif-container {
+    left: 10px !important;
+    transform: none !important;
+  }
+}
+
+
 
     #reading-word { font-size: 32px; margin: 20px; }
     #reading-options {
@@ -160,13 +168,13 @@
 
  <div class="topbar">
 <div class="menu">
-  <button class="mode-button writing" onclick="startGame('writing')">✍️ Psaní</button>
-  <button class="mode-button reading" onclick="startGame('reading')">📖 Čtení</button>
-  <button class="mode-button math" onclick="startGame('math')">➕ Počty</button>
+  <button class="mode-button writing" onclick="startGame('writing')">✍️ PSANÍ</button>
+  <button class="mode-button reading" onclick="startGame('reading')">📖 ČTENÍ</button>
+  <button class="mode-button math" onclick="startGame('math')">➕ POČTY</button>
 </div>
 
   <div class="score-container">
-    <div class="score-label">Skóre:</div>
+    <div class="score-label">SKÓRE:</div>
     <div class="score">
       <span class="good" id="score-good">0</span>
       <span class="bad" id="score-bad">0</span>
@@ -182,9 +190,9 @@
 
   </br>
 
-<div id="gif-container" style="position:fixed;left:10px;top:10px;z-index:999;display:none;">
-  <img id="gif-animation" src="dance1.gif" style="height:100px;" />
-</div>
+<div id="gif-container" style="position:fixed;top:60px;left:50%;transform:translateX(-220px);z-index:999;display:none;"><img id="gif-animation" src="dance1.gif" style="height:100px;" /></div>
+
+
 <audio id="special-audio" src="music1.mp3"></audio>
 
 
@@ -206,6 +214,7 @@
   <div id="history-list" style="font-size: 24px;"></div>
 </div>
 
+<div id="medal-animation" style="position: fixed; top: -100px; left: 50%; transform: translateX(-50%); font-size: 80px; z-index: 9999; pointer-events: none; display: none;"></div>
 
 
   <canvas id="fireworks"></canvas>
@@ -330,7 +339,7 @@ function startGame(mode) {
 
           if (key.toLowerCase() === correctChar.toLowerCase()) {
             userInput.push(key);
-            scoreGood++; addProgress(1);
+            scoreGood++; addProgress(1); checkCelebrationTrigger(scoreGood);
             playSound('sound-correct');
             updateScoreDisplay();
             updateDisplay();
@@ -431,7 +440,7 @@ function startGame(mode) {
 
       if (isCorrect) {
 		  img.style.filter = 'brightness(0.6) sepia(1) hue-rotate(90deg) saturate(4)';
-		  scoreGood++; addProgress(3);
+		  scoreGood++; addProgress(3); checkCelebrationTrigger(scoreGood);
 		  updateScoreDisplay();
 		  playSound('sound-win');
 		  launchFireworks();
@@ -568,7 +577,7 @@ function handleMathKey(e) {
   }
 
   if (userInput.join('') === correctAnswer.toString()) {
-    scoreGood++; addProgress(3);
+    scoreGood++; addProgress(3); checkCelebrationTrigger(scoreGood);
     updateScoreDisplay();
     playSound('sound-win');
     launchFireworks();
@@ -708,15 +717,15 @@ document.getElementById('mobile-input').addEventListener('input', (e) => {
 
 
 // animace tanec
-
 let lastCelebrationScore = 0;
 
-function checkCelebrationTrigger() {
-  if (scoreGood > 0 && scoreGood % 10 === 0 && scoreGood !== lastCelebrationScore) {
-    lastCelebrationScore = scoreGood;
+function checkCelebrationTrigger(score) {
+  if (score > 0 && score % 10 === 0 && score !== lastCelebrationScore) {
+    lastCelebrationScore = score;
     showCelebration();
   }
 }
+
 
 function showCelebration() {
   const gifContainer = document.getElementById('gif-container');
@@ -758,8 +767,6 @@ function showCelebration() {
 
 
 
-// Spouští kontrolu každých 500ms
-setInterval(checkCelebrationTrigger, 500);
 
 // Zvětšování skóre
 
@@ -841,22 +848,22 @@ function addMedal() {
   medalAudio.currentTime = 0;
   medalAudio.play();
 
-  // Přidání medaile podle barvy progress baru
   if (progressLayer === 0) {
     medals.bronze += 1;
+    animateMedal("bronze");
   } else if (progressLayer === 1) {
     medals.silver += 1;
+    animateMedal("silver");
   } else if (progressLayer === 2) {
     medals.gold += 1;
+    animateMedal("gold");
   }
 
-  // Proměna 3 bronzových → 1 stříbrná
   while (medals.bronze >= 3) {
     medals.bronze -= 3;
     medals.silver += 1;
   }
 
-  // Proměna 3 stříbrných → 1 zlatá
   while (medals.silver >= 3) {
     medals.silver -= 3;
     medals.gold += 1;
@@ -898,6 +905,37 @@ function loadMedals() {
 saveMedalsToHistoryIfNewDay();
 loadMedals();
 updateProgressBar();
+
+
+// ANIMACE medaile
+
+function animateMedal(type) {
+  const anim = document.getElementById("medal-animation");
+  const emoji = type === "gold" ? "🥇" : type === "silver" ? "🥈" : "🥉";
+
+  anim.textContent = emoji;
+  anim.style.display = "block";
+  anim.style.opacity = "1";
+  anim.style.top = "-100px";
+  anim.style.transform = "translateX(-50%) scale(1) rotate(0deg)";
+
+  // spustit pád a náraz
+  anim.animate([
+    { top: "-100px", transform: "translateX(-50%) scale(0.5) rotate(0deg)", opacity: 0 },
+    { top: "50vh", transform: "translateX(-50%) scale(1.5) rotate(720deg)", opacity: 1 },
+    { top: "60vh", transform: "translateX(-50%) scale(1) rotate(0deg)", opacity: 1 },
+  ], {
+    duration: 1000,
+    easing: "ease-out"
+  });
+
+  // skryj po dopadu
+  setTimeout(() => {
+    anim.style.display = "none";
+  }, 1200);
+}
+
+
 
 
 // HISTORIE
