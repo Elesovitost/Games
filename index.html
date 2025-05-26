@@ -1,3 +1,5 @@
+  <!--Musí se měnit řádka se seznamem slov a dále počet animací a skladeb -->
+
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -150,6 +152,8 @@
       border: 2px solid #333;
       transition: filter 0.3s ease, border 0.2s;
     }
+	
+	
   </style>
 </head>
 <body>
@@ -170,6 +174,12 @@
   </div>
   
 </div>
+
+<div id="gif-container" style="position:fixed;left:10px;top:10px;z-index:999;display:none;">
+  <img id="gif-animation" src="dance1.gif" style="height:100px;" />
+</div>
+<audio id="special-audio" src="music1.mp3"></audio>
+
 
 <input id="mobile-input" type="text" inputmode="text" style="position:fixed;top:100vh;left:0;width:1px;height:1px;opacity:0;border:none;z-index:-1;" />
 
@@ -679,6 +689,101 @@ document.getElementById('mobile-input').addEventListener('input', (e) => {
   if (currentMode === 'writing') handleKey({ key: char });
   else if (currentMode === 'math') handleMathKey({ key: char });
 });
+
+
+// animace tanec
+
+let lastCelebrationScore = 0;
+
+function checkCelebrationTrigger() {
+  if (scoreGood > 0 && scoreGood % 10 === 0 && scoreGood !== lastCelebrationScore) {
+    lastCelebrationScore = scoreGood;
+    showCelebration();
+  }
+}
+
+function showCelebration() {
+  const gifContainer = document.getElementById('gif-container');
+  const gif = document.getElementById('gif-animation');
+
+  // === Animace ===
+  const gifCount = 7; // např. dance1.gif až dance5.gif
+  const randomGif = Math.floor(Math.random() * gifCount) + 1;
+  gif.src = `dance${randomGif}.gif`;
+
+  // === Hudba ===
+  const musicCount = 2; // např. music1.mp3 až music4.mp3
+  const randomMusic = Math.floor(Math.random() * musicCount) + 1;
+  const audio = new Audio(`music${randomMusic}.mp3`);
+  audio.volume = 1;
+  audio.play().catch(() => {});
+
+  // Zobrazit animaci
+  gifContainer.style.display = 'block';
+
+  // Spustit fade-out ve 4. sekundě
+  setTimeout(() => {
+    const fadeInterval = setInterval(() => {
+      if (audio.volume > 0.05) {
+        audio.volume -= 0.05;
+      } else {
+        audio.volume = 0;
+        audio.pause();
+        clearInterval(fadeInterval);
+      }
+    }, 50); // každých 50 ms sníží hlasitost
+  }, 4000);
+
+  // Skryj animaci po 5 sekundách
+  setTimeout(() => {
+    gifContainer.style.display = 'none';
+  }, 5000);
+}
+
+
+
+// Spouští kontrolu každých 500ms
+setInterval(checkCelebrationTrigger, 500);
+
+// Zvětšování skóre
+
+function updateScoreStyle() {
+  const el = document.getElementById('score-good');
+  const baseSize = 20;
+  const layers = Math.floor(scoreGood / 10);
+
+  // Nová velikost písma (4px za každých 10 bodů)
+  el.style.fontSize = `${baseSize + 4 * layers}px`;
+
+  // Generování vrstveného žlutého obrysu se zvyšující se světelností
+  const outline = [];
+  for (let i = 1; i <= layers; i++) {
+    const offset = 2 * i; // 2px, 4px, 6px, ...
+    const lightness = 40 + i * 10; // 50%, 60%, 70%, ...
+    const color = `hsl(60, 100%, ${Math.min(lightness, 90)}%)`; // max 90%
+
+    outline.push(
+      `${offset}px ${offset}px 0 ${color}`,
+      `-${offset}px ${offset}px 0 ${color}`,
+      `${offset}px -${offset}px 0 ${color}`,
+      `-${offset}px -${offset}px 0 ${color}`
+    );
+  }
+
+  el.style.textShadow = outline.join(', ');
+}
+
+
+let lastStyleScore = 0;
+
+function checkScoreStyleUpdate() {
+  if (scoreGood !== lastStyleScore && scoreGood % 10 === 0) {
+    lastStyleScore = scoreGood;
+    updateScoreStyle();
+  }
+}
+
+setInterval(checkScoreStyleUpdate, 500);
 
 
 
