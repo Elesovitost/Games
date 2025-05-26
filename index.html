@@ -161,6 +161,64 @@
       transition: filter 0.3s ease, border 0.2s;
     }
 	
+
+#progress-bar-container {
+  margin-top: 10px;
+  margin-bottom: 20px;
+  width: 300px;
+  height: 24px;
+  border: 2px solid #fff;
+  margin-inline: auto;
+  position: relative;
+  background: linear-gradient(to right, #222, #111);
+  border-radius: 14px;
+  box-shadow: inset 0 0 4px #000, 0 0 10px #00ffc055;
+  overflow: hidden;
+}
+
+#progress-fill-green,
+#progress-fill-blue,
+#progress-fill-purple {
+  height: 100%;
+  width: 0%;
+  position: absolute;
+  left: 0;
+  border-radius: 14px 0 0 14px;
+  z-index: 1;
+  transition: width 0.4s ease-in-out;
+  opacity: 0.95;
+}
+
+#progress-fill-green {
+  background: linear-gradient(to right, #00ff88, #007744);
+  box-shadow: inset 0 0 4px #00ff88, 0 0 6px #00ff88aa;
+}
+
+#progress-fill-blue {
+  background: linear-gradient(to right, #3399ff, #003355);
+  box-shadow: inset 0 0 4px #3399ff, 0 0 6px #3399ffaa;
+}
+
+#progress-fill-purple {
+  background: linear-gradient(to right, #cc66ff, #4b0066);
+  box-shadow: inset 0 0 4px #cc66ff, 0 0 6px #cc66ffaa;
+}
+
+@keyframes pulse-3x {
+  0% { transform: scale(1); }
+  16% { transform: scale(2); }
+  33% { transform: scale(1); }
+  50% { transform: scale(2); }
+  66% { transform: scale(1); }
+  83% { transform: scale(2); }
+  100% { transform: scale(1); }
+}
+
+.pulsing {
+  animation: pulse-3x 0.6s ease-in-out;
+}
+
+
 	
   </style>
 </head>
@@ -183,10 +241,13 @@
   
 </div>
 
-<div id="progress-bar-container" style="margin-top: 10px; margin-bottom: 20px; width: 300px; height: 24px; border: 2px solid #aaa; margin-inline: auto; position: relative; background: #f8f8f8; border-radius: 12px;">
-  <div id="progress-bar-fill" style="height: 100%; width: 0%; background-color: green; border-radius: 12px 0 0 12px;"></div>
+<div id="progress-bar-container" style="margin-top: 10px; margin-bottom: 20px; width: 300px; height: 24px; border: 2px solid #aaa; margin-inline: auto; position: relative; background: #f8f8f8; border-radius: 12px; overflow: hidden;">
+  <div id="progress-fill-green" style="height: 100%; width: 0%; position: absolute; left: 0; background-color: green; border-radius: 12px 0 0 12px; z-index: 1; transition: width 0.3s ease;"></div>
+  <div id="progress-fill-blue" style="height: 100%; width: 0%; position: absolute; left: 0; background-color: dodgerblue; border-radius: 12px 0 0 12px; z-index: 2; transition: width 0.3s ease;"></div>
+  <div id="progress-fill-purple" style="height: 100%; width: 0%; position: absolute; left: 0; background-color: purple; border-radius: 12px 0 0 12px; z-index: 3; transition: width 0.3s ease;"></div>
   <span style="position: absolute; right: -32px; top: 0; font-size: 24px;"> 🏅</span>
 </div>
+
 
   </br>
 
@@ -721,10 +782,17 @@ let lastCelebrationScore = 0;
 function checkCelebrationTrigger(score) {
   if (score > 0 && score % 10 === 0 && score !== lastCelebrationScore) {
     lastCelebrationScore = score;
-    showCelebration();
+
+    const medalAudio = new Audio("medal.mp3");
+    medalAudio.play().catch(() => {});
+
+    updateScoreStyle(); // zvětšení čísla
   }
 }
 
+
+
+// TADY TADY TADY TADY																						TADY TADY animace POČET 
 
 function showCelebration() {
   const gifContainer = document.getElementById('gif-container');
@@ -736,7 +804,7 @@ function showCelebration() {
   gif.src = `dance${randomGif}.gif`;
 
   // === Hudba ===
-  const musicCount = 3; // např. music1.mp3 až music4.mp3
+  const musicCount = 5; // např. music1.mp3 až music4.mp3
   const randomMusic = Math.floor(Math.random() * musicCount) + 1;
   const audio = new Audio(`music${randomMusic}.mp3`);
   audio.volume = 1;
@@ -766,7 +834,6 @@ function showCelebration() {
 
 
 
-
 // Zvětšování skóre
 
 function updateScoreStyle() {
@@ -775,14 +842,14 @@ function updateScoreStyle() {
   const layers = Math.floor(scoreGood / 10);
 
   // Nová velikost písma (4px za každých 10 bodů)
-  el.style.fontSize = `${baseSize + 4 * layers}px`;
+  el.style.fontSize = `${baseSize + 1 * layers}px`;
 
   // Generování vrstveného žlutého obrysu se zvyšující se světelností
   const outline = [];
   for (let i = 1; i <= layers; i++) {
-    const offset = 2 * i; // 2px, 4px, 6px, ...
+    const offset = 1 * i; // 2px, 4px, 6px, ...
     const lightness = 40 + i * 10; // 50%, 60%, 70%, ...
-    const color = `hsl(60, 100%, ${Math.min(lightness, 90)}%)`; // max 90%
+    const color = `hsl(60, 100%, ${Math.min(lightness, 50)}%)`; // max 90%
 
     outline.push(
       `${offset}px ${offset}px 0 ${color}`,
@@ -817,7 +884,7 @@ const medalAudio = new Audio("medal.mp3");
 
 function addProgress(points) {
   progressPoints += points;
-	if (progressPoints >= 20) {
+	if (progressPoints >= 15) {
 	  progressPoints = 0;
 	  addMedal();
 	  progressLayer = (progressLayer + 1) % 3; // zelená → modrá → fialová → zelená
@@ -829,12 +896,29 @@ function addProgress(points) {
 
 
 function updateProgressBar() {
-  const fill = document.getElementById("progress-bar-fill");
-  fill.style.width = `${(progressPoints / 20) * 100}%`;
+  const base = 15;
+  const percent = (progressPoints / base) * 100;
 
-  const colors = ["green", "dodgerblue", "purple"];
-  fill.style.backgroundColor = colors[progressLayer];
+  const green = document.getElementById("progress-fill-green");
+  const blue = document.getElementById("progress-fill-blue");
+  const purple = document.getElementById("progress-fill-purple");
+
+  green.style.width = "0%";
+  blue.style.width = "0%";
+  purple.style.width = "0%";
+
+  if (progressLayer === 0) {
+    green.style.width = `${percent}%`;
+  } else if (progressLayer === 1) {
+    green.style.width = "100%";
+    blue.style.width = `${percent}%`;
+  } else if (progressLayer === 2) {
+    green.style.width = "100%";
+    blue.style.width = "100%";
+    purple.style.width = `${percent}%`;
+  }
 }
+
 
 function resetProgressBar() {
   progressPoints = 0;
@@ -844,8 +928,6 @@ function resetProgressBar() {
 
 
 function addMedal() {
-  medalAudio.currentTime = 0;
-  medalAudio.play();
 
   if (progressLayer === 0) {
     medals.bronze += 1;
@@ -870,6 +952,7 @@ function addMedal() {
 
   updateMedals();
   saveMedals();
+  showCelebration();
 }
 
 
