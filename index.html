@@ -168,6 +168,7 @@
       <span class="bad" id="score-bad">0</span>
     </div>
   </div>
+  
 </div>
 
 <input id="mobile-input" type="text" inputmode="text" style="position:fixed;top:100vh;left:0;width:1px;height:1px;opacity:0;border:none;z-index:-1;" />
@@ -403,42 +404,40 @@ function startGame(mode) {
       all.forEach(el => el.style.pointerEvents = 'none');
 
       if (isCorrect) {
-  img.style.filter = 'brightness(0.6) sepia(1) hue-rotate(90deg) saturate(4)';
-  scoreGood++;
-  updateScoreDisplay();
-  playSound('sound-win');
-  launchFireworks();
-  setTimeout(() => {
-    stopFireworks();
-    if (currentMode === 'reading') {
-      loadReadingTask();
-    }
-  }, 2000);
-}
-else {
-  img.style.filter = 'brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)';
-  scoreBad++;
-  updateScoreDisplay();
-  playSound('sound-wrong');
-  setTimeout(() => {
-    if (currentMode === 'reading') {
-      loadReadingTask();
-    }
-  }, 1000);
-}
-
+		  img.style.filter = 'brightness(0.6) sepia(1) hue-rotate(90deg) saturate(4)';
+		  scoreGood++;
+		  updateScoreDisplay();
+		  playSound('sound-win');
+		  launchFireworks();
+		  setTimeout(() => {
+			stopFireworks();
+			if (currentMode === 'reading') {
+			  loadReadingTask();
+			}
+		  }, 2000);
+		} else {
+		  img.style.filter = 'brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)';
+		  scoreBad++;
+		  updateScoreDisplay();
+		  playSound('sound-wrong');
+		  setTimeout(() => {
+			if (currentMode === 'reading') {
+			  loadReadingTask();
+			}
+		  }, 1000);
+		}
     }
 
-function loadMathTask() {
-let a = Math.floor(Math.random() * 9) + 2;
-let b = Math.floor(Math.random() * 9) + 2;
-const op = Math.random() > 0.5 ? '+' : '-';
+	function loadMathTask() {
+	let a = Math.floor(Math.random() * 9) + 2;
+	let b = Math.floor(Math.random() * 9) + 2;
+	const op = Math.random() > 0.5 ? '+' : '-';
 
-if (op === '-' && b > a) {
-  [a, b] = [b, a]; // prohodíme, aby výsledek nebyl záporný
-}
+	if (op === '-' && b > a) {
+	  [a, b] = [b, a]; // prohodíme, aby výsledek nebyl záporný
+	}
 
-correctAnswer = op === '+' ? a + b : a - b;
+	correctAnswer = op === '+' ? a + b : a - b;
 
   userInput = [];
   isLocked = false;
@@ -446,53 +445,68 @@ correctAnswer = op === '+' ? a + b : a - b;
   const taskDiv = document.getElementById('math-task');
   taskDiv.innerHTML = '';
 
-  // Číselná řada
-  const row = document.createElement('div');
-  row.className = 'math-row';
+// Číselná řada – nová verze
+// hlavní obal
+const container = document.createElement('div');
+container.style.display = 'flex';
+container.style.flexDirection = 'column';
+container.style.alignItems = 'center';
+container.style.gap = '20px';
 
-	const colA = document.createElement('div');
-	colA.className = 'math-column';
+// horní řádek – číslo + znaménko + číslo (vše zarovnané vertikálně na střed)
+const topRow = document.createElement('div');
+topRow.style.display = 'flex';
+topRow.style.alignItems = 'center';
+topRow.style.justifyContent = 'center';
+topRow.style.gap = '40px';
 
-	const divA = document.createElement('div');
-	divA.textContent = a;
-	colA.appendChild(divA);
+const numberA = document.createElement('div');
+numberA.textContent = a;
+numberA.style.fontSize = '48px';
 
-	const applesA = document.createElement('div');
-	applesA.className = 'apple-group';
-	for (let i = 0; i < a; i++) {
-	  const apple = document.createElement('div');
-	  apple.textContent = '🍎';
-	  applesA.appendChild(apple);
-	}
-	colA.appendChild(applesA);
+const operator = document.createElement('div');
+operator.textContent = op;
+operator.style.fontSize = '48px';
 
+const numberB = document.createElement('div');
+numberB.textContent = b;
+numberB.style.fontSize = '48px';
 
-  const colOp = document.createElement('div');
-  colOp.innerHTML = op;
+topRow.appendChild(numberA);
+topRow.appendChild(operator);
+topRow.appendChild(numberB);
 
-	const colB = document.createElement('div');
-	colB.className = 'math-column';
+// spodní řádek – jablka, mohou být různě vysoká
+const bottomRow = document.createElement('div');
+bottomRow.style.display = 'flex';
+bottomRow.style.justifyContent = 'center';
+bottomRow.style.gap = '80px'; // víc místa, aby bylo pod čísly
 
-	const divB = document.createElement('div');
-	divB.textContent = b;
-	colB.appendChild(divB);
+const applesA = document.createElement('div');
+applesA.className = 'apple-group';
+for (let i = 0; i < a; i++) {
+  const apple = document.createElement('div');
+  apple.textContent = '🍎';
+  applesA.appendChild(apple);
+}
 
-
-  const applesB = document.createElement('div');
-  applesB.className = 'apple-group';
+const applesB = document.createElement('div');
+applesB.className = 'apple-group';
 for (let i = 0; i < b; i++) {
   const apple = document.createElement('div');
   apple.textContent = '🍎';
   applesB.appendChild(apple);
 }
 
-  colB.appendChild(applesB);
+bottomRow.appendChild(applesA);
+bottomRow.appendChild(applesB);
 
-  row.appendChild(colA);
-  row.appendChild(colOp);
-  row.appendChild(colB);
+// složení dohromady
+container.appendChild(topRow);
+container.appendChild(bottomRow);
+taskDiv.appendChild(container);
 
-  taskDiv.appendChild(row);
+
 
   // Okénka pro výsledek
   const lettersDiv = document.createElement('div');
