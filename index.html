@@ -175,6 +175,13 @@
   
 </div>
 
+<div id="progress-bar-container" style="margin-top: 10px; margin-bottom: 20px; width: 300px; height: 24px; border: 2px solid #aaa; margin-inline: auto; position: relative; background: #f8f8f8; border-radius: 12px;">
+  <div id="progress-bar-fill" style="height: 100%; width: 0%; background-color: green; border-radius: 12px 0 0 12px;"></div>
+  <span style="position: absolute; right: -32px; top: 0; font-size: 24px;"> 🏅</span>
+</div>
+
+  </br>
+
 <div id="gif-container" style="position:fixed;left:10px;top:10px;z-index:999;display:none;">
   <img id="gif-animation" src="dance1.gif" style="height:100px;" />
 </div>
@@ -190,6 +197,15 @@
   <div id="reading-word"></div>
   <div id="reading-options"></div>
   <div id="math-task"></div>
+
+<h5 id="medals-today-title" style="margin-top: 30px; margin-bottom: 6px;">DNES</h5>
+<div id="medals-container" style="font-size: 32px;"></div>
+
+<div id="history-container" style="margin-top: 30px;">
+  <h5 id="history-title">DŘÍVE</h5>
+  <div id="history-list" style="font-size: 24px;"></div>
+</div>
+
 
 
   <canvas id="fireworks"></canvas>
@@ -314,13 +330,13 @@ function startGame(mode) {
 
           if (key.toLowerCase() === correctChar.toLowerCase()) {
             userInput.push(key);
-            scoreGood++;
+            scoreGood++; addProgress(1);
             playSound('sound-correct');
             updateScoreDisplay();
             updateDisplay();
           } else {
             userInput.push(key);
-            scoreBad++;
+            scoreBad++; resetProgressBar();
             playSound('sound-wrong');
             updateScoreDisplay();
             updateDisplay();
@@ -415,7 +431,7 @@ function startGame(mode) {
 
       if (isCorrect) {
 		  img.style.filter = 'brightness(0.6) sepia(1) hue-rotate(90deg) saturate(4)';
-		  scoreGood++;
+		  scoreGood++; addProgress(3);
 		  updateScoreDisplay();
 		  playSound('sound-win');
 		  launchFireworks();
@@ -427,7 +443,7 @@ function startGame(mode) {
 		  }, 2000);
 		} else {
 		  img.style.filter = 'brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)';
-		  scoreBad++;
+		  scoreBad++; resetProgressBar();
 		  updateScoreDisplay();
 		  playSound('sound-wrong');
 		  setTimeout(() => {
@@ -552,7 +568,7 @@ function handleMathKey(e) {
   }
 
   if (userInput.join('') === correctAnswer.toString()) {
-    scoreGood++;
+    scoreGood++; addProgress(3);
     updateScoreDisplay();
     playSound('sound-win');
     launchFireworks();
@@ -565,7 +581,7 @@ setTimeout(() => {
 }, 2000);
 
   } else if (userInput.length === correctAnswer.toString().length) {
-  scoreBad++;
+  scoreBad++; resetProgressBar();
   updateScoreDisplay();
   playSound('sound-wrong');
   if (currentMode === 'math') {
@@ -785,6 +801,176 @@ function checkScoreStyleUpdate() {
 
 setInterval(checkScoreStyleUpdate, 500);
 
+// ACHIEVEMENTS 
+
+let progressPoints = 0;
+let progressLayer = 0; // 0 = green, 1 = blue, 2 = purple, pak reset na 0
+let medals = { bronze: 0, silver: 0, gold: 0 };
+
+const medalAudio = new Audio("medal.mp3");
+
+function addProgress(points) {
+  progressPoints += points;
+	if (progressPoints >= 20) {
+	  progressPoints = 0;
+	  addMedal();
+	  progressLayer = (progressLayer + 1) % 3; // zelená → modrá → fialová → zelená
+	}
+
+  updateProgressBar();
+  saveMedals();
+}
+
+
+function updateProgressBar() {
+  const fill = document.getElementById("progress-bar-fill");
+  fill.style.width = `${(progressPoints / 20) * 100}%`;
+
+  const colors = ["green", "dodgerblue", "purple"];
+  fill.style.backgroundColor = colors[progressLayer];
+}
+
+function resetProgressBar() {
+  progressPoints = 0;
+  progressLayer = 0; // zpět na zelenou
+  updateProgressBar();
+}
+
+
+function addMedal() {
+  medalAudio.currentTime = 0;
+  medalAudio.play();
+
+  // Přidání medaile podle barvy progress baru
+  if (progressLayer === 0) {
+    medals.bronze += 1;
+  } else if (progressLayer === 1) {
+    medals.silver += 1;
+  } else if (progressLayer === 2) {
+    medals.gold += 1;
+  }
+
+  // Proměna 3 bronzových → 1 stříbrná
+  while (medals.bronze >= 3) {
+    medals.bronze -= 3;
+    medals.silver += 1;
+  }
+
+  // Proměna 3 stříbrných → 1 zlatá
+  while (medals.silver >= 3) {
+    medals.silver -= 3;
+    medals.gold += 1;
+  }
+
+  updateMedals();
+  saveMedals();
+}
+
+
+
+function updateMedals() {
+  const container = document.getElementById("medals-container");
+  container.innerHTML =
+    "🥇".repeat(medals.gold) +
+    "🥈".repeat(medals.silver) +
+    "🥉".repeat(medals.bronze);
+
+  const hasAny = medals.gold || medals.silver || medals.bronze;
+  document.getElementById("medals-today-title").style.display = hasAny ? "block" : "none";
+}
+
+
+
+function saveMedals() {
+  document.cookie = `medals=${JSON.stringify(medals)};path=/;max-age=31536000`;
+}
+
+function loadMedals() {
+  const match = document.cookie.match(/medals=([^;]+)/);
+  if (match) {
+    try {
+      medals = JSON.parse(match[1]);
+      updateMedals();
+    } catch {}
+  }
+}
+
+saveMedalsToHistoryIfNewDay();
+loadMedals();
+updateProgressBar();
+
+
+// HISTORIE
+
+function getTodayDateStr() {
+  return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+function saveMedalsToHistoryIfNewDay() {
+  const today = getTodayDateStr();
+  const lastDate = localStorage.getItem("medals-date");
+
+  if (lastDate && lastDate !== today) {
+    // Přesunout aktuální medaile do historie
+    const previous = { date: lastDate, ...medals };
+    let history = JSON.parse(localStorage.getItem("medals-history") || "[]");
+    history.push(previous);
+
+    // Seřadit a zkrátit na 5 dní
+    history.sort((a, b) => {
+      if (b.gold !== a.gold) return b.gold - a.gold;
+      if (b.silver !== a.silver) return b.silver - a.silver;
+      return b.bronze - a.bronze;
+    });
+    history = history.slice(0, 5);
+
+    localStorage.setItem("medals-history", JSON.stringify(history));
+
+    // Reset aktuálních medailí
+    medals = { gold: 0, silver: 0, bronze: 0 };
+    saveMedals();
+  }
+
+  // Zapsat nové datum
+  localStorage.setItem("medals-date", today);
+  updateHistory();
+}
+
+function updateHistory() {
+  const container = document.getElementById("history-list");
+  const history = JSON.parse(localStorage.getItem("medals-history") || "[]");
+
+  let html = "";
+
+  for (let i = 0; i < history.length; i++) {
+    const entry = history[i];
+    html += '<div style="margin-bottom: 6px;">';
+    html += '🥇' + (entry.gold || 0) + ' ';
+    html += '🥈' + (entry.silver || 0) + ' ';
+    html += '🥉' + (entry.bronze || 0);
+    html += '<span style="float: right; font-size: 16px; color: #555;">' + entry.date + '</span>';
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+  document.getElementById("history-title").style.display = history.length > 0 ? "block" : "none";
+}
+
+
+
+// reset medailí
+function resetTodayMedals() {
+  medals = { gold: 0, silver: 0, bronze: 0 };
+  saveMedals();
+  updateMedals();
+  console.log("Dnešní medaile byly resetovány.");
+}
+
+document.addEventListener("keydown", function(e) {
+  if (e.altKey && e.key.toLowerCase() === "r") {
+    resetTodayMedals();
+  }
+});
 
 
   </script>
