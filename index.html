@@ -1144,17 +1144,21 @@ function updateHistory() {
 
   for (let i = 0; i < history.length; i++) {
     const entry = history[i];
-    html += '<div style="margin-bottom: 6px;">';
-    html += '🥇' + (entry.gold || 0) + ' ';
-    html += '🥈' + (entry.silver || 0) + ' ';
-    html += '🥉' + (entry.bronze || 0);
-    html += '<span style="float: right; font-size: 16px; color: #555;">' + entry.date + '</span>';
-    html += '</div>';
+
+    const golds = "🥇".repeat(entry.gold || 0);
+    const silvers = "🥈".repeat(entry.silver || 0);
+    const bronzes = "🥉".repeat(entry.bronze || 0);
+
+    html += '<div style="margin-bottom: 6px; display: inline-block; font-size: 24px;">';
+    html += `${golds}${silvers}${bronzes}`;
+    html += `<span style="margin-left: 10px; font-size: 16px; color: #555;">${entry.date}</span>`;
+    html += '</div><br>';
   }
 
   container.innerHTML = html;
   document.getElementById("history-title").style.display = history.length > 0 ? "block" : "none";
 }
+
 
 
 
@@ -1169,6 +1173,13 @@ function resetTodayMedals() {
 document.addEventListener("keydown", function(e) {
   if (e.altKey && e.key.toLowerCase() === "r") {
     resetTodayMedals();
+  }
+
+  if (e.altKey && e.key.toLowerCase() === "p") {
+    scoreGood++;
+    updateScoreDisplay();
+    addProgress(1);
+    checkCelebrationTrigger(scoreGood);
   }
 });
 
