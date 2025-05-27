@@ -133,6 +133,9 @@
 	  animation: pop-in 0.2s ease-out;
 	}
 
+	.image-pop {
+	  animation: pop-in 0.2s ease-out;
+	}
 
 
     .correct { border-color: green; color: green; }
@@ -337,6 +340,7 @@
     let scoreGood = 0;
     let scoreBad = 0;
     let isLocked = false;
+	let lastInputLength = 0;
 	let currentMode = null;
 	let correctAnswer = null;
 	const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -453,7 +457,8 @@ function startGame(mode) {
       }
     }
 
- function updateDisplay() {
+
+function updateDisplay() {
   const letters = document.getElementById('letters').children;
 
   for (let i = 0; i < currentWord.length; i++) {
@@ -470,18 +475,16 @@ function startGame(mode) {
       box.className = 'letter-box incorrect';
     }
 
-    // 🔥 přidat animaci po každém novém písmenu
-    if (i === userInput.length - 1 && inputChar) {
+    // Poskočení pouze při novém zadání znaku (ne při mazání)
+    if (i === userInput.length - 1 && inputChar && userInput.length > lastInputLength) {
       box.classList.add('letter-pop');
-
-      // po dokončení animace odebrat třídu, aby mohla být opět použita
       box.addEventListener('animationend', () => {
         box.classList.remove('letter-pop');
       }, { once: true });
     }
   }
 
-  // kontrola správnosti slova zůstává nezměněná
+  // Pokud je celé slovo správně
   if (
     userInput.length === currentWord.length &&
     userInput.join('').toLowerCase() === currentWord.toLowerCase()
@@ -497,7 +500,11 @@ function startGame(mode) {
       }
     }, 2000);
   }
+
+  // Záznam délky vstupu pro další srovnání
+  lastInputLength = userInput.length;
 }
+
 
 
     function loadReadingTask() {
@@ -534,6 +541,13 @@ function startGame(mode) {
     }
 
     function handleReadingClick(img, isCorrect) {
+	
+		// Animace poskočení obrázku
+	img.classList.add('image-pop');
+	img.addEventListener('animationend', () => {
+	  img.classList.remove('image-pop');
+	}, { once: true });
+
       const all = document.querySelectorAll('#reading-options img');
       all.forEach(el => el.style.pointerEvents = 'none');
 
@@ -554,10 +568,11 @@ function startGame(mode) {
 		  scoreBad++; resetProgressBar();
 		  updateScoreDisplay();
 		  playSound('sound-wrong');
+
+		  // Znovupovolení klikání na ostatní obrázky
 		  setTimeout(() => {
-			if (currentMode === 'reading') {
-			  loadReadingTask();
-			}
+			const all = document.querySelectorAll('#reading-options img');
+			all.forEach(el => el.style.pointerEvents = 'auto');
 		  }, 1000);
 		}
     }
@@ -688,29 +703,42 @@ setTimeout(() => {
   }
 }, 2000);
 
-  } else if (userInput.length === correctAnswer.toString().length) {
-  scoreBad++; resetProgressBar();
-  updateScoreDisplay();
-  playSound('sound-wrong');
-  if (currentMode === 'math') {
-    markMathIncorrect();
-  }
-  isLocked = true;
-  setTimeout(() => {
-    if (currentMode === 'math') {
-      loadMathTask();
-    }
-  }, 1000);
-}
+	} else if (userInput.length === correctAnswer.toString().length) {
+	  scoreBad++;
+	  resetProgressBar();
+	  updateScoreDisplay();
+	  playSound('sound-wrong');
+	  markMathIncorrect();
+
+	  // Smaž odpověď a dovol zkusit znovu, ale nech příklad beze změny
+	  isLocked = true;
+	  setTimeout(() => {
+		userInput = [];
+		updateMathDisplay();
+		isLocked = false;
+	  }, 1000);
+	}
+
 }
 
 function updateMathDisplay() {
   const boxes = document.querySelectorAll('#letters .letter-box');
   for (let i = 0; i < boxes.length; i++) {
     boxes[i].textContent = userInput[i] || '';
+
+    // základní třída
     boxes[i].className = 'letter-box';
+
+    // přidej animaci jen nově zapsanému znaku
+    if (i === userInput.length - 1 && userInput[i]) {
+      boxes[i].classList.add('letter-pop');
+      boxes[i].addEventListener('animationend', () => {
+        boxes[i].classList.remove('letter-pop');
+      }, { once: true });
+    }
   }
 }
+
 
 function markMathIncorrect() {
   const boxes = document.querySelectorAll('#letters .letter-box');
@@ -942,21 +970,21 @@ function updateProgressBar() {
   const blue = document.getElementById("progress-fill-blue");
   const purple = document.getElementById("progress-fill-purple");
 
-  green.style.width = "0%";
-  blue.style.width = "0%";
-  purple.style.width = "0%";
-
   if (progressLayer === 0) {
     green.style.width = `${percent}%`;
+    blue.style.width = "0%";
+    purple.style.width = "0%";
   } else if (progressLayer === 1) {
     green.style.width = "100%";
     blue.style.width = `${percent}%`;
+    purple.style.width = "0%";
   } else if (progressLayer === 2) {
     green.style.width = "100%";
     blue.style.width = "100%";
     purple.style.width = `${percent}%`;
   }
 }
+
 
 
 function resetProgressBar() {
