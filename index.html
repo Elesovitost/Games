@@ -941,7 +941,7 @@ document.getElementById('mobile-input').addEventListener('input', (e) => {
 let lastCelebrationScore = 0;
 
 function checkCelebrationTrigger(score) {
-  if (score > 0 && score % 10 === 0 && score !== lastCelebrationScore) {
+  if (score > 0 && score % 100 === 0 && score !== lastCelebrationScore) {
     lastCelebrationScore = score;
 
     const medalAudio = new Audio("medal.mp3");
