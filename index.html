@@ -111,15 +111,29 @@
     .score .good { color: green; margin-right: 10px; }
     .score .bad { color: red; }
 
-    .letter-box {
-      display: inline-block;
-      width: 40px;
-      height: 40px;
-      border: 1px solid #ccc;
-      font-size: 30px;
-      line-height: 40px;
-      margin: 2px;
-    }
+	.letter-box {
+	  display: inline-block;
+	  width: 40px;
+	  height: 40px;
+	  border: 1px solid #ccc;
+	  font-size: 30px;
+	  line-height: 40px;
+	  margin: 2px;
+	  text-align: center;
+	  vertical-align: middle;
+	}
+
+	@keyframes pop-in {
+	  0%   { transform: scale(1); }
+	  40%  { transform: scale(1.3); }
+	  100% { transform: scale(1); }
+	}
+
+	.letter-pop {
+	  animation: pop-in 0.2s ease-out;
+	}
+
+
 
     .correct { border-color: green; color: green; }
     .incorrect { border-color: red; color: red; }
@@ -217,6 +231,19 @@
 .pulsing {
   animation: pulse-3x 0.6s ease-in-out;
 }
+
+@@keyframes screen-shake {
+  0% { transform: translate(0px, 0px); }
+  25% { transform: translate(4px, -4px); }
+  50% { transform: translate(-4px, 4px); }
+  75% { transform: translate(4px, 4px); }
+  100% { transform: translate(0px, 0px); }
+}
+
+.shake {
+  animation: screen-shake 0.3s ease-in-out;
+}
+
 
 
 	
@@ -426,40 +453,52 @@ function startGame(mode) {
       }
     }
 
-    function updateDisplay() {
-      const letters = document.getElementById('letters').children;
+ function updateDisplay() {
+  const letters = document.getElementById('letters').children;
 
-      for (let i = 0; i < currentWord.length; i++) {
-        const box = letters[i];
-        const inputChar = userInput[i];
+  for (let i = 0; i < currentWord.length; i++) {
+    const box = letters[i];
+    const inputChar = userInput[i];
 
-        box.textContent = inputChar || '';
+    box.textContent = inputChar || '';
 
-        if (!inputChar) {
-          box.className = 'letter-box';
-        } else if (inputChar.toLowerCase() === currentWord[i].toLowerCase()) {
-          box.className = 'letter-box correct';
-        } else {
-          box.className = 'letter-box incorrect';
-        }
-      }
-
-      if (
-		  userInput.length === currentWord.length &&
-		  userInput.join('').toLowerCase() === currentWord.toLowerCase()
-		) {
-		  playSound('sound-win');
-		  launchFireworks();
-		  isLocked = true;
-		  setTimeout(() => {
-			stopFireworks();
-			if (currentMode === 'writing') {
-			  loadRandom();
-			  isLocked = false;
-			}
-		  }, 2000);
-		}
+    if (!inputChar) {
+      box.className = 'letter-box';
+    } else if (inputChar.toLowerCase() === currentWord[i].toLowerCase()) {
+      box.className = 'letter-box correct';
+    } else {
+      box.className = 'letter-box incorrect';
     }
+
+    // 🔥 přidat animaci po každém novém písmenu
+    if (i === userInput.length - 1 && inputChar) {
+      box.classList.add('letter-pop');
+
+      // po dokončení animace odebrat třídu, aby mohla být opět použita
+      box.addEventListener('animationend', () => {
+        box.classList.remove('letter-pop');
+      }, { once: true });
+    }
+  }
+
+  // kontrola správnosti slova zůstává nezměněná
+  if (
+    userInput.length === currentWord.length &&
+    userInput.join('').toLowerCase() === currentWord.toLowerCase()
+  ) {
+    playSound('sound-win');
+    launchFireworks();
+    isLocked = true;
+    setTimeout(() => {
+      stopFireworks();
+      if (currentMode === 'writing') {
+        loadRandom();
+        isLocked = false;
+      }
+    }, 2000);
+  }
+}
+
 
     function loadReadingTask() {
       if (readingPool.length === 0) {
@@ -995,27 +1034,68 @@ function animateMedal(type) {
   const anim = document.getElementById("medal-animation");
   const emoji = type === "gold" ? "🥇" : type === "silver" ? "🥈" : "🥉";
 
+  // Cílový kontejner
+  const container = document.getElementById("medals-container");
+  const rect = container.getBoundingClientRect();
+
+  // Střed cílové oblasti
+  const targetLeft = rect.left + rect.width / 2;
+  const targetTop = rect.top + window.scrollY;
+
   anim.textContent = emoji;
   anim.style.display = "block";
   anim.style.opacity = "1";
-  anim.style.top = "-100px";
-  anim.style.transform = "translateX(-50%) scale(1) rotate(0deg)";
+  anim.style.position = "absolute";
+  anim.style.left = `${targetLeft}px`;
+  anim.style.top = `-100px`;
+  anim.style.transform = "translate(-50%, 0) scale(0.8)";
+  anim.style.transition = "none";
 
-  // spustit pád a náraz
+  // Pád na pozici
   anim.animate([
-    { top: "-100px", transform: "translateX(-50%) scale(0.5) rotate(0deg)", opacity: 0 },
-    { top: "50vh", transform: "translateX(-50%) scale(1.5) rotate(720deg)", opacity: 1 },
-    { top: "60vh", transform: "translateX(-50%) scale(1) rotate(0deg)", opacity: 1 },
+    { transform: "translate(-50%, 0) scale(0.5)", top: "-100px", opacity: 0 },
+    { transform: "translate(-50%, 0) scale(1.5)", top: `${targetTop - 20}px`, opacity: 1 },
+    { transform: "translate(-50%, 0) scale(1)", top: `${targetTop}px`, opacity: 1 }
   ], {
     duration: 1000,
     easing: "ease-out"
   });
 
-  // skryj po dopadu
+  // Po dopadu – třes a pauza
   setTimeout(() => {
-    anim.style.display = "none";
-  }, 1200);
+    anim.style.top = `${targetTop}px`;
+    anim.style.left = `${targetLeft}px`;
+    anim.style.transform = "translate(-50%, 0) scale(1)";
+    document.body.classList.add("shake");
+
+    setTimeout(() => {
+      document.body.classList.remove("shake");
+    }, 300);
+
+    // Nech 3 sekundy na místě
+    setTimeout(() => {
+      // Najít přesné místo nové medaile v containeru po aktualizaci
+      updateMedals(); // přidá novou medaili do DOM
+      const newMedal = container.querySelector("span:last-child, .medal:last-child"); // nebo uprav dle potřeby
+      const newRect = container.getBoundingClientRect();
+
+      // Posunout animovaný element na nové místo
+      const finalLeft = newRect.left + newRect.width / 2;
+      const finalTop = newRect.top + window.scrollY;
+
+      anim.style.transition = "all 0.6s ease-in-out";
+      anim.style.left = `${finalLeft}px`;
+      anim.style.top = `${finalTop}px`;
+      anim.style.opacity = "0";
+
+      setTimeout(() => {
+        anim.style.display = "none";
+      }, 700);
+    }, 3000);
+  }, 1000);
 }
+
+
 
 
 
