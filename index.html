@@ -371,7 +371,9 @@
 
   </br>
 
-<div id="gif-container" style="position:fixed;top:60px;left:50%;transform:translateX(-220px);z-index:999;display:none;"><img id="gif-animation" src="dance1.gif" style="height:100px;" /></div>
+<div id="wrong-robot-fixed" style="position:fixed;top:80px;left:50%;transform:translateX(120px);z-index:999;display:none;">  <img src="wrong-robot.gif" style="height:100px;" /></div>
+
+<div id="gif-container" style="position:fixed;top:80px;left:50%;transform:translateX(-220px);z-index:999;display:none;"><img id="gif-animation" src="dance1.gif" style="height:100px;" /></div>
 
 
 <audio id="special-audio" src="music1.mp3"></audio>
@@ -387,13 +389,9 @@
   <div id="reading-options"></div>
   <div id="math-task"></div>
 
-<h5 id="medals-today-title" style="margin-top: 30px; margin-bottom: 6px;">DNES</h5>
+<h5 id="medals-today-title" style="margin-top: 30px; margin-bottom: 6px;">MEDAILE</h5>
 <div id="medals-container" style="font-size: 32px;"></div>
 
-<div id="history-container" style="margin-top: 30px;">
-  <h5 id="history-title">DŘÍVE</h5>
-  <div id="history-list" style="font-size: 24px;"></div>
-</div>
 
 <div id="medal-animation" style="position: fixed; top: -100px; left: 50%; transform: translateX(-50%); font-size: 80px; z-index: 9999; pointer-events: none; display: none;"></div>
 
@@ -534,6 +532,7 @@ function startGame(mode) {
             userInput.push(key);
             scoreBad++; resetProgressBar();
             playSound('sound-wrong');
+			showWrongRobot();
             updateScoreDisplay();
             updateDisplay();
 
@@ -664,6 +663,7 @@ function updateDisplay() {
 		  scoreBad++; resetProgressBar();
 		  updateScoreDisplay();
 		  playSound('sound-wrong');
+		  showWrongRobot();
 
 		  // Znovupovolení klikání na ostatní obrázky
 		  setTimeout(() => {
@@ -803,6 +803,7 @@ setTimeout(() => {
 	  resetProgressBar();
 	  updateScoreDisplay();
 	  playSound('sound-wrong');
+	  showWrongRobot();
 	  markMathIncorrect();
 
 	  // Smaž odpověď a dovol zkusit znovu, ale nech příklad beze změny
@@ -951,6 +952,19 @@ function checkCelebrationTrigger(score) {
     updateScoreStyle(); // zvětšení čísla
   }
 }
+
+
+// wrong robot
+
+function showWrongRobot() {
+  const robot = document.getElementById("wrong-robot-fixed");
+  if (!robot) return;
+  robot.style.display = "block";
+  setTimeout(() => {
+    robot.style.display = "none";
+  }, 2000);
+}
+
 
 
 
@@ -1215,69 +1229,6 @@ function animateMedal(type) {
   }, 1000);
 }
 
-
-
-
-
-
-// HISTORIE
-
-function getTodayDateStr() {
-  return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-}
-
-function saveMedalsToHistoryIfNewDay() {
-  const today = getTodayDateStr();
-  const lastDate = localStorage.getItem("medals-date");
-
-  if (lastDate && lastDate !== today) {
-    // Přesunout aktuální medaile do historie
-    const previous = { date: lastDate, ...medals };
-    let history = JSON.parse(localStorage.getItem("medals-history") || "[]");
-    history.push(previous);
-
-    // Seřadit a zkrátit na 5 dní
-    history.sort((a, b) => {
-      if (b.gold !== a.gold) return b.gold - a.gold;
-      if (b.silver !== a.silver) return b.silver - a.silver;
-      return b.bronze - a.bronze;
-    });
-    history = history.slice(0, 5);
-
-    localStorage.setItem("medals-history", JSON.stringify(history));
-
-    // Reset aktuálních medailí
-    medals = { gold: 0, silver: 0, bronze: 0 };
-    saveMedals();
-  }
-
-  // Zapsat nové datum
-  localStorage.setItem("medals-date", today);
-  updateHistory();
-}
-
-function updateHistory() {
-  const container = document.getElementById("history-list");
-  const history = JSON.parse(localStorage.getItem("medals-history") || "[]");
-
-  let html = "";
-
-  for (let i = 0; i < history.length; i++) {
-    const entry = history[i];
-
-    const golds = "🥇".repeat(entry.gold || 0);
-    const silvers = "🥈".repeat(entry.silver || 0);
-    const bronzes = "🥉".repeat(entry.bronze || 0);
-
-    html += '<div style="margin-bottom: 10px; font-size: 24px;">';
-    html += golds + silvers + bronzes;
-    html += '<span style="margin-left: 10px; font-size: 16px; color: #555;">' + entry.date + '</span>';
-    html += '</div>';
-  }
-
-  container.innerHTML = html;
-  document.getElementById("history-title").style.display = history.length > 0 ? "block" : "none";
-}
 
 
 
