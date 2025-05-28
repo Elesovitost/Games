@@ -371,9 +371,9 @@
 
   </br>
 
-<div id="wrong-robot-fixed" style="position:fixed;top:80px;left:50%;transform:translateX(120px);z-index:999;display:none;">  <img src="wrong-robot.gif" style="height:100px;" /></div>
+<div id="wrong-robot-fixed" style="position:fixed;top:80px;left:50%;transform:translateX(60px);z-index:999;display:none;">  <img src="wrong-robot.gif" style="height:100px;" /></div>
 
-<div id="gif-container" style="position:fixed;top:80px;left:50%;transform:translateX(-220px);z-index:999;display:none;"><img id="gif-animation" src="dance1.gif" style="height:100px;" /></div>
+<div id="gif-container" style="position:fixed;top:80px;left:50%;transform:translateX(-160px);z-index:999;display:none;"><img id="gif-animation" src="dance1.gif" style="height:100px;" /></div>
 
 
 <audio id="special-audio" src="music1.mp3"></audio>
@@ -453,6 +453,24 @@
         sound.play().catch(() => {});
       }
     }
+
+//kláves. zkratky
+
+document.addEventListener("keydown", function(e) {
+  if (e.altKey && e.key.toLowerCase() === "r") {
+    resetTodayMedals();
+  }
+
+  if (e.altKey && e.key.toLowerCase() === "p") {
+    scoreGood++;
+    updateScoreDisplay();
+    addProgress(5);
+    checkCelebrationTrigger(scoreGood);
+  }
+});
+
+
+//START
 
 function startGame(mode) {
 	currentMode = mode;
@@ -962,7 +980,7 @@ function showWrongRobot() {
   robot.style.display = "block";
   setTimeout(() => {
     robot.style.display = "none";
-  }, 2000);
+  }, 1000);
 }
 
 
@@ -975,7 +993,7 @@ function showCelebration() {
   const gif = document.getElementById('gif-animation');
 
   // === Animace ===
-  const gifCount = 7; // např. dance1.gif až dance5.gif
+  const gifCount = 8; // např. dance1.gif až dance5.gif
   const randomGif = Math.floor(Math.random() * gifCount) + 1;
   gif.src = `dance${randomGif}.gif`;
 
@@ -1240,18 +1258,7 @@ function resetTodayMedals() {
   console.log("Dnešní medaile byly resetovány.");
 }
 
-document.addEventListener("keydown", function(e) {
-  if (e.altKey && e.key.toLowerCase() === "r") {
-    resetTodayMedals();
-  }
-
-  if (e.altKey && e.key.toLowerCase() === "p") {
-    scoreGood++;
-    updateScoreDisplay();
-    addProgress(1);
-    checkCelebrationTrigger(scoreGood);
-  }
-});
+// vítěz
 
 function showWinBanner() {
   const banner = document.getElementById("win-banner");
