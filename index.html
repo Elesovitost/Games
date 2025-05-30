@@ -335,10 +335,18 @@
 <body>
 
  <div class="topbar">
-<div class="menu">
-  <button class="mode-button writing" onclick="startGame('writing')">✍️ PSANÍ</button>
-  <button class="mode-button reading" onclick="startGame('reading')">📖 ČTENÍ</button>
-  <button class="mode-button math" onclick="startGame('math')">➕ POČTY</button>
+<div class="menu" style="align-items: center;">
+  <div style="display: flex; gap: 20px;">
+    <button class="mode-button writing" onclick="startGame('writing')">✍️ PSANÍ</button>
+    <button class="mode-button reading" onclick="startGame('reading')">📖 ČTENÍ</button>
+    <button class="mode-button math" onclick="startGame('math')">➕ POČTY</button>
+  </div>
+  <button id="settings-toggle" style="font-size: 24px; background: none; border: none; cursor: pointer;">⚙️</button>
+</div>
+
+ <div id="settings" style="display: none; margin-top: 10px;">
+  <button id="toggle-uppercase">🔠 Velká písmena</button>
+  <button id="toggle-sound">🔇 Zvuk</button>
 </div>
 
   <div class="score-container">
@@ -389,6 +397,8 @@
   <div id="reading-options"></div>
   <div id="math-task"></div>
 
+
+
 <h5 id="medals-today-title" style="margin-top: 30px; margin-bottom: 6px; display: none;">MEDAILE</h5>
 <div id="medals-container" style="font-size: 32px;"></div>
 
@@ -410,21 +420,22 @@
   <script>
 	const words = ['auto', 'autobus', 'bagr', 'banán', 'bazén', 'bota', 'bunda', 'delfín', 'dort', 'drak', 'gepard', 'hasiči', 'hodinky', 'holub', 'houska', 'hruška', 'jahoda', 'jogurt', 'kalhoty', 'kavka', 'kolo', 'koláč', 'koruna', 'kočka', 'kráva', 'letadlo', 'meloun', 'motorka', 'myš', 'míč', 'oko', 'opice', 'ovce', 'papoušek', 'pes', 'policie', 'postel', 'raketa', 'robot', 'rohlík', 'ruka', 'sklenice', 'slon', 'slunce', 'strom', 'tank', 'telefon', 'tramvaj', 'triko', 'tygr', 'vidlička', 'vlak', 'vlk', 'vodopád', 'volant', 'zebra', 'země', 'čepice', 'židle', 'žirafa', 'žralok'];
 
-	const data = words.map(word => ({
-      word: word,
-      img: `${word}.jpg`
-    }));
+const data = words.map(word => ({
+  word: word,
+  img: null
+}));
 
-    data.forEach(item => {
-      const img = new Image();
-      img.onload = () => { item.img = img.src; };
-      img.onerror = () => {
-        const jpegImg = new Image();
-        jpegImg.onload = () => { item.img = jpegImg.src; };
-        jpegImg.src = `${item.word}.jpeg`;
-      };
-      img.src = item.img;
-    });
+data.forEach(item => {
+  const tryLoad = (exts, index = 0) => {
+    if (index >= exts.length) return;
+    const img = new Image();
+    img.onload = () => { item.img = img.src; };
+    img.onerror = () => tryLoad(exts, index + 1);
+    img.src = `${item.word}.${exts[index]}`;
+  };
+  tryLoad(['jpeg', 'jpg']);
+});
+
 
     let writingPool = [...data];
     let readingPool = [...data];
@@ -468,6 +479,68 @@ document.addEventListener("keydown", function(e) {
     checkCelebrationTrigger(scoreGood);
   }
 });
+
+// SETTINGS
+
+let settings = {
+  uppercase: false,
+  sound: true,
+};
+
+function saveSettings() {
+  document.cookie = `gameSettings=${JSON.stringify(settings)};path=/;max-age=31536000`;
+}
+
+function loadSettings() {
+  const match = document.cookie.match(/gameSettings=([^;]+)/);
+  if (match) {
+    try {
+      settings = JSON.parse(match[1]);
+    } catch {}
+  }
+  applySettings();
+}
+
+function applySettings() {
+  document.getElementById("toggle-uppercase").textContent = settings.uppercase ? "🔡 Malá písmena" : "🔠 Velká písmena";
+  document.getElementById("toggle-sound").textContent = settings.sound ? "🔊 Zvuk zapnut" : "🔇 Zvuk vypnut";
+
+  const uppercaseStyle = settings.uppercase ? "uppercase" : "none";
+  ["mobile-input", "reading-word", "letters"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.textTransform = uppercaseStyle;
+  });
+}
+
+document.getElementById("settings-toggle").addEventListener("click", () => {
+  const s = document.getElementById("settings");
+  s.style.display = s.style.display === "none" ? "block" : "none";
+});
+
+document.getElementById("toggle-uppercase").addEventListener("click", () => {
+  settings.uppercase = !settings.uppercase;
+  saveSettings();
+  applySettings();
+});
+
+document.getElementById("toggle-sound").addEventListener("click", () => {
+  settings.sound = !settings.sound;
+  saveSettings();
+  applySettings();
+});
+
+// Změň existující playSound funkci:
+function playSound(id) {
+  if (!settings.sound) return;
+  const sound = document.getElementById(id);
+  if (sound) {
+    sound.currentTime = 0;
+    sound.play().catch(() => {});
+  }
+}
+
+loadSettings();
+
 
 
 //START
@@ -1175,7 +1248,6 @@ function loadMedals() {
   }
 }
 
-saveMedalsToHistoryIfNewDay();
 loadMedals();
 updateProgressBar();
 
