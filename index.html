@@ -531,7 +531,7 @@ function startGame(mode) {
     }
 
     function handleKey(e) {
-      if (isLocked) return;
+      if (e.repeat || isLocked) return;
 
       const key = e.key;
       const index = userInput.length;
