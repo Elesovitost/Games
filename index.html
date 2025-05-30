@@ -466,8 +466,8 @@ data.forEach(item => {
 //kláves. zkratky
 
 document.addEventListener("keydown", function(e) {
-  const isReset = e.altKey && e.key.toLowerCase() === "r";
-  const isPoint = e.altKey && e.key.toLowerCase() === "p";
+  const isReset = e.altKey && e.code === "KeyR";
+  const isPoint = e.altKey && e.code === "KeyP";
 
   if (isReset) {
     resetTodayMedals();
@@ -480,6 +480,7 @@ document.addEventListener("keydown", function(e) {
     checkCelebrationTrigger(scoreGood);
   }
 });
+
 
 
 
