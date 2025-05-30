@@ -14,7 +14,7 @@
 	  flex-direction: column;
 	  align-items: center;
 	  gap: 20px;
-	  margin-bottom: 30px;
+	  margin-bottom: 20px;
 	}
 
 	.menu {
@@ -30,7 +30,7 @@
 	.mode-button {
 	  font-size: 20px;
 	  padding: 12px 20px;
-	  border: none;
+	  border: 1px solid #000;
 	  border-radius: 12px;
 	  cursor: pointer;
 	  transition: all 0.3s;
@@ -53,11 +53,6 @@
 	  color: #002b80;
 	}
 
-	#math-task {
-	  font-size: 32px;
-	  margin: 20px;
-	}
-
 
 	.mode-button:hover {
 	  transform: scale(1.05);
@@ -75,7 +70,7 @@
 	  flex-wrap: wrap;
 	  justify-content: center;
 	  gap: 4px;
-	  max-width: 150px;
+	  max-width: 140px;
 	  font-size: 22px;
 	  background: transparent;
 	  padding: 6px;
@@ -92,13 +87,17 @@
 	  justify-content: center;
 	  align-items: center;
 	  font-size: 48px;
-	  gap: 40px;
+	  gap: 20px;
 	  margin-bottom: 10px;
 	}
 	.math-column {
 	  display: flex;
 	  flex-direction: column;
 	  align-items: center;
+	}
+	#math-task {
+	  font-size: 32px;
+	  margin: 0px;
 	}
 
 
@@ -336,19 +335,12 @@
 
  <div class="topbar">
 <div class="menu" style="align-items: center;">
-  <div style="display: flex; gap: 20px;">
+  <div style="display: flex; gap: 10px;">
     <button class="mode-button writing" onclick="startGame('writing')">✍️ PSANÍ</button>
     <button class="mode-button reading" onclick="startGame('reading')">📖 ČTENÍ</button>
     <button class="mode-button math" onclick="startGame('math')">➕ POČTY</button>
   </div>
-  <button id="settings-toggle" style="font-size: 24px; background: none; border: none; cursor: pointer;">⚙️</button>
 </div>
-
- <div id="settings" style="display: none; margin-top: 10px;">
-  <button id="toggle-uppercase">🔠 Velká písmena</button>
-  <button id="toggle-sound">🔇 Zvuk</button>
-</div>
-
   <div class="score-container">
     <div class="score-label">SCORE</div>
 		<div class="score">
@@ -401,7 +393,13 @@
 
 <h5 id="medals-today-title" style="margin-top: 30px; margin-bottom: 6px; display: none;">MEDAILE</h5>
 <div id="medals-container" style="font-size: 32px;"></div>
-
+<div style="text-align: center; margin-top: 20px;">
+  <button id="settings-toggle" style="font-size: 24px; background: none; border: none; cursor: pointer;">⚙️</button>
+   <div id="settings" style="display: none; margin-top: 10px;">
+	  <button id="toggle-uppercase">🔠 Velká písmena</button>
+	  <button id="toggle-sound">🔇 Zvuk</button>
+	</div>
+</div>
 
 <div id="medal-animation" style="position: fixed; top: -100px; left: 50%; transform: translateX(-50%); font-size: 80px; z-index: 9999; pointer-events: none; display: none;"></div>
 
@@ -468,8 +466,8 @@ data.forEach(item => {
 //kláves. zkratky
 
 document.addEventListener("keydown", function(e) {
-  const isReset = (e.altKey || e.metaKey) && e.key.toLowerCase() === "r";
-  const isPoint = (e.altKey || e.metaKey) && e.key.toLowerCase() === "p";
+  const isReset = e.altKey && e.key.toLowerCase() === "r";
+  const isPoint = e.altKey && e.key.toLowerCase() === "p";
 
   if (isReset) {
     resetTodayMedals();
@@ -482,6 +480,7 @@ document.addEventListener("keydown", function(e) {
     checkCelebrationTrigger(scoreGood);
   }
 });
+
 
 
 // SETTINGS
@@ -852,7 +851,7 @@ taskDiv.appendChild(grid);
   lettersDiv.id = 'letters';
   lettersDiv.style.display = 'flex';
   lettersDiv.style.justifyContent = 'center';
-  lettersDiv.style.marginTop = '10px';
+  lettersDiv.style.marginTop = '0px';
 
   const length = correctAnswer.toString().length;
   for (let i = 0; i < length; i++) {
