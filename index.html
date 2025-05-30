@@ -468,17 +468,21 @@ data.forEach(item => {
 //kláves. zkratky
 
 document.addEventListener("keydown", function(e) {
-  if (e.altKey && e.key.toLowerCase() === "r") {
+  const isReset = (e.altKey || e.metaKey) && e.key.toLowerCase() === "r";
+  const isPoint = (e.altKey || e.metaKey) && e.key.toLowerCase() === "p";
+
+  if (isReset) {
     resetTodayMedals();
   }
 
-  if (e.altKey && e.key.toLowerCase() === "p") {
+  if (isPoint) {
     scoreGood++;
     updateScoreDisplay();
     addProgress(5);
     checkCelebrationTrigger(scoreGood);
   }
 });
+
 
 // SETTINGS
 
