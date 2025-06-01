@@ -30,18 +30,28 @@ app.get('/images', async (req, res) => {
     // Najdi <a class="iusc" m="..."> a z něj vytáhni JSON string
     const matches = [...html.matchAll(/<a[^>]+class="[^"]*iusc[^"]*"[^>]*m="([^"]+)"/g)];
 
-    const images = matches
-      .map(m => {
-        try {
-          const jsonStr = m[1].replace(/&quot;/g, '"');
-          const data = JSON.parse(jsonStr);
-          return data.murl;
-        } catch {
-          return null;
-        }
-      })
-      .filter(url => url && url.startsWith('http'))
-      .slice(0, 3); // první 3 obrázky
+const images = matches
+  .map(m => {
+    try {
+      const jsonStr = m[1].replace(/&quot;/g, '"');
+      const data = JSON.parse(jsonStr);
+      return data.murl;
+    } catch {
+      return null;
+    }
+  })
+  .filter(url =>
+    url &&
+    url.startsWith('https://') &&
+    !url.match(/:\/\/(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/) && // vnitřní IP rozsahy
+    !url.includes('.local') &&
+    !url.includes('.invalid') &&
+    !url.match(/\.(exe|php|cgi|asp)(\?|$)/i) && // nepovolené koncovky
+    !url.match(/\.(zip|rar|7z)(\?|$)/i) &&      // komprimované soubory
+    !/^[a-z]+:\/\/\d+\.\d+\.\d+\.\d+/.test(url) // přímá IP adresa v URL
+  )
+  .slice(0, 3);
+
 
     res.json({
       query: url,
