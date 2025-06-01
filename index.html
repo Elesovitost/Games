@@ -1464,30 +1464,39 @@ document.getElementById("free-ok").addEventListener("click", async () => {
     const response = await fetch("slovnikCJ.txt");
     const text = await response.text();
     const words = text.split('\n').map(w => w.trim());
-	
-	if (words.includes(word)) {
-	  const points = word.length;
-	  scoreGood += points;
-	  addProgress(points);
-	  playSound("sound-win");
-	  updateScoreDisplay();
-	  launchFireworks();
-	  btn.style.backgroundColor = "green";
-	  btn.textContent = `+${points}`;
-	  showImages(word);
-	} else {
-	  scoreBad++;
-	  resetProgressBar();
-	  playSound("sound-wrong");
-	  showWrongRobot();
-	  updateScoreDisplay();
-	  btn.style.backgroundColor = "red";
-	  btn.textContent = "✗";
-	}
+
+    if (words.includes(word)) {
+      const points = word.length;
+      scoreGood += points;
+      addProgress(points);
+      playSound("sound-win");
+      updateScoreDisplay();
+      launchFireworks();
+      btn.style.backgroundColor = "green";
+      btn.textContent = `+${points}`;
+      showImages(word);
+
+      // ⚠️ RESET po správném slově
+      setTimeout(() => {
+        stopFireworks();
+        resetFreeSection();  // smaže input, obrázky, tlačítko
+        document.getElementById('mobile-input').focus();
+      }, 3000);
+
+    } else {
+      scoreBad++;
+      resetProgressBar();
+      playSound("sound-wrong");
+      showWrongRobot();
+      updateScoreDisplay();
+      btn.style.backgroundColor = "red";
+      btn.textContent = "✗";
+    }
   } catch (err) {
     alert("Chyba při načítání slovníku.");
   }
 });
+
 
 
 async function showImages(word) {
