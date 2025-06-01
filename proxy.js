@@ -9,14 +9,10 @@ app.get('/images', async (req, res) => {
   const word = req.query.q;
   if (!word) return res.status(400).send("Missing 'q'");
 
-  // Přidání kontextu pro lepší výsledky
-  const context = " obrázek předmět české slovo věc";
-  const query = word + context;
-
-  const url = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2&setlang=cs&cc=CZ`;
+  const url = `https://www.bing.com/images/search?q=${encodeURIComponent(word)}&form=HDRSC2&setlang=cs&cc=CZ`;
 
   try {
-	console.log("🔍 Bing dotaz:", url);
+    console.log("🔍 Bing dotaz:", url);
 
     const html = await fetch(url, {
       headers: {
@@ -28,17 +24,14 @@ app.get('/images', async (req, res) => {
 
     const images = matches
       .map(m => m[1])
-      .filter(src =>
-        src.startsWith('https') &&
-        !/logo|icon|music|brand|symbol|banner/i.test(src)
-      )
+      .filter(src => src.startsWith('https'))
       .slice(0, 3);
 
     res.json({
-	  query,
-	  url,
-	  images
-	});
+      query: url,
+      images
+    });
+
   } catch (err) {
     console.error(err);
     res.status(500).send("Chyba při načítání obrázků");
@@ -46,3 +39,4 @@ app.get('/images', async (req, res) => {
 });
 
 app.listen(process.env.PORT || 3000);
+

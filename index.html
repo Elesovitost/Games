@@ -1462,26 +1462,28 @@ async function showImages(word) {
   container.innerHTML = '';
 
   try {
-    const response = await fetch(`https://abeceda-production.up.railway.app/images?q=${encodeURIComponent(word)}`);
+    const response = await fetch(`https://TVOJE-ADRESA.railway.app/images?q=${encodeURIComponent(word)}`);
     const data = await response.json();
-	console.log("🔍 Bing dotaz:", data.url);
 
-	data.images.forEach(url => {
-	  const img = document.createElement("img");
-	  img.src = url;
-	  img.alt = word;
-	  img.style.height = "120px";
-	  img.style.margin = "0 5px";
-	  img.style.border = "2px solid #444";
-	  img.style.borderRadius = "8px";
-	  container.appendChild(img);
-	});
+    console.log("🔍 Bing dotaz:", data.query);
+
+    data.images.forEach(url => {
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = word;
+      img.style.height = "120px";
+      img.style.margin = "0 5px";
+      img.style.border = "2px solid #444";
+      img.style.borderRadius = "8px";
+      container.appendChild(img);
+    });
 
   } catch (err) {
-    console.error("Chyba při načítání obrázků:", err);
+    console.error("❌ Chyba při načítání obrázků:", err);
     container.textContent = "Obrázky se nepodařilo načíst.";
   }
 }
+
 
 
 
