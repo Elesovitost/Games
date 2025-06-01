@@ -1090,12 +1090,26 @@ window.addEventListener('resize', resizeCanvas);
 
 
 document.getElementById('mobile-input').addEventListener('input', (e) => {
-  if (!isMobile) return; // tím se vyhneš duplikaci na desktopu a s BT klávesnicí
+  if (!isMobile) return;
   const char = e.target.value;
   e.target.value = '';
-  if (currentMode === 'writing') handleKey({ key: char });
-  else if (currentMode === 'math') handleMathKey({ key: char });
+
+  if (currentMode === 'writing') {
+    handleKey({ key: char });
+  } else if (currentMode === 'math') {
+    handleMathKey({ key: char });
+  } else if (currentMode === 'free') {
+    const okButton = document.getElementById("free-ok");
+    if (okButton.textContent !== "OK") {
+      resetFreeSection();
+    }
+    if (char.length === 1 && char.match(/[a-zA-Zá-žÁ-Ž]/i) && userInput.length < 10) {
+      userInput.push(char);
+      updateFreeCursor();
+    }
+  }
 });
+
 
 
 // animace tanec
