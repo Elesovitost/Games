@@ -9,7 +9,8 @@ app.get('/images', async (req, res) => {
   const word = req.query.q;
   if (!word) return res.status(400).send("Missing 'q'");
 
-  const url = `https://www.bing.com/images/search?q=${encodeURIComponent(word)}&form=HDRSC2`;
+  const url = `https://www.bing.com/images/search?q=${encodeURIComponent(word)}&form=HDRSC2&setlang=cs&cc=CZ`;
+
 
   try {
     const html = await fetch(url).then(r => r.text());
