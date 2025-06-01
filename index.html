@@ -1462,7 +1462,7 @@ async function showImages(word) {
   container.innerHTML = '';
 
   try {
-    const response = await fetch('https://abeceda-production.up.railway.app/images?q=${encodeURIComponent(word)}`);
+    const response = await fetch(`https://abeceda-production.up.railway.app/images?q=${encodeURIComponent(word)}`);
     const data = await response.json();
 
     console.log("🔍 Bing dotaz:", data.query);
