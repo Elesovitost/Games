@@ -16,6 +16,8 @@ app.get('/images', async (req, res) => {
   const url = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2&setlang=cs&cc=CZ`;
 
   try {
+	console.log("🔍 Bing dotaz:", url);
+
     const html = await fetch(url, {
       headers: {
         "Accept-Language": "cs-CZ,cs;q=0.9"
