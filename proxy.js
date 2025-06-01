@@ -9,7 +9,9 @@ app.get('/images', async (req, res) => {
   const word = req.query.q;
   if (!word) return res.status(400).send("Missing 'q'");
 
-  const url = `https://www.bing.com/images/search?q=${encodeURIComponent(word)}&form=HDRSC2&setlang=cs&cc=CZ`;
+  const context = " obrázek předmět české slovo věc"; // univerzální kontext
+const url = `https://www.bing.com/images/search?q=${encodeURIComponent(word + context)}&form=HDRSC2&setlang=cs&cc=CZ`;
+
 
 
   try {
