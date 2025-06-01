@@ -1,11 +1,16 @@
 const express = require('express');
 const fetch = require('node-fetch');
-const cors = require('cors');
-
 const app = express();
-app.use(cors({
-	origin: ['http://localhost:8080', 'https://abeceda-production.up.railway.app', 'https://elesovitost.github.io']
-}));
+
+// Nastav CORS ručně (funguje i přes Railway proxy)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
+
+app.options('*', (req, res) => res.sendStatus(200)); // CORS preflight
 
 app.get('/images', async (req, res) => {
   const word = req.query.q;
@@ -41,4 +46,3 @@ app.get('/images', async (req, res) => {
 });
 
 app.listen(process.env.PORT || 3000);
-
