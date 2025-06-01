@@ -34,7 +34,11 @@ app.get('/images', async (req, res) => {
       )
       .slice(0, 3);
 
-    res.json(images);
+    res.json({
+	  query,
+	  url,
+	  images
+	});
   } catch (err) {
     console.error(err);
     res.status(500).send("Chyba při načítání obrázků");
