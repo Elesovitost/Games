@@ -4,7 +4,7 @@ const cors = require('cors');
 
 const app = express();
 app.use(cors({
-	origin: ['http://localhost:8080', 'https://abeceda-production.up.railway.app']
+	origin: ['http://localhost:8080', 'https://abeceda-production.up.railway.app', 'https://elesovitost.github.io']
 }));
 
 app.get('/images', async (req, res) => {
