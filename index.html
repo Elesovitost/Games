@@ -361,6 +361,16 @@
   box-shadow: 4px 4px 10px rgba(0,0,0,0.3);
 }
 
+.blinking-underscore {
+  display: inline-block;
+  animation: blink-underscore 1.2s infinite;
+}
+
+@keyframes blink-underscore {
+  0%   { opacity: 1; }
+  50%  { opacity: 0; }
+  100% { opacity: 1; }
+}
 
 	
   </style>
@@ -425,7 +435,7 @@
   <div id="math-task"></div>
 
 <div id="free-mode" style="display: none; margin-top: 20px;">
-  <div id="free-cursor" style="font-size: 36px; border-bottom: 2px solid black; width: fit-content; margin-inline: auto; padding: 5px 10px;"></div>
+  <div id="free-cursor" style="font-size: 36px; width: fit-content; margin-inline: auto; padding: 5px 10px;"></div>
   <button id="free-ok" style="margin-top: 10px; font-size: 24px; border-radius: 50%; width: 60px; height: 60px;">OK</button>
   <div id="free-images" style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;"></div>
 </div>
@@ -1401,9 +1411,16 @@ function resetFreeSection() {
 
 function updateFreeCursor() {
   const cursor = document.getElementById('free-cursor');
-  cursor.textContent = userInput.join('');
-  if (userInput.length < 10) cursor.textContent += '|'; // blikající kurzor
+  cursor.innerHTML = userInput.join('') +
+    (userInput.length < 10 ? '<span class="blinking-underscore">_</span>' : '');
 }
+
+document.addEventListener("keydown", function(e) {
+  if (currentMode === 'free' && e.key === 'Enter') {
+    const btn = document.getElementById("free-ok");
+    btn.click();
+  }
+});
 
 document.addEventListener("keydown", function(e) {
   if (currentMode !== 'free') return;
