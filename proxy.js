@@ -3,7 +3,9 @@ const fetch = require('node-fetch');
 const cors = require('cors');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+	origin: ['http://localhost:8080', 'https://abeceda-production.up.railway.app']
+}));
 
 app.get('/images', async (req, res) => {
   const word = req.query.q;
