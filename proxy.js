@@ -1,17 +1,3 @@
-const express = require('express');
-const fetch = require('node-fetch');
-const app = express();
-
-// Nastav CORS ručně (funguje i přes Railway proxy)
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  next();
-});
-
-app.options('*', (req, res) => res.sendStatus(200)); // CORS preflight
-
 app.get('/images', async (req, res) => {
   const word = req.query.q;
   if (!word) return res.status(400).send("Missing 'q'");
@@ -27,11 +13,19 @@ app.get('/images', async (req, res) => {
       }
     }).then(r => r.text());
 
-    const matches = [...html.matchAll(/<img[^>]+src="([^"]+?)"[^>]*>/g)];
+    // Najdi všechny výskyty atributu m="...JSON..."
+    const matches = [...html.matchAll(/<a[^>]+class="[^"]*iusc[^"]*"[^>]+m="([^"]+?)"/g)];
 
     const images = matches
-      .map(m => m[1])
-      .filter(src => src.startsWith('https'))
+      .map(m => {
+        try {
+          const json = JSON.parse(m[1].replace(/&quot;/g, '"'));
+          return json.murl;
+        } catch {
+          return null;
+        }
+      })
+      .filter(url => url && url.startsWith('http'))
       .slice(0, 3);
 
     res.json({
@@ -40,9 +34,7 @@ app.get('/images', async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("❌ Chyba při zpracování obrázků:", err);
     res.status(500).send("Chyba při načítání obrázků");
   }
 });
-
-app.listen(process.env.PORT || 3000);
