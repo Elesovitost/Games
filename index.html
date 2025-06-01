@@ -6,249 +6,72 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Písmenková hra</title>
-  <style>
-    body { font-family: sans-serif; text-align: center; padding: 10px; }
-	
-	.topbar {
-	  display: flex;
-	  flex-direction: column;
-	  align-items: center;
-	  gap: 20px;
-	  margin-bottom: 20px;
-	}
+<style>
+/* Základní tělo stránky */
+body {font-family:sans-serif;text-align:center;padding:10px;}
+canvas {position:fixed;top:0;left:0;pointer-events:none;}
+#fireworks {position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1000;background:transparent;}
 
-	.menu {
-	  display: flex;
-	  gap: 10px;
-	  justify-content: center;
-	}
+/* Horní panel a menu */
+.topbar {display:flex;flex-direction:column;align-items:center;gap:20px;margin-bottom:20px;}
+.menu {display:flex;gap:10px;justify-content:center;}
+.score-container {text-align:center;}
 
-	.score-container {
-	  text-align: center;
-	}
+/* Tlačítka módů */
+.mode-button {font-size:20px;padding:6px 12px;border:1px solid #000;border-radius:12px;cursor:pointer;transition:all 0.3s;font-weight:bold;box-shadow:2px 2px 6px rgba(0,0,0,0.2);}
+.mode-button.writing {background-color:#ffcc70;color:#4b2e00;}
+.mode-button.reading {background-color:#a0e8af;color:#004d25;}
+.mode-button.math {background-color:#99ccff;color:#002b80;}
+.mode-button.free {background-color:#f4c2c2;color:#6b0000;}
+.mode-button:hover {transform:scale(1.05);box-shadow:4px 4px 10px rgba(0,0,0,0.3);}
 
-	.mode-button {
-	  font-size: 20px;
-	  padding: 6px 12px;
-	  border: 1px solid #000;
-	  border-radius: 12px;
-	  cursor: pointer;
-	  transition: all 0.3s;
-	  font-weight: bold;
-	  box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
-	}
+/* Styl pro tlačítko OK (free mód) */
+#free-ok {width:50px;height:50px;border-radius:12px;padding:0;font-size:18px;font-weight:bold;background-color:#f4c2c2;color:#6b0000;border:1px solid #000;box-shadow:2px 2px 6px rgba(0,0,0,0.2);transition:all 0.3s;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:20px auto;}
+#free-ok:hover {transform:scale(1.05);box-shadow:4px 4px 10px rgba(0,0,0,0.3);}
 
-	.mode-button.writing {
-	  background-color: #ffcc70;
-	  color: #4b2e00;
-	}
+/* Rámeček obrázků */
+.framed-image {border:2px solid #333;max-height:200px;margin-bottom:20px;}
+#image {max-height:200px;margin-bottom:20px;border-radius:12px;border:2px solid #333;}
 
-	.mode-button.reading {
-	  background-color: #a0e8af;
-	  color: #004d25;
-	}
+/* Skupina jablek (pro matiku) */
+.apple-group {display:flex;flex-wrap:wrap;justify-content:center;gap:4px;max-width:140px;font-size:22px;background:transparent;padding:6px;}
+.apple-group div {width:24px;text-align:center;}
 
-	.mode-button.math {
-	  background-color: #99ccff;
-	  color: #002b80;
-	}
+/* Matematické úlohy */
+.math-row {display:flex;justify-content:center;align-items:center;font-size:48px;gap:20px;margin-bottom:10px;}
+.math-column {display:flex;flex-direction:column;align-items:center;}
+#math-task {font-size:32px;margin:0px;}
 
+/* Podtržítko (blikající) */
+.blinking-underscore {display:inline-block;animation:blink-underscore 1.2s infinite;}
+@keyframes blink-underscore {0%{opacity:1;}50%{opacity:0;}100%{opacity:1;}}
 
-	.mode-button:hover {
-	  transform: scale(1.05);
-	  box-shadow: 4px 4px 10px rgba(0,0,0,0.3);
-	}
+/* Skóre */
+.score-label {font-size:16px;margin-bottom:10px;display:block;}
+.score {font-size:20px;}
+.score .good {color:green;margin-right:10px;}
+.score .bad {color:red;}
+.score-box {display:inline-flex;align-items:center;justify-content:center;width:80px;height:40px;overflow:hidden;position:relative;}
+.score-inner {font-family:Impact,sans-serif;font-weight:normal;font-size:22px;letter-spacing:1px;line-height:1;}
 
-	.framed-image {
-	  border: 2px solid #333;
-	  max-height: 200px;
-	  margin-bottom: 20px;
-	}
+/* Písmena (psaní a matika) */
+.letter-box {display:inline-block;width:40px;height:40px;border:1px solid #ccc;font-size:30px;line-height:40px;margin:2px;text-align:center;vertical-align:middle;}
+.correct {border-color:green;color:green;}
+.incorrect {border-color:red;color:red;}
 
-	.apple-group {
-	  display: flex;
-	  flex-wrap: wrap;
-	  justify-content: center;
-	  gap: 4px;
-	  max-width: 140px;
-	  font-size: 22px;
-	  background: transparent;
-	  padding: 6px;
-	}
+/* Animace písmen a obrázků */
+@keyframes pop-in {0%{transform:scale(1);}40%{transform:scale(1.3);}100%{transform:scale(1);}}
+.letter-pop {animation:pop-in 0.2s ease-out;}
+.image-pop {animation:pop-in 0.2s ease-out;}
 
-	.apple-group div {
-	  width: 24px;
-	  text-align: center;
-	}
+/* Čtení - slovo a volby */
+#reading-word {font-size:32px;margin:20px;}
+#reading-options {display:flex;justify-content:center;gap:10px;flex-wrap:wrap;}
+#reading-options img {height:105px;cursor:pointer;border:2px solid #333;border-radius:12px;transition:transform 0.2s ease,filter 0.3s ease,border 0.2s;}
+#reading-options img:hover {transform:scale(1.05);}
 
-
-	.math-row {
-	  display: flex;
-	  justify-content: center;
-	  align-items: center;
-	  font-size: 48px;
-	  gap: 20px;
-	  margin-bottom: 10px;
-	}
-	.math-column {
-	  display: flex;
-	  flex-direction: column;
-	  align-items: center;
-	}
-	#math-task {
-	  font-size: 32px;
-	  margin: 0px;
-	}
-
-
-.mode-button.free {
-  background-color: #f4c2c2;
-  color: #6b0000;
-}
-#free-ok {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  padding: 0;
-  font-size: 20px;
-  font-weight: bold;
-  background-color: #f4c2c2;
-  color: #6b0000;
-  border: 2px solid #000;
-  box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
-  transition: all 0.3s;
-  cursor: pointer;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  /* klíčové pro centrování */
-  margin: 20px auto;
-}
-
-
-#free-ok:hover {
-  transform: scale(1.05);
-  box-shadow: 4px 4px 10px rgba(0,0,0,0.3);
-}
-
-.blinking-underscore {
-  display: inline-block;
-  animation: blink-underscore 1.2s infinite;
-}
-
-@keyframes blink-underscore {
-  0%   { opacity: 1; }
-  50%  { opacity: 0; }
-  100% { opacity: 1; }
-}
-
-
-    .score-label {
-      font-size: 16px;
-	  margin-bottom: 10px; /* nebo více podle potřeby */
-	  display: block;
-    }
-    .score {
-      font-size: 20px;
-    }
-    .score .good { color: green; margin-right: 10px; }
-    .score .bad { color: red; }
-
-	.letter-box {
-	  display: inline-block;
-	  width: 40px;
-	  height: 40px;
-	  border: 1px solid #ccc;
-	  font-size: 30px;
-	  line-height: 40px;
-	  margin: 2px;
-	  text-align: center;
-	  vertical-align: middle;
-	}
-
-	@keyframes pop-in {
-	  0%   { transform: scale(1); }
-	  40%  { transform: scale(1.3); }
-	  100% { transform: scale(1); }
-	}
-
-	.letter-pop {
-	  animation: pop-in 0.2s ease-out;
-	}
-
-	.image-pop {
-	  animation: pop-in 0.2s ease-out;
-	}
-
-
-    .correct { border-color: green; color: green; }
-    .incorrect { border-color: red; color: red; }
-
-	#image {
-	  max-height: 200px;
-	  margin-bottom: 20px;
-	  border-radius: 12px;
-	  border: 2px solid #333;
-	}
-
-    canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
-
-	#fireworks {
-	  position: fixed;
-	  top: 0;
-	  left: 0;
-	  width: 100%;
-	  height: 100%;
-	  pointer-events: none;
-	  z-index: 1000;
-	  background: transparent;
-	}
-
-	@media (max-width: 699px) {
-	  #gif-container {
-		left: 10px !important;
-		transform: none !important;
-	  }
-	}
-
-
-
-    #reading-word { font-size: 32px; margin: 20px; }
-    #reading-options {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-	#reading-options img {
-	  height: 105px;
-	  cursor: pointer;
-	  border: 2px solid #333;
-	  border-radius: 12px;
-	  transition: transform 0.2s ease, filter 0.3s ease, border 0.2s;
-	}
-
-	#reading-options img:hover {
-	  transform: scale(1.05);
-	}
-
-
-#progress-bar-container {
-  margin-top: 10px;
-  margin-bottom: 20px;
-  width: 300px;
-  height: 24px;
-  border: 2px solid #fff;
-  margin-inline: auto;
-  position: relative;
-  background: linear-gradient(to right, #222, #111);
-  border-radius: 14px;
-  box-shadow: inset 0 0 4px #000, 0 0 10px #00ffc055;
-  overflow: hidden;
-}
-
+/* Pokrokový pruh */
+#progress-bar-container {margin-top:10px;margin-bottom:20px;width:300px;height:24px;border:2px solid #fff;margin-inline:auto;position:relative;background:linear-gradient(to right,#222,#111);border-radius:14px;box-shadow:inset 0 0 4px #000,0 0 10px #00ffc055;overflow:hidden;}
 #progress-fill-green,
 #progress-fill-teal,
 #progress-fill-cyan,
@@ -258,172 +81,62 @@
 #progress-fill-red,
 #progress-fill-orange,
 #progress-fill-gold {
-  height: 100%;
-  width: 0%;
-  position: absolute;
-  left: 0;
-  border-radius: 12px 0 0 12px;
-  z-index: 1;
-  transition: width 0.4s ease-in-out;
-  opacity: 0.95;
+height:100%;
+width:0%;
+position:absolute;
+left:0;
+border-radius:12px 0 0 12px;
+z-index:1;
+transition:width 0.4s ease-in-out;
+opacity:0.95;
 }
+#progress-fill-green {background:linear-gradient(to right,#00ff88,#007744);box-shadow:inset 0 0 4px #00ff88,0 0 6px #00ff88aa;z-index:1;}
+#progress-fill-teal {background:linear-gradient(to right,#00ffaa,#008877);box-shadow:inset 0 0 4px #00ffaa,0 0 6px #00ffaaaa;z-index:2;}
+#progress-fill-cyan {background:linear-gradient(to right,#33ccff,#0099cc);box-shadow:inset 0 0 4px #33ccff,0 0 6px #33ccffaa;z-index:3;}
+#progress-fill-blue {background:linear-gradient(to right,#3399ff,#003355);box-shadow:inset 0 0 4px #3399ff,0 0 6px #3399ffaa;z-index:4;}
+#progress-fill-purple {background:linear-gradient(to right,#cc66ff,#4b0066);box-shadow:inset 0 0 4px #cc66ff,0 0 6px #cc66ffaa;z-index:5;}
+#progress-fill-pink {background:linear-gradient(to right,#ff99cc,#cc0066);box-shadow:inset 0 0 4px #ff99cc,0 0 6px #ff99ccaa;z-index:6;}
+#progress-fill-red {background:linear-gradient(to right,#ff4444,#880000);box-shadow:inset 0 0 4px #ff4444,0 0 6px #ff4444aa;z-index:7;}
+#progress-fill-orange {background:linear-gradient(to right,#ffaa33,#cc5500);box-shadow:inset 0 0 4px #ffaa33,0 0 6px #ffaa33aa;z-index:8;}
+#progress-fill-gold {background:linear-gradient(to right,#ffd700,#ccaa00);box-shadow:inset 0 0 4px #ffd700,0 0 6px #ffd700aa;z-index:9;}
 
-#progress-fill-green {
-  background: linear-gradient(to right, #00ff88, #007744);
-  box-shadow: inset 0 0 4px #00ff88, 0 0 6px #00ff88aa;
-  z-index: 1;
-}
-
-#progress-fill-teal {
-  background: linear-gradient(to right, #00ffaa, #008877);
-  box-shadow: inset 0 0 4px #00ffaa, 0 0 6px #00ffaaaa;
-  z-index: 2;
-}
-
-#progress-fill-cyan {
-  background: linear-gradient(to right, #33ccff, #0099cc);
-  box-shadow: inset 0 0 4px #33ccff, 0 0 6px #33ccffaa;
-  z-index: 3;
-}
-
-#progress-fill-blue {
-  background: linear-gradient(to right, #3399ff, #003355);
-  box-shadow: inset 0 0 4px #3399ff, 0 0 6px #3399ffaa;
-  z-index: 4;
-}
-
-#progress-fill-purple {
-  background: linear-gradient(to right, #cc66ff, #4b0066);
-  box-shadow: inset 0 0 4px #cc66ff, 0 0 6px #cc66ffaa;
-  z-index: 5;
-}
-
-#progress-fill-pink {
-  background: linear-gradient(to right, #ff99cc, #cc0066);
-  box-shadow: inset 0 0 4px #ff99cc, 0 0 6px #ff99ccaa;
-  z-index: 6;
-}
-
-#progress-fill-red {
-  background: linear-gradient(to right, #ff4444, #880000);
-  box-shadow: inset 0 0 4px #ff4444, 0 0 6px #ff4444aa;
-  z-index: 7;
-}
-
-#progress-fill-orange {
-  background: linear-gradient(to right, #ffaa33, #cc5500);
-  box-shadow: inset 0 0 4px #ffaa33, 0 0 6px #ffaa33aa;
-  z-index: 8;
-}
-
-#progress-fill-gold {
-  background: linear-gradient(to right, #ffd700, #ccaa00);
-  box-shadow: inset 0 0 4px #ffd700, 0 0 6px #ffd700aa;
-  z-index: 9;
-}
-
-@keyframes pulse-3x {
-  0% { transform: scale(1); }
-  16% { transform: scale(2); }
-  33% { transform: scale(1); }
-  50% { transform: scale(2); }
-  66% { transform: scale(1); }
-  83% { transform: scale(2); }
-  100% { transform: scale(1); }
-}
-
-.pulsing {
-  animation: pulse-3x 0.6s ease-in-out;
-}
-
-@@keyframes screen-shake {
-  0% { transform: translate(0px, 0px); }
-  25% { transform: translate(4px, -4px); }
-  50% { transform: translate(-4px, 4px); }
-  75% { transform: translate(4px, 4px); }
-  100% { transform: translate(0px, 0px); }
-}
-
-.shake {
-  animation: screen-shake 0.3s ease-in-out;
-}
-
-.score-box {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 80px;
-  height: 40px;
-  overflow: hidden;
-  position: relative;
-}
-
-.score-inner {
-  font-family: Impact, sans-serif;
-  font-weight: normal;
-  font-size: 22px;
-  letter-spacing: 1px;
-  line-height: 1;
-}
-
-@keyframes pop-win {
-  0% { transform: scale(0.5) translate(-50%, -50%); opacity: 0; }
-  50% { transform: scale(1.2) translate(-50%, -50%); opacity: 1; }
-  100% { transform: scale(1) translate(-50%, -50%); opacity: 1; }
+/* Animace – výhra, chvění, pulzace */
+@keyframes pop-win {0%{transform:scale(0.5) translate(-50%,-50%);opacity:0;}50%{transform:scale(1.2) translate(-50%,-50%);opacity:1;}100%{transform:scale(1) translate(-50%,-50%);opacity:1;}}
+@keyframes medal-from-depth {
+  0%   { transform: translate(-50%, -50%) scale(5); opacity: 0; }
+  95% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 }
 
 
-@media (max-width: 600px) {
-  body {
-    font-size: 3.5vw; /* písmo podle šířky okna */
-  }
-
-  #letters {
-    font-size: 5vw;
-  }
-
-  #reading-options button,
-  #free-ok {
-    font-size: 5vw;
-    padding: 2vw 4vw;
-  }
-
-  #free-cursor {
-    font-size: 8vw;
-  }
-
-  img {
-    max-width: 80vw;
-    height: auto;
-  }
-
-  #mobile-input {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 1px;
-    height: 1px;
-    opacity: 0.01;
-    z-index: 1;
-  }
-
-  #main-container {
-    padding: 2vw;
-    max-width: 100vw;
-    overflow: hidden;
-  }
+.dip-effect {
+  animation: screen-dip 0.5s ease-out;
 }
 
-	
-  </style>
+/* Responsivita – mobil */
+@media (max-width:699px) {
+#gif-container {left:10px !important;transform:none !important;}
+}
+@media (max-width:600px) {
+body {font-size:3.5vw;}
+#letters {font-size:5vw;}
+#reading-options button,#free-ok {font-size:5vw;padding:2vw 4vw;}
+#free-cursor {font-size:8vw;}
+img {max-width:80vw;height:auto;}
+#mobile-input {position:absolute;top:0;left:0;width:1px;height:1px;opacity:0.01;z-index:1;}
+#main-container {padding:2vw;max-width:100vw;overflow:hidden;}
+}
+</style>
+
 </head>
 <body>
 
+<!--  event. free mód -->
  <div class="topbar">
 <div class="menu" style="align-items: center;">
   <div style="display: flex; gap: 10px;">
     <button class="mode-button writing" onclick="startGame('writing')">✍️ PSANÍ</button>
-	<button class="mode-button free" onclick="startGame('free')">✒️ VOLNÉ</button>
+	<button class="mode-button free" style="display: none;" onclick="startGame('free')">✒️ VOLNÉ</button>
     <button class="mode-button reading" onclick="startGame('reading')">📖 ČTENÍ</button>
     <button class="mode-button math" onclick="startGame('math')">➕ POČTY</button>
   </div>
@@ -476,9 +189,10 @@
   <div id="reading-options"></div>
   <div id="math-task"></div>
 
+
 <div id="free-mode" style="display: none; margin-top: 20px;">
   <div id="free-cursor" style="font-size: 36px; width: fit-content; margin-inline: auto; padding: 5px 10px;"></div>
-  <button id="free-ok" style="margin-top: 10px; font-size: 24px; border-radius: 50%; width: 60px; height: 60px;">OK</button>
+  <button id="free-ok" style="margin-top: 10px; font-size: 18px; width: 50px; height: 40px;">OK</button>
   <div id="free-images" style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;"></div>
 </div>
 
@@ -1324,25 +1038,27 @@ function resetProgressBar() {
   updateProgressBar();
 }
 
+// MEDAILE
+
 function addMedal() {
-  medals.bronze += 1; // vždy přidej 1x 🥉
+  medals.bronze += 1;
 
   while (medals.bronze >= 3) {
     medals.bronze -= 3;
     medals.silver += 1;
   }
-
   while (medals.silver >= 3) {
     medals.silver -= 3;
     medals.gold += 1;
   }
 
-  animateMedal("bronze"); // vizuální animace – vždy jako bronz
-  updateMedals();
-  saveMedals();
-  showCelebration();
+  // Spustí animaci a až po jejím konci aktualizuje řádek medailí
+  animateMedal("bronze", () => {
+    updateMedals();
+    saveMedals();
+    showCelebration();
+  });
 }
-
 
 
 function updateMedals() {
@@ -1378,15 +1094,11 @@ updateProgressBar();
 
 // ANIMACE medaile
 
-function animateMedal(type) {
+function animateMedal(type, onComplete = null) {
   const anim = document.getElementById("medal-animation");
   const emoji = type === "gold" ? "🥇" : type === "silver" ? "🥈" : "🥉";
-
-  // Cílový kontejner
   const container = document.getElementById("medals-container");
   const rect = container.getBoundingClientRect();
-
-  // Střed cílové oblasti
   const targetLeft = rect.left + rect.width / 2;
   const targetTop = rect.top + window.scrollY;
 
@@ -1395,53 +1107,17 @@ function animateMedal(type) {
   anim.style.opacity = "1";
   anim.style.position = "absolute";
   anim.style.left = `${targetLeft}px`;
-  anim.style.top = `-100px`;
-  anim.style.transform = "translate(-50%, 0) scale(0.8)";
-  anim.style.transition = "none";
+  anim.style.top = `${targetTop}px`;
+  anim.style.transform = "translate(-50%, -50%) scale(1)";
+  anim.style.animation = "medal-from-depth 1s ease-out forwards";
 
-  // Pád na pozici
-  anim.animate([
-    { transform: "translate(-50%, 0) scale(0.5)", top: "-100px", opacity: 0 },
-    { transform: "translate(-50%, 0) scale(1.5)", top: `${targetTop - 20}px`, opacity: 1 },
-    { transform: "translate(-50%, 0) scale(1)", top: `${targetTop}px`, opacity: 1 }
-  ], {
-    duration: 1000,
-    easing: "ease-out"
-  });
-
-  // Po dopadu – třes a pauza
+  // Až skončí animace, zobraz medaili v řádku
   setTimeout(() => {
-    anim.style.top = `${targetTop}px`;
-    anim.style.left = `${targetLeft}px`;
-    anim.style.transform = "translate(-50%, 0) scale(1)";
-    document.body.classList.add("shake");
-
-    setTimeout(() => {
-      document.body.classList.remove("shake");
-    }, 300);
-
-    // Nech 3 sekundy na místě
-    setTimeout(() => {
-      // Najít přesné místo nové medaile v containeru po aktualizaci
-      updateMedals(); // přidá novou medaili do DOM
-      const newMedal = container.querySelector("span:last-child, .medal:last-child"); // nebo uprav dle potřeby
-      const newRect = container.getBoundingClientRect();
-
-      // Posunout animovaný element na nové místo
-      const finalLeft = newRect.left + newRect.width / 2;
-      const finalTop = newRect.top + window.scrollY;
-
-      anim.style.transition = "all 0.6s ease-in-out";
-      anim.style.left = `${finalLeft}px`;
-      anim.style.top = `${finalTop}px`;
-      anim.style.opacity = "0";
-
-      setTimeout(() => {
-        anim.style.display = "none";
-      }, 700);
-    }, 3000);
-  }, 1000);
+    anim.style.display = "none";
+    if (typeof onComplete === "function") onComplete();
+  }, 1000); // Doba odpovídá délce animace
 }
+
 
 
 
@@ -1458,12 +1134,53 @@ function resetTodayMedals() {
 
 function showWinBanner() {
   const banner = document.getElementById("win-banner");
+  banner.textContent = "🎉 VÍTĚZ! 🎉";
   banner.style.display = "block";
 
+  let danceIndex = 1;
+  let musicIndex = 1;
+  const maxDances = 8;
+  const maxMusic = 5;
+  let cycleInterval;
+
+  const gifContainer = document.getElementById("gif-container");
+  const gif = document.getElementById("gif-animation");
+
+  const audio = new Audio();
+  audio.volume = 1;
+
+  function cycleCelebration() {
+    // Změna GIFu
+    gif.src = `dance${danceIndex}.gif`;
+    gifContainer.style.display = "block";
+
+    // Změna hudby
+    audio.pause();
+    audio.src = `music${musicIndex}.mp3`;
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+
+    // Další iterace
+    danceIndex = (danceIndex % maxDances) + 1;
+    musicIndex = (musicIndex % maxMusic) + 1;
+  }
+
+
+	setTimeout(() => {
+	  cycleCelebration();
+	  cycleInterval = setInterval(cycleCelebration, 6000);
+	}, 7000);
+
+  // Ukončení celé show po 20 vteřinách
   setTimeout(() => {
+    clearInterval(cycleInterval);
+    audio.pause();
+    gifContainer.style.display = "none";
     banner.style.display = "none";
-  }, 50000); // zmizí po 5 vteřinách
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }, 60000);
 }
+
 
 
 // FREESTYLE
