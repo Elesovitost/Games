@@ -35,7 +35,7 @@ const images = matches
     try {
       const jsonStr = m[1].replace(/&quot;/g, '"');
       const data = JSON.parse(jsonStr);
-      return data.murl;
+      return data.turl; // Jen thumbnail (náhled)
     } catch {
       return null;
     }
@@ -43,14 +43,12 @@ const images = matches
   .filter(url =>
     url &&
     url.startsWith('https://') &&
-    !url.match(/:\/\/(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/) && // vnitřní IP rozsahy
+    !url.match(/:\/\/(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/) &&
     !url.includes('.local') &&
-    !url.includes('.invalid') &&
-    !url.match(/\.(exe|php|cgi|asp)(\?|$)/i) && // nepovolené koncovky
-    !url.match(/\.(zip|rar|7z)(\?|$)/i) &&      // komprimované soubory
-    !/^[a-z]+:\/\/\d+\.\d+\.\d+\.\d+/.test(url) // přímá IP adresa v URL
+    !url.includes('.invalid')
   )
-  .slice(0, 3);
+  .slice(0, 3); // libovolný počet, např. 10
+
 
 
     res.json({
