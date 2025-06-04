@@ -96,12 +96,16 @@
     img.alt = game.name;
     button.appendChild(img);
 
-    button.addEventListener('click', () => {
-      button.classList.add('rotate');
-      setTimeout(() => {
-        window.location.href = game.file;
-      }, 1000);
-    });
+	button.addEventListener('click', () => {
+	  button.classList.remove('rotate');
+	  // Vyvolání reflow pro restart animace
+	  void button.offsetWidth;
+	  button.classList.add('rotate');
+
+	  setTimeout(() => {
+		window.location.href = game.file;
+	  }, 1000);
+	});
 
     button.addEventListener('mouseenter', () => {
       button.dataset.paused = 'true';
