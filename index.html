@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Herní Rozcestník</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .circle {
+      position: relative;
+      width: 600px;
+      height: 600px;
+    }
+
+    .game-button {
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: #fffaf5;
+      border: 4px double #c5a880;
+      box-shadow: inset 0 0 0 4px #fff, 0 0 15px rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.6s ease, box-shadow 0.3s ease;
+      background-image: radial-gradient(circle at center, transparent 50%, #c5a880 52%, transparent 55%), 
+                        repeating-conic-gradient(#c5a880 0deg 5deg, transparent 5deg 10deg);
+      background-size: cover;
+    }
+
+    .game-button img {
+      width: 90%;
+      height: 90%;
+      object-fit: contain;
+      border-radius: 50%;
+      background: white;
+    }
+
+    .game-button:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 25px #8a4baf;
+    }
+
+    .rotate {
+      animation: spin-reverse 1s linear forwards;
+    }
+
+    @keyframes spin-reverse {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(-360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="circle" id="circle">
+    <!-- Buttons will be dynamically inserted -->
+  </div>
+
+<script>
+  const games = [
+    { name: 'ABC', file: 'ABC.html', image: 'ABC.webp' },
+    { name: 'Snakes', file: 'Snakes.html', image: 'Snakes.webp' },
+    { name: 'Maze', file: 'Maze.html', image: 'Maze.webp' },
+  ];
+
+  const circle = document.getElementById('circle');
+  const radius = 250;
+  const centerX = 300;
+  const centerY = 300;
+  const speed = 0.001; // rychlost otáčení
+
+  const buttons = [];
+
+  games.forEach((game, index) => {
+    const angle = (2 * Math.PI / games.length) * index;
+
+    const button = document.createElement('div');
+    button.className = 'game-button';
+    button.dataset.angle = angle;
+
+    const img = document.createElement('img');
+    img.src = game.image;
+    img.alt = game.name;
+    button.appendChild(img);
+
+    button.addEventListener('click', () => {
+      button.classList.add('rotate');
+      setTimeout(() => {
+        window.location.href = game.file;
+      }, 1000);
+    });
+
+    button.addEventListener('mouseenter', () => {
+      button.dataset.paused = 'true';
+    });
+
+    button.addEventListener('mouseleave', () => {
+      button.dataset.paused = 'false';
+    });
+
+    circle.appendChild(button);
+    buttons.push(button);
+  });
+
+  function animate() {
+    buttons.forEach((button) => {
+      let angle = parseFloat(button.dataset.angle);
+      if (button.dataset.paused !== 'true') {
+        angle += speed;
+        button.dataset.angle = angle;
+      }
+
+      const x = centerX + radius * Math.cos(angle) - 100;
+      const y = centerY + radius * Math.sin(angle) - 100;
+      button.style.left = `${x}px`;
+      button.style.top = `${y}px`;
+    });
+
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+</script>
+
+</body>
+</html>
