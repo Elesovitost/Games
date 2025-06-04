@@ -71,17 +71,18 @@ canvas#fireworks {
   </div>
   <div>
     <select id="playerSelect" class="player-btn">
-      <option value="1" selected>HRÁČ 1</option>
-      <option value="2">HRÁČ 2</option>
+      <option value="1" selected>1 HRÁČ</option>
+      <option value="2">2 HRÁČI</option>
+	  <option value="ai">VS AI</option>
     </select>
   </div>
   <div>
     <select id="speedSelect" class="player-btn">
-      <option value="1">1</option>
-      <option value="2">2</option>
-      <option value="3">3</option>
-      <option value="4">4</option>
-      <option value="5">5</option>
+      <option value="1">šnek</option>
+      <option value="2">brouk</option>
+      <option value="3">mungo</option>
+      <option value="4">kočka</option>
+      <option value="5">gepard</option>
     </select>
   </div>
 </div>
@@ -121,6 +122,7 @@ window.addEventListener("resize", syncTrailCanvasSize);
 
     const player = createPlayer(0, 0);
     const player2 = createPlayer(1, 1);
+	let player2AI = false;
 	
 	const playerSelect = document.getElementById("playerSelect");
 	const speedSelect = document.getElementById("speedSelect");
@@ -131,6 +133,12 @@ window.addEventListener("resize", syncTrailCanvasSize);
 	let player2Won = false;
 	let fireworksCount = 0;
 	let winnerText = "";
+	
+	let aiPath = [];
+	let aiPathIndex = 0;
+	let aiActivated = false;
+
+	let gameOver = false;
 	
 
 	const trailCtx = trailCanvas.getContext("2d");
@@ -208,11 +216,19 @@ window.addEventListener("resize", syncTrailCanvasSize);
 const savedPlayerCount = localStorage.getItem("playerCount");
 if (savedPlayerCount === "2") {
   player2Active = true;
+  player2AI = false;
   playerSelect.value = "2";
+} else if (savedPlayerCount === "ai") {
+  player2Active = true;
+  player2AI = true;
+  playerSelect.value = "ai";
 } else {
   player2Active = false;
+  player2AI = false;
   playerSelect.value = "1";
 }
+
+
 
 // Načíst uloženou rychlost
 const savedSpeed = localStorage.getItem("playerSpeed");
@@ -224,16 +240,23 @@ if (savedSpeed) {
 }
 updateSpeed(); // zavolat, aby se aplikovala počáteční hodnota
 
-// Když se uživatel přepne mezi HRÁČ 1 / HRÁČ 2
+// Když se uživatel přepne mezi HRÁČ 1 / HRÁČ 2 / AI
 playerSelect.addEventListener("change", () => {
-  if (playerSelect.value === "2") {
+  const value = playerSelect.value;
+  if (value === "2") {
     player2Active = true;
+    player2AI = false;
     localStorage.setItem("playerCount", "2");
+  } else if (value === "ai") {
+    player2Active = true;
+    player2AI = true;
+    localStorage.setItem("playerCount", "ai");
+    aiActivated = false;
   } else {
     player2Active = false;
+    player2AI = false;
     localStorage.setItem("playerCount", "1");
   }
-  playerSelect.blur(); // 👈 přidej toto
 });
 
 // Když se uživatel změní rychlost v selectu
@@ -241,25 +264,41 @@ speedSelect.addEventListener("change", () => {
   const newSpeed = parseInt(speedSelect.value);
   if (newSpeed >= 1 && newSpeed <= 5) {
     speedLevel = newSpeed;
-    updateSpeed();
     localStorage.setItem("playerSpeed", String(speedLevel));
   }
-  speedSelect.blur(); // 👈 přidej toto
+
+  reinitializePlayers();
+  updateSpeed();
+
+  if (player2AI) planAIPath(); // ✅ AI znovu naplánuje cestu
+
+  speedSelect.blur(); 
 });
 
 
 
-//rychlost
+//rychlostw
 
 function updateSpeed() {
   const speed = speedBase * speedLevel;
   player.speed = speed;
-  player2.speed = speed;
-  // Pokud chcete, můžete tu ponechat synchronní nastavení selectu, ale není nutné – už to řeší listener:
-  // speedSelect.value = String(speedLevel);
+
+  if (player2AI) {
+    player2.speed = speed * 0.5; // AI je pomalejší
+  } else {
+    player2.speed = speed; // normální hráč 2 má stejnou rychlost
+  }
 }
 
 
+function reinitializePlayers() {
+  const [start1, start2] = findFurthestPointsBFS();
+  Object.assign(player, createPlayer(...start1));
+  Object.assign(player2, createPlayer(...start2));
+  updateSpeed();
+  trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+  if (player2AI) planAIPath();
+}
 
 
 
@@ -366,6 +405,10 @@ let heldKeys1 = [];
 let heldKeys2 = [];
 
 document.addEventListener("keydown", e => {
+	if (!aiActivated && player2AI) {
+	  aiActivated = true;
+	  planAIPath();
+	}
   const key = e.key;
   if (["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"].includes(key) && !heldKeys1.includes(key)) {
     heldKeys1.push(key);
@@ -381,9 +424,16 @@ document.addEventListener("keyup", e => {
   heldKeys2 = heldKeys2.filter(k => k !== key);
 });
 
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space" && gameOver) {
+    restartGame();
+    e.preventDefault();
+  }
+});
 
-function movePlayer(p, heldKeys, hueRefName) {
+function movePlayer(p, heldKeys, hueRefName, isPlayer2 = false) {
   const curr = grid[p.y][p.x];
+  if (gameOver) return;
 
   if (p.px === p.tx && p.py === p.ty && heldKeys.length > 0) {
     const prevX = p.x, prevY = p.y;
@@ -424,23 +474,28 @@ function movePlayer(p, heldKeys, hueRefName) {
     if (hueRefName === "hue") hue = (hue + 2) % 360;
     else if (hueRefName === "hue2") hue2 = (hue2 + 2) % 360;
 
-    drawTrailPoint(p.px + cellSize / 2, p.py + cellSize / 2, hueRefName === "hue" ? hue : hue2);
+    drawTrailPoint(p.px + cellSize / 2, p.py + cellSize / 2, hueRefName === "hue" ? hue : hue2, isPlayer2);
   }
 }
 
 
 
+// TRAIL
 
+function drawTrailPoint(x, y, hue, isPlayer2 = false) {
+  const mappedHue = isPlayer2
+    ? 180 + (hue % 60)          // 180–240
+    : (hue % 60);               // 0–60
 
-function drawTrailPoint(x, y, hue) {
   const gradient = trailCtx.createRadialGradient(x, y, 0, x, y, 10);
-  gradient.addColorStop(0, `hsla(${hue}, 100%, 60%, 0.8)`);
-  gradient.addColorStop(1, `hsla(${hue}, 100%, 60%, 0)`);
+  gradient.addColorStop(0, `hsla(${mappedHue}, 100%, 60%, 0.8)`);
+  gradient.addColorStop(1, `hsla(${mappedHue}, 100%, 60%, 0)`);
   trailCtx.fillStyle = gradient;
   trailCtx.beginPath();
   trailCtx.arc(x, y, 10, 0, Math.PI * 2);
   trailCtx.fill();
 }
+
 
 
 	function drawMaze() {
@@ -469,10 +524,12 @@ function drawTrailPoint(x, y, hue) {
 
 
 function gameLoop() {
+	if (gameOver) return;
 	movePlayer(player, heldKeys1, "hue");
 	if (player2Active) {
-	  movePlayer(player2, heldKeys2, "hue2");
+	  movePlayer(player2, heldKeys2, "hue2", true); // 🔥 hráč 2
 }
+
 
 
   drawMaze();
@@ -488,6 +545,19 @@ function gameLoop() {
     player2Won = true;
     launchFireworks("HRÁČ 2 VYHRÁL!");
   }
+
+  //AI
+	if (player2Active && player2AI && aiPath.length > 1) {
+	  if (player2.px === player2.tx && player2.py === player2.ty && aiPathIndex < aiPath.length) {
+		const [nextX, nextY] = aiPath[aiPathIndex];
+		player2.tx = nextX * cellSize;
+		player2.ty = nextY * cellSize;
+		player2.x = nextX;
+		player2.y = nextY;
+		aiPathIndex++;
+	  }
+	}
+
 
   requestAnimationFrame(gameLoop);
 }
@@ -505,12 +575,15 @@ function distanceToExit(player) {
 
 
 
-    generateMaze();
-    const [start1, start2] = findFurthestPointsBFS();
-    Object.assign(player, createPlayer(...start1));
-    Object.assign(player2, createPlayer(...start2));
-    gameLoop();
-  
+generateMaze();
+
+const [start1, start2] = findFurthestPointsBFS();
+Object.assign(player, createPlayer(...start1));
+Object.assign(player2, createPlayer(...start2));
+
+updateSpeed();             // ✅ nastav rychlosti po vytvoření hráčů
+gameLoop();
+
 
 document.getElementById("mazeSize").addEventListener("change", function () {
   const size = parseInt(this.value);
@@ -535,14 +608,14 @@ function resetMaze(size) {
   grid = [];
   stack = [];
 
-
   generateMaze();
-  const [start1, start2] = findFurthestPointsBFS();
-  Object.assign(player, createPlayer(...start1));
-  Object.assign(player2, createPlayer(...start2));
-  trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
-syncTrailCanvasSize();
+  syncTrailCanvasSize();
+  reinitializePlayers(); // ← DŮLEŽITÉ!
+  gameOver = false;   // 
+  gameLoop();  
+  aiActivated = false;
 }
+
 
 
 // ohňostroj
@@ -558,6 +631,9 @@ function resizeCanvas() {
 }
 
 function launchFireworks(winner) {
+  gameOver = true;
+  heldKeys1 = [];
+  heldKeys2 = [];
   resizeCanvas();
   winnerText = winner;
   fireworks = [];
@@ -580,7 +656,7 @@ function launchFireworks(winner) {
     resetMaze(canvasSize);
     player1Won = false;
     player2Won = false;
-  }, 40000); // 40 sekund
+  }, 20000); // 20 sekund
 }
 
 
@@ -653,7 +729,76 @@ function updateFireworks() {
   fireworksCtx.globalAlpha = 1;
 }
 
+//AI
+function bfsPath(startX, startY, endX, endY) {
+  const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+  const prev = Array.from({ length: rows }, () => Array(cols).fill(null));
+  const queue = [[startX, startY]];
+  visited[startY][startX] = true;
 
+  const dirs = [
+    { dx: 0, dy: -1, wall: 0 },
+    { dx: 1, dy: 0, wall: 1 },
+    { dx: 0, dy: 1, wall: 2 },
+    { dx: -1, dy: 0, wall: 3 }
+  ];
+
+  while (queue.length > 0) {
+    const [x, y] = queue.shift();
+    if (x === endX && y === endY) break;
+
+    const cell = grid[y][x];
+    for (const { dx, dy, wall } of dirs) {
+      const nx = x + dx, ny = y + dy;
+      if (nx >= 0 && ny >= 0 && nx < cols && ny < rows && !visited[ny][nx]) {
+        if (!cell.walls[wall]) {
+          visited[ny][nx] = true;
+          prev[ny][nx] = [x, y];
+          queue.push([nx, ny]);
+        }
+      }
+    }
+  }
+
+  // Rekonstrukce cesty
+  let path = [];
+  let curr = [endX, endY];
+  while (curr && curr[0] !== startX || curr[1] !== startY) {
+    path.push(curr);
+    curr = prev[curr[1]][curr[0]];
+  }
+  path.push([startX, startY]);
+  path.reverse();
+  return path;
+}
+
+
+function planAIPath() {
+  aiPath = bfsPath(player2.x, player2.y, exit.x, exit.y);
+  aiPathIndex = 1;
+}
+
+
+// restart game
+
+function restartGame() {
+  gameOver = false;
+  player1Won = false;
+  player2Won = false;
+  winnerText = "";
+  fireworksCount = 0;
+
+  generateMaze();
+  const [start1, start2] = findFurthestPointsBFS();
+  Object.assign(player, createPlayer(...start1));
+  Object.assign(player2, createPlayer(...start2));
+
+  updateSpeed();
+  trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+  if (player2AI) planAIPath();
+
+  gameLoop();
+}
 
   </script>
 </body>
