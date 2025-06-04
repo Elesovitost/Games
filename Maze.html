@@ -89,7 +89,7 @@ canvas#fireworks {
 
 
 <div style="position: relative; width: fit-content; margin: 20px auto;">
-  <canvas id="mazeCanvas" width="800" height="800" style="z-index: 0"></canvas>
+  <canvas id="mazeCanvas" width="800" height="800" tabindex="0" style="z-index: 0"></canvas>
   <canvas id="trailCanvas" style="pointer-events: none; z-index: 1;"></canvas>
 </div>
 
@@ -114,6 +114,7 @@ window.addEventListener("resize", syncTrailCanvasSize);
 
     let grid = [], stack = [];
     let hue = 0, hue2 = 180;
+	let animationFrameId = null;
     let player2Active = false;
 	
     const exit = { x: cols - 1, y: rows - 1 };
@@ -229,7 +230,6 @@ if (savedPlayerCount === "2") {
 }
 
 
-
 // Načíst uloženou rychlost
 const savedSpeed = localStorage.getItem("playerSpeed");
 if (savedSpeed) {
@@ -242,12 +242,28 @@ updateSpeed(); // zavolat, aby se aplikovala počáteční hodnota
 
 // Když se uživatel přepne mezi HRÁČ 1 / HRÁČ 2 / AI
 playerSelect.addEventListener("change", () => {
-  const value = playerSelect.value;
-  if (value === "2") {
+  handleFullReset();
+});
+
+
+// Když se uživatel změní rychlost v selectu
+speedSelect.addEventListener("change", () => {
+  handleFullReset();
+});
+
+
+//RESET
+function handleFullReset() {
+  const size = parseInt(document.getElementById("mazeSize").value);
+  const playerMode = playerSelect.value;
+  const newSpeed = parseInt(speedSelect.value);
+
+  // Nastavit počet hráčů
+  if (playerMode === "2") {
     player2Active = true;
     player2AI = false;
     localStorage.setItem("playerCount", "2");
-  } else if (value === "ai") {
+  } else if (playerMode === "ai") {
     player2Active = true;
     player2AI = true;
     localStorage.setItem("playerCount", "ai");
@@ -257,23 +273,55 @@ playerSelect.addEventListener("change", () => {
     player2AI = false;
     localStorage.setItem("playerCount", "1");
   }
-});
 
-// Když se uživatel změní rychlost v selectu
-speedSelect.addEventListener("change", () => {
-  const newSpeed = parseInt(speedSelect.value);
+  // Nastavit rychlost
   if (newSpeed >= 1 && newSpeed <= 5) {
     speedLevel = newSpeed;
     localStorage.setItem("playerSpeed", String(speedLevel));
   }
 
-  reinitializePlayers();
+  // Uložit velikost
+  localStorage.setItem("mazeSize", size);
+
+  // FULL RESET začíná
+  stopFireworks(); // ← zastavit efekty
+
+  canvasSize = size;
+  canvas.width = canvasSize;
+  canvas.height = canvasSize;
+  cellSize = 40;
+  cols = canvasSize / cellSize;
+  rows = canvasSize / cellSize;
+  exit.x = cols - 1;
+  exit.y = rows - 1;
+
+  grid = [];
+  stack = [];
+
+  gameOver = false;
+  player1Won = false;
+  player2Won = false;
+  winnerText = "";
+  fireworksCount = 0;
+  aiActivated = false;
+  aiPath = [];
+  aiPathIndex = 0;
+
+  generateMaze();
+  syncTrailCanvasSize();
+
+  const [start1, start2] = findFurthestPointsBFS();
+  Object.assign(player, createPlayer(...start1));
+  Object.assign(player2, createPlayer(...start2));
   updateSpeed();
+  speedSelect.blur(); playerSelect.blur();   mazeSizeSelect.blur();
+  trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
 
-  if (player2AI) planAIPath(); // ✅ AI znovu naplánuje cestu
 
-  speedSelect.blur(); 
-});
+  cancelAnimationFrame(animationFrameId); // ← pokud máš zavedené
+  gameLoop();
+  
+}
 
 
 
@@ -426,10 +474,12 @@ document.addEventListener("keyup", e => {
 
 document.addEventListener("keydown", (e) => {
   if (e.code === "Space" && gameOver) {
-    restartGame();
+    stopFireworks();        // přidej tento řádek
+    handleFullReset();
     e.preventDefault();
   }
 });
+
 
 function movePlayer(p, heldKeys, hueRefName, isPlayer2 = false) {
   const curr = grid[p.y][p.x];
@@ -524,43 +574,41 @@ function drawTrailPoint(x, y, hue, isPlayer2 = false) {
 
 
 function gameLoop() {
-	if (gameOver) return;
-	movePlayer(player, heldKeys1, "hue");
-	if (player2Active) {
-	  movePlayer(player2, heldKeys2, "hue2", true); // 🔥 hráč 2
-}
+  if (gameOver) return;
 
-
+  movePlayer(player, heldKeys1, "hue");
+  if (player2Active) {
+    movePlayer(player2, heldKeys2, "hue2", true);
+  }
 
   drawMaze();
 
-  // Hráč 1 výhra
+  // výhry
   if (!player1Won && player.x === exit.x && player.y === exit.y && player.px === player.tx && player.py === player.ty) {
     player1Won = true;
     launchFireworks("HRÁČ 1 VYHRÁL!");
   }
 
-  // Hráč 2 výhra
   if (player2Active && !player2Won && player2.x === exit.x && player2.y === exit.y && player2.px === player2.tx && player2.py === player2.ty) {
     player2Won = true;
     launchFireworks("HRÁČ 2 VYHRÁL!");
   }
 
-  //AI
-	if (player2Active && player2AI && aiPath.length > 1) {
-	  if (player2.px === player2.tx && player2.py === player2.ty && aiPathIndex < aiPath.length) {
-		const [nextX, nextY] = aiPath[aiPathIndex];
-		player2.tx = nextX * cellSize;
-		player2.ty = nextY * cellSize;
-		player2.x = nextX;
-		player2.y = nextY;
-		aiPathIndex++;
-	  }
-	}
+  // AI pohyb
+  if (player2Active && player2AI && aiPath.length > 1) {
+    if (player2.px === player2.tx && player2.py === player2.ty && aiPathIndex < aiPath.length) {
+      const [nextX, nextY] = aiPath[aiPathIndex];
+      player2.tx = nextX * cellSize;
+      player2.ty = nextY * cellSize;
+      player2.x = nextX;
+      player2.y = nextY;
+      aiPathIndex++;
+    }
+  }
 
-
-  requestAnimationFrame(gameLoop);
+  animationFrameId = requestAnimationFrame(gameLoop); // ✅ ULOŽ ID animace
 }
+
 
 
 
@@ -585,36 +633,10 @@ updateSpeed();             // ✅ nastav rychlosti po vytvoření hráčů
 gameLoop();
 
 
-document.getElementById("mazeSize").addEventListener("change", function () {
-  const size = parseInt(this.value);
-  localStorage.setItem("mazeSize", size); // ✅ uložit do localStorage
-  resetMaze(size);
-  this.blur();
+const mazeSizeSelect = document.getElementById("mazeSize");
+mazeSizeSelect.addEventListener("change", () => {
+  handleFullReset();
 });
-
-
-// velikost bludiště
-  
-function resetMaze(size) {
-  canvasSize = size;
-  canvas.width = canvasSize;
-  canvas.height = canvasSize;
-  cellSize = 40;
-  cols = canvasSize / cellSize;
-  rows = canvasSize / cellSize;
-  exit.x = cols - 1;
-  exit.y = rows - 1;
-
-  grid = [];
-  stack = [];
-
-  generateMaze();
-  syncTrailCanvasSize();
-  reinitializePlayers(); // ← DŮLEŽITÉ!
-  gameOver = false;   // 
-  gameLoop();  
-  aiActivated = false;
-}
 
 
 
@@ -647,30 +669,30 @@ function launchFireworks(winner) {
       fireworks.push(createFirework());
     }
   }, 50);
-
-  // Po 40 sekundách ohňostroj skončí a hra se restartuje
-  setTimeout(() => {
-    clearInterval(fireworksInterval);
-    stopFireworks();
-    winnerText = "";
-    resetMaze(canvasSize);
-    player1Won = false;
-    player2Won = false;
-  }, 20000); // 20 sekund
 }
 
 
 
 function drawWinnerText() {
   if (!winnerText) return;
+
   fireworksCtx.font = "bold 48px sans-serif";
   fireworksCtx.fillStyle = "white";
   fireworksCtx.strokeStyle = "black";
   fireworksCtx.lineWidth = 4;
   fireworksCtx.textAlign = "center";
   fireworksCtx.textBaseline = "middle";
-  fireworksCtx.strokeText(winnerText, fireworksCanvas.width / 2, fireworksCanvas.height / 2);
-  fireworksCtx.fillText(winnerText, fireworksCanvas.width / 2, fireworksCanvas.height / 2);
+
+  const centerX = fireworksCanvas.width / 2;
+  const centerY = fireworksCanvas.height / 2;
+
+  fireworksCtx.strokeText(winnerText, centerX, centerY);
+  fireworksCtx.fillText(winnerText, centerX, centerY);
+
+  // 👇 Doplněný mezerník hint
+  fireworksCtx.font = "bold 16px sans-serif";
+  fireworksCtx.fillStyle = "lightgray";
+  fireworksCtx.fillText("Stiskni MEZERNÍK pro novou hru", centerX, centerY + 60);
 }
 
 
@@ -778,27 +800,6 @@ function planAIPath() {
   aiPathIndex = 1;
 }
 
-
-// restart game
-
-function restartGame() {
-  gameOver = false;
-  player1Won = false;
-  player2Won = false;
-  winnerText = "";
-  fireworksCount = 0;
-
-  generateMaze();
-  const [start1, start2] = findFurthestPointsBFS();
-  Object.assign(player, createPlayer(...start1));
-  Object.assign(player2, createPlayer(...start2));
-
-  updateSpeed();
-  trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
-  if (player2AI) planAIPath();
-
-  gameLoop();
-}
 
   </script>
 </body>
