@@ -150,6 +150,10 @@
   <div id="container">
     <canvas id="gameCanvas"></canvas>
     <div id="resultText" style="display: none;"></div>
+	<div id="winnerCelebration" style="display:none; position:absolute; top:25%; left:50%; transform:translate(-50%, -50%); text-align:center; z-index:20;">
+	  <img id="winnerGif" src="snakes-dancing.gif" style="width:200px; max-width:90%; display:block; margin:0 auto;" />
+	  <div id="winnerName" style="font-size:32px; font-weight:bold; margin-top:10px;"></div>
+	</div>
   </div>
 
 <script>
@@ -435,6 +439,28 @@ function resetGame() {
 
     resultText.innerHTML = html;
     resultText.style.display = 'block';
+
+    // ✅ Přidej nové řádky pro zobrazení vítěze a gifu
+    const winner = withScores[0];
+    const winnerColor = playerColors[winner.id - 1];
+    const winnerDisplayName = playerNames[winner.id - 1].toUpperCase();
+
+    const celebrationDiv = document.getElementById('winnerCelebration');
+    const winnerNameEl = document.getElementById('winnerName');
+    winnerNameEl.textContent = winnerDisplayName;
+    winnerNameEl.style.color = winnerColor;
+    celebrationDiv.style.display = 'block';
+
+    // Skrýt oslavu po 5 vteřinách
+    setTimeout(() => {
+      celebrationDiv.style.display = 'none';
+    }, 5000);
+
+    // restart možnost
+    startPrompt.textContent = 'MEZERNÍK = RESTART';
+    startPrompt.style.display = 'block';
+    currentRound = 0;
+
     return;
   }
 

@@ -94,6 +94,8 @@ canvas#fireworks {
 </div>
 
 <canvas id="fireworks" width="0" height="0"></canvas>
+<img id="victoryGif" src="" alt="victory" style="display:none; position:fixed; top:25%; left:50%; transform:translate(-50%,-50%); z-index:2000; max-width:80%; max-height:80%;">
+
 
 
   <script>
@@ -563,11 +565,11 @@ function drawTrailPoint(x, y, hue, isPlayer2 = false) {
 	  ctx.font = "32px sans-serif";
 	  ctx.textAlign = "center";
 	  ctx.textBaseline = "middle";
-	  ctx.fillText("🧙", player.px + cellSize / 2, player.py + cellSize / 2);
+	  ctx.fillText("🐉", player.px + cellSize / 2, player.py + cellSize / 2);
 
 	  // Hráč 2 – drak
 	  if (player2Active) {
-		ctx.fillText("🐉", player2.px + cellSize / 2, player2.py + cellSize / 2);
+		ctx.fillText("🧙", player2.px + cellSize / 2, player2.py + cellSize / 2);
 	  }
 	}
 
@@ -660,6 +662,14 @@ function launchFireworks(winner) {
   winnerText = winner;
   fireworks = [];
 
+  const gif = document.getElementById("victoryGif");
+  if (winner.includes("HRÁČ 1")) {
+    gif.src = "maze-dragon.gif";
+  } else if (winner.includes("HRÁČ 2")) {
+    gif.src = "maze-sorcerer.gif";
+  }
+  gif.style.display = "block";
+
   clearInterval(fireworksInterval);
   fireworksInterval = setInterval(() => {
     updateFireworks();
@@ -670,6 +680,7 @@ function launchFireworks(winner) {
     }
   }, 50);
 }
+
 
 
 
@@ -701,6 +712,7 @@ function stopFireworks() {
   clearInterval(fireworksInterval);
   fireworks = [];
   fireworksCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+  document.getElementById("victoryGif").style.display = "none";
 }
 
 function createFirework() {

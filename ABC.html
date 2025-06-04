@@ -1,4 +1,4 @@
-  <!--Musí se měnit řádka se seznamem slov a dále počet animací a skladeb -->
+  <!-- resetProgressBar(); pro reset bárku při chybě  -->
 
 <!DOCTYPE html>
 <html lang="cs">
@@ -474,7 +474,7 @@ function startGame(mode) {
             updateDisplay();
           } else {
             userInput.push(key);
-            scoreBad++; resetProgressBar();
+            scoreBad++; //resetProgressBar();
             playSound('sound-wrong');
 			showWrongRobot();
             updateScoreDisplay();
@@ -612,7 +612,7 @@ function updateDisplay() {
 		  }, 2000);
 		} else {
 		  img.style.filter = 'brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)';
-		  scoreBad++; resetProgressBar();
+		  scoreBad++; //resetProgressBar();
 		  updateScoreDisplay();
 		  playSound('sound-wrong');
 		  showWrongRobot();
@@ -751,8 +751,7 @@ setTimeout(() => {
 }, 2000);
 
 	} else if (userInput.length === correctAnswer.toString().length) {
-	  scoreBad++;
-	  resetProgressBar();
+	  scoreBad++; //resetProgressBar();
 	  updateScoreDisplay();
 	  playSound('sound-wrong');
 	  showWrongRobot();
