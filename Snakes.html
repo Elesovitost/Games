@@ -56,10 +56,18 @@
       animation: blink 1s step-start 0s infinite;
       user-select: none;
     }
-    @keyframes blink {
-      0%, 50% { opacity: 1; }
-      50.01%, 100% { opacity: 0; }
-    }
+	@keyframes blink {
+	  0%, 100% { opacity: 0.2; }
+	  50% { opacity: 1; }
+	}
+	#startPrompt {
+	  margin-left: auto;
+	  font-weight: bold;
+	  font-size: 16px;
+	  animation: blink 1.6s ease-in-out infinite;
+	  user-select: none;
+	  transition: opacity 0.3s ease;
+	}
 
     /* Kontejner pro herní plátno */
     #container {
@@ -199,7 +207,7 @@ const updateLabel = () => {
     }
   });
 
-  btn.innerHTML = `${name} <span class="kbd">${keyL}</span><span class="kbd">${keyR}</span>`;
+  btn.innerHTML = name + ' <span class="kbd">' + keyL + '</span><span class="kbd">' + keyR + '</span>';
   btn.style.color = playerColors[idx]; 
 
 if (activePlayers[idx]) {
@@ -211,10 +219,12 @@ if (activePlayers[idx]) {
 };
 
 
-  btn.addEventListener('click', () => {
-    activePlayers[idx] = !activePlayers[idx];
-    updateLabel();
-  });
+	btn.addEventListener('click', () => {
+	  activePlayers[idx] = !activePlayers[idx];
+	  updateLabel();
+	  updateStartPromptText(); // <- TADY NOVÝ ŘÁDEK
+	});
+
 
   btn.addEventListener('dblclick', () => {
     const input = document.createElement('input');
@@ -250,7 +260,14 @@ if (activePlayers[idx]) {
   });
 
   updateLabel();
+  
 });
+
+
+  function updateStartPromptText() {
+  const anyActive = activePlayers.some(v => v);
+  startPrompt.textContent = anyActive ? 'MEZERNÍK = START' : 'AKTIVUJ HRÁČE';
+	}
 
   // ----------------------------------------------------------------------
 
@@ -304,14 +321,18 @@ if (activePlayers[idx]) {
     drawResults();
   }
 
-  function resetGame() {
-    gameState = 'init';
-    players = [];
-    finishOrder = [];
-    startPrompt.style.display = 'block';
-    resultText.style.display = 'none';
-    resizeCanvas();
-  }
+// RESET GAME
+
+function resetGame() {
+  gameState = 'init';
+  players = [];
+  finishOrder = [];
+  startPrompt.style.display = 'block';
+  updateStartPromptText(); // <- TADY PŘIDÁNO
+  resultText.style.display = 'none';
+  resizeCanvas();
+}
+
   // ----------------------------------------------------------------------
 
   // ------------------------ INICIALIZACE HRÁČŮ ------------------------
@@ -500,6 +521,7 @@ function drawResults() {
 window.addEventListener('load', () => {
   loadPlayerNamesFromCookies();
   resizeCanvas();
+  updateStartPromptText();
 });
 
   // ----------------------------------------------------------------------
