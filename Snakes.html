@@ -119,8 +119,14 @@
 	}
 		
 	#btnMod2.active {
-	  background: #aaa;
-	  color: #000;
+	  background: #333;
+	  color: #fff;
+	  border-color: #666;
+	}
+	
+	#btnMod3.active {
+	  background: #333;
+	  color: #fff;
 	  border-color: #666;
 	}
   </style>
@@ -135,8 +141,9 @@
       <button id="btnP4">hráč 4 -+</button>
     </div>
 	<div id="modButtons" style="margin-left: 20px;">
-	<button id="btnMod1">MOD1</button>
-	<button id="btnMod2">MOD2</button>
+	<button id="btnMod1">SPEEDS</button>
+	<button id="btnMod2">GHOST</button>
+	<button id="btnMod3">THIN</button>
 	</div>
 
 	<div id="roundsControl" style="margin-left: 20px; display: flex; align-items: center;">
@@ -245,6 +252,15 @@ const ghostCooldown = 10000; // každých 10 sekund
 	  btnMod2.classList.toggle('active', mod2Enabled);
 	});
 	
+	
+	const btnMod3 = document.getElementById('btnMod3');
+	let mod3Enabled = false;
+
+	btnMod3.addEventListener('click', () => {
+	  mod3Enabled = !mod3Enabled;
+	  btnMod3.classList.toggle('active', mod3Enabled);
+	});
+
 
   // Pomocné pro držení kláves
   let keyState = {};
@@ -503,7 +519,9 @@ function resetGame() {
         alive: true,
         turnLeft: false,
         turnRight: false,
-		speed: mod1Enabled ? moveSpeed * (1 + (Math.random() * 0.2 - 0.1)) : moveSpeed
+		speed: mod1Enabled ? moveSpeed * (1 + (Math.random() * 0.2 - 0.1)) : moveSpeed, 
+		thinActive: false,
+		widthFactor: 1
       };
       players.push(player);
 
@@ -537,7 +555,9 @@ function gameLoop(timestamp) {
       p.angle += rotationSpeed * delta;
     }
 
-	const speed = p.speed || moveSpeed;
+	let baseSpeed = p.speed || moveSpeed;
+		if (p.thinActive) baseSpeed *= 0.7;
+		const speed = baseSpeed;
 	const dx = Math.cos(p.angle) * speed * delta;
 	const dy = Math.sin(p.angle) * speed * delta;
 
@@ -551,7 +571,7 @@ function gameLoop(timestamp) {
     let allHit = true;
 
     for (let i = 0; i < numSamples; i++) {
-      const offsetAngle = (i / (numSamples - 1) - 0.5) * Math.PI / 2;
+      const offsetAngle = (i / (numSamples - 1) - 0.7) * Math.PI / 2;
       const checkAngle = p.angle + offsetAngle;
       const cx = p.x + frontRadius * Math.cos(checkAngle);
       const cy = p.y + frontRadius * Math.sin(checkAngle);
@@ -587,7 +607,7 @@ function gameLoop(timestamp) {
     // ---- VYKRESLENÍ POHYBU A AKTUALIZACE POZICE ----
     ctx.beginPath();
     ctx.strokeStyle = p.color;
-    ctx.lineWidth = trailWidth;
+    ctx.lineWidth = trailWidth * (p.widthFactor || 1);
     ctx.moveTo(p.x, p.y);
     ctx.lineTo(newX, newY);
     ctx.stroke();
@@ -595,10 +615,10 @@ function gameLoop(timestamp) {
     p.x = newX;
     p.y = newY;
 
-    ctx.beginPath();
-    ctx.fillStyle = p.color;
-    ctx.arc(p.x, p.y, headRadius, 0, 2 * Math.PI);
-    ctx.fill();
+	ctx.beginPath();
+	ctx.fillStyle = p.color;
+	ctx.arc(p.x, p.y, headRadius * (p.widthFactor || 1), 0, 2 * Math.PI);
+	ctx.fill();
   }
 
   updateTurningStates();
@@ -612,15 +632,25 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 }
 
+function updateTurningStates() {
+  for (let p of players) {
+    const idx = p.id - 1;
+    const [keyL, keyR] = playerKeys[idx];
 
-  function updateTurningStates() {
-    for (let p of players) {
-      const idx = p.id - 1;
-      const [keyL, keyR] = playerKeys[idx];
-      p.turnLeft = !!keyState[keyL];
-      p.turnRight = !!keyState[keyR];
+    p.turnLeft = !!keyState[keyL];
+    p.turnRight = !!keyState[keyR];
+
+    if (mod3Enabled && p.turnLeft && p.turnRight && !p.thinActive) {
+      p.thinActive = true;
+      console.log(`Hráč ${p.id} aktivoval ztenčení stopy (MOD3)`);
     }
+
+    p.widthFactor = p.thinActive ? 0.5 : 1;
   }
+}
+
+
+
   // ----------------------------------------------------------------------
 
   // ------------------------ ZOBRAZENÍ POŘADÍ PO KONCI ------------------------
