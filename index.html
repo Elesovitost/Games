@@ -53,14 +53,15 @@
       box-shadow: 0 0 25px #8a4baf;
     }
 
-    .rotate {
-      animation: spin-reverse 1s linear forwards;
-    }
+	.rotate {
+	  animation: spin 1s linear forwards;
+	}
 
-    @keyframes spin-reverse {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(-360deg); }
-    }
+	@keyframes spin {
+	  0% { transform: rotate(0deg); }
+	  100% { transform: rotate(360deg); }
+	}
+
   </style>
 </head>
 <body>
