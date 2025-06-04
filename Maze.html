@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <title>Bludiště</title>
+  <style>
+  
+ html, body {
+  overflow: hidden;
+}
+
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: none;
+    padding-right: 0.5em;
+  }
+ 
+select {
+  cursor: pointer;
+}
+  
+canvas#mazeCanvas {
+  border: 1px solid black;
+  display: block;
+  margin: 20px auto;
+}
+
+canvas#fireworks {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1000;
+  background: transparent;
+  display: block;
+  border: none;
+  margin: 0;
+}
+
+    #controls {
+      text-align: center;
+      margin-top: 10px;
+    }
+    .player-btn {
+      padding: 10px 20px;
+      margin: 5px;
+      font-weight: bold;
+      border: 2px solid black;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .active {
+      background-color: lightblue;
+    }
+
+  </style>
+</head>
+<body>
+<div id="controls" style="display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap;">
+  <div>
+    <select id="mazeSize" class="player-btn">
+      <option value="200">200 × 200</option>
+      <option value="400">400 × 400</option>
+      <option value="600">600 × 600</option>
+      <option value="800" selected>800 × 800</option>
+    </select>
+  </div>
+  <div>
+    <select id="playerSelect" class="player-btn">
+      <option value="1" selected>HRÁČ 1</option>
+      <option value="2">HRÁČ 2</option>
+    </select>
+  </div>
+  <div>
+    <select id="speedSelect" class="player-btn">
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+    </select>
+  </div>
+</div>
+
+
+<div style="position: relative; width: fit-content; margin: 20px auto;">
+  <canvas id="mazeCanvas" width="800" height="800" style="z-index: 0"></canvas>
+  <canvas id="trailCanvas" style="pointer-events: none; z-index: 1;"></canvas>
+</div>
+
+<canvas id="fireworks" width="0" height="0"></canvas>
+
+
+  <script>
+    const canvas = document.getElementById("mazeCanvas");
+		const trailCanvas = document.getElementById("trailCanvas");
+    const ctx = canvas.getContext("2d");
+	let canvasSize = 800;
+	let cellSize = 40;
+	let cols = canvasSize / cellSize;
+	let rows = canvasSize / cellSize;
+    const wallWidth = 2;
+
+
+syncTrailCanvasSize();
+window.addEventListener("resize", syncTrailCanvasSize);
+
+
+
+    let grid = [], stack = [];
+    let hue = 0, hue2 = 180;
+    let player2Active = false;
+	
+    const exit = { x: cols - 1, y: rows - 1 };
+    const playerImg = new Image();
+    playerImg.src = 'https://cdn-icons-png.flaticon.com/512/64/64572.png';
+
+    const player = createPlayer(0, 0);
+    const player2 = createPlayer(1, 1);
+	
+	const playerSelect = document.getElementById("playerSelect");
+	const speedSelect = document.getElementById("speedSelect");
+	let speedLevel = 1;   // výchozí úroveň rychlosti
+	const speedBase = 2;  // základní násobitel pro rychlost
+	
+	let player1Won = false;
+	let player2Won = false;
+	let fireworksCount = 0;
+	let winnerText = "";
+	
+
+	const trailCtx = trailCanvas.getContext("2d");
+	trailCanvas.width = canvas.width;
+	trailCanvas.height = canvas.height;
+	
+	function syncTrailCanvasSize() {
+  trailCanvas.width = canvas.width;
+  trailCanvas.height = canvas.height;
+  trailCanvas.style.width = canvas.offsetWidth + "px";
+  trailCanvas.style.height = canvas.offsetHeight + "px";
+  trailCanvas.style.position = "absolute";
+  trailCanvas.style.top = canvas.offsetTop + "px";
+  trailCanvas.style.left = canvas.offsetLeft + "px";
+}
+
+
+
+    function createPlayer(x, y) {
+      return {
+        x,
+        y,
+        px: x * cellSize,
+        py: y * cellSize,
+        tx: x * cellSize,
+        ty: y * cellSize,
+        speed: 2
+      };
+    }
+
+    class Cell {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.walls = [true, true, true, true];
+        this.visited = false;
+      }
+      draw() {
+        const x = this.x * cellSize;
+        const y = this.y * cellSize;
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = wallWidth;
+        if (this.walls[0]) drawLine(x, y, x + cellSize, y);
+        if (this.walls[1]) drawLine(x + cellSize, y, x + cellSize, y + cellSize);
+        if (this.walls[2]) drawLine(x + cellSize, y + cellSize, x, y + cellSize);
+        if (this.walls[3]) drawLine(x, y + cellSize, x, y);
+      }
+      checkNeighbors() {
+        const neighbors = [];
+        const directions = [
+          { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
+        ];
+        directions.forEach((dir, index) => {
+          const nx = this.x + dir.dx, ny = this.y + dir.dy;
+          const neighbor = grid[ny]?.[nx];
+          if (neighbor && !neighbor.visited) neighbors.push({ cell: neighbor, index });
+        });
+        return neighbors.length > 0 ? neighbors[Math.floor(Math.random() * neighbors.length)] : undefined;
+      }
+    }
+
+    function drawLine(x1, y1, x2, y2) {
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    }
+
+    function removeWalls(current, next, dir) {
+      const opposite = [2, 3, 0, 1];
+      current.walls[dir] = false;
+      next.walls[opposite[dir]] = false;
+    }
+
+
+
+// Načíst uloženou volbu počtu hráčů
+const savedPlayerCount = localStorage.getItem("playerCount");
+if (savedPlayerCount === "2") {
+  player2Active = true;
+  playerSelect.value = "2";
+} else {
+  player2Active = false;
+  playerSelect.value = "1";
+}
+
+// Načíst uloženou rychlost
+const savedSpeed = localStorage.getItem("playerSpeed");
+if (savedSpeed) {
+  speedLevel = parseInt(savedSpeed);
+  speedSelect.value = String(speedLevel);
+} else {
+  speedSelect.value = "1";
+}
+updateSpeed(); // zavolat, aby se aplikovala počáteční hodnota
+
+// Když se uživatel přepne mezi HRÁČ 1 / HRÁČ 2
+playerSelect.addEventListener("change", () => {
+  if (playerSelect.value === "2") {
+    player2Active = true;
+    localStorage.setItem("playerCount", "2");
+  } else {
+    player2Active = false;
+    localStorage.setItem("playerCount", "1");
+  }
+  playerSelect.blur(); // 👈 přidej toto
+});
+
+// Když se uživatel změní rychlost v selectu
+speedSelect.addEventListener("change", () => {
+  const newSpeed = parseInt(speedSelect.value);
+  if (newSpeed >= 1 && newSpeed <= 5) {
+    speedLevel = newSpeed;
+    updateSpeed();
+    localStorage.setItem("playerSpeed", String(speedLevel));
+  }
+  speedSelect.blur(); // 👈 přidej toto
+});
+
+
+
+//rychlost
+
+function updateSpeed() {
+  const speed = speedBase * speedLevel;
+  player.speed = speed;
+  player2.speed = speed;
+  // Pokud chcete, můžete tu ponechat synchronní nastavení selectu, ale není nutné – už to řeší listener:
+  // speedSelect.value = String(speedLevel);
+}
+
+
+
+
+
+function generateMaze() {
+  grid = Array.from({ length: rows }, (_, y) => Array.from({ length: cols }, (_, x) => new Cell(x, y)));
+  let current = grid[0][0];
+  current.visited = true;
+  stack.push(current);
+  while (stack.length > 0) {
+    const nextData = current.checkNeighbors();
+    if (nextData) {
+      const { cell: next, index: dir } = nextData;
+      next.visited = true;
+      stack.push(current);
+      removeWalls(current, next, dir);
+      current = next;
+    } else {
+      current = stack.pop();
+    }
+  }
+
+  // 🧠 Tady přidáme odstranění dalších zdí pro více cest
+  const extraConnections = Math.floor(rows * cols * 0.1); // 10 % políček dostane navíc průchod
+  for (let i = 0; i < extraConnections; i++) {
+    const x = Math.floor(Math.random() * cols);
+    const y = Math.floor(Math.random() * rows);
+    const cell = grid[y][x];
+
+    const directions = [
+      { dx: 0, dy: -1, wall: 0 }, // nahoru
+      { dx: 1, dy: 0, wall: 1 },  // vpravo
+      { dx: 0, dy: 1, wall: 2 },  // dolů
+      { dx: -1, dy: 0, wall: 3 }  // vlevo
+    ];
+
+    const dir = directions[Math.floor(Math.random() * directions.length)];
+    const nx = x + dir.dx;
+    const ny = y + dir.dy;
+
+    if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+      const neighbor = grid[ny][nx];
+      if (cell.walls[dir.wall]) {
+        removeWalls(cell, neighbor, dir.wall);
+      }
+    }
+  }
+}
+
+
+    function findFurthestPointsBFS() {
+      const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+      const dist = Array.from({ length: rows }, () => Array(cols).fill(-1));
+      const queue = [[exit.x, exit.y]];
+      dist[exit.y][exit.x] = 0;
+      visited[exit.y][exit.x] = true;
+
+      while (queue.length > 0) {
+        const [x, y] = queue.shift();
+        const cell = grid[y][x];
+        const directions = [
+          { dx: 0, dy: -1, wall: 0 },
+          { dx: 1, dy: 0, wall: 1 },
+          { dx: 0, dy: 1, wall: 2 },
+          { dx: -1, dy: 0, wall: 3 }
+        ];
+        for (const { dx, dy, wall } of directions) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && !visited[ny][nx]) {
+            const neighbor = grid[ny][nx];
+            if (!cell.walls[wall]) {
+              visited[ny][nx] = true;
+              dist[ny][nx] = dist[y][x] + 1;
+              queue.push([nx, ny]);
+            }
+          }
+        }
+      }
+
+      let maxDist = 0;
+      const furthest = [];
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (dist[y][x] > maxDist) {
+            maxDist = dist[y][x];
+            furthest.length = 0;
+            furthest.push([x, y]);
+          } else if (dist[y][x] === maxDist) {
+            furthest.push([x, y]);
+          }
+        }
+      }
+
+      // Pokud víc než 1 bod, vyber 2 náhodně a přizpůsob jejich vzdálenost (zvolí se ta menší)
+      if (furthest.length >= 2) {
+        const shuffled = furthest.sort(() => Math.random() - 0.5);
+        const [p1, p2] = shuffled.slice(0, 2);
+        return [p1, p2];
+      } else {
+        return [furthest[0], furthest[0]];
+      }
+    }
+
+let heldKeys1 = [];
+let heldKeys2 = [];
+
+document.addEventListener("keydown", e => {
+  const key = e.key;
+  if (["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"].includes(key) && !heldKeys1.includes(key)) {
+    heldKeys1.push(key);
+  }
+  if (["w", "a", "s", "d"].includes(key) && !heldKeys2.includes(key)) {
+    heldKeys2.push(key);
+  }
+});
+
+document.addEventListener("keyup", e => {
+  const key = e.key;
+  heldKeys1 = heldKeys1.filter(k => k !== key);
+  heldKeys2 = heldKeys2.filter(k => k !== key);
+});
+
+
+function movePlayer(p, heldKeys, hueRefName) {
+  const curr = grid[p.y][p.x];
+
+  if (p.px === p.tx && p.py === p.ty && heldKeys.length > 0) {
+    const prevX = p.x, prevY = p.y;
+
+    for (const key of heldKeys) {
+      if ((key === "ArrowUp" || key === "w") && !curr.walls[0]) {
+        p.ty -= cellSize;
+        p.y--;
+        break;
+      }
+      if ((key === "ArrowRight" || key === "d") && !curr.walls[1]) {
+        p.tx += cellSize;
+        p.x++;
+        break;
+      }
+      if ((key === "ArrowDown" || key === "s") && !curr.walls[2]) {
+        p.ty += cellSize;
+        p.y++;
+        break;
+      }
+      if ((key === "ArrowLeft" || key === "a") && !curr.walls[3]) {
+        p.tx -= cellSize;
+        p.x--;
+        break;
+      }
+    }
+  }
+
+  if (Math.abs(p.px - p.tx) <= p.speed) p.px = p.tx;
+  else p.px += Math.sign(p.tx - p.px) * p.speed;
+
+  if (Math.abs(p.py - p.ty) <= p.speed) p.py = p.ty;
+  else p.py += Math.sign(p.ty - p.py) * p.speed;
+
+  const isMoving = p.px !== p.tx || p.py !== p.ty;
+
+  if (isMoving) {
+    if (hueRefName === "hue") hue = (hue + 2) % 360;
+    else if (hueRefName === "hue2") hue2 = (hue2 + 2) % 360;
+
+    drawTrailPoint(p.px + cellSize / 2, p.py + cellSize / 2, hueRefName === "hue" ? hue : hue2);
+  }
+}
+
+
+
+
+
+function drawTrailPoint(x, y, hue) {
+  const gradient = trailCtx.createRadialGradient(x, y, 0, x, y, 10);
+  gradient.addColorStop(0, `hsla(${hue}, 100%, 60%, 0.8)`);
+  gradient.addColorStop(1, `hsla(${hue}, 100%, 60%, 0)`);
+  trailCtx.fillStyle = gradient;
+  trailCtx.beginPath();
+  trailCtx.arc(x, y, 10, 0, Math.PI * 2);
+  trailCtx.fill();
+}
+
+
+	function drawMaze() {
+	  ctx.clearRect(0, 0, canvas.width, canvas.height);
+	  for (let row of grid) for (let cell of row) cell.draw();
+
+	// Exit – truhla 💰
+	ctx.font = "32px sans-serif";
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+	ctx.fillText("💰", exit.x * cellSize + cellSize / 2, exit.y * cellSize + cellSize / 2);
+
+
+	  // Hráč 1 – čaroděj
+	  ctx.font = "32px sans-serif";
+	  ctx.textAlign = "center";
+	  ctx.textBaseline = "middle";
+	  ctx.fillText("🧙", player.px + cellSize / 2, player.py + cellSize / 2);
+
+	  // Hráč 2 – drak
+	  if (player2Active) {
+		ctx.fillText("🐉", player2.px + cellSize / 2, player2.py + cellSize / 2);
+	  }
+	}
+
+
+
+function gameLoop() {
+	movePlayer(player, heldKeys1, "hue");
+	if (player2Active) {
+	  movePlayer(player2, heldKeys2, "hue2");
+}
+
+
+  drawMaze();
+
+  // Hráč 1 výhra
+  if (!player1Won && player.x === exit.x && player.y === exit.y && player.px === player.tx && player.py === player.ty) {
+    player1Won = true;
+    launchFireworks("HRÁČ 1 VYHRÁL!");
+  }
+
+  // Hráč 2 výhra
+  if (player2Active && !player2Won && player2.x === exit.x && player2.y === exit.y && player2.px === player2.tx && player2.py === player2.ty) {
+    player2Won = true;
+    launchFireworks("HRÁČ 2 VYHRÁL!");
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+
+
+
+
+
+
+function distanceToExit(player) {
+  return Math.abs(player.x - exit.x) + Math.abs(player.y - exit.y);
+}
+
+
+
+
+    generateMaze();
+    const [start1, start2] = findFurthestPointsBFS();
+    Object.assign(player, createPlayer(...start1));
+    Object.assign(player2, createPlayer(...start2));
+    gameLoop();
+  
+
+document.getElementById("mazeSize").addEventListener("change", function () {
+  const size = parseInt(this.value);
+  localStorage.setItem("mazeSize", size); // ✅ uložit do localStorage
+  resetMaze(size);
+  this.blur();
+});
+
+
+// velikost bludiště
+  
+function resetMaze(size) {
+  canvasSize = size;
+  canvas.width = canvasSize;
+  canvas.height = canvasSize;
+  cellSize = 40;
+  cols = canvasSize / cellSize;
+  rows = canvasSize / cellSize;
+  exit.x = cols - 1;
+  exit.y = rows - 1;
+
+  grid = [];
+  stack = [];
+
+
+  generateMaze();
+  const [start1, start2] = findFurthestPointsBFS();
+  Object.assign(player, createPlayer(...start1));
+  Object.assign(player2, createPlayer(...start2));
+  trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+syncTrailCanvasSize();
+}
+
+
+// ohňostroj
+  
+const fireworksCanvas = document.getElementById('fireworks');
+const fireworksCtx = fireworksCanvas.getContext('2d');
+let fireworks = [];
+let fireworksInterval;
+
+function resizeCanvas() {
+  fireworksCanvas.width = window.innerWidth;
+  fireworksCanvas.height = window.innerHeight;
+}
+
+function launchFireworks(winner) {
+  resizeCanvas();
+  winnerText = winner;
+  fireworks = [];
+
+  clearInterval(fireworksInterval);
+  fireworksInterval = setInterval(() => {
+    updateFireworks();
+    drawWinnerText();
+
+    if (Math.random() < 0.2) {
+      fireworks.push(createFirework());
+    }
+  }, 50);
+
+  // Po 40 sekundách ohňostroj skončí a hra se restartuje
+  setTimeout(() => {
+    clearInterval(fireworksInterval);
+    stopFireworks();
+    winnerText = "";
+    resetMaze(canvasSize);
+    player1Won = false;
+    player2Won = false;
+  }, 40000); // 40 sekund
+}
+
+
+
+function drawWinnerText() {
+  if (!winnerText) return;
+  fireworksCtx.font = "bold 48px sans-serif";
+  fireworksCtx.fillStyle = "white";
+  fireworksCtx.strokeStyle = "black";
+  fireworksCtx.lineWidth = 4;
+  fireworksCtx.textAlign = "center";
+  fireworksCtx.textBaseline = "middle";
+  fireworksCtx.strokeText(winnerText, fireworksCanvas.width / 2, fireworksCanvas.height / 2);
+  fireworksCtx.fillText(winnerText, fireworksCanvas.width / 2, fireworksCanvas.height / 2);
+}
+
+
+
+function stopFireworks() {
+  clearInterval(fireworksInterval);
+  fireworks = [];
+  fireworksCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+}
+
+function createFirework() {
+  const colors = ['#ff3333', '#33cc33', '#3399ff', '#ffff33', '#ff66cc', '#00ffff'];
+  const x = Math.random() * fireworksCanvas.width;
+  const y = Math.random() * fireworksCanvas.height / 2;
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  const particles = [];
+
+  for (let i = 0; i < 40; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 5 + 2;
+    particles.push({
+      x, y,
+      dx: Math.cos(angle) * speed,
+      dy: Math.sin(angle) * speed,
+      alpha: 1,
+      color
+    });
+  }
+
+  return { particles };
+}
+
+function updateFireworks() {
+  fireworksCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+  fireworks.forEach(firework => {
+    firework.particles.forEach(p => {
+      p.x += p.dx;
+      p.y += p.dy;
+      p.alpha -= 0.02;
+    });
+    firework.particles = firework.particles.filter(p => p.alpha > 0);
+  });
+
+  fireworks = fireworks.filter(f => f.particles.length > 0);
+
+  fireworks.forEach(firework => {
+    firework.particles.forEach(p => {
+      fireworksCtx.beginPath();
+      fireworksCtx.arc(p.x, p.y, 3, 0, 2 * Math.PI);
+      fireworksCtx.fillStyle = p.color;
+      fireworksCtx.globalAlpha = p.alpha;
+      fireworksCtx.fill();
+    });
+  });
+
+  fireworksCtx.globalAlpha = 1;
+}
+
+
+
+  </script>
+</body>
+</html>
