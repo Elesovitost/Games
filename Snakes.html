@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <title>Multiplayer Hadí Hra</title>
+  <style>
+    /* Reset a základní styl */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: sans-serif;
+      overflow: hidden;
+      background: #f0f0f0;
+    }
+    /* Horní lišta s tlačítky */
+    #topBar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 50px;
+      background: #ffffff;
+      border-bottom: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      z-index: 10;
+    }
+	#playerButtons button {
+	  margin-right: 10px;
+	  padding: 5px 10px;
+	  font-size: 14px;
+	  cursor: pointer;
+	  border: 2px solid transparent;  /* přidáno */
+	  background: #fff;
+	  transition: border 0.2s;
+	}
+    #playerButtons button.active {
+      color: #fff;
+      border-color: transparent;
+    }
+    /* Definice barev pro aktivované stavy */
+    #btnP1.active { background: rgb(200, 30, 30); }
+    #btnP2.active { background: rgb(30, 30, 200); }
+    #btnP3.active { background: rgb(30, 150, 30); }
+    #btnP4.active { background: rgb(0, 0, 0); }
+
+    /* Blikající nápis "MEZERNÍK = START" */
+    #startPrompt {
+      margin-left: auto;
+      font-weight: bold;
+      font-size: 16px;
+      animation: blink 1s step-start 0s infinite;
+      user-select: none;
+    }
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      50.01%, 100% { opacity: 0; }
+    }
+
+    /* Kontejner pro herní plátno */
+    #container {
+      position: absolute;
+      top: 60px; /* pod topBar */
+      left: 20px;
+      right: 20px;
+      bottom: 20px;
+      border: 2px solid #000;
+      background: #fff;
+    }
+    #gameCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Text pro zobrazení výsledků (po skončení hry) */
+	#resultText {
+	  position: absolute;
+	  top: 50%;
+	  left: 50%;
+	  transform: translate(-50%, -50%);
+	  font-size: 20px;
+	  font-weight: bold;
+	  text-align: left;
+	  padding: 20px;
+	  background: rgba(255, 255, 255, 0.8); /* bílé pozadí s 80 % průhledností */
+	  border-radius: 10px;
+	  box-shadow: 0 0 10px rgba(0,0,0,0.2);
+	  white-space: pre-line;
+	  pointer-events: none;
+	}
+	.kbd {
+	  display: inline-block;
+	  padding: 2px 6px;
+	  margin-left: 4px;
+	  margin-right: 2px;
+	  font-size: 12px;
+	  background: #eee;
+	  border: 1px solid #aaa;
+	  border-radius: 3px;
+	  font-family: monospace;
+	}
+
+  </style>
+</head>
+<body>
+  <!-- Horní lišta s tlačítky hráčů a startem -->
+  <div id="topBar">
+    <div id="playerButtons">
+      <button id="btnP1">hráč 1 QW</button>
+      <button id="btnP2">hráč 2 NM</button>
+      <button id="btnP3">hráč 3 ◀ ▶</button>
+      <button id="btnP4">hráč 4 -+</button>
+    </div>
+    <div id="startPrompt">MEZERNÍK = START</div>
+  </div>
+
+  <!-- Kontejner s plátnem -->
+  <div id="container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="resultText" style="display: none;"></div>
+  </div>
+
+<script>
+  // ------------------------ PROMĚNNÉ A KONSTANTY ------------------------
+  const canvas = document.getElementById('gameCanvas');
+  // přidáno willReadFrequently pro rychlejší getImageData
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const container = document.getElementById('container');
+  const startPrompt = document.getElementById('startPrompt');
+  const resultText = document.getElementById('resultText');
+  
+
+  // Tlačítka pro hráče
+  const btnP1 = document.getElementById('btnP1');
+  const btnP2 = document.getElementById('btnP2');
+  const btnP3 = document.getElementById('btnP3');
+  const btnP4 = document.getElementById('btnP4');
+  const playerButtons = [btnP1, btnP2, btnP3, btnP4];
+  let playerNames = ['hráč 1', 'hráč 2', 'hráč 3', 'hráč 4'];
+  let totalScores = [0, 0, 0, 0]; // index odpovídá hráči 1–4
+  // Barevné kódy hráčů
+  const playerColors = ['rgb(200,30,30)', 'rgb(30,30,200)', 'rgb(30,150,30)', 'rgb(0,0,0)'];
+  // Klávesy pro ovládání hráčů: [vlevo, vpravo]
+  const playerKeys = [
+    ['KeyQ', 'KeyW'],           // hráč 1
+    ['KeyN', 'KeyM'],           // hráč 2
+    ['ArrowLeft', 'ArrowRight'], // hráč 3
+    ['Minus', 'Equal']          // hráč 4 (pozor: '+' je 'Equal' s Shift)
+  ];
+
+  let activePlayers = [false, false, false, false]; // stav tlačítek
+  let players = [];    // pole objektů aktivních hráčů
+  let finishOrder = []; // pořadí, jak hráči vypadli
+  let gameState = 'init'; // 'init', 'running', 'paused', 'ended'
+  let lastTimestamp = null; // pro delta time výpočty
+
+  // Rychlosti a parametry
+  const headRadius = 2.5;              // poloměr hlavy hráče (průměr 5px)
+  const trailWidth = 5;                // tloušťka stopy
+  const moveSpeed = 100;                // rychlost 10 px/s
+  const rotationSpeed = 100 * Math.PI/90; // 20°/s => v radiánech/s
+
+  // Pomocné pro držení kláves
+  let keyState = {};
+  // ----------------------------------------------------------------------
+
+  // ------------------------ NASTAVENÍ VELIKOSTI CANVAS ------------------------
+  function resizeCanvas() {
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (gameState === 'ended') {
+      drawResults();
+    }
+  }
+  window.addEventListener('resize', () => { 
+    resetGame();
+    resizeCanvas();
+  });
+  // ---------------------------------------------------------------------------
+
+  // ------------------------ OVĚŘOVÁNÍ TLAČÍTEK HRAČŮ ------------------------
+playerButtons.forEach((btn, idx) => {
+const updateLabel = () => {
+  const name = playerNames[idx];
+  const [keyL, keyR] = playerKeys[idx].map(k => {
+    switch (k) {
+      case 'ArrowLeft': return '◀';
+      case 'ArrowRight': return '▶';
+      case 'Minus': return '−';
+      case 'Equal': return '+';
+      default: return k.replace('Key', '');
+    }
+  });
+
+  btn.innerHTML = `${name} <span class="kbd">${keyL}</span><span class="kbd">${keyR}</span>`;
+  btn.style.color = playerColors[idx]; 
+
+if (activePlayers[idx]) {
+  btn.style.borderColor = playerColors[idx]; // barevný rámeček
+} else {
+  btn.style.borderColor = 'transparent';
+}
+
+};
+
+
+  btn.addEventListener('click', () => {
+    activePlayers[idx] = !activePlayers[idx];
+    updateLabel();
+  });
+
+  btn.addEventListener('dblclick', () => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = playerNames[idx];
+    input.style.width = '90%';
+    input.style.fontSize = '14px';
+
+    btn.innerHTML = '';
+    btn.appendChild(input);
+    input.focus();
+    input.select();
+
+	const saveName = () => {
+	  const name = input.value.trim();
+	  if (name) playerNames[idx] = name;
+	  setTimeout(() => {
+		updateLabel();
+		savePlayerNamesToCookies();
+	  }, 0);
+	};
+
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        saveName();
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      saveName();
+    });
+  });
+
+  updateLabel();
+});
+
+  // ----------------------------------------------------------------------
+
+  // ------------------------ START / PAUZA HRY (MEZERNÍK) ------------------------
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (gameState === 'init') {
+        startGame();
+      } else if (gameState === 'running') {
+        pauseGame();
+      } else if (gameState === 'paused') {
+        resumeGame();
+      } else if (gameState === 'ended') {
+        resetGame();
+      }
+    }
+    keyState[e.code] = true;
+  });
+  document.addEventListener('keyup', (e) => {
+    keyState[e.code] = false;
+  });
+  // ----------------------------------------------------------------------
+
+  // ------------------------ FUNKCE PRO ŘÍZENÍ STAVŮ HRY ------------------------
+  function startGame() {
+    const countActive = activePlayers.filter(v => v).length;
+    if (countActive === 0) return;
+    startPrompt.style.display = 'none';
+    gameState = 'running';
+    finishOrder = [];
+    initializePlayers();
+    lastTimestamp = null;
+    requestAnimationFrame(gameLoop);
+  }
+
+  function pauseGame() {
+    if (gameState !== 'running') return;
+    gameState = 'paused';
+  }
+
+  function resumeGame() {
+    if (gameState !== 'paused') return;
+    gameState = 'running';
+    lastTimestamp = null;
+    requestAnimationFrame(gameLoop);
+  }
+
+  function endGame() {
+    gameState = 'ended';
+    drawResults();
+  }
+
+  function resetGame() {
+    gameState = 'init';
+    players = [];
+    finishOrder = [];
+    startPrompt.style.display = 'block';
+    resultText.style.display = 'none';
+    resizeCanvas();
+  }
+  // ----------------------------------------------------------------------
+
+  // ------------------------ INICIALIZACE HRÁČŮ ------------------------
+  function initializePlayers() {
+    players = [];
+    const aktifIdx = activePlayers
+      .map((v, i) => v ? i : -1)
+      .filter(i => i !== -1);
+    const n = aktifIdx.length;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = (canvas.height / 2) / 2; // poloměr pro obvod
+
+    for (let k = 0; k < n; k++) {
+      const idx = aktifIdx[k];
+      const theta = (2 * Math.PI / n) * k;
+      const x0 = centerX + radius * Math.cos(theta);
+      const y0 = centerY + radius * Math.sin(theta);
+      const dir = theta + Math.PI;
+      const player = {
+        id: idx + 1,
+        color: playerColors[idx],
+        x: x0,
+        y: y0,
+        angle: dir,
+        alive: true,
+        turnLeft: false,
+        turnRight: false
+      };
+      players.push(player);
+
+      // Vykreslit počáteční hlavu
+      ctx.beginPath();
+      ctx.fillStyle = player.color;
+      ctx.arc(x0, y0, headRadius, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // VYPIS DO KONZOLE: kde se hráč objevil
+      console.log(`Hráč ${player.id} se objevil na (${x0.toFixed(1)}, ${y0.toFixed(1)})`);
+    }
+  }
+  // ----------------------------------------------------------------------
+
+  // ------------------------ HERNÍ SMYČKA ------------------------
+function gameLoop(timestamp) {
+  if (gameState !== 'running') return;
+
+  if (!lastTimestamp) lastTimestamp = timestamp;
+  const delta = (timestamp - lastTimestamp) / 1000;
+  lastTimestamp = timestamp;
+
+  for (let p of players) {
+    if (!p.alive) continue;
+
+    if (p.turnLeft) {
+      p.angle -= rotationSpeed * delta;
+    }
+    if (p.turnRight) {
+      p.angle += rotationSpeed * delta;
+    }
+
+    const dx = Math.cos(p.angle) * moveSpeed * delta;
+    const dy = Math.sin(p.angle) * moveSpeed * delta;
+    const newX = p.x + dx;
+    const newY = p.y + dy;
+
+    // ---- SPRÁVNÁ ČELNÍ KOLIZE PODLE SOUČASNÉ POZICE ----
+    const frontRadius = headRadius + 1;  // mírně před hlavou
+    const numSamples = 8;
+    const ownRgb = p.color.replace(/[^\d,]/g, '').split(',').map(Number);
+    let allHit = true;
+
+    for (let i = 0; i < numSamples; i++) {
+      const offsetAngle = (i / (numSamples - 1) - 0.5) * Math.PI / 2;
+      const checkAngle = p.angle + offsetAngle;
+      const cx = p.x + frontRadius * Math.cos(checkAngle);
+      const cy = p.y + frontRadius * Math.sin(checkAngle);
+
+      const ix = Math.floor(cx);
+      const iy = Math.floor(cy);
+
+      if (ix < 0 || ix >= canvas.width || iy < 0 || iy >= canvas.height) {
+        continue; // za okrajem = zásah
+      }
+
+      const pixel = ctx.getImageData(ix, iy, 1, 1).data;
+      const isWhite = (pixel[0] === 255 && pixel[1] === 255 && pixel[2] === 255);
+      const isOwnColor = (
+        pixel[0] === ownRgb[0] &&
+        pixel[1] === ownRgb[1] &&
+        pixel[2] === ownRgb[2]
+      );
+
+      if (isWhite) {
+        allHit = false;
+        break;
+      }
+    }
+
+    if (allHit) {
+      p.alive = false;
+      finishOrder.push(p);
+      console.log(`Hráč ${p.id} narazil čelem hlavy.`);
+      continue;
+    }
+
+    // ---- VYKRESLENÍ POHYBU A AKTUALIZACE POZICE ----
+    ctx.beginPath();
+    ctx.strokeStyle = p.color;
+    ctx.lineWidth = trailWidth;
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(newX, newY);
+    ctx.stroke();
+
+    p.x = newX;
+    p.y = newY;
+
+    ctx.beginPath();
+    ctx.fillStyle = p.color;
+    ctx.arc(p.x, p.y, headRadius, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+
+  updateTurningStates();
+
+  const anyAlive = players.some(p => p.alive);
+  if (!anyAlive) {
+    endGame();
+    return;
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+
+  function updateTurningStates() {
+    for (let p of players) {
+      const idx = p.id - 1;
+      const [keyL, keyR] = playerKeys[idx];
+      p.turnLeft = !!keyState[keyL];
+      p.turnRight = !!keyState[keyR];
+    }
+  }
+  // ----------------------------------------------------------------------
+
+  // ------------------------ ZOBRAZENÍ POŘADÍ PO KONCI ------------------------
+function drawResults() {
+	const ranking = [...finishOrder].reverse();
+	const n = ranking.length;
+	let html = '<div>Pořadí:<br>';
+
+	for (let i = 0; i < n; i++) {
+	  const playerId = ranking[i].id;
+	  const score = n - 1 - i; // opravené skóre
+	  totalScores[playerId - 1] += score;
+	  const color = playerColors[playerId - 1];
+	  const name = playerNames[playerId - 1];
+	  html += `<span style="color:${color}">${i + 1}. ${name} — ${score} bod${score === 1 ? '' : 'y'}</span><br>`;
+	}
+
+
+
+  html += '<br>Celkově:<br>';
+
+  const withScores = totalScores
+    .map((s, i) => ({ id: i + 1, score: s }))
+    .filter((_, i) => activePlayers[i]);
+  withScores.sort((a, b) => b.score - a.score);
+
+  withScores.forEach((entry, i) => {
+    const color = playerColors[entry.id - 1];
+    const name = playerNames[entry.id - 1];
+    html += `<span style="color:${color}">${i + 1}. ${name} — ${entry.score} bod${entry.score === 1 ? '' : 'ů'}</span><br>`;
+  });
+
+  html += '</div>';
+  resultText.innerHTML = html;
+  resultText.style.display = 'block';
+}
+
+
+
+  // ----------------------------------------------------------------------
+
+  // ------------------------ INITIALIZACE A START ------------------------
+window.addEventListener('load', () => {
+  loadPlayerNamesFromCookies();
+  resizeCanvas();
+});
+
+  // ----------------------------------------------------------------------
+
+
+function savePlayerNamesToCookies() {
+  playerNames.forEach((name, i) => {
+    document.cookie = `playerName${i}=${encodeURIComponent(name)}; path=/; max-age=31536000`; // 1 rok
+  });
+}
+
+function loadPlayerNamesFromCookies() {
+  const cookies = document.cookie.split(';').reduce((acc, pair) => {
+    const [k, v] = pair.split('=').map(c => c.trim());
+    if (k && v) acc[k] = decodeURIComponent(v);
+    return acc;
+  }, {});
+  playerNames.forEach((_, i) => {
+    const cookieKey = `playerName${i}`;
+    if (cookies[cookieKey]) {
+      playerNames[i] = cookies[cookieKey];
+    }
+  });
+}
+
+
+
+</script>
+
+</body>
+</html>
