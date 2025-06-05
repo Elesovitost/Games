@@ -89,18 +89,28 @@ canvas#fireworks {
 
 
 <div style="position: relative; width: fit-content; margin: 20px auto;">
-  <canvas id="mazeCanvas" width="800" height="800" tabindex="0" style="z-index: 0"></canvas>
-  <canvas id="trailCanvas" style="pointer-events: none; z-index: 1;"></canvas>
+  <canvas id="mazeCanvas" width="800" height="800" tabindex="0" style="z-index: 0;"></canvas>
+  <canvas id="trailCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 1;"></canvas>
+  <canvas id="playersCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 2;"></canvas>
 </div>
+
 
 <canvas id="fireworks" width="0" height="0"></canvas>
 <img id="victoryGif" src="" alt="victory" style="display:none; position:fixed; top:25%; left:50%; transform:translate(-50%,-50%); z-index:2000; max-width:80%; max-height:80%;">
 
 
+<audio id="dragonWinSound" src="maze-dragon-win.mp3"></audio>
+<audio id="wizardWinSound" src="maze-wizard-win.mp3"></audio>
+<audio id="music1" src="maze-music1.mp3" loop></audio>
+<audio id="music2" src="maze-music2.mp3" loop></audio>
+
+
 
   <script>
     const canvas = document.getElementById("mazeCanvas");
-		const trailCanvas = document.getElementById("trailCanvas");
+	const trailCanvas = document.getElementById("trailCanvas");
+	const playersCanvas = document.getElementById("playersCanvas");
+	const playersCtx = playersCanvas.getContext("2d");
     const ctx = canvas.getContext("2d");
 	let canvasSize = 800;
 	let cellSize = 40;
@@ -109,8 +119,8 @@ canvas#fireworks {
     const wallWidth = 2;
 
 
-syncTrailCanvasSize();
-window.addEventListener("resize", syncTrailCanvasSize);
+	syncTrailCanvasSize();
+	window.addEventListener("resize", syncTrailCanvasSize);
 
 
 
@@ -147,15 +157,28 @@ window.addEventListener("resize", syncTrailCanvasSize);
 	const trailCtx = trailCanvas.getContext("2d");
 	trailCanvas.width = canvas.width;
 	trailCanvas.height = canvas.height;
+
+	const musicTracks = [
+	  document.getElementById("music1"),
+	  document.getElementById("music2")
+	];
+
+	const dragonWinSound = document.getElementById("dragonWinSound");
+	const wizardWinSound = document.getElementById("wizardWinSound");
+
+	let currentMusic = null;
+	let musicStarted = false;
 	
-	function syncTrailCanvasSize() {
-  trailCanvas.width = canvas.width;
-  trailCanvas.height = canvas.height;
-  trailCanvas.style.width = canvas.offsetWidth + "px";
-  trailCanvas.style.height = canvas.offsetHeight + "px";
-  trailCanvas.style.position = "absolute";
-  trailCanvas.style.top = canvas.offsetTop + "px";
-  trailCanvas.style.left = canvas.offsetLeft + "px";
+function syncTrailCanvasSize() {
+  [trailCanvas, playersCanvas].forEach(c => {
+    c.width = canvas.width;
+    c.height = canvas.height;
+    c.style.width = canvas.offsetWidth + "px";
+    c.style.height = canvas.offsetHeight + "px";
+    c.style.position = "absolute";
+    c.style.top = canvas.offsetTop + "px";
+    c.style.left = canvas.offsetLeft + "px";
+  });
 }
 
 
@@ -459,6 +482,10 @@ document.addEventListener("keydown", e => {
 	  aiActivated = true;
 	  planAIPath();
 	}
+	if (!musicStarted) {
+  musicStarted = true;
+  startBackgroundMusic();
+	}
   const key = e.key;
   if (["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"].includes(key) && !heldKeys1.includes(key)) {
     heldKeys1.push(key);
@@ -560,19 +587,23 @@ function drawTrailPoint(x, y, hue, isPlayer2 = false) {
 	ctx.textBaseline = "middle";
 	ctx.fillText("💰", exit.x * cellSize + cellSize / 2, exit.y * cellSize + cellSize / 2);
 
-
-	  // Hráč 1 – čaroděj
-	  ctx.font = "32px sans-serif";
-	  ctx.textAlign = "center";
-	  ctx.textBaseline = "middle";
-	  ctx.fillText("🐉", player.px + cellSize / 2, player.py + cellSize / 2);
-
-	  // Hráč 2 – drak
-	  if (player2Active) {
-		ctx.fillText("🧙", player2.px + cellSize / 2, player2.py + cellSize / 2);
-	  }
 	}
 
+
+function drawPlayers() {
+  playersCtx.clearRect(0, 0, playersCanvas.width, playersCanvas.height);
+  playersCtx.font = "32px sans-serif";
+  playersCtx.textAlign = "center";
+  playersCtx.textBaseline = "middle";
+
+  // Hráč 1
+  playersCtx.fillText("🐉", player.px + cellSize / 2, player.py + cellSize / 2);
+
+  // Hráč 2
+  if (player2Active) {
+    playersCtx.fillText("🧙", player2.px + cellSize / 2, player2.py + cellSize / 2);
+  }
+}
 
 
 function gameLoop() {
@@ -584,6 +615,7 @@ function gameLoop() {
   }
 
   drawMaze();
+  drawPlayers();
 
   // výhry
   if (!player1Won && player.x === exit.x && player.y === exit.y && player.px === player.tx && player.py === player.ty) {
@@ -656,6 +688,7 @@ function resizeCanvas() {
 
 function launchFireworks(winner) {
   gameOver = true;
+  fadeOutMusic();
   heldKeys1 = [];
   heldKeys2 = [];
   resizeCanvas();
@@ -669,6 +702,15 @@ function launchFireworks(winner) {
     gif.src = "maze-sorcerer.gif";
   }
   gif.style.display = "block";
+
+if (winner.includes("HRÁČ 1")) {
+  gif.src = "maze-dragon.gif";
+  dragonWinSound.play();
+} else if (winner.includes("HRÁČ 2")) {
+  gif.src = "maze-sorcerer.gif";
+  wizardWinSound.play();
+}
+
 
   clearInterval(fireworksInterval);
   fireworksInterval = setInterval(() => {
@@ -713,6 +755,19 @@ function stopFireworks() {
   fireworks = [];
   fireworksCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
   document.getElementById("victoryGif").style.display = "none";
+  
+	dragonWinSound.pause();
+	wizardWinSound.pause();
+	dragonWinSound.currentTime = 0;
+	wizardWinSound.currentTime = 0;
+
+	if (currentMusic) {
+	  currentMusic.pause();
+	  currentMusic.currentTime = 0;
+	  currentMusic = null;
+	}
+	musicStarted = false;
+
 }
 
 function createFirework() {
@@ -810,6 +865,30 @@ function bfsPath(startX, startY, endX, endY) {
 function planAIPath() {
   aiPath = bfsPath(player2.x, player2.y, exit.x, exit.y);
   aiPathIndex = 1;
+}
+
+
+
+function startBackgroundMusic() {
+  const track = musicTracks[Math.floor(Math.random() * musicTracks.length)];
+  currentMusic = track;
+  currentMusic.volume = 0.05;
+  currentMusic.play();
+}
+
+function fadeOutMusic() {
+  if (!currentMusic) return;
+  const step = 0.025;
+  const interval = setInterval(() => {
+    if (currentMusic.volume > step) {
+      currentMusic.volume -= step;
+    } else {
+      currentMusic.pause();
+      currentMusic.currentTime = 0;
+      currentMusic = null;
+      clearInterval(interval);
+    }
+  }, 100);
 }
 
 
