@@ -163,6 +163,9 @@
 	</div>
   </div>
 
+<audio id="bgMusic" src="snakes-music.mp3" loop volume="0.3"></audio>
+<audio id="crashSound" src="snakes-kolize.mp3"></audio>
+
 <script>
   // ------------------------ PROMĚNNÉ A KONSTANTY ------------------------
   const canvas = document.getElementById('gameCanvas');
@@ -207,8 +210,13 @@
  // ghost mode
  let ghostInterval = null;
 const ghostDuration = 3000; // 3 sekundy
-const ghostCooldown = 10000; // každých 10 sekund
+const ghostCooldown = 20000; // každých 20 sekund
 
+	//sounds
+const bgMusic = document.getElementById('bgMusic');
+bgMusic.volume = 0.2;
+const crashSound = document.getElementById('crashSound');
+crashSound.volume = 0.6;
 
   // Počet kol 
 	const roundsInput = document.getElementById('roundsInput');
@@ -404,29 +412,45 @@ if (activePlayers[idx]) {
 			ghostPlayer.originalColor = ghostPlayer.color;
 			ghostPlayer.color = 'rgba(240,240,240,0.9)'; // téměř bílá
 
+			const randomDuration = 2000 + Math.random() * 2000; // 2000–4000 ms
 			setTimeout(() => {
 			  ghostPlayer.ghost = false;
 			  ghostPlayer.color = ghostPlayer.originalColor;
 			  delete ghostPlayer.originalColor;
-			}, ghostDuration);
+			}, randomDuration);
 		  }, ghostCooldown);
+		}
+		// hudba
+		try {
+		  bgMusic.currentTime = 0;
+		  bgMusic.play();
+		} catch (e) {
+		  console.warn("Zvuk nelze přehrát (možná kvůli omezením prohlížeče):", e);
 		}
 
 	}
 
+   //PAUZA
+	function pauseGame() {
+	  if (gameState !== 'running') return;
+	  gameState = 'paused';
+	  bgMusic.pause(); // pozastaví hudbu
+	}
 
-  function pauseGame() {
-    if (gameState !== 'running') return;
-    gameState = 'paused';
-  }
 
-  function resumeGame() {
-    if (gameState !== 'paused') return;
-    gameState = 'running';
-    lastTimestamp = null;
-    requestAnimationFrame(gameLoop);
-  }
+	function resumeGame() {
+	  if (gameState !== 'paused') return;
+	  gameState = 'running';
+	  lastTimestamp = null;
+	  requestAnimationFrame(gameLoop);
+	  try {
+		bgMusic.play(); // znovu spustí hudbu
+	  } catch (e) {
+		console.warn("Hudba po pauze se nepodařila přehrát:", e);
+	  }
+	}
 
+// ENDGAME
   function endGame() {
     gameState = 'ended';
     drawResults();
@@ -435,6 +459,8 @@ if (activePlayers[idx]) {
 	  clearInterval(ghostInterval);
 	  ghostInterval = null;
 	}
+	bgMusic.pause();
+	bgMusic.currentTime = 0;
   }
 
 // RESET GAME
@@ -519,7 +545,7 @@ function resetGame() {
         alive: true,
         turnLeft: false,
         turnRight: false,
-		speed: mod1Enabled ? moveSpeed * (1 + (Math.random() * 0.2 - 0.1)) : moveSpeed, 
+		speed: mod1Enabled ? moveSpeed * (1 + (Math.random() * 0.4 - 0.1)) : moveSpeed, 
 		thinActive: false,
 		widthFactor: 1
       };
@@ -565,44 +591,53 @@ function gameLoop(timestamp) {
     const newY = p.y + dy;
 
     // ---- SPRÁVNÁ ČELNÍ KOLIZE PODLE SOUČASNÉ POZICE ----
-    const frontRadius = headRadius + 1;  // mírně před hlavou
-    const numSamples = 8;
-    const ownRgb = p.color.replace(/[^\d,]/g, '').split(',').map(Number);
-    let allHit = true;
+const frontRadius = headRadius + 2;
+const numSamples = 8;
+const ownRgb = p.color.replace(/[^\d,]/g, '').split(',').map(Number);
+let hitCount = 0;
 
-    for (let i = 0; i < numSamples; i++) {
-      const offsetAngle = (i / (numSamples - 1) - 0.7) * Math.PI / 2;
-      const checkAngle = p.angle + offsetAngle;
-      const cx = p.x + frontRadius * Math.cos(checkAngle);
-      const cy = p.y + frontRadius * Math.sin(checkAngle);
+for (let i = 0; i < numSamples; i++) {
+  const offsetAngle = (i / (numSamples - 1) - 0.7) * Math.PI / 2;
+  const checkAngle = p.angle + offsetAngle;
+  const cx = p.x + frontRadius * Math.cos(checkAngle);
+  const cy = p.y + frontRadius * Math.sin(checkAngle);
 
-      const ix = Math.floor(cx);
-      const iy = Math.floor(cy);
+  const ix = Math.floor(cx);
+  const iy = Math.floor(cy);
 
-      if (ix < 0 || ix >= canvas.width || iy < 0 || iy >= canvas.height) {
-        continue; // za okrajem = zásah
-      }
 
-      const pixel = ctx.getImageData(ix, iy, 1, 1).data;
-      const isWhite = (pixel[0] === 255 && pixel[1] === 255 && pixel[2] === 255);
-      const isOwnColor = (
-        pixel[0] === ownRgb[0] &&
-        pixel[1] === ownRgb[1] &&
-        pixel[2] === ownRgb[2]
-      );
+  if (ix < 0 || ix >= canvas.width || iy < 0 || iy >= canvas.height) {
+    hitCount++; // zásah mimo hranici = kolize
+    continue;
+  }
 
-      if (isWhite) {
-        allHit = false;
-        break;
-      }
-    }
+  const pixel = ctx.getImageData(ix, iy, 1, 1).data;
+  const isWhite = (pixel[0] === 255 && pixel[1] === 255 && pixel[2] === 255);
+  const isOwnColor = (
+    pixel[0] === ownRgb[0] &&
+    pixel[1] === ownRgb[1] &&
+    pixel[2] === ownRgb[2]
+  );
 
-    if (allHit && !p.ghost) {
-      p.alive = false;
-      finishOrder.push(p);
-      console.log(`Hráč ${p.id} narazil čelem hlavy.`);
-      continue;
-    }
+  if (!isWhite && !isOwnColor) {
+    hitCount++;
+  }
+}
+
+if (hitCount >= 4 && !p.ghost) {
+  p.alive = false;
+  finishOrder.push(p);
+  console.log(`Hráč ${p.id} narazil čelem (4+ zásahy).`);
+
+  try {
+    crashSound.currentTime = 0;
+    crashSound.play();
+  } catch (e) {
+    console.warn("Zvuk kolize nelze přehrát:", e);
+  }
+}
+
+
 
     // ---- VYKRESLENÍ POHYBU A AKTUALIZACE POZICE ----
     ctx.beginPath();
