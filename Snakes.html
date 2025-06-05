@@ -165,6 +165,8 @@
 
 <audio id="bgMusic" src="snakes-music.mp3" loop volume="0.3"></audio>
 <audio id="crashSound" src="snakes-kolize.mp3"></audio>
+<audio id="medalSound" src="medal.mp3"></audio>
+
 
 <script>
   // ------------------------ PROMĚNNÉ A KONSTANTY ------------------------
@@ -217,6 +219,8 @@ const bgMusic = document.getElementById('bgMusic');
 bgMusic.volume = 0.2;
 const crashSound = document.getElementById('crashSound');
 crashSound.volume = 0.6;
+const medalSound = document.getElementById('medalSound');
+medalSound.volume = 0.7;
 
   // Počet kol 
 	const roundsInput = document.getElementById('roundsInput');
@@ -391,6 +395,7 @@ if (activePlayers[idx]) {
 
   // ------------------------ FUNKCE PRO ŘÍZENÍ STAVŮ HRY ------------------------
 	function startGame() {
+	
 	  const countActive = activePlayers.filter(v => v).length;
 	  if (countActive === 0 || (currentRound >= totalRounds)) return;
 
@@ -402,6 +407,7 @@ if (activePlayers[idx]) {
 	  initializePlayers();
 	  lastTimestamp = null;
 	  requestAnimationFrame(gameLoop);
+	  
 	  
 	  if (mod2Enabled) {
 		  ghostInterval = setInterval(() => {
@@ -493,10 +499,17 @@ function resetGame() {
     winnerNameEl.style.color = winnerColor;
     celebrationDiv.style.display = 'block';
 
-    // Skrýt oslavu po 5 vteřinách
+	try {
+	  medalSound.currentTime = 0;
+	  medalSound.play();
+	} catch (e) {
+	  console.warn("Zvuk výhry (medal.mp3) se nepodařilo přehrát:", e);
+	}
+
+    // Skrýt oslavu po 10 vteřinách
     setTimeout(() => {
       celebrationDiv.style.display = 'none';
-    }, 5000);
+    }, 10000);
 
     // restart možnost
     startPrompt.textContent = 'MEZERNÍK = RESTART';
