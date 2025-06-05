@@ -218,7 +218,7 @@ const ghostCooldown = 20000; // každých 20 sekund
 
 	//sounds
 const bgMusic = document.getElementById('bgMusic');
-bgMusic.volume = 0.2;
+bgMusic.volume = 0.1;
 const crashSound = document.getElementById('crashSound');
 crashSound.volume = 0.6;
 const medalSound = document.getElementById('medalSound');
@@ -508,33 +508,58 @@ function resetGame() {
     resultText.innerHTML = html;
     resultText.style.display = 'block';
 
-    // ✅ Přidej nové řádky pro zobrazení vítěze a gifu
-    const winner = withScores[0];
-    const winnerColor = playerColors[winner.id - 1];
-    const winnerDisplayName = playerNames[winner.id - 1].toUpperCase();
+    // === ÚPRAVA: Detekuj více vítězů ===
+    const maxScore = withScores[0].score;
+    const winners = withScores.filter(p => p.score === maxScore);
 
+    // Zobrazení více hadích gifů
     const celebrationDiv = document.getElementById('winnerCelebration');
-    const winnerNameEl = document.getElementById('winnerName');
-    winnerNameEl.textContent = winnerDisplayName;
-    winnerNameEl.style.color = winnerColor;
+    celebrationDiv.innerHTML = ''; // Vyčisti starý obsah
+
+    winners.forEach((winner) => {
+      const color = playerColors[winner.id - 1];
+      const name = playerNames[winner.id - 1].toUpperCase();
+
+      const gif = document.createElement('img');
+      gif.src = 'snakes-dancing.gif';
+      gif.style.width = '150px';
+      gif.style.maxWidth = '90%';
+      gif.style.margin = '10px';
+      gif.style.display = 'inline-block';
+
+      const label = document.createElement('div');
+      label.textContent = name;
+      label.style.fontSize = '22px';
+      label.style.fontWeight = 'bold';
+      label.style.color = color;
+      label.style.marginTop = '5px';
+
+      const container = document.createElement('div');
+      container.style.display = 'inline-block';
+      container.style.textAlign = 'center';
+      container.appendChild(gif);
+      container.appendChild(label);
+
+      celebrationDiv.appendChild(container);
+    });
+
     celebrationDiv.style.display = 'block';
 
-	try {
-	  medalSound.currentTime = 0;
-	  medalSound.play();
-	} catch (e) {
-	  console.warn("Zvuk výhry (medal.mp3) se nepodařilo přehrát:", e);
-	}
+    try {
+      medalSound.currentTime = 0;
+      medalSound.play();
+    } catch (e) {
+      console.warn("Zvuk výhry (medal.mp3) se nepodařilo přehrát:", e);
+    }
 
-    // Skrýt oslavu po 10 vteřinách
     setTimeout(() => {
       celebrationDiv.style.display = 'none';
     }, 7500);
 
-    // restart možnost
     startPrompt.textContent = 'MEZERNÍK = RESTART';
     startPrompt.style.display = 'block';
     currentRound = 0;
+    totalScores = [0, 0, 0, 0]; // Reset skóre
 
     return;
   }
@@ -548,6 +573,7 @@ function resetGame() {
   updateStartPromptText();
   resizeCanvas();
 }
+
 
 
   // ----------------------------------------------------------------------
@@ -624,7 +650,7 @@ function gameLoop(timestamp) {
     const newY = p.y + dy;
 
     // ---- SPRÁVNÁ ČELNÍ KOLIZE PODLE SOUČASNÉ POZICE ----
-const frontRadius = headRadius + 2;
+const frontRadius = headRadius + 1;
 const numSamples = 8;
 const ownRgb = p.color.replace(/[^\d,]/g, '').split(',').map(Number);
 let hitCount = 0;
