@@ -165,7 +165,7 @@
 
 <audio id="bgMusic" src="snakes-music.mp3" loop volume="0.3"></audio>
 <audio id="crashSound" src="snakes-kolize.mp3"></audio>
-<audio id="medalSound" src="medal.mp3"></audio>
+<audio id="medalSound" src="likeaboss.mp3"></audio>
 
 
 <script>
@@ -395,7 +395,7 @@ if (activePlayers[idx]) {
 
   // ------------------------ FUNKCE PRO ŘÍZENÍ STAVŮ HRY ------------------------
 	function startGame() {
-	
+	  bgMusic.playbackRate = 1.0;
 	  const countActive = activePlayers.filter(v => v).length;
 	  if (countActive === 0 || (currentRound >= totalRounds)) return;
 
@@ -643,10 +643,27 @@ if (hitCount >= 4 && !p.ghost) {
   console.log(`Hráč ${p.id} narazil čelem (4+ zásahy).`);
 
   try {
-    crashSound.currentTime = 0;
-    crashSound.play();
+    const s = new Audio('snakes-kolize.mp3');
+    s.volume = 0.6;
+    s.play();
   } catch (e) {
     console.warn("Zvuk kolize nelze přehrát:", e);
+  }
+
+  // ✅ MOD1: Zrychlení hadů a hudby po kolizi
+  if (mod1Enabled) {
+    players.forEach(other => {
+      if (other.alive) {
+        other.speed *= 1.2;
+      }
+    });
+
+    // Zrychlit hudbu (s omezením)
+    try {
+      bgMusic.playbackRate = Math.min(bgMusic.playbackRate * 1.1, 2.0); // max 3× rychlost
+    } catch (e) {
+      console.warn("Nepodařilo se upravit rychlost hudby:", e);
+    }
   }
 }
 
