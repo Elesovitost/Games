@@ -129,6 +129,10 @@
 	  color: #fff;
 	  border-color: #666;
 	}
+	
+	.nameSpan {
+	  cursor: default;
+	}
   </style>
 </head>
 <body>
@@ -166,6 +170,8 @@
 <audio id="bgMusic" src="snakes-music.mp3" loop volume="0.3"></audio>
 <audio id="crashSound" src="snakes-kolize.mp3"></audio>
 <audio id="medalSound" src="likeaboss.mp3"></audio>
+<audio id="clickSound" src="click.mp3"></audio>
+
 
 
 <script>
@@ -179,6 +185,10 @@
   const startPrompt = document.getElementById('startPrompt');
   const resultText = document.getElementById('resultText');
   
+
+const colorCycle = ['orange', 'red', 'purple', 'blue', 'green', 'brown'];
+let playerColorIndexes = [null, null, null, null]; // výběrový index pro každého hráče
+
 
   // Tlačítka pro hráče
   const btnP1 = document.getElementById('btnP1');
@@ -223,6 +233,16 @@ const crashSound = document.getElementById('crashSound');
 crashSound.volume = 0.6;
 const medalSound = document.getElementById('medalSound');
 medalSound.volume = 0.7;
+const clickSound = document.getElementById('clickSound');
+function playClickSound() {
+  try {
+    clickSound.currentTime = 0;
+    clickSound.play();
+  } catch (e) {
+    console.warn("Zvuk kliknutí nelze přehrát:", e);
+  }
+}
+
 
   // Počet kol 
 	const roundsInput = document.getElementById('roundsInput');
@@ -246,24 +266,29 @@ medalSound.volume = 0.7;
 		  newVal = Math.max(0, Math.min(100, newVal));
 		  roundsInput.value = newVal;
 		  updateRoundsFromInput();
+		  playClickSound();
 		});
 
   // MOD1 variabilní rychlost
   const btnMod1 = document.getElementById('btnMod1');
-	let mod1Enabled = false;
+	let mod1Enabled = true;
+	btnMod1.classList.add('active');
 
 	btnMod1.addEventListener('click', () => {
 	  mod1Enabled = !mod1Enabled;
 	  btnMod1.classList.toggle('active', mod1Enabled);
+	  playClickSound();
 	});
 
 	// MOD2 ghost mode
 	const btnMod2 = document.getElementById('btnMod2');
-	let mod2Enabled = false;
+	let mod2Enabled = true;
+	btnMod2.classList.add('active');
 
 	btnMod2.addEventListener('click', () => {
 	  mod2Enabled = !mod2Enabled;
 	  btnMod2.classList.toggle('active', mod2Enabled);
+	  playClickSound();
 	});
 	
 	
@@ -273,6 +298,7 @@ medalSound.volume = 0.7;
 	btnMod3.addEventListener('click', () => {
 	  mod3Enabled = !mod3Enabled;
 	  btnMod3.classList.toggle('active', mod3Enabled);
+	  playClickSound();
 	});
 
 //LOCAL STORAGE
@@ -301,47 +327,121 @@ medalSound.volume = 0.7;
 
   // ------------------------ OVĚŘOVÁNÍ TLAČÍTEK HRAČŮ ------------------------
 playerButtons.forEach((btn, idx) => {
+
+btn.addEventListener('contextmenu', (e) => {
+  e.preventDefault(); // zamezí zobrazení kontextového menu
+});
+
 const updateLabel = () => {
   const name = playerNames[idx];
   const [keyL, keyR] = playerKeys[idx].map(k => {
-	switch (k) {
-	  case 'ArrowLeft': return '◀';
-	  case 'ArrowRight': return '▶';
-	  case 'Numpad1': return '1';
-	  case 'Numpad2': return '2';
-	  default: return k.replace('Key', '');
-	}
+    switch (k) {
+      case 'ArrowLeft': return '◀';
+      case 'ArrowRight': return '▶';
+      case 'Numpad1': return '1';
+      case 'Numpad2': return '2';
+      default: return k.replace('Key', '');
+    }
   });
 
-  btn.innerHTML = name + ' <span class="kbd">' + keyL + '</span><span class="kbd">' + keyR + '</span>';
-  btn.style.color = playerColors[idx]; 
+  const btnColor = (playerColorIndexes[idx] !== null)
+    ? colorCycle[playerColorIndexes[idx]]
+    : 'black';
 
-if (activePlayers[idx]) {
-  btn.style.borderColor = playerColors[idx]; // barevný rámeček
-} else {
-  btn.style.borderColor = 'transparent';
-}
+  btn.innerHTML = '<span class="nameSpan">' + name + '</span> <span class="kbd">' + keyL + '</span><span class="kbd">' + keyR + '</span>';
+  btn.style.color = btnColor;
 
+  if (activePlayers[idx]) {
+    btn.style.borderColor = btnColor;
+  } else {
+    btn.style.borderColor = 'transparent';
+  }
+
+  playerColors[idx] = btnColor; // barva hada
 };
 
 
-	btn.addEventListener('click', () => {
-	  activePlayers[idx] = !activePlayers[idx];
-	  updateLabel();
-	  updateStartPromptText(); // <- TADY NOVÝ ŘÁDEK
-	});
+
+btn.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+    if (e.target.classList.contains('nameSpan')) return;
+
+  const forward = e.button === 0; // levý klik
+  const backward = e.button === 2; // pravý klik
+  const total = colorCycle.length;
+
+  const usedColors = playerColorIndexes
+    .filter((val, i) => val !== null && activePlayers[i] && i !== idx)
+    .map(i => colorCycle[i]);
+
+  let currentIndex = playerColorIndexes[idx];
+  let nextIndex = null;
+
+  if (forward) {
+    if (currentIndex === null) currentIndex = -1;
+
+    for (let i = currentIndex + 1; i <= total; i++) {
+      if (i === total) {
+        // Přeskočeno vše → deaktivace
+        activePlayers[idx] = false;
+        playerColorIndexes[idx] = null;
+        updateLabel();
+        updateStartPromptText();
+        return;
+      }
+      const color = colorCycle[i];
+      if (!usedColors.includes(color)) {
+        nextIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (backward) {
+    if (currentIndex === null) currentIndex = total;
+
+    for (let i = currentIndex - 1; i >= -1; i--) {
+      if (i === -1) {
+        // Přeskočeno vše → deaktivace
+        activePlayers[idx] = false;
+        playerColorIndexes[idx] = null;
+        updateLabel();
+        updateStartPromptText();
+        return;
+      }
+      const color = colorCycle[i];
+      if (!usedColors.includes(color)) {
+        nextIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (nextIndex !== null) {
+    playerColorIndexes[idx] = nextIndex;
+    activePlayers[idx] = true;
+  }
+
+  updateLabel();
+  updateStartPromptText();
+  playClickSound();
+
+});
 
 
-btn.addEventListener('dblclick', () => {
-  const nameSpan = document.createElement('span');
+btn.addEventListener('click', (e) => {
+  if (!e.target.classList.contains('nameSpan')) return;
+
   const input = document.createElement('input');
   input.type = 'text';
   input.value = playerNames[idx];
-  input.style.width = '50px';
+  input.style.width = '60px';
   input.style.fontSize = '13px';
   input.style.marginRight = '6px';
 
-  nameSpan.appendChild(input);
+  btn.innerHTML = '';
+  btn.appendChild(input);
+  btn.appendChild(document.createTextNode(' '));
 
   const [keyL, keyR] = playerKeys[idx].map(k => {
     switch (k) {
@@ -354,12 +454,9 @@ btn.addEventListener('dblclick', () => {
   });
 
   const keySpan = document.createElement('span');
-  keySpan.innerHTML = '<span class="kbd">' + keyL + '</span><span class="kbd">' + keyR + '</span>';
-
-
-  btn.innerHTML = '';
-  btn.appendChild(nameSpan);
+  keySpan.innerHTML = `<span class="kbd">${keyL}</span><span class="kbd">${keyR}</span>`;
   btn.appendChild(keySpan);
+
   input.focus();
   input.select();
 
@@ -378,6 +475,11 @@ btn.addEventListener('dblclick', () => {
 
   input.addEventListener('blur', saveName);
 });
+
+
+
+
+
 
 
   updateLabel();

@@ -77,13 +77,11 @@ canvas#fireworks {
     </select>
   </div>
   <div>
-    <select id="speedSelect" class="player-btn">
-      <option value="1">šnek</option>
-      <option value="2">brouk</option>
-      <option value="3">mungo</option>
-      <option value="4">kočka</option>
-      <option value="5">gepard</option>
-    </select>
+	<select id="speedSelect" class="player-btn">
+	  <option value="2" selected>šnek</option>
+	  <option value="3">mungo</option>
+	  <option value="4">gepard</option>
+	</select>
   </div>
 </div>
 
@@ -103,6 +101,8 @@ canvas#fireworks {
 <audio id="wizardWinSound" src="maze-wizard-win.mp3"></audio>
 <audio id="music1" src="maze-music1.mp3" loop></audio>
 <audio id="music2" src="maze-music2.mp3" loop></audio>
+<audio id="wizardSteps" src="maze-wizard-steps.mp3" loop></audio>
+<audio id="dragonSteps" src="maze-dragon-wings.mp3" loop></audio>
 
 
 
@@ -162,12 +162,15 @@ canvas#fireworks {
 	  document.getElementById("music1"),
 	  document.getElementById("music2")
 	];
-
 	const dragonWinSound = document.getElementById("dragonWinSound");
 	const wizardWinSound = document.getElementById("wizardWinSound");
-
 	let currentMusic = null;
 	let musicStarted = false;
+	const wizardSteps = document.getElementById("wizardSteps");
+	const dragonSteps = document.getElementById("dragonSteps");
+	wizardSteps.volume = 0.5;
+	dragonSteps.volume = 0.5;
+
 	
 function syncTrailCanvasSize() {
   [trailCanvas, playersCanvas].forEach(c => {
@@ -353,15 +356,18 @@ function handleFullReset() {
 //rychlostw
 
 function updateSpeed() {
-  const speed = speedBase * speedLevel;
-  player.speed = speed;
+  let selected = parseInt(speedSelect.value);
+  if (![2, 3, 4].includes(selected)) selected = 3; // fallback na mungo
+
+  player.speed = selected;
 
   if (player2AI) {
-    player2.speed = speed * 0.5; // AI je pomalejší
+    player2.speed = selected * 0.5; // AI je pomalejší
   } else {
-    player2.speed = speed; // normální hráč 2 má stejnou rychlost
+    player2.speed = selected;
   }
 }
+
 
 
 function reinitializePlayers() {
@@ -509,6 +515,22 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+function playStepSound(playerId, isMoving) {
+  const audio = playerId === 1 ? dragonSteps : wizardSteps;
+
+  if (isMoving) {
+    if (audio.paused) {
+      audio.play();
+    }
+  } else {
+    if (!audio.paused) {
+      audio.pause();
+      audio.currentTime = 0;  // restart jen při zastavení
+    }
+  }
+}
+
+
 
 function movePlayer(p, heldKeys, hueRefName, isPlayer2 = false) {
   const curr = grid[p.y][p.x];
@@ -555,6 +577,9 @@ function movePlayer(p, heldKeys, hueRefName, isPlayer2 = false) {
 
     drawTrailPoint(p.px + cellSize / 2, p.py + cellSize / 2, hueRefName === "hue" ? hue : hue2, isPlayer2);
   }
+
+  const playerId = isPlayer2 ? 2 : 1;
+  playStepSound(playerId, isMoving);
 }
 
 
@@ -695,6 +720,11 @@ function launchFireworks(winner) {
   winnerText = winner;
   fireworks = [];
 
+	wizardSteps.pause();
+	wizardSteps.currentTime = 0;
+	dragonSteps.pause();
+	dragonSteps.currentTime = 0;
+
   const gif = document.getElementById("victoryGif");
   if (winner.includes("HRÁČ 1")) {
     gif.src = "maze-dragon.gif";
@@ -767,7 +797,6 @@ function stopFireworks() {
 	  currentMusic = null;
 	}
 	musicStarted = false;
-
 }
 
 function createFirework() {
