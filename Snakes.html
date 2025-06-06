@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
   <meta charset="UTF-8" />
-  <title>Multiplayer Hadí Hra</title>
+  <title>Snake Game</title>
   <style>
     /* Reset a základní styl */
     * {
@@ -802,7 +802,7 @@ for (let i = 0; i < numSamples; i++) {
   }
 
   const pixel = ctx.getImageData(ix, iy, 1, 1).data;
-  const isWhite = (pixel[0] === 255 && pixel[1] === 255 && pixel[2] === 255);
+  const isWhite = (pixel[0] >= 245 && pixel[1] >= 245 && pixel[2] >= 245);
   const isOwnColor = (
     pixel[0] === ownRgb[0] &&
     pixel[1] === ownRgb[1] &&
