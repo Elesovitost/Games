@@ -480,7 +480,7 @@ const [keyL, keyR] = playerKeys[idx].map(k => {
 });
 
 const keySpan = document.createElement('span');
-keySpan.innerHTML = `<span class="kbd">${keyL}</span><span class="kbd">${keyR}</span>`;
+keySpan.innerHTML = '<span class="kbd">' + keyL + '</span><span class="kbd">' + keyR + '</span>';
 btn.appendChild(keySpan);
 btn.appendChild(document.createTextNode(' '));
 btn.appendChild(input);
@@ -494,7 +494,7 @@ btn.appendChild(input);
     if (name) playerNames[idx] = name;
     setTimeout(() => {
       updateLabel();
-      savePlayerNamesToCookies();
+      savePlayerNamesToStorage();
     }, 0);
   };
 
@@ -938,7 +938,7 @@ function drawResults() {
 
   // ------------------------ INITIALIZACE A START ------------------------
 window.addEventListener('load', () => {
-  loadPlayerNamesFromCookies();
+  loadPlayerNamesFromStorage();
   resizeCanvas();
   updateStartPromptText();
 });
@@ -946,24 +946,24 @@ window.addEventListener('load', () => {
   // ----------------------------------------------------------------------
 
 
-function savePlayerNamesToCookies() {
-  playerNames.forEach((name, i) => {
-    document.cookie = `playerName${i}=${encodeURIComponent(name)}; path=/; max-age=31536000`; // 1 rok
-  });
+function savePlayerNamesToStorage() {
+  localStorage.setItem('playerNames', JSON.stringify(playerNames));
 }
 
-function loadPlayerNamesFromCookies() {
-  const cookies = document.cookie.split(';').reduce((acc, pair) => {
-    const [k, v] = pair.split('=').map(c => c.trim());
-    if (k && v) acc[k] = decodeURIComponent(v);
-    return acc;
-  }, {});
-  playerNames.forEach((_, i) => {
-    const cookieKey = `playerName${i}`;
-    if (cookies[cookieKey]) {
-      playerNames[i] = cookies[cookieKey];
+function loadPlayerNamesFromStorage() {
+  const stored = localStorage.getItem('playerNames');
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length === playerNames.length) {
+        for (let i = 0; i < playerNames.length; i++) {
+          playerNames[i] = parsed[i];
+        }
+      }
+    } catch (e) {
+      console.warn("Chyba při načítání jmen z localStorage:", e);
     }
-  });
+  }
 }
 
 
