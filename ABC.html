@@ -208,6 +208,8 @@ img {max-width:80vw;height:auto;}
 	  <button id="toggle-uppercase" style="font-size: 24px;">🔠</button>
 	  <button id="toggle-sound" style="font-size: 24px;">🔇</button>
 	  <button id="toggle-free-mode" style="font-size: 24px;">❌🖊️</button>
+	  <button id="toggle-kid-mode" style="font-size: 24px;">🧒</button>
+
 	</div>
 </div>
 
@@ -298,6 +300,7 @@ document.addEventListener("keydown", function(e) {
 let settings = {
   uppercase: false,
   sound: true,
+  kidMode: false
 };
 
 function saveSettings() {
@@ -317,6 +320,7 @@ function loadSettings() {
 function applySettings() {
   document.getElementById("toggle-uppercase").textContent = settings.uppercase ? "🔡" : "🔠";
   document.getElementById("toggle-sound").textContent = settings.sound ? "🔊" : "🔇";
+  document.getElementById("toggle-kid-mode").textContent = settings.kidMode ? "👶" : "🧒";
 
   const uppercaseStyle = settings.uppercase ? "uppercase" : "none";
   ["mobile-input", "reading-word", "letters"].forEach(id => {
@@ -357,19 +361,27 @@ document.getElementById("toggle-free-mode").addEventListener("click", () => {
   }
 });
 
-
+document.getElementById("toggle-kid-mode").addEventListener("click", () => {
+  settings.kidMode = !settings.kidMode;
+  saveSettings();
+  applySettings();
+});
+	
 
 
 
 // Změň existující playSound funkci:
 function playSound(id) {
   if (!settings.sound) return;
+  if (settings.kidMode && id === 'sound-wrong') return;
+
   const sound = document.getElementById(id);
   if (sound) {
     sound.currentTime = 0;
     sound.play().catch(() => {});
   }
 }
+
 
 loadSettings();
 
@@ -916,6 +928,7 @@ function checkCelebrationTrigger(score) {
 // wrong robot
 
 function showWrongRobot() {
+  if (settings.kidMode) return;
   const robot = document.getElementById("wrong-robot-fixed");
   if (!robot) return;
   robot.style.display = "block";
@@ -923,6 +936,7 @@ function showWrongRobot() {
     robot.style.display = "none";
   }, 1300);
 }
+
 
 
 
