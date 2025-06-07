@@ -8,7 +8,7 @@
     body {
       margin: 0;
       padding: 0;
-      background: #ffffff;
+      background: #fff;
       height: 100vh;
       display: flex;
       justify-content: center;
@@ -16,128 +16,330 @@
       overflow: hidden;
     }
 
-    .circle {
-      position: relative;
-      width: 600px;
-      height: 600px;
-    }
+	.circle {
+	  position: absolute;
+	  width: 600px;
+	  height: 600px;
+	  z-index: 0;
+
+	}
+	.circle::before {
+	  content: '';
+	  position: absolute;
+	  inset: 0;
+	  background: url('TechCircle.png') center/contain no-repeat;
+	  animation: rotate-circle 120s linear infinite;
+	  transform-origin: center center;
+	}
 
     .game-button {
       position: absolute;
-      width: 200px;
-      height: 200px;
+      width: 260px;
+      height: 260px;
       border-radius: 50%;
-      background: #fffaf5;
-      border: 4px double #c5a880;
-      box-shadow: inset 0 0 0 4px #fff, 0 0 15px rgba(0, 0, 0, 0.2);
       display: flex;
       justify-content: center;
       align-items: center;
       cursor: pointer;
       transition: transform 0.6s ease, box-shadow 0.3s ease;
-      background-image: radial-gradient(circle at center, transparent 50%, #c5a880 52%, transparent 55%), 
-                        repeating-conic-gradient(#c5a880 0deg 5deg, transparent 5deg 10deg);
-      background-size: cover;
+      background: none;
+      overflow: hidden;
     }
 
-    .game-button img {
-      width: 90%;
-      height: 90%;
-      object-fit: contain;
-      border-radius: 50%;
-      background: white;
-    }
+	.game-icon {
+	  position: absolute;
+	  width: 70%;
+	  height: 70%;
+	  object-fit: contain;
+	  border-radius: 50%;
+	  z-index: 1;
+	  transform: rotate(0deg); /* důležité */
+	  will-change: transform;
+	}
+
+	.gamecircle {
+	  position: absolute;
+	  width: 100%;
+	  height: 100%;
+	  background: url('TechCircle.png') center/cover no-repeat;
+	  z-index: 2;
+	  pointer-events: none;
+	  animation: slow-spin 30s linear infinite;
+	  transform-origin: center;
+	}
 
     .game-button:hover {
       transform: scale(1.1);
-      box-shadow: 0 0 25px #8a4baf;
+
     }
 
-	.rotate {
-	  animation: spin 1s linear forwards;
+	.game-button.clicked .gamecircle {
+	  animation: fast-spin 1.5s linear forwards;
 	}
 
-	@keyframes spin {
-	  0% { transform: rotate(0deg); }
-	  100% { transform: rotate(360deg); }
+
+    .game-button.clicked .game-icon {
+      animation: glow-out 1.5s ease forwards;
+    }
+
+    .whiteout {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1000ms ease;
+      z-index: 9999;
+    }
+
+    .whiteout.visible {
+      opacity: 1;
+    }
+
+    @keyframes slow-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes fast-spin {
+      to { transform: rotate(720deg); }
+    }
+
+    @keyframes glow-out {
+      50% {
+        filter: brightness(2) drop-shadow(0 0 20px white);
+      }
+      100% {
+        filter: brightness(3) drop-shadow(0 0 40px white);
+      }
+    }
+	
+	@keyframes rotate-counterclockwise {
+	  from { transform: rotate(0deg); }
+	  to { transform: rotate(-360deg); }
 	}
+	
+	@keyframes rotate-circle {
+	  from {
+		transform: rotate(0deg);
+	  }
+	  to {
+		transform: rotate(-360deg);
+	  }
+	}
+	
+	
+	.circle.hover-boost::before {
+	  animation: rotate-circle-fast 10s linear infinite !important;
+	}
+	@keyframes rotate-circle-fast {
+	  to { transform: rotate(-360deg); }
+	}
+
+	.gamecircle.fast {
+	  animation: slow-spin 5s linear infinite !important;
+	}
+
+
+.game-title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ffcc00;
+  pointer-events: none;
+  z-index: 10;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.game-title span {
+  display: inline-block;
+  position: relative;
+  color: #ffcc00;
+  font-family: Tahoma, sans-serif;
+  font-size: 38px; /* zvětšení základní velikosti */
+  text-shadow:
+    -1px -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000,
+     0 0 6px #ff6600,
+     0 0 12px #ff3300,
+     0 0 20px rgba(255, 80, 0, 0.7);
+  transition: text-shadow 0.2s;
+}
+
+
+
+
+@keyframes glitch-flicker {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(
+      calc(-2px + 4px * random()),
+      calc(-2px + 4px * random())
+    ) scale(calc(1 + 0.05 * random()));
+    opacity: calc(0.8 + 0.2 * random());
+  }
+}
+
+
+
+
 
   </style>
 </head>
 <body>
-  <div class="circle" id="circle">
-    <!-- Buttons will be dynamically inserted -->
-  </div>
+  <div class="circle" id="circle"></div>
+  <div id="game-title" class="game-title"></div>
+  <div class="whiteout" id="whiteout"></div>
+  <audio id="bg-music" src="index-tech-background.mp3" loop></audio>
+  <audio id="poweron-sound" src="index-tech-poweron.mp3"></audio>
+  <audio id="hover-hum" src="index-tech-hum.mp3" loop></audio>
 
-<script>
-  const games = [
-    { name: 'ABC', file: 'ABC.html', image: 'ABC.webp' },
-    { name: 'Snakes', file: 'Snakes.html', image: 'Snakes.webp' },
-    { name: 'Maze', file: 'Maze.html', image: 'Maze.webp' },
-  ];
+  <script>
+    const games = [
+      { name: 'ABECEDA', file: 'ABC.html', image: 'ABC.webp' },
+      { name: 'HADI', file: 'Snakes.html', image: 'Snakes.webp' },
+      { name: 'BLUDIŠTĚ', file: 'Maze.html', image: 'Maze.webp' },
+    ];
 
-  const circle = document.getElementById('circle');
-  const radius = 250;
-  const centerX = 300;
-  const centerY = 300;
-  const speed = 0.001; // rychlost otáčení
+    const circle = document.getElementById('circle');
+    const whiteout = document.getElementById('whiteout');
+    const bgMusic = document.getElementById('bg-music');
+    const powerSound = document.getElementById('poweron-sound');
 
-  const buttons = [];
+    const radius = 230, centerX = 300, centerY = 280, speed = 0.001;
+    const buttons = [];
+    const frag = document.createDocumentFragment();
 
-  games.forEach((game, index) => {
-    const angle = (2 * Math.PI / games.length) * index;
+    games.forEach((game, i) => {
+	  const angle = (2 * Math.PI / games.length) * i;
+	  const btn = document.createElement('div');
+	  btn.className = 'game-button';
 
-    const button = document.createElement('div');
-    button.className = 'game-button';
-    button.dataset.angle = angle;
+	  // HTML obsahu
+	  btn.innerHTML = `
+		<img src="${game.image}" alt="${game.name}" class="game-icon">
+		<div class="gamecircle"></div>
+	  `;
 
-    const img = document.createElement('img');
-    img.src = game.image;
-    img.alt = game.name;
-    button.appendChild(img);
+	  // Výpočet pozice
+	  const x = centerX + radius * Math.cos(angle) - 130;
+	  const y = centerY + radius * Math.sin(angle) - 130;
+	  btn.style.left = `${x}px`;
+	  btn.style.top = `${y}px`;
 
-	button.addEventListener('click', () => {
-	  button.classList.remove('rotate');
-	  // Vyvolání reflow pro restart animace
-	  void button.offsetWidth;
-	  button.classList.add('rotate');
+	btn.innerHTML = `
+	  <img src="${game.image}" alt="${game.name}" class="game-icon">
+	  <div class="gamecircle"></div>
+	`;
 
-	  setTimeout(() => {
-		window.location.href = game.file;
-	  }, 1000);
-	});
 
-    button.addEventListener('mouseenter', () => {
-      button.dataset.paused = 'true';
+      btn.addEventListener('click', () => {
+        if (btn.classList.contains('clicked')) return;
+
+        powerSound.currentTime = 0;
+        powerSound.play().catch(() => {});
+        bgMusic.pause();
+
+        btn.classList.add('clicked');
+        circle.classList.add('clicked');
+
+        setTimeout(() => whiteout.classList.add('visible'), 500);
+        setTimeout(() => window.location.href = game.file, 1500);
+      });
+
+const humSound = document.getElementById('hover-hum'); humSound.volume = 0.3;
+
+btn.addEventListener('mouseenter', () => {
+  showGameTitle(game.name);
+
+  humSound.currentTime = 0;
+  humSound.play().catch(() => {});
+});
+
+btn.addEventListener('mouseleave', () => {
+  clearGameTitle();
+  humSound.pause();
+  humSound.currentTime = 0;
+});
+
+
+      frag.appendChild(btn);
+      buttons.push(btn);
     });
 
-    button.addEventListener('mouseleave', () => {
-      button.dataset.paused = 'false';
-    });
+    circle.appendChild(frag);
+	
+	const gameTitle = document.getElementById('game-title');
 
-    circle.appendChild(button);
-    buttons.push(button);
+function showGameTitle(text) {
+  gameTitle.innerHTML = ''; // vymazat předchozí text
+
+  text.split('').forEach(char => {
+    const span = document.createElement('span');
+    span.textContent = char;
+	span.style.fontFamily = 'Tahoma, sans-serif';
+    span.style.top = `${Math.floor(Math.random() * 6 - 3)}px`;
+    span.style.left = `${Math.floor(Math.random() * 6 - 3)}px`;
+    gameTitle.appendChild(span);
   });
+}
 
-  function animate() {
-    buttons.forEach((button) => {
-      let angle = parseFloat(button.dataset.angle);
-      if (button.dataset.paused !== 'true') {
-        angle += speed;
-        button.dataset.angle = angle;
-      }
+function clearGameTitle() {
+  gameTitle.innerHTML = '';
+}
 
-      const x = centerX + radius * Math.cos(angle) - 100;
-      const y = centerY + radius * Math.sin(angle) - 100;
-      button.style.left = `${x}px`;
-      button.style.top = `${y}px`;
-    });
 
-    requestAnimationFrame(animate);
-  }
+function StartAction() {
+  const bgMusic = document.getElementById('bg-music');
+  const humSound = document.getElementById('hover-hum');
 
-  animate();
-</script>
+  const startMusic = () => {
+    bgMusic.volume = 0.5;
+    bgMusic.play().catch(() => {});
+    
+    // připrav hover-hum na přehrávání
+    humSound.play().then(() => {
+      humSound.pause();
+      humSound.currentTime = 0;
+    }).catch(() => {});
 
+    window.removeEventListener('mousemove', startMusic);
+  };
+
+  window.addEventListener('mousemove', startMusic);
+}
+
+
+setInterval(() => {
+  document.querySelectorAll('.game-title span').forEach(span => {
+    const dx = Math.floor(Math.random() * 5 - 2);
+    const dy = Math.floor(Math.random() * 5 - 2);
+    const scale = 1 + (Math.random() - 0.5) * 0.1;
+    const blur = 6 + Math.random() * 6;
+
+    span.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+	span.style.textShadow = `
+	  -1px -1px 0 #000,
+	   1px -1px 0 #000,
+	  -1px  1px 0 #000,
+	   1px  1px 0 #000,
+	   0 0 ${blur}px #ff6600,
+	   0 0 ${blur + 10}px #ff3300,
+	   0 0 ${blur + 20}px rgba(255, 100, 0, 0.5)
+	`;
+
+  });
+}, 80);
+
+
+  </script>
 </body>
 </html>
