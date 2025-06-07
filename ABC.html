@@ -227,8 +227,7 @@ img {max-width:80vw;height:auto;}
 
 
   <script>
-const words = ['auto', 'autobus', 'bagr', 'banán', 'bazén', 'bota', 'brusle', 'bunda', 'delfín', 'dort', 'drak', 'gepard', 'hasiči', 'hodinky', 'holub', 'houska', 'hrnec', 'hruška', 'jahoda', 'jogurt', 'jupiter', 'kalhoty', 'kavka', 'kobra', 'kolo', 'koláč', 'koruna', 'kosatka', 'kočka', 'kráva', 'letadlo', 'mars', 'meloun', 'motorka', 'mrak', 'myš', 'míč', 'nosorožec', 'oko', 'opice', 'orel', 'ovce', 'papoušek', 'peníze', 'pes', 'policie', 'ponorka', 'postel', 'raketa', 'robot', 'rohlík', 'ruka', 'saturn', 'sklenice', 'slon', 'slunce', 'strom', 'tank', 'telefon', 'televize', 'tramvaj', 'triko', 'tygr', 'vidlička', 'vlak', 'vlk', 'vodopád', 'volant', 'včela', 'zebra', 'země', 'zmije', 'čepice', 'židle', 'žirafa', 'žralok'];
-
+const words = ['auto', 'autobus', 'bagr', 'banán', 'bazén', 'bota', 'brambora', 'brusle', 'bunda', 'chobotnice', 'delfín', 'dort', 'drak', 'elektrárna', 'gepard', 'hasiči', 'hodinky', 'holub', 'houska', 'hrnec', 'hruška', 'jahoda', 'jogurt', 'jupiter', 'kalhoty', 'kavka', 'kobra', 'kolo', 'koláč', 'koruna', 'kosatka', 'kočka', 'kreveta', 'kráva', 'letadlo', 'lžíce', 'malina', 'mars', 'meloun', 'mikuláš', 'monitor', 'motorka', 'mrak', 'myš', 'míč', 'nosorožec', 'oko', 'opice', 'orel', 'ovce', 'papoušek', 'peníze', 'pes', 'policie', 'ponorka', 'postel', 'raketa', 'robot', 'rohlík', 'ruka', 'saturn', 'sklenice', 'slon', 'slunce', 'strom', 'tank', 'taška', 'telefon', 'televize', 'tramvaj', 'triko', 'tygr', 'vidlička', 'vlak', 'vlk', 'vodopád', 'volant', 'včela', 'zebra', 'země', 'zmije', 'čepice', 'řízek', 'židle', 'žirafa', 'žralok'];
 const data = words.map(word => ({
   word: word,
   img: null
@@ -240,7 +239,7 @@ data.forEach(item => {
     const img = new Image();
     img.onload = () => { item.img = img.src; };
     img.onerror = () => tryLoad(exts, index + 1);
-    img.src = `${item.word}.${exts[index]}`;
+    img.src = `WORDS/${item.word}.${exts[index]}`;
   };
   tryLoad(['jpeg', 'jpg']);
 });
