@@ -300,6 +300,9 @@ function handleFullReset() {
     player2Active = false;
     player2AI = false;
     localStorage.setItem("playerCount", "1");
+	aiActivated = false;
+wizardSteps.pause();
+wizardSteps.currentTime = 0;
   }
 
   // Nastavit rychlost

@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <title>Snake Game</title>
   <style>
+  
+    @font-face {
+	  font-family: 'IgnisEtGlaciesSharp';
+	  src: url('Ignis et Glacies Sharp.ttf') format('truetype');
+	  font-display: swap;
+	}
+
+  
     /* Reset a základní styl */
     * {
       margin: 0;
@@ -249,7 +257,6 @@ let playerColorIndexes = [null, null, null, null]; // výběrový index pro kaž
   const moveSpeed = 60;                // rychlost 10 px/s
   const rotationSpeed = 100 * Math.PI/90; // 20°/s => v radiánech/s
   
-
  // ghost mode
  let ghostInterval = null;
 const ghostDuration = 3000; // 3 sekundy
@@ -738,7 +745,8 @@ function resetGame() {
         turnRight: false,
 		speed: mod1Enabled ? moveSpeed * (1 + (Math.random() * 0.4 - 0.1)) : moveSpeed, 
 		thinActive: false,
-		widthFactor: 1
+		widthFactor: 1,
+		prevTurnState: { left: false, right: false } 
       };
       players.push(player);
 
@@ -810,15 +818,17 @@ for (let i = 0; i < numSamples; i++) {
     pixel[2] === ownRgb[2]
   );
 
-  if (!isWhite && !isOwnColor) {
-    hitCount++;
-  }
+	const isBlack = (pixel[0] < 10 && pixel[1] < 10 && pixel[2] < 10);
+
+	if ((p.ghost && isBlack) || (!p.ghost && !isWhite && !isOwnColor)) {
+	  hitCount++;
+	}
 }
 
-if (hitCount >= 4 && !p.ghost) {
+if ((hitCount >= 4 && !p.ghost) || (hitCount >= 1 && p.ghost)) {
   p.alive = false;
   finishOrder.push(p);
-  console.log(`Hráč ${p.id} narazil čelem (4+ zásahy).`);
+  console.log(`Hráč ${p.id} narazil.`);
 
   try {
     const s = new Audio('snakes-kolize.mp3');
@@ -828,22 +838,20 @@ if (hitCount >= 4 && !p.ghost) {
     console.warn("Zvuk kolize nelze přehrát:", e);
   }
 
-  // ✅ MOD1: Zrychlení hadů a hudby po kolizi
   if (mod1Enabled) {
     players.forEach(other => {
       if (other.alive) {
         other.speed *= 1.2;
       }
     });
-
-    // Zrychlit hudbu (s omezením)
     try {
-      bgMusic.playbackRate = Math.min(bgMusic.playbackRate * 1.1, 2.0); // max 3× rychlost
+      bgMusic.playbackRate = Math.min(bgMusic.playbackRate * 1.1, 2.0);
     } catch (e) {
       console.warn("Nepodařilo se upravit rychlost hudby:", e);
     }
   }
 }
+
 
 
 
@@ -883,10 +891,15 @@ function updateTurningStates() {
     p.turnLeft = !!keyState[keyL];
     p.turnRight = !!keyState[keyR];
 
-    if (mod3Enabled && p.turnLeft && p.turnRight && !p.thinActive) {
-      p.thinActive = true;
-      console.log(`Hráč ${p.id} aktivoval ztenčení stopy (MOD3)`);
-    }
+if (mod3Enabled && p.turnLeft && p.turnRight && !p.thinActive) {
+  if (!p.prevTurnState.left && !p.prevTurnState.right) {
+    p.thinActive = true;
+    console.log(`Hráč ${p.id} aktivoval ztenčení stopy (MOD3)`);
+  }
+}
+p.prevTurnState.left = p.turnLeft;
+p.prevTurnState.right = p.turnRight;
+
 
     p.widthFactor = p.thinActive ? 0.5 : 1;
   }

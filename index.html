@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Herní Rozcestník</title>
   <style>
+  
+  @font-face {
+	  font-family: 'IgnisEtGlaciesSharp';
+	  src: url('Ignis et Glacies Sharp.ttf') format('truetype');
+	  font-display: swap;
+	}
+
+  
     body {
       margin: 0;
       padding: 0;
@@ -166,8 +174,8 @@
   display: inline-block;
   position: relative;
   color: #ffcc00;
-  font-family: Tahoma, sans-serif;
-  font-size: 38px; /* zvětšení základní velikosti */
+  font-family: 'IgnisEtGlaciesSharp', sans-serif;
+  font-size: 34px; /* zvětšení základní velikosti */
   text-shadow:
     -1px -1px 0 #000,
      1px -1px 0 #000,
@@ -303,7 +311,7 @@ function showGameTitle(text) {
   text.split('').forEach(char => {
     const span = document.createElement('span');
     span.textContent = char;
-	span.style.fontFamily = 'Tahoma, sans-serif';
+	span.style.fontFamily = 'IgnisEtGlaciesSharp, sans-serif';
     span.style.top = `${Math.floor(Math.random() * 6 - 3)}px`;
     span.style.left = `${Math.floor(Math.random() * 6 - 3)}px`;
     gameTitle.appendChild(span);
