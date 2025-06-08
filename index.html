@@ -23,6 +23,7 @@
 	  z-index: 0;
 
 	}
+
 	.circle::before {
 	  content: '';
 	  position: absolute;
@@ -31,6 +32,9 @@
 	  animation: rotate-circle 120s linear infinite;
 	  transform-origin: center center;
 	}
+		.circle.paused::before {
+  animation-play-state: paused;
+}
 
     .game-button {
       position: absolute;
@@ -67,6 +71,10 @@
 	  animation: slow-spin 30s linear infinite;
 	  transform-origin: center;
 	}
+	.gamecircle.paused {
+  animation-play-state: paused;
+}
+
 
     .game-button:hover {
       transform: scale(1.1);
@@ -219,6 +227,7 @@
     const frag = document.createDocumentFragment();
 
     games.forEach((game, i) => {
+	  circle.classList.add('paused');
 	  const angle = (2 * Math.PI / games.length) * i;
 	  const btn = document.createElement('div');
 	  btn.className = 'game-button';
@@ -262,14 +271,23 @@ btn.addEventListener('mouseenter', () => {
 
   humSound.currentTime = 0;
   humSound.play().catch(() => {});
+
+  circle.classList.remove('paused');
+  gameCircle.classList.remove('paused');
 });
+
 
 btn.addEventListener('mouseleave', () => {
   clearGameTitle();
   humSound.pause();
   humSound.currentTime = 0;
+
+  circle.classList.add('paused');
+  gameCircle.classList.add('paused');
 });
 
+const gameCircle = btn.querySelector('.gamecircle');
+gameCircle.classList.add('paused');
 
       frag.appendChild(btn);
       buttons.push(btn);
