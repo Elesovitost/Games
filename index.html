@@ -357,6 +357,12 @@ setInterval(() => {
   });
 }, 80);
 
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) {
+    location.reload();
+  }
+});
+
 
   </script>
 </body>
