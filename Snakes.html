@@ -727,7 +727,7 @@ function resetGame() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
     const radius = (canvas.height / 2) / 2; // poloměr pro obvod
-
+	
     for (let k = 0; k < n; k++) {
       const idx = aktifIdx[k];
       const theta = (2 * Math.PI / n) * k;
@@ -746,7 +746,9 @@ function resetGame() {
 		speed: mod1Enabled ? moveSpeed * (1 + (Math.random() * 0.4 - 0.1)) : moveSpeed, 
 		thinActive: false,
 		widthFactor: 1,
-		prevTurnState: { left: false, right: false } 
+		prevTurnState: { left: false, right: false },
+		thinWindowStart: 0,
+		thinState: null
       };
       players.push(player);
 
@@ -884,26 +886,47 @@ if ((hitCount >= 4 && !p.ghost) || (hitCount >= 1 && p.ghost)) {
 }
 
 function updateTurningStates() {
+  const now = performance.now();
+
   for (let p of players) {
     const idx = p.id - 1;
     const [keyL, keyR] = playerKeys[idx];
 
-    p.turnLeft = !!keyState[keyL];
-    p.turnRight = !!keyState[keyR];
+    const isLeft = !!keyState[keyL];
+    const isRight = !!keyState[keyR];
 
-if (mod3Enabled && p.turnLeft && p.turnRight && !p.thinActive) {
-  if (!p.prevTurnState.left && !p.prevTurnState.right) {
-    p.thinActive = true;
-    console.log(`Hráč ${p.id} aktivoval ztenčení stopy (MOD3)`);
-  }
-}
-p.prevTurnState.left = p.turnLeft;
-p.prevTurnState.right = p.turnRight;
+    p.turnLeft = isLeft;
+    p.turnRight = isRight;
 
+    if (mod3Enabled && !p.thinActive) {
+      const nonePressed = !isLeft && !isRight;
+      const bothPressed = isLeft && isRight;
 
+      // Pokud obě klávesy puštěny → začni hlídat čas
+      if (nonePressed && p.thinState !== 'waiting') {
+        p.thinState = 'waiting';
+        p.thinWindowStart = now;
+      }
+
+      // Pokud jsme v čekání a najednou jsou obě stisknuty do 150 ms
+      if (p.thinState === 'waiting' && bothPressed && (now - p.thinWindowStart <= 150)) {
+        p.thinActive = true;
+        p.thinState = null;
+        console.log(`Hráč ${p.id} aktivoval ztenčení (MOD3)`);
+      }
+
+      // Pokud čas vypršel bez aktivace
+      if (p.thinState === 'waiting' && (now - p.thinWindowStart > 150)) {
+        p.thinState = null;
+      }
+    }
+
+    // Ulož stav kláves
+    p.prevTurnState = { left: isLeft, right: isRight };
     p.widthFactor = p.thinActive ? 0.5 : 1;
   }
 }
+
 
 
 
