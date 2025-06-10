@@ -14,6 +14,9 @@ cibule
 delfín
 dort
 drak
+dron
+duha
+dveře
 elektrárna
 gepard
 hasiči
@@ -21,6 +24,7 @@ hodinky
 holub
 houska
 hrnec
+hroch
 hruška
 jahoda
 jogurt
@@ -36,6 +40,7 @@ kosatka
 kočka
 krabice
 kreveta
+krokodýl
 kráva
 letadlo
 lžíce
@@ -45,9 +50,11 @@ meloun
 mikuláš
 monitor
 motorka
+mozek
 mrak
 myš
 míč
+měsíc
 nos
 nosorožec
 okno
