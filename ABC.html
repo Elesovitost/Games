@@ -268,7 +268,7 @@ img {max-width:80vw;height:auto;}
 	  <button id="toggle-sound" style="font-size: 24px;">🔇</button>
 	  <button id="toggle-free-mode" style="font-size: 24px;">❌🖊️</button>
 	  <button id="toggle-kid-mode" style="font-size: 24px;">🧒</button>
-
+	  <div id="tooltip" style="position: absolute; display: none; background: #222; color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 14px; z-index: 9999; pointer-events: none;"></div>
 	</div>
 </div>
 
@@ -284,7 +284,13 @@ img {max-width:80vw;height:auto;}
 
 <div id="win-banner" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:64px;font-weight:bold;color:gold;text-shadow:4px 4px 10px black;z-index:9999;display:none;animation:pop-win 1s ease-out;">VYHRÁL JSI!</div>
 
-<div id="typing-log" style="display: none; white-space: pre-wrap; font-family: monospace; text-align: left; padding: 10px; margin: 10px auto; max-width: 600px;"></div>
+<div id="typing-log" style="display: none; white-space: pre-wrap; font-family: monospace; text-align: center; padding: 10px; margin: 10px auto; max-width: 600px;">
+  <div style="margin-bottom: 10px;">
+    <button onclick="resetTodayMedals()">🔁 Reset medailí</button> <button onclick="plusPoint()">✅ +1 bod</button> <button onclick="clearLog()">🗑️ Smazat log</button>
+  </div>
+</div>
+
+
 
   <script>
 
@@ -360,21 +366,32 @@ let readingPool = [];
 //kláves. zkratky
 
 document.addEventListener("keydown", function(e) {
-  const isReset = e.altKey && e.code === "KeyR";
-  const isPoint = e.altKey && e.code === "KeyP";
+  if (e.code === "F1") {
+    e.preventDefault();
+    logContainer.style.display = logContainer.style.display === "none" ? "block" : "none";
+    return;
+  }
 
-  if (isReset) {
+  if (e.altKey && e.code === "KeyR") {
     resetTodayMedals();
   }
 
-  if (isPoint) {
-    scoreGood++;
-    updateScoreDisplay();
-    addProgress(5);
-    checkCelebrationTrigger(scoreGood);
+  if (e.altKey && e.code === "KeyP") {
+    plusPoint();
+  }
+
+  if (e.code === "End") {
+    clearLog();
+    logContainer.style.display = "none";
   }
 });
 
+function plusPoint() {
+  scoreGood++;
+  updateScoreDisplay();
+  addProgress(5);
+  checkCelebrationTrigger(scoreGood);
+}
 
 
 
@@ -401,7 +418,7 @@ function loadSettings() {
 }
 
 function applySettings() {
-  document.getElementById("toggle-uppercase").textContent = settings.uppercase ? "🔡" : "🔠";
+  document.getElementById("toggle-uppercase").textContent = settings.uppercase ? "🔠" : "🔡";
   document.getElementById("toggle-sound").textContent = settings.sound ? "🔊" : "🔇";
   document.getElementById("toggle-kid-mode").textContent = settings.kidMode ? "👶" : "🧒";
 
@@ -421,26 +438,29 @@ document.getElementById("toggle-uppercase").addEventListener("click", () => {
   settings.uppercase = !settings.uppercase;
   saveSettings();
   applySettings();
+  showTooltip(event.currentTarget, settings.uppercase ? "VELKÁ PÍSMENA" : "malá písmena");
 });
 
 document.getElementById("toggle-sound").addEventListener("click", () => {
   settings.sound = !settings.sound;
   saveSettings();
   applySettings();
+  showTooltip(event.currentTarget, settings.sound ? "zvuk ON" : "zvuk OFF");
 });
 
-document.getElementById("toggle-free-mode").addEventListener("click", () => {
+document.getElementById("toggle-free-mode").addEventListener("click", (e) => {
   const btn = document.getElementById("toggle-free-mode");
   const freeBtn = document.querySelector(".mode-button.free");
 
   const isActive = btn.textContent === "✅🖊️";
-
   if (isActive) {
     btn.textContent = "❌🖊️";
     freeBtn.style.display = "none";
+    showTooltip(btn, "volné psaní NEaktivní");
   } else {
     btn.textContent = "✅🖊️";
     freeBtn.style.display = "inline-block";
+    showTooltip(btn, "volné psaní AKTIVNÍ");
   }
 });
 
@@ -448,8 +468,9 @@ document.getElementById("toggle-kid-mode").addEventListener("click", () => {
   settings.kidMode = !settings.kidMode;
   saveSettings();
   applySettings();
+  showTooltip(event.currentTarget, settings.kidMode ? "miminčí mód" : "dětský mód");
 });
-	
+
 
 
 
@@ -465,8 +486,21 @@ function playSound(id) {
   }
 }
 
-
 loadSettings();
+
+function showTooltip(button, text) {
+  const tooltip = document.getElementById("tooltip");
+  tooltip.textContent = text;
+
+  const rect = button.getBoundingClientRect();
+  tooltip.style.left = `${rect.left + window.scrollX}px`;
+  tooltip.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  tooltip.style.display = "block";
+
+  setTimeout(() => {
+    tooltip.style.display = "none";
+  }, 1000);
+}
 
 
 
@@ -572,6 +606,7 @@ function startGame(mode) {
           } else {
             userInput.push(key);
             scoreBad++; //resetProgressBar();
+			if (!settings.kidMode) resetProgressBar();
             playSound('sound-wrong');
 			showWrongRobot();
             updateScoreDisplay();
@@ -711,6 +746,7 @@ function updateDisplay() {
 		} else {
 		  img.style.filter = 'brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)';
 		  scoreBad++; //resetProgressBar();
+		  if (!settings.kidMode) resetProgressBar();
 		  updateScoreDisplay();
 		  playSound('sound-wrong');
 		  showWrongRobot();
@@ -850,6 +886,7 @@ setTimeout(() => {
 
 	} else if (userInput.length === correctAnswer.toString().length) {
 	  scoreBad++; //resetProgressBar();
+	  if (!settings.kidMode) resetProgressBar();
 	  updateScoreDisplay();
 	  playSound('sound-wrong');
 	  showWrongRobot();
@@ -1388,6 +1425,7 @@ document.getElementById("free-ok").addEventListener("click", async () => {
 
     } else {
       scoreBad++;
+	  if (!settings.kidMode) resetProgressBar();
       resetProgressBar();
       playSound("sound-wrong");
       showWrongRobot();
@@ -1448,18 +1486,7 @@ function clearLog() {
   logContainer.innerHTML = "";
 }
 
-document.addEventListener("keydown", function(e) {
-  if (e.code === "Home") {
-    if (logContainer.style.display === "none" || logContainer.style.display === "") {
-      logContainer.style.display = "block";
-    } else {
-      logContainer.style.display = "none";
-    }
-  } else if (e.code === "End") {
-    clearLog();
-    logContainer.style.display = "none";
-  }
-});
+
 
 
 
