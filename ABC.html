@@ -287,26 +287,50 @@ img {max-width:80vw;height:auto;}
 <div id="typing-log" style="display: none; white-space: pre-wrap; font-family: monospace; text-align: left; padding: 10px; margin: 10px auto; max-width: 600px;"></div>
 
   <script>
-const words = ['auto', 'autobus', 'avokádo', 'bagr', 'banán', 'bazén', 'blesk', 'bota', 'brambora', 'brusle', 'bunda', 'chobotnice', 'cibule', 'delfín', 'dort', 'drak', 'elektrárna', 'gepard', 'hasiči', 'hodinky', 'holub', 'houska', 'hrnec', 'hruška', 'jahoda', 'jogurt', 'jupiter', 'kalhoty', 'kavka', 'kniha', 'kobra', 'kolo', 'koláč', 'koruna', 'kosatka', 'kočka', 'krabice', 'kreveta', 'kráva', 'letadlo', 'lžíce', 'malina', 'mars', 'meloun', 'mikuláš', 'monitor', 'motorka', 'mrak', 'myš', 'míč', 'nos', 'nosorožec', 'okno', 'oko', 'opice', 'orel', 'ovce', 'papoušek', 'pastelky', 'peníze', 'pes', 'policie', 'ponorka', 'postel', 'raketa', 'robot', 'rohlík', 'ruka', 'saturn', 'sklenice', 'slon', 'slunce', 'strom', 'talíř', 'tank', 'taška', 'telefon', 'televize', 'tramvaj', 'triko', 'tygr', 'vidlička', 'vlak', 'vlk', 'vodopád', 'volant', 'včela', 'zebra', 'země', 'zmije', 'čepice', 'čokoláda', 'řízek', 'židle', 'žirafa', 'žralok'];
-const data = words.map(word => ({
-  word: word,
-  img: null
-}));
 
-data.forEach(item => {
-  const tryLoad = (exts, index = 0) => {
-    if (index >= exts.length) return;
-    const img = new Image();
-    img.onload = () => { item.img = img.src; };
-    img.onerror = () => tryLoad(exts, index + 1);
-    img.src = `WORDS/${item.word}.${exts[index]}`;
-  };
-  tryLoad(['jpeg', 'jpg']);
-});
+let data = [];
+let writingPool = [];
+let readingPool = [];
 
 
-    let writingPool = [...data];
-    let readingPool = [...data];
+// Použijeme asynchronní funkci, abychom mohli počkat na načtení souboru
+(async () => {
+  try {
+    const response = await fetch('WORDS/words.txt');
+    if (!response.ok) {
+      throw new Error(`Failed to fetch words.txt: ${response.statusText}`);
+    }
+    const textContent = await response.text();
+
+    const words = textContent.split('\n').map(word => word.trim()).filter(word => word !== '');
+
+    data = words.map(word => ({
+      word: word,
+      img: null 
+    }));
+
+    data.forEach(item => {
+      const tryLoad = (exts, index = 0) => {
+        if (index >= exts.length) return; 
+        const img = new Image();
+        img.onload = () => { item.img = img.src; }; 
+        img.onerror = () => tryLoad(exts, index + 1); 
+        img.src = `WORDS/${item.word}.${exts[index]}`;
+      };
+      tryLoad(['jpeg', 'jpg']); 
+    });
+
+    writingPool = [...data];
+    readingPool = [...data];
+    
+    console.log(`Successfully loaded ${data.length} words.`);
+
+  } catch (error) {
+    console.error("Critical error loading game data:", error);
+    alert("Nepodařilo se načíst data pro hru. Zkontrolujte konzoli (F12) pro více detailů.");
+  }
+})();
+
     let currentWord = '';
     let userInput = [];
     let scoreGood = 0;
