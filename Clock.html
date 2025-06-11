@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hodiny</title>
+  <style>
+  body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* justify-content: center;  Tohle odstraníme nebo zakomentujeme, aby se obsah necentroval s volným místem */
+    height: 100vh;
+    background: #f0f0f0;
+    margin: 0; /* Odstraní výchozí margin, který může způsobovat problémy */
+    padding-top: 19px; /* Kompenzace výšky headerBaru (16px výška + 3px top) */
+  }
+    .clock {
+      position: relative;
+      width: 500px;
+      height: 500px;
+      border: 10px solid black;
+      border-radius: 50%;
+      margin-bottom: 20px;
+      background: white;
+    }
+    .hand {
+      position: absolute;
+      bottom: 50%;
+      left: 49%;
+      transform-origin: bottom center;
+      background: black;
+    }
+    .hour {
+      width: 8px;
+      height: 150px;
+    }
+    .minute {
+      width: 6px;
+      height: 200px;
+      background: blue;
+    }
+    .second {
+      width: 2px;
+      height: 220px;
+      background: red;
+    }
+    .center {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: black;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+	.digit {
+	  position: absolute;
+	  text-align: center;
+	  transform: translate(-50%, -50%);
+	}
+	.digit-hour {
+	  font-size: 36px;
+	  font-weight: bold;
+	  color: black;
+	}
+
+	.digit-minute {
+	  font-size: 16px;
+	  color: blue;
+	}
+    .digital {
+      font-size: 36px;
+      font-weight: bold;
+    }
+    .tick {
+      position: absolute;
+      width: 2px;
+      height: 14px;
+      background: black;
+      top: 47%;
+      left: 49.7%;
+      transform-origin: bottom center;
+    }
+	#ok-button {
+	  display: none;
+	  position: absolute;
+	  top: 50%;
+	  left: 50%;
+	  width: 80px;
+	  height: 80px;
+	  transform: translate(-50%, -50%);
+	  z-index: 10;
+	  border-radius: 50%;
+	  font-weight: bold;
+	  font-size: 20px;
+	  background-color: #4caf50;
+	  color: black;
+	  border: 2px solid black;
+	  cursor: pointer;
+	  transition: transform 0.1s, box-shadow 0.1s;
+	}
+
+	#ok-button:active {
+	  transform: translate(-50%, -48%) scale(0.98);
+	  box-shadow: 0 2px #2e7d32;
+	}
+    #dance-gif {
+      transform: translate(-50%, -50%);
+      max-width: 100%; /* Aby nepřesahoval šířku hodin */
+      max-height: 200px; 
+      display: none;
+	  margin-left: 250px; 
+	  margin-top: 150px;  
+    }
+  </style>
+</head>
+<body>
+<div id="headerBar" style="position:fixed;top:3px;left:0;right:0;height:16px;background-color:white;display:flex;align-items:center;justify-content:space-between;padding:0 10px;z-index:10000;flex-shrink:0;border-bottom:1px solid black;">
+  <span id="HeaderTitle" style="color:#ffcc00;font-family:'IgnisEtGlaciesSharp',sans-serif;font-size:18px;line-height:1;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 0 6px #ff6600,0 0 12px #ff3300,0 0 20px rgba(255,80,0,0.7);transition:text-shadow 0.2s;">HODINY</span>
+  <a href="index.html" id="backArrow" style="display:inline-block;color:#ffcc00;font-size:8px;margin-right:5px;text-decoration:none;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 0 6px #ff6600,0 0 12px #ff3300;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.5)';this.style.cursor='pointer';" onmouseout="this.style.transform='none';">&#x25C0;</a>
+</div>
+
+<div id="score" style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">
+  <span style="color: green;" id="score-correct">0</span> : <span style="color: red;" id="score-wrong">0</span>
+</div>
+
+<div style="margin-bottom: 10px;">
+  <label for="difficulty">Obtížnost: </label>
+  <select id="difficulty" onchange="reloadClock()">
+    <option value="beginner">Začátečník</option>
+    <option value="advanced">Pokročilý</option>
+    <option value="master">Mistr</option>
+  </select>
+</div>
+
+
+<div style="margin-bottom: 10px;">
+  <button onclick="startSetTimeMode()">Nastav čas</button>
+  <button onclick="startReadTimeMode()">Čti čas</button>
+</div>
+
+  <div class="clock" id="clock">
+    <div class="hand hour" id="hour-hand"></div>
+    <div class="hand minute" id="minute-hand"></div>
+    <div class="hand second" id="second-hand"></div>
+    <div class="center"></div>
+	<button id="ok-button">?</button>
+	<img id="dance-gif" src="" alt="dance" style="display:none;" />
+<script>
+  function reloadClock() {
+    const clock = document.getElementById("clock");
+    // Smaž předchozí prvky
+    document.querySelectorAll(".digit, .tick, .master-mark").forEach(el => el.remove());
+
+
+    const difficulty = document.getElementById("difficulty").value;
+	const secondHand = document.getElementById("second-hand");
+	secondHand.style.display = (difficulty === "master") ? "none" : "block";
+    const centerX = 250;
+    const centerY = 250;
+
+    // Hodinová čísla nebo čárky
+    if (difficulty !== "master") {
+      const radius = (difficulty === "advanced") ? 200 : 180;
+      for (let i = 1; i <= 12; i++) {
+        const digit = document.createElement("div");
+        digit.className = "digit digit-hour";
+        const angle = (i * 30) * Math.PI / 180;
+        digit.style.left = centerX + radius * Math.sin(angle) + "px";
+        digit.style.top = centerY - radius * Math.cos(angle) + "px";
+        digit.textContent = i;
+        clock.appendChild(digit);
+      }
+    } else {
+      for (let i = 0; i < 12; i++) {
+        const tick = document.createElement("div");
+        tick.className = "master-mark";
+        const angle = i * 30;
+        tick.style.position = "absolute";
+        tick.style.width = "4px";
+        tick.style.height = "20px";
+        tick.style.background = "black";
+        tick.style.top = "46%";
+        tick.style.left = "49%";
+        tick.style.transformOrigin = "bottom center";
+        tick.style.transform = `rotate(${angle}deg) translateY(-210px)`;
+        clock.appendChild(tick);
+      }
+    }
+
+    // Minutové číslice
+    if (difficulty === "beginner") {
+      for (let i = 0; i <= 55; i += 5) {
+        const minuteDigit = document.createElement("div");
+        minuteDigit.className = "digit digit-minute";
+        minuteDigit.style.fontSize = "18px";
+        const angle = (i * 6) * Math.PI / 180;
+        const radius = 218;
+        minuteDigit.style.left = centerX + radius * Math.sin(angle) + "px";
+        minuteDigit.style.top = centerY - radius * Math.cos(angle) + "px";
+        minuteDigit.textContent = i;
+        clock.appendChild(minuteDigit);
+      }
+    }
+
+    // Minutové čárky (kromě mistra)
+    if (difficulty !== "master") {
+      for (let i = 0; i < 60; i++) {
+        const tick = document.createElement("div");
+        tick.className = "tick";
+        tick.style.transform = `rotate(${i * 6}deg) translateY(-230px)`;
+        clock.appendChild(tick);
+      }
+    }
+  }
+
+  // První načtení
+  reloadClock();
+</script>
+
+  </div>
+	<div class="digital" id="digital-clock">
+	  <span id="input-hh">__</span>:<span id="input-mm">__</span>
+	</div>
+
+
+<audio id="win-sound" src="win.mp3"></audio>
+<audio id="wrong-sound" src="wrong.mp3"></audio>
+
+<audio id="dance-music" autoplay></audio>
+
+  <script>
+    const hourHand = document.getElementById('hour-hand');
+    const minuteHand = document.getElementById('minute-hand');
+    const secondHand = document.getElementById('second-hand');
+    const digital = document.getElementById('digital-clock');
+
+    let now = new Date();
+    let manualMinutes = now.getMinutes();
+    let manualHours = now.getHours() + manualMinutes / 60;
+    let seconds = now.getSeconds();
+
+	let readInput = "";
+
+	let scoreCorrect = 0;
+	let scoreWrong = 0;
+
+	function updateScoreDisplay() {
+	  document.getElementById("score-correct").textContent = scoreCorrect;
+	  document.getElementById("score-wrong").textContent = scoreWrong;
+	}
+
+function updateClock() {
+  if (gameMode === "read") {
+    // V režimu čtení se nic nepřepisuje (ručičky jsou už nastaveny při spuštění)
+    return;
+  }
+
+  const now = new Date();
+  seconds = now.getSeconds();
+
+  const secondDeg = seconds * 6;
+  secondHand.style.transform = `rotate(${secondDeg}deg)`;
+
+  const minuteDeg = manualMinutes * 6;
+  minuteHand.style.transform = `rotate(${minuteDeg}deg)`;
+
+  const hourDeg = ((Math.floor(manualHours) % 12) * 30) + (manualMinutes * 0.5);
+  hourHand.style.transform = `rotate(${hourDeg}deg)`;
+
+  const h = (Math.floor(manualHours) % 24).toString().padStart(2, '0');
+  const m = Math.floor(manualMinutes).toString().padStart(2, '0');
+  const s = seconds.toString().padStart(2, '0');
+
+  if (gameMode !== "set") {
+    digital.textContent = `${h}:${m}:${s}`;
+  }
+}
+
+
+let gameMode = null; // "set" nebo "read"
+let targetHours = 0;
+let targetMinutes = 0;
+
+document.getElementById('ok-button').addEventListener('click', checkSetTime);
+
+function startSetTimeMode() {
+  gameMode = "set";
+  document.getElementById('ok-button').style.display = "block";
+
+  // Vygeneruj náhodný čas
+  targetHours = Math.floor(Math.random() * 12);
+  targetMinutes = Math.floor(Math.random() * 60);
+
+  // Zobraz na digitálních hodinách staticky cílový čas
+  digital.innerHTML = targetHours.toString().padStart(2, '0') + ":" + targetMinutes.toString().padStart(2, '0') + ":00";
+
+  // Reset ručiček k nule pro manuální nastavování
+  manualHours = 0;
+  manualMinutes = 0;
+
+  // Skrýt vteřinovou ručičku
+  secondHand.style.display = "none";
+
+  updateClock();
+}
+
+function startReadTimeMode() {
+  gameMode = "read";
+  document.getElementById('ok-button').style.display = "block";
+  secondHand.style.display = "none";
+
+  digital.innerHTML = `<span id="input-hh">__</span>:<span id="input-mm">__</span>`;
+  readInput = "";
+  updateReadInputDisplay();
+
+  targetHours = Math.floor(Math.random() * 12);
+  targetMinutes = Math.floor(Math.random() * 60);
+
+  manualHours = targetHours;
+  manualMinutes = targetMinutes;
+
+  // === PŘÍMÉ NASTAVENÍ RUČIČEK ===
+  const minuteDeg = manualMinutes * 6;
+  const hourDeg = ((manualHours % 12) * 30) + (manualMinutes * 0.5);
+
+  minuteHand.style.transform = `rotate(${minuteDeg}deg)`;
+  hourHand.style.transform = `rotate(${hourDeg}deg)`;
+}
+
+
+
+function checkSetTime() {
+  if (gameMode === "set") {
+    const setH = Math.floor(manualHours) % 12;
+    const setM = Math.floor(manualMinutes);
+
+    const targetH = targetHours % 12;
+    const targetM = targetMinutes;
+
+    const tolerance = 1;
+
+    const hMatch = Math.abs(setH - targetH) <= 1 || Math.abs(setH - targetH + 12) % 12 <= 1;
+    const mMatch = Math.abs(setM - targetM) <= tolerance;
+
+    if (hMatch && mMatch) {
+      scoreCorrect++;
+	  if (scoreCorrect === 5) {
+		  playCelebration();
+		}
+      updateScoreDisplay();
+      document.getElementById("win-sound").play();
+      setTimeout(startSetTimeMode, 1000);
+    } else {
+      scoreWrong++;
+      updateScoreDisplay();
+      document.getElementById("wrong-sound").play();
+    }
+  }
+
+  if (gameMode === "read") {
+    if (readInput.length < 4) return; // neúplné
+
+    const inputH = parseInt(readInput.substring(0, 2)) % 12;
+    const inputM = parseInt(readInput.substring(2, 4));
+
+    const targetH = Math.floor(manualHours) % 12;
+    const targetM = Math.floor(manualMinutes);
+
+    const tolerance = 1;
+    const hMatch = Math.abs(inputH - targetH) <= 1 || Math.abs(inputH - targetH + 12) % 12 <= 1;
+    const mMatch = Math.abs(inputM - targetM) <= tolerance;
+
+    if (hMatch && mMatch) {
+      scoreCorrect++;
+	  if (scoreCorrect === 10) {
+		  playCelebration();
+		}
+      updateScoreDisplay();
+      document.getElementById("win-sound").play();
+      setTimeout(startReadTimeMode, 1000);
+    } else {
+      scoreWrong++;
+      updateScoreDisplay();
+      document.getElementById("wrong-sound").play();
+    }
+  }
+}
+
+
+
+
+    setInterval(updateClock, 100);
+
+    function adjustMinute(dir) {
+      manualMinutes += dir;
+      if (manualMinutes >= 60) {
+        manualMinutes -= 60;
+        manualHours += 1;
+      } else if (manualMinutes < 0) {
+        manualMinutes += 60;
+        manualHours -= 1;
+      }
+    }
+
+    let interval = null;
+    let startTime = null;
+    let heldKey = null;
+
+    function stepAdjust() {
+      if (!startTime || !heldKey) return;
+      const elapsed = Date.now() - startTime;
+      const dir = heldKey === 'ArrowRight' ? 1 : -1;
+
+      const baseSpeed = 1;
+      const maxSpeed = 120 / 1;
+      const progress = Math.min(elapsed / 2000, 1);
+      const speed = baseSpeed + progress * (maxSpeed - baseSpeed);
+      const delay = 2000 / speed;
+
+      adjustMinute(dir);
+      updateClock();
+
+      interval = setTimeout(stepAdjust, delay);
+    }
+
+
+function updateReadInputDisplay() {
+  const hh = readInput.substring(0, 2).padEnd(2, '_');
+  const mm = readInput.substring(2, 4).padEnd(2, '_');
+  document.getElementById('input-hh').textContent = hh;
+  document.getElementById('input-mm').textContent = mm;
+}
+
+window.addEventListener('keydown', (e) => {
+  if (gameMode !== "read") return;
+
+  if (e.key >= '0' && e.key <= '9' && readInput.length < 4) {
+    readInput += e.key;
+    updateReadInputDisplay();
+  }
+
+  if (e.key === 'Backspace' || e.key === 'Delete') {
+    readInput = readInput.slice(0, -1);
+    updateReadInputDisplay();
+  }
+});
+
+
+
+window.addEventListener('keydown', (e) => {
+  // Zamez šipkám ovlivnit <select>, ale stále povol ovládání hodin
+  if (["ArrowRight", "ArrowLeft"].includes(e.key)) {
+    const isSelectFocused = document.activeElement.tagName === "SELECT";
+
+    if (isSelectFocused) {
+      // Zruší změnu výběru v selectu
+      e.preventDefault();
+      // Odstraní focus ze selectu, aby šipky ovládaly hodiny
+      document.activeElement.blur();
+      return;
+    }
+
+    if (!heldKey) {
+      heldKey = e.key;
+      startTime = Date.now();
+      adjustMinute(e.key === 'ArrowRight' ? 1 : -1);
+      updateClock();
+      interval = setTimeout(stepAdjust, 300);
+    }
+  }
+});
+
+
+    window.addEventListener('keyup', (e) => {
+      if (e.key === heldKey) {
+        clearTimeout(interval);
+        heldKey = null;
+        startTime = null;
+      }
+    });
+
+    updateClock();
+	
+	
+	
+function playCelebration() {
+  const gifIndex = Math.floor(Math.random() * 10) + 1;
+  const musicIndex = Math.floor(Math.random() * 7) + 1;
+
+  const gif = document.getElementById("dance-gif");
+  const music = document.getElementById("dance-music");
+
+  gif.src = `dance${gifIndex}.gif`;
+  gif.style.display = "block";
+
+  music.src = `music${musicIndex}.mp3`;
+  music.play();
+
+  music.onended = () => {
+    gif.style.display = "none";
+    music.onended = null;
+  };
+}
+
+
+
+window.addEventListener('keydown', (e) => {
+  if (e.altKey && e.key.toLowerCase() === 'p') {
+    scoreCorrect += 5;
+    updateScoreDisplay();
+
+    if (scoreCorrect >= 10) {
+      playCelebration();
+    }
+  }
+});
+
+
+  </script>
+</body>
+</html>
