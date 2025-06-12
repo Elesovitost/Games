@@ -84,6 +84,38 @@
       left: 49.7%;
       transform-origin: bottom center;
     }
+	.hand, .digit, .tick, .center {
+	  z-index: 5;
+	}
+	
+	select, button {
+	  font-family: 'Arial', sans-serif;
+	  font-size: 18px;
+	  padding: 6px 12px;
+	  margin: 4px;
+	  border: 2px solid #444;
+	  border-radius: 10px;
+	  background: linear-gradient(to bottom, #ffecb3, #ffd54f);
+	  color: #000;
+	  box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+	  transition: all 0.2s ease;
+	  cursor: pointer;
+	}
+
+	select:hover, button:hover {
+	  background: linear-gradient(to bottom, #fff176, #fbc02d);
+	  transform: scale(1.05);
+	  box-shadow: 3px 3px 7px rgba(0,0,0,0.4);
+	}
+
+	select:focus, button:focus {
+	  outline: none;
+	  border-color: #ff9800;
+	  box-shadow: 0 0 5px #ff9800;
+	}
+
+	
+	
 	#ok-button {
 	  display: none;
 	  position: absolute;
@@ -115,6 +147,12 @@
 	  margin-left: 250px; 
 	  margin-top: 150px;  
     }
+	#toggle-animation.active {
+	  background: linear-gradient(to bottom, #a5d6a7, #66bb6a);
+	  border-color: #388e3c;
+	  color: white;
+	}
+
   </style>
 </head>
 <body>
@@ -123,17 +161,19 @@
   <a href="index.html" id="backArrow" style="display:inline-block;color:#ffcc00;font-size:8px;margin-right:5px;text-decoration:none;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 0 6px #ff6600,0 0 12px #ff3300;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.5)';this.style.cursor='pointer';" onmouseout="this.style.transform='none';">&#x25C0;</a>
 </div>
 
+
+
 <div id="score" style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">
   <span style="color: green;" id="score-correct">0</span> : <span style="color: red;" id="score-wrong">0</span>
 </div>
 
 <div style="margin-bottom: 10px;">
-  <label for="difficulty">Obtížnost: </label>
   <select id="difficulty" onchange="saveDifficultyAndReload()">
     <option value="beginner">Začátečník</option>
     <option value="advanced">Pokročilý</option>
     <option value="master">Mistr</option>
   </select>
+  <button id="toggle-animation" onclick="toggleSkybox()" style="margin-left: 10px;">Animace</button>
 </div>
 
 
@@ -144,6 +184,12 @@
 </div>
 
   <div class="clock" id="clock">
+<div id="skybox" style="position:absolute; top:0; left:0; width:100%; height:100%; border:none; background:transparent; z-index:1; border-radius:50%; overflow:hidden;">
+  <div id="horizon" style="position:absolute; bottom:50%; width:100%; height:2px; background:black; display: none;"></div>
+  <div id="sun" style="position:absolute; width:40px; height:40px; border-radius:50%; background:yellow;"></div>
+  <div id="moon" style="position:absolute; width:30px; height:30px; border-radius:50%; background:silver;"></div>
+</div>
+
     <div class="hand hour" id="hour-hand"></div>
     <div class="hand minute" id="minute-hand"></div>
     <div class="hand second" id="second-hand"></div>
@@ -266,6 +312,142 @@ if (savedDifficulty) {
 	  document.getElementById("score-wrong").textContent = scoreWrong;
 	}
 
+
+// SKYBOX
+
+let animationEnabled = false;
+
+function toggleSkybox() {
+  animationEnabled = !animationEnabled;
+  const skybox = document.getElementById("skybox");
+  const horizon = document.getElementById("horizon");
+
+  skybox.style.display = animationEnabled ? "block" : "none";
+  horizon.style.display = animationEnabled ? "block" : "none";
+
+  const button = document.getElementById("toggle-animation");
+  if (animationEnabled) {
+    button.classList.add("active");
+  } else {
+    button.classList.remove("active");
+  }
+}
+
+
+const sunrise = new Date();
+sunrise.setHours(4, 52, 0);  // 04:52
+
+const sunset = new Date();
+sunset.setHours(21, 16, 0);  // 21:16
+
+const moonrise = new Date();
+moonrise.setHours(22, 30, 0);  // 22:30
+
+const moonset = new Date();
+moonset.setHours(5, 15, 0);    // 05:15 následujícího dne
+moonset.setDate(moonset.getDate() + 1); // o den víc
+
+
+function updateCelestialBodies() {
+  if (!animationEnabled) return;
+
+  const sunEl = document.getElementById("sun");
+  const moonEl = document.getElementById("moon");
+  const skybox = document.getElementById("skybox");
+
+  const currentMinutes = Math.floor(manualHours) * 60 + Math.floor(manualMinutes);
+
+  // Definované časy jako minuty od půlnoci
+  const sunriseMinutes = 4 * 60 + 52;
+  const sunsetMinutes = 21 * 60 + 16;
+  const moonriseMinutes = 22 * 60 + 30;
+  const moonsetMinutes = (24 + 5) * 60 + 15; // 05:15 následujícího dne
+
+  // === SLUNCE ===
+  let sunProgress = (currentMinutes - sunriseMinutes) / (sunsetMinutes - sunriseMinutes);
+  sunProgress = Math.min(Math.max(sunProgress, 0), 1);
+
+  const sunX = sunProgress * 260 + 100;
+  const sunY = 40 + 30 * Math.sin(sunProgress * Math.PI);
+
+  sunEl.style.left = sunX + "px";
+  sunEl.style.bottom = sunY + "%";
+  sunEl.style.opacity = (sunProgress > 0 && sunProgress < 1) ? 1 : 0;
+
+  // === MĚSÍC ===
+  let moonProgress = (currentMinutes - moonriseMinutes) / (moonsetMinutes - moonriseMinutes);
+  moonProgress = Math.min(Math.max(moonProgress, 0), 1);
+
+  const moonX = moonProgress * 260 + 100;
+  const moonY = 40 + 30 * Math.sin(moonProgress * Math.PI);
+
+  moonEl.style.left = moonX + "px";
+  moonEl.style.bottom = moonY + "%";
+  moonEl.style.opacity = (moonProgress > 0 && moonProgress < 1) ? 1 : 0;
+
+  // === ZEMĚ ===
+  if (!document.getElementById("ground")) {
+    const ground = document.createElement("div");
+    ground.id = "ground";
+    Object.assign(ground.style, {
+      position: "absolute",
+      bottom: "0",
+      width: "100%",
+      height: "50%",
+      background: "#aacc88",
+      zIndex: "10",
+      pointerEvents: "none"
+    });
+    skybox.appendChild(ground);
+  }
+
+  // === OBLOHA ===
+  function interpolateColor(color1, color2, factor) {
+    const c1 = parseInt(color1.slice(1), 16);
+    const c2 = parseInt(color2.slice(1), 16);
+    const r1 = (c1 >> 16) & 0xff, g1 = (c1 >> 8) & 0xff, b1 = c1 & 0xff;
+    const r2 = (c2 >> 16) & 0xff, g2 = (c2 >> 8) & 0xff, b2 = c2 & 0xff;
+    const r = Math.round(r1 + (r2 - r1) * factor);
+    const g = Math.round(g1 + (g2 - g1) * factor);
+    const b = Math.round(b1 + (b2 - b1) * factor);
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+
+  let bgColor;
+
+  if (currentMinutes < sunriseMinutes - 120 || currentMinutes >= sunsetMinutes + 60) {
+    // Noc
+    const t = currentMinutes < 720 ? currentMinutes / 720 : (1440 - currentMinutes) / 720;
+    const midDark = "#000010", edgeDark = "#111122";
+    bgColor = interpolateColor(edgeDark, midDark, 1 - Math.min(t * 2, 1));
+  } else if (currentMinutes < sunriseMinutes + 60) {
+    // Svítání
+    const t = (currentMinutes - (sunriseMinutes - 120)) / 180;
+    bgColor = interpolateColor("#000010", "#336699", t);
+  } else if (currentMinutes < sunsetMinutes - 90) {
+    // Den
+    const t = (currentMinutes - (sunriseMinutes + 60)) / (sunsetMinutes - 150 - (sunriseMinutes + 60));
+    bgColor = interpolateColor("#336699", "#88ccff", t);
+  } else if (currentMinutes < sunsetMinutes + 60) {
+    // Západ
+    const t = (currentMinutes - (sunsetMinutes - 90)) / 150;
+    bgColor = interpolateColor("#88ccff", "#ff6633", t);
+  } else {
+    // Po západu
+    bgColor = "#000010";
+  }
+
+  skybox.style.background = `linear-gradient(to top, ${bgColor}, #ffffff00)`;
+
+  // === Z-indexy
+  sunEl.style.zIndex = "5";
+  moonEl.style.zIndex = "5";
+  document.getElementById("horizon").style.zIndex = "6";
+}
+
+
+
+
 function updateClock() {
   if (gameMode === "read") {
     // V režimu čtení se nic nepřepisuje (ručičky jsou už nastaveny při spuštění)
@@ -320,6 +502,8 @@ function startSetTimeMode() {
 
   updateClock();
 }
+
+
 
 function startReadTimeMode() {
   gameMode = "read";
@@ -406,7 +590,10 @@ function checkSetTime() {
 
 
 
-    setInterval(updateClock, 100);
+setInterval(() => {
+  updateClock();
+  updateCelestialBodies();
+}, 100)
 
     function adjustMinute(dir) {
       manualMinutes += dir;
@@ -429,7 +616,7 @@ function checkSetTime() {
       const dir = heldKey === 'ArrowRight' ? 1 : -1;
 
       const baseSpeed = 1;
-      const maxSpeed = 120 / 1;
+      const maxSpeed = 360 / 1;
       const progress = Math.min(elapsed / 2000, 1);
       const speed = baseSpeed + progress * (maxSpeed - baseSpeed);
       const delay = 2000 / speed;
