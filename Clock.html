@@ -129,7 +129,7 @@
 
 <div style="margin-bottom: 10px;">
   <label for="difficulty">Obtížnost: </label>
-  <select id="difficulty" onchange="reloadClock()">
+  <select id="difficulty" onchange="saveDifficultyAndReload()">
     <option value="beginner">Začátečník</option>
     <option value="advanced">Pokročilý</option>
     <option value="master">Mistr</option>
@@ -138,6 +138,7 @@
 
 
 <div style="margin-bottom: 10px;">
+  <button onclick="location.reload()">Aktuální čas</button>
   <button onclick="startSetTimeMode()">Nastav čas</button>
   <button onclick="startReadTimeMode()">Čti čas</button>
 </div>
@@ -150,6 +151,18 @@
 	<button id="ok-button">?</button>
 	<img id="dance-gif" src="" alt="dance" style="display:none;" />
 <script>
+
+function saveDifficultyAndReload() {
+  const difficulty = document.getElementById("difficulty").value;
+  localStorage.setItem("savedDifficulty", difficulty);
+  reloadClock();
+}
+
+const savedDifficulty = localStorage.getItem("savedDifficulty");
+if (savedDifficulty) {
+  document.getElementById("difficulty").value = savedDifficulty;
+}
+
   function reloadClock() {
     const clock = document.getElementById("clock");
     // Smaž předchozí prvky
