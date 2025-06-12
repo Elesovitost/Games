@@ -375,8 +375,14 @@ function updateCelestialBodies() {
   sunEl.style.opacity = (sunProgress > 0 && sunProgress < 1) ? 1 : 0;
 
   // === MĚSÍC ===
-  let moonProgress = (currentMinutes - moonriseMinutes) / (moonsetMinutes - moonriseMinutes);
-  moonProgress = Math.min(Math.max(moonProgress, 0), 1);
+	let adjustedMinutes = currentMinutes;
+	if (adjustedMinutes < moonriseMinutes) {
+	  adjustedMinutes += 1440;
+	}
+
+	let moonProgress = (adjustedMinutes - moonriseMinutes) / (moonsetMinutes - moonriseMinutes);
+	moonProgress = Math.min(Math.max(moonProgress, 0), 1);
+
 
   const moonX = moonProgress * 260 + 100;
   const moonY = 40 + 30 * Math.sin(moonProgress * Math.PI);
@@ -538,10 +544,8 @@ function checkSetTime() {
     const targetH = targetHours % 12;
     const targetM = targetMinutes;
 
-    const tolerance = 1;
-
-    const hMatch = Math.abs(setH - targetH) <= 1 || Math.abs(setH - targetH + 12) % 12 <= 1;
-    const mMatch = Math.abs(setM - targetM) <= tolerance;
+	const hMatch = setH === targetH;
+	const mMatch = setM === targetM;
 
     if (hMatch && mMatch) {
       scoreCorrect++;
@@ -567,9 +571,8 @@ function checkSetTime() {
     const targetH = Math.floor(manualHours) % 12;
     const targetM = Math.floor(manualMinutes);
 
-    const tolerance = 1;
-    const hMatch = Math.abs(inputH - targetH) <= 1 || Math.abs(inputH - targetH + 12) % 12 <= 1;
-    const mMatch = Math.abs(inputM - targetM) <= tolerance;
+	const hMatch = setH === targetH;
+	const mMatch = setM === targetM;
 
     if (hMatch && mMatch) {
       scoreCorrect++;
@@ -685,6 +688,16 @@ window.addEventListener('keydown', (e) => {
 
     updateClock();
 	
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const okBtn = document.getElementById("ok-button");
+    if (okBtn && okBtn.style.display === "block") {
+      e.preventDefault(); // 🛑 Zabrání resetu/submitu
+      checkSetTime();
+    }
+  }
+});
 	
 	
 function playCelebration() {
