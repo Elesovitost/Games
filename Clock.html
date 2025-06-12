@@ -194,7 +194,7 @@
     <div class="hand minute" id="minute-hand"></div>
     <div class="hand second" id="second-hand"></div>
     <div class="center"></div>
-	<button id="ok-button">?</button>
+	<button id="ok-button">OK</button>
 	<img id="dance-gif" src="" alt="dance" style="display:none;" />
 <script>
 
@@ -334,18 +334,11 @@ function toggleSkybox() {
 }
 
 
-const sunrise = new Date();
-sunrise.setHours(4, 52, 0);  // 04:52
+const sunriseMinutes = 4 * 60 + 52;
+const sunsetMinutes = 21 * 60 + 16;
+const moonriseMinutes = 22 * 60 + 30;
+const moonsetMinutes = 5 * 60 + 15; // NE 24+5
 
-const sunset = new Date();
-sunset.setHours(21, 16, 0);  // 21:16
-
-const moonrise = new Date();
-moonrise.setHours(22, 30, 0);  // 22:30
-
-const moonset = new Date();
-moonset.setHours(5, 15, 0);    // 05:15 následujícího dne
-moonset.setDate(moonset.getDate() + 1); // o den víc
 
 
 function updateCelestialBodies() {
@@ -357,13 +350,10 @@ function updateCelestialBodies() {
 
   const currentMinutes = Math.floor(manualHours) * 60 + Math.floor(manualMinutes);
 
-  // Definované časy jako minuty od půlnoci
+  // === SLUNCE ===
   const sunriseMinutes = 4 * 60 + 52;
   const sunsetMinutes = 21 * 60 + 16;
-  const moonriseMinutes = 22 * 60 + 30;
-  const moonsetMinutes = (24 + 5) * 60 + 15; // 05:15 následujícího dne
 
-  // === SLUNCE ===
   let sunProgress = (currentMinutes - sunriseMinutes) / (sunsetMinutes - sunriseMinutes);
   sunProgress = Math.min(Math.max(sunProgress, 0), 1);
 
@@ -375,14 +365,18 @@ function updateCelestialBodies() {
   sunEl.style.opacity = (sunProgress > 0 && sunProgress < 1) ? 1 : 0;
 
   // === MĚSÍC ===
-	let adjustedMinutes = currentMinutes;
-	if (adjustedMinutes < moonriseMinutes) {
-	  adjustedMinutes += 1440;
-	}
+  const moonriseMinutes = 22 * 60 + 30;
+  const moonsetMinutes = 5 * 60 + 15;
 
-	let moonProgress = (adjustedMinutes - moonriseMinutes) / (moonsetMinutes - moonriseMinutes);
-	moonProgress = Math.min(Math.max(moonProgress, 0), 1);
-
+  let moonProgress = 0;
+  if (
+    (moonriseMinutes < moonsetMinutes && currentMinutes >= moonriseMinutes && currentMinutes <= moonsetMinutes) ||
+    (moonriseMinutes > moonsetMinutes && (currentMinutes >= moonriseMinutes || currentMinutes <= moonsetMinutes))
+  ) {
+    const visibleRange = (moonsetMinutes - moonriseMinutes + 1440) % 1440;
+    const elapsed = (currentMinutes - moonriseMinutes + 1440) % 1440;
+    moonProgress = elapsed / visibleRange;
+  }
 
   const moonX = moonProgress * 260 + 100;
   const moonY = 40 + 30 * Math.sin(moonProgress * Math.PI);
@@ -408,6 +402,9 @@ function updateCelestialBodies() {
   }
 
   // === OBLOHA ===
+  const midnightMinutes = 0; // pro srovnání vůči noci
+
+  
   function interpolateColor(color1, color2, factor) {
     const c1 = parseInt(color1.slice(1), 16);
     const c2 = parseInt(color2.slice(1), 16);
@@ -419,37 +416,40 @@ function updateCelestialBodies() {
     return `rgb(${r}, ${g}, ${b})`;
   }
 
+  const twilightDuration = 90; // minuty před/po
   let bgColor;
 
-  if (currentMinutes < sunriseMinutes - 120 || currentMinutes >= sunsetMinutes + 60) {
-    // Noc
-    const t = currentMinutes < 720 ? currentMinutes / 720 : (1440 - currentMinutes) / 720;
-    const midDark = "#000010", edgeDark = "#111122";
-    bgColor = interpolateColor(edgeDark, midDark, 1 - Math.min(t * 2, 1));
-  } else if (currentMinutes < sunriseMinutes + 60) {
-    // Svítání
-    const t = (currentMinutes - (sunriseMinutes - 120)) / 180;
-    bgColor = interpolateColor("#000010", "#336699", t);
-  } else if (currentMinutes < sunsetMinutes - 90) {
-    // Den
-    const t = (currentMinutes - (sunriseMinutes + 60)) / (sunsetMinutes - 150 - (sunriseMinutes + 60));
-    bgColor = interpolateColor("#336699", "#88ccff", t);
-  } else if (currentMinutes < sunsetMinutes + 60) {
-    // Západ
-    const t = (currentMinutes - (sunsetMinutes - 90)) / 150;
-    bgColor = interpolateColor("#88ccff", "#ff6633", t);
+  if (currentMinutes >= (sunriseMinutes - twilightDuration) && currentMinutes < sunriseMinutes) {
+    // Rozednívání (tmavá → modrá)
+    const t = (currentMinutes - (sunriseMinutes - twilightDuration)) / twilightDuration;
+    bgColor = interpolateColor("#000015", "#446688", t);
+  } else if (currentMinutes >= sunriseMinutes && currentMinutes < (sunsetMinutes - twilightDuration)) {
+    // Den (modrá → světle modrá)
+    const t = (currentMinutes - sunriseMinutes) / (sunsetMinutes - twilightDuration - sunriseMinutes);
+    bgColor = interpolateColor("#446688", "#aaddff", t);
+  } else if (currentMinutes >= (sunsetMinutes - twilightDuration) && currentMinutes < sunsetMinutes) {
+    // Červánky (světle modrá → oranžová)
+    const t = (currentMinutes - (sunsetMinutes - twilightDuration)) / twilightDuration;
+    bgColor = interpolateColor("#aaddff", "#ff8844", t);
+  } else if (currentMinutes >= sunsetMinutes && currentMinutes < (sunsetMinutes + twilightDuration)) {
+    // Soumrak (oranžová → tmavá)
+    const t = (currentMinutes - sunsetMinutes) / twilightDuration;
+    bgColor = interpolateColor("#ff8844", "#000015", t);
   } else {
-    // Po západu
-    bgColor = "#000010";
+    // Noc (hlubší tma)
+    const t = Math.abs((currentMinutes - midnightMinutes) % 1440) / 720;
+    bgColor = interpolateColor("#000000", "#00000a", Math.min(t * 2, 1));
   }
 
   skybox.style.background = `linear-gradient(to top, ${bgColor}, #ffffff00)`;
+
 
   // === Z-indexy
   sunEl.style.zIndex = "5";
   moonEl.style.zIndex = "5";
   document.getElementById("horizon").style.zIndex = "6";
 }
+
 
 
 
@@ -598,16 +598,11 @@ setInterval(() => {
   updateCelestialBodies();
 }, 100)
 
-    function adjustMinute(dir) {
-      manualMinutes += dir;
-      if (manualMinutes >= 60) {
-        manualMinutes -= 60;
-        manualHours += 1;
-      } else if (manualMinutes < 0) {
-        manualMinutes += 60;
-        manualHours -= 1;
-      }
-    }
+function adjustMinute(dir) {
+  const total = (Math.floor(manualHours) * 60 + manualMinutes + dir + 1440) % 1440;
+  manualHours = Math.floor(total / 60);
+  manualMinutes = total % 60;
+}
 
     let interval = null;
     let startTime = null;
