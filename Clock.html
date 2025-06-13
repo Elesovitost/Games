@@ -301,6 +301,7 @@ if (savedDifficulty) {
     let manualMinutes = now.getMinutes();
     let manualHours = now.getHours() + manualMinutes / 60;
     let seconds = now.getSeconds();
+	let lastSecond = -1;
 
 	let readInput = "";
 
@@ -334,10 +335,10 @@ function toggleSkybox() {
 }
 
 
-const sunriseMinutes = 4 * 60 + 52;
-const sunsetMinutes = 21 * 60 + 16;
-const moonriseMinutes = 22 * 60 + 30;
-const moonsetMinutes = 5 * 60 + 15; // NE 24+5
+let sunriseMinutes = 4 * 60 + 52;
+let sunsetMinutes = 21 * 60 + 16;
+let moonriseMinutes = 22 * 60 + 30;
+let moonsetMinutes = 5 * 60 + 15;
 
 
 
@@ -351,9 +352,6 @@ function updateCelestialBodies() {
   const currentMinutes = Math.floor(manualHours) * 60 + Math.floor(manualMinutes);
 
   // === SLUNCE ===
-  const sunriseMinutes = 4 * 60 + 52;
-  const sunsetMinutes = 21 * 60 + 16;
-
   let sunProgress = (currentMinutes - sunriseMinutes) / (sunsetMinutes - sunriseMinutes);
   sunProgress = Math.min(Math.max(sunProgress, 0), 1);
 
@@ -365,9 +363,6 @@ function updateCelestialBodies() {
   sunEl.style.opacity = (sunProgress > 0 && sunProgress < 1) ? 1 : 0;
 
   // === MĚSÍC ===
-  const moonriseMinutes = 22 * 60 + 30;
-  const moonsetMinutes = 5 * 60 + 15;
-
   let moonProgress = 0;
   if (
     (moonriseMinutes < moonsetMinutes && currentMinutes >= moonriseMinutes && currentMinutes <= moonsetMinutes) ||
@@ -453,15 +448,21 @@ function updateCelestialBodies() {
 
 
 
-
 function updateClock() {
-  if (gameMode === "read") {
-    // V režimu čtení se nic nepřepisuje (ručičky jsou už nastaveny při spuštění)
-    return;
-  }
+  if (gameMode === "read") return;
 
   const now = new Date();
   seconds = now.getSeconds();
+
+  // DETEKCE PŘECHODU NA 0
+  if (lastSecond === 59 && seconds === 0) {
+    manualMinutes++;
+    if (manualMinutes >= 60) {
+      manualMinutes = 0;
+      manualHours = (manualHours + 1) % 24;
+    }
+  }
+  lastSecond = seconds;
 
   const secondDeg = seconds * 6;
   secondHand.style.transform = `rotate(${secondDeg}deg)`;
@@ -589,7 +590,6 @@ function checkSetTime() {
     }
   }
 }
-
 
 
 

@@ -293,6 +293,7 @@ img {max-width:80vw;height:auto;}
 let data = [];
 let writingPool = [];
 let readingPool = [];
+let syllablesPool = [];
 
 
 // Použijeme asynchronní funkci, abychom mohli počkat na načtení souboru
@@ -534,9 +535,11 @@ function startGame(mode) {
     readingPool = [...data];
     loadReadingTask();
 
-  } else if (mode === 'syllables') {
-    loadsyllablesTask();
-    document.addEventListener('keydown', handlesyllablesKey);
+	} else if (mode === 'syllables') {
+	  syllablesPool = [...data]; // ⬅️ nový řádek
+	  loadsyllablesTask();
+	  document.addEventListener('keydown', handlesyllablesKey);
+
 
   } else if (mode === 'free') {
     document.getElementById('free-mode').style.display = 'block';
@@ -804,7 +807,14 @@ function createFirework() {
 //syllables
 
 function loadsyllablesTask() {
-  const wordObj = data[Math.floor(Math.random() * data.length)];
+  if (syllablesPool.length === 0) {
+    alert("Všechna slova byla použita!");
+    return;
+  }
+
+  const index = Math.floor(Math.random() * syllablesPool.length);
+  const wordObj = syllablesPool.splice(index, 1)[0];
+
   currentWord = wordObj.word;
   const container = document.getElementById('syllables-task');
   container.innerHTML = '';
@@ -1012,10 +1022,6 @@ function splitToSyllables(word) {
   );
 }
 
-// Příklad:
-console.log(splitToSyllables('HROM')); // ["hrom"]
-
-
 
 
 function evaluateSyllables(originalWord) {
@@ -1057,13 +1063,13 @@ function evaluateSyllables(originalWord) {
         letters[pos - 1].style.transition = 'margin 0.3s';
       }
     });
-
+// speakSyllables(correct); HLAS
     updateScoreDisplay();
 
     setTimeout(() => {
       stopFireworks();
       loadsyllablesTask();
-    }, 2000);
+    }, 3000);
 
   } else {
     // ❌ ŠPATNÉ ROZDĚLENÍ
@@ -1620,6 +1626,21 @@ function clearLog() {
 }
 
 
+async function speakSyllables(syllables) {
+  // čekej 2 sekundy po přehrání zvuku
+  await new Promise(resolve => setTimeout(resolve, 2000));
+
+  for (let syllable of syllables) {
+    const utterance = new SpeechSynthesisUtterance(syllable);
+    utterance.lang = 'cs-CZ';
+	utterance.lang = 'cs-CZ';
+    utterance.volume = 1;         // max hlasitost
+    utterance.rate = 1;           // normální rychlost
+    utterance.pitch = 1.1;        // trošku vyšší tón
+    speechSynthesis.speak(utterance);
+    await new Promise(resolve => setTimeout(resolve, 10)); // pauza 5s mezi slabikami
+  }
+}
 
 
 
