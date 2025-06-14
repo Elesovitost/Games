@@ -1063,7 +1063,7 @@ function evaluateSyllables(originalWord) {
         letters[pos - 1].style.transition = 'margin 0.3s';
       }
     });
-// speakSyllables(correct); HLAS
+
     updateScoreDisplay();
 
     setTimeout(() => {
@@ -1078,6 +1078,7 @@ function evaluateSyllables(originalWord) {
     playSound("sound-wrong");
     showWrongRobot();
     updateScoreDisplay();
+	speakSyllables(correct); 
 
     allDividers.forEach(div => {
       const pos = parseInt(div.dataset.index);
@@ -1628,20 +1629,19 @@ function clearLog() {
 
 async function speakSyllables(syllables) {
   // čekej 2 sekundy po přehrání zvuku
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  await new Promise(resolve => setTimeout(resolve, 1000));
 
   for (let syllable of syllables) {
     const utterance = new SpeechSynthesisUtterance(syllable);
     utterance.lang = 'cs-CZ';
 	utterance.lang = 'cs-CZ';
     utterance.volume = 1;         // max hlasitost
-    utterance.rate = 1;           // normální rychlost
+    utterance.rate = 2;           // normální rychlost
     utterance.pitch = 1.1;        // trošku vyšší tón
     speechSynthesis.speak(utterance);
     await new Promise(resolve => setTimeout(resolve, 10)); // pauza 5s mezi slabikami
   }
 }
-
 
 
   </script>
