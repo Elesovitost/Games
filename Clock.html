@@ -563,32 +563,33 @@ function checkSetTime() {
     }
   }
 
-  if (gameMode === "read") {
-    if (readInput.length < 4) return; // neúplné
+if (gameMode === "read") {
+  if (readInput.length < 4) return; // neúplné
 
-    const inputH = parseInt(readInput.substring(0, 2)) % 12;
-    const inputM = parseInt(readInput.substring(2, 4));
+  const inputH = parseInt(readInput.substring(0, 2)) % 12;
+  const inputM = parseInt(readInput.substring(2, 4));
 
-    const targetH = Math.floor(manualHours) % 12;
-    const targetM = Math.floor(manualMinutes);
+  const targetH = Math.floor(manualHours) % 12;
+  const targetM = Math.floor(manualMinutes);
 
-	const hMatch = setH === targetH;
-	const mMatch = setM === targetM;
+  const hMatch = inputH === targetH; // OPRAVA
+  const mMatch = inputM === targetM; // OPRAVA
 
-    if (hMatch && mMatch) {
-      scoreCorrect++;
-	  if (scoreCorrect === 10) {
-		  playCelebration();
-		}
-      updateScoreDisplay();
-      document.getElementById("win-sound").play();
-      setTimeout(startReadTimeMode, 1000);
-    } else {
-      scoreWrong++;
-      updateScoreDisplay();
-      document.getElementById("wrong-sound").play();
+  if (hMatch && mMatch) {
+    scoreCorrect++;
+    if (scoreCorrect === 10) {
+      playCelebration();
     }
+    updateScoreDisplay();
+    document.getElementById("win-sound").play();
+    setTimeout(startReadTimeMode, 1000);
+  } else {
+    scoreWrong++;
+    updateScoreDisplay();
+    document.getElementById("wrong-sound").play();
   }
+}
+
 }
 
 
