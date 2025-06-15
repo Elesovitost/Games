@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Makrofág</title>
+    <style>
+        /* --- ZÁKLADNÍ STYLY --- */
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Zabráníme posuvníkům prohlížeče */
+            background-color: #111;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* --- HERNÍ PLÁTNO --- */
+        #gameCanvas {
+            display: block;
+            background-color: #f0f0f0; /* Světlé pozadí pro lepší kontrast */
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* --- UI ELEMENTY --- */
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            flex-direction: column;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 10;
+        }
+
+        .ui-overlay h1 {
+            font-size: 4em;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 5px #000;
+        }
+
+        .ui-overlay p {
+            font-size: 1.5em;
+            margin-bottom: 30px;
+        }
+
+        .ui-overlay button {
+            padding: 15px 30px;
+            font-size: 1.5em;
+            border: 2px solid white;
+            background-color: transparent;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .ui-overlay button:hover {
+            background-color: white;
+            color: black;
+        }
+
+        #hud {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            text-align: center;
+            z-index: 5;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="hud">
+        <div>Celková Hmotnost: <span id="massDisplay">0</span></div>
+        <div>Počet buněk: <span id="cellCountDisplay">1</span></div>
+    </div>
+    
+    <div id="startScreen" class="ui-overlay">
+        <h1>Agar.io Klon</h1>
+        <p>Pohybuj myší. Mezerníkem se rozděl. Cíl: sněz všechno!</p>
+        <button id="startButton">Spustit Hru</button>
+    </div>
+
+    <div id="gameOverScreen" class="ui-overlay hidden">
+        <h1>Konec Hry</h1>
+        <p>Tvá konečná hmotnost byla: <span id="finalMass">0</span></p>
+        <button id="restartButton">Hrát Znovu</button>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const massDisplay = document.getElementById('massDisplay');
+        const finalMassDisplay = document.getElementById('finalMass');
+        const cellCountDisplay = document.getElementById('cellCountDisplay');
+        const hud = document.getElementById('hud');
+
+        // --- HERNÍ KONSTANTY A NASTAVENÍ (VAŠE HODNOTY) ---
+        const WORLD_SCALE_FACTOR = 3; 
+        const INITIAL_PLAYER_MASS = 50; // VAŠE HODNOTA
+        const FOOD_COUNT = 300;
+        const AI_COUNT = 15;
+		const RADIUS_SCALE_FACTOR = 5; // VAŠE HODNOTA
+        const MIN_MASS_TO_SPLIT = 40;
+        const MIN_MASS_TO_EAT = 1.1;
+        const MASS_LOSS_PER_FRAME = 0.00000; // VAŠE HODNOTA - KORF ÚBYTKU MASY standard 0.00005
+        
+        // --- KONSTANTY PRO NOVOU MECHANIKU DĚLENÍ ---
+        const MERGE_TOTAL_TIME = 15; // Celkový čas do možnosti sloučení (10s + 5s)
+		const MERGE_PULL_START_TIME = 5; // Čas (od konce), kdy se buňky začnou přitahovat
+
+        // --- HERNÍ STAVOVÉ PROMĚNNÉ ---
+        let world = { width: 0, height: 0 };
+        let playerCells = [];
+        let aiCells = [];
+        let food = [];
+        let mouse = { x: 0, y: 0 };
+        let animationFrameId;
+        let isGameOver = false;
+		let maxPlayerMass = 0;
+
+        class Cell {
+            constructor(x, y, mass, color) {
+                this.x = x;
+                this.y = y;
+                this.mass = mass;
+				this.displayMass = mass;   
+                this.color = color || this.getRandomColor();
+                this.updateRadius();
+                
+                this.targetX = x;
+                this.targetY = y;
+            }
+
+			updateRadius(mass = this.displayMass) {
+				this.radius = RADIUS_SCALE_FACTOR * Math.sqrt(mass / Math.PI);
+			}
+
+			animateMass(deltaTime) {
+				if (this.displayMass !== this.mass) {
+					const diff = this.mass - this.displayMass;
+					// interpolace s časovým krokem 0.2 s
+					const step = diff * Math.min(1, deltaTime / 0.2);
+					this.displayMass += step;
+					this.updateRadius();
+				}
+			}
+            // VAŠE METODA RYCHLOSTI
+            getSpeed() {
+                return 4 / Math.pow(this.radius, 0.2);
+            }
+
+            // VAŠE METODA POHYBU S INTEGROVANOU LOGIKOU VYSTŘELENÍ
+			move() {
+				if (this.splitVelocity && (this.splitVelocity.x !== 0 || this.splitVelocity.y !== 0)) {
+					this.x += this.splitVelocity.x;
+					this.y += this.splitVelocity.y;
+					this.splitVelocity.x *= 0.92;
+					this.splitVelocity.y *= 0.92;
+					if (Math.abs(this.splitVelocity.x) < 0.1) this.splitVelocity.x = 0;
+					if (Math.abs(this.splitVelocity.y) < 0.1) this.splitVelocity.y = 0;
+				}
+
+				const speed = this.getSpeed();
+				const dx = this.targetX - this.x;
+				const dy = this.targetY - this.y;
+				const dist = Math.sqrt(dx * dx + dy * dy);
+
+				// Nová logika: zpomalení podle vzdálenosti od středu
+				const maxSlowDist = 100; // vzdálenost, kde už se nebrzdí
+				const minSpeedFactor = 0.2; // nikdy se úplně nezastaví
+
+				// faktor rychlosti: čím blíž středu, tím menší
+				let factor = dist / maxSlowDist;
+				factor = Math.min(Math.max(factor, minSpeedFactor), 1);
+
+				this.x += (dx / dist) * speed * factor;
+				this.y += (dy / dist) * speed * factor;
+
+				this.x = Math.max(this.radius, Math.min(world.width - this.radius, this.x));
+				this.y = Math.max(this.radius, Math.min(world.height - this.radius, this.y));
+			}
+
+
+            loseMass() {
+                if (this.mass > INITIAL_PLAYER_MASS) {
+                    this.mass *= (1 - MASS_LOSS_PER_FRAME);
+                    this.updateRadius();
+                }
+            }
+
+            draw(context) {
+                context.beginPath();
+                context.fillStyle = this.color;
+                context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                context.fill();
+                context.strokeStyle = this.getStrokeColor();
+                context.lineWidth = Math.max(2, this.radius * 0.05);
+                context.stroke();
+                context.closePath();
+            }
+
+            getRandomColor() {
+                const letters = '0123456789ABCDEF';
+                let color = '#';
+                for (let i = 0; i < 6; i++) {
+                    color += letters[Math.floor(Math.random() * 16)];
+                }
+                return color;
+            }
+            
+            getStrokeColor() {
+                let color = this.color;
+                if (color.startsWith('#')) color = color.substring(1);
+                let r = parseInt(color.substring(0, 2), 16);
+                let g = parseInt(color.substring(2, 4), 16);
+                let b = parseInt(color.substring(4, 6), 16);
+                r = Math.max(0, r - 40).toString(16).padStart(2, '0');
+                g = Math.max(0, g - 40).toString(16).padStart(2, '0');
+                b = Math.max(0, b - 40).toString(16).padStart(2, '0');
+                return `#${r}${g}${b}`;
+            }
+        }
+		
+			class PlayerCell extends Cell {
+				constructor(x, y, mass) {
+					super(x, y, mass, '#3498db');
+					this.mergeTimer = 0; 
+					this.splitVelocity = { x: 0, y: 0 };
+				}
+
+				updateTarget(mouseX, mouseY) {
+					this.targetX = mouseX;
+					this.targetY = mouseY;
+				}
+
+				updateMergeTimer() {
+					if (this.mergeTimer > 0) {
+						this.mergeTimer -= 1 / 60;
+					}
+				}
+
+				setMergeDelay() {
+					this.mergeTimer = MERGE_TOTAL_TIME;
+				}
+
+				draw(context) {
+					// nejprve základní kruh a obrys (z rodiče)
+					super.draw(context);
+
+					// teď text s mass doprostřed
+					context.fillStyle = '#fff';
+					context.font = `${Math.max(10, this.radius * 0.5)}px Arial`;
+					context.textAlign = 'center';
+					context.textBaseline = 'middle';
+					context.fillText(Math.round(this.mass), this.x, this.y);
+				}
+			}
+
+
+
+        class AiCell extends Cell {
+            constructor(x, y, mass) {
+                super(x, y, mass);
+                this.aiState = 'wandering';
+                this.decisionTimer = 0;
+            }
+            updateAI(allCells, food) {
+                this.decisionTimer -= 1 / 60;
+                if (this.decisionTimer <= 0) {
+                    this.makeDecision(allCells, food);
+                    this.decisionTimer = Math.random() * 2 + 1;
+                }
+                switch(this.aiState) {
+                    case 'hunting': break;
+                    case 'fleeing': break;
+                    case 'wandering': if (this.isTargetReached()) { this.findNewWanderTarget(); } break;
+                }
+                this.move();
+                this.loseMass();
+            }
+            isTargetReached() {
+                const dx = this.targetX - this.x;
+                const dy = this.targetY - this.y;
+                return Math.sqrt(dx*dx + dy*dy) < this.radius;
+            }
+            findNewWanderTarget() {
+                let closestFood = null;
+                let minDistance = Infinity;
+                for (const f of food) {
+                    const dx = f.x - this.x;
+                    const dy = f.y - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        closestFood = f;
+                    }
+                }
+                if (closestFood) {
+                    this.targetX = closestFood.x;
+                    this.targetY = closestFood.y;
+                } else {
+                    this.targetX = Math.random() * world.width;
+                    this.targetY = Math.random() * world.height;
+                }
+            }
+            makeDecision(allCells, food) {
+                let potentialThreats = [];
+                let potentialPrey = [];
+                for (const other of allCells) {
+                    if (other === this) continue;
+                    const dx = other.x - this.x;
+                    const dy = other.y - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (other.mass > this.mass * MIN_MASS_TO_EAT && dist < other.radius + this.radius + 300) {
+                        potentialThreats.push({cell: other, dist: dist});
+                    } 
+                    else if (this.mass > other.mass * MIN_MASS_TO_EAT && dist < this.radius + 300) {
+                        potentialPrey.push({cell: other, dist: dist});
+                    }
+                }
+                if (potentialThreats.length > 0) {
+                    potentialThreats.sort((a, b) => a.dist - b.dist);
+                    const closestThreat = potentialThreats[0].cell;
+                    this.aiState = 'fleeing';
+                    const fleeAngle = Math.atan2(this.y - closestThreat.y, this.x - closestThreat.x);
+                    this.targetX = this.x + Math.cos(fleeAngle) * 500;
+                    this.targetY = this.y + Math.sin(fleeAngle) * 500;
+                    return;
+                }
+                if (potentialPrey.length > 0) {
+                    potentialPrey.sort((a, b) => a.dist - b.dist);
+                    const closestPrey = potentialPrey[0].cell;
+                    this.aiState = 'hunting';
+                    this.targetX = closestPrey.x;
+                    this.targetY = closestPrey.y;
+                    return;
+                }
+                this.aiState = 'wandering';
+                this.findNewWanderTarget();
+            }
+        }
+
+		// VAŠE TŘÍDA PRO JÍDLO
+		class Food {
+			constructor(x, y) {
+				this.x = x;
+				this.y = y;
+				this.mass = Math.floor(Math.random() * 5) + 1;
+				this.radius = 3 + this.mass * 2;
+				const colors = ['#f1c40f', '#e74c3c', '#2ecc71', '#9b59b6', '#1abc9c'];
+				this.color = colors[Math.floor(Math.random() * colors.length)];
+			}
+			draw(context) {
+				context.beginPath();
+				context.fillStyle = this.color;
+				context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+				context.fill();
+				context.closePath();
+				context.fillStyle = '#000';
+				context.font = `${this.radius}px Arial`;
+				context.textAlign = 'center';
+				context.textBaseline = 'middle';
+				context.fillText(this.mass, this.x, this.y);
+			}
+		}
+
+        function init() {
+            isGameOver = false;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            world.width = canvas.width * WORLD_SCALE_FACTOR;
+            world.height = canvas.height * WORLD_SCALE_FACTOR;
+            playerCells = [new PlayerCell(world.width / 2, world.height / 2, INITIAL_PLAYER_MASS)];
+            aiCells = [];
+            for (let i = 0; i < AI_COUNT; i++) {
+                const mass = Math.random() * 40 + 10;
+                aiCells.push(new AiCell(Math.random() * world.width, Math.random() * world.height, mass));
+            }
+            food = [];
+            for (let i = 0; i < FOOD_COUNT; i++) {
+                food.push(new Food(Math.random() * world.width, Math.random() * world.height));
+            }
+            hud.classList.remove('hidden');
+            gameOverScreen.classList.add('hidden');
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (isGameOver) return;
+            update();
+            draw();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+		
+        function update() {
+			const playerCenter = getPlayerCenter();
+			const camX = -playerCenter.x + canvas.width / 2;
+			const camY = -playerCenter.y + canvas.height / 2;
+			const clampedCamX = Math.max(Math.min(camX, 0), canvas.width - world.width);
+			const clampedCamY = Math.max(Math.min(camY, 0), canvas.height - world.height);
+			const worldMouseX = mouse.x - clampedCamX;
+			const worldMouseY = mouse.y - clampedCamY;
+
+            playerCells.forEach(playerCell => {
+                playerCell.updateTarget(worldMouseX, worldMouseY);
+                playerCell.move();
+                playerCell.loseMass();
+                playerCell.updateMergeTimer();
+            });
+            
+            applyMergeForce();
+            handlePlayerMerging();
+            const allCells = [...playerCells, ...aiCells];
+            aiCells.forEach(ai => ai.updateAI(allCells, food));
+            handleCollisions();
+			
+			playerCells.forEach(cell => cell.animateMass(1/60));
+			aiCells.forEach(cell => cell.animateMass(1/60));
+            
+            if (playerCells.length === 0 && !isGameOver) {
+                endGame();
+            }
+            updateHUD();
+			
+			console.clear();
+playerCells.forEach((cell, i) => {
+    console.log(`Cell ${i}: mergeTimer = ${cell.mergeTimer?.toFixed(2)}`);
+});
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            const playerCenter = getPlayerCenter();
+            const camX = -playerCenter.x + canvas.width / 2;
+            const camY = -playerCenter.y + canvas.height / 2;
+            const clampedCamX = Math.max(Math.min(camX, 0), canvas.width - world.width);
+            const clampedCamY = Math.max(Math.min(camY, 0), canvas.height - world.height);
+            ctx.translate(clampedCamX, clampedCamY);
+            drawGrid();
+            food.forEach(f => f.draw(ctx));
+            const allCells = [...playerCells, ...aiCells].sort((a, b) => a.mass - b.mass);
+            allCells.forEach(cell => cell.draw(ctx));
+            ctx.restore();
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            const gridSize = 50;
+            for (let x = 0; x <= world.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, world.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= world.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(world.width, y);
+                ctx.stroke();
+            }
+        }
+        
+		function handleCollisions() {
+			const allMovingCells = [...playerCells, ...aiCells];
+
+			// Jídlo
+			for (let i = food.length - 1; i >= 0; i--) {
+				const f = food[i];
+				for (const cell of allMovingCells) {
+					const dx = cell.x - f.x;
+					const dy = cell.y - f.y;
+					const dist = Math.sqrt(dx * dx + dy * dy);
+					if (dist < cell.radius) {
+						cell.mass += f.mass;
+						cell.updateRadius();
+						food.splice(i, 1);
+						food.push(new Food(Math.random() * world.width, Math.random() * world.height));
+						break;
+					}
+				}
+			}
+
+			// Požírání mezi buňkami — ALE ne mezi vlastními hráčskými!
+			for (let i = allMovingCells.length - 1; i >= 0; i--) {
+				for (let j = allMovingCells.length - 1; j >= 0; j--) {
+					if (i === j) continue;
+					const cell1 = allMovingCells[i];
+					const cell2 = allMovingCells[j];
+					if (!cell1 || !cell2) continue;
+
+					// OMEZ: pokud jsou obě hráčské buňky, přeskoč
+					if (playerCells.includes(cell1) && playerCells.includes(cell2)) continue;
+
+					const dx = cell1.x - cell2.x;
+					const dy = cell1.y - cell2.y;
+					const dist = Math.sqrt(dx * dx + dy * dy);
+					const bigger = cell1.mass > cell2.mass ? cell1 : cell2;
+					const smaller = cell1.mass > cell2.mass ? cell2 : cell1;
+
+					if (dist < bigger.radius - smaller.radius * 0.2) {
+						if (bigger.mass > smaller.mass * MIN_MASS_TO_EAT) {
+							bigger.mass += smaller.mass;
+							bigger.updateRadius();
+							removeCell(smaller);
+							allMovingCells.splice(j, 1);
+							if (j < i) i--;
+						}
+					}
+				}
+			}
+		}
+
+        
+        function removeCell(cellToRemove) {
+            let index = playerCells.indexOf(cellToRemove);
+            if (index > -1) {
+                playerCells.splice(index, 1);
+                return;
+            }
+            index = aiCells.indexOf(cellToRemove);
+            if (index > -1) {
+                aiCells.splice(index, 1);
+                const mass = Math.random() * 20 + 10;
+                aiCells.push(new AiCell(Math.random() * world.width, Math.random() * world.height, mass));
+            }
+        }
+
+			function applyMergeForce() {
+				for (let i = 0; i < playerCells.length; i++) {
+					for (let j = i + 1; j < playerCells.length; j++) {
+						const cell1 = playerCells[i];
+						const cell2 = playerCells[j];
+
+						// A) Přitahování, pokud je čas na pull
+						if (
+							cell1.mergeTimer > 0 && cell1.mergeTimer <= MERGE_PULL_START_TIME &&
+							cell2.mergeTimer > 0 && cell2.mergeTimer <= MERGE_PULL_START_TIME
+						) {
+							const dx = cell2.x - cell1.x;
+							const dy = cell2.y - cell1.y;
+							const pullStrength = 0.01;
+							cell1.x += dx * pullStrength;
+							cell1.y += dy * pullStrength;
+							cell2.x -= dx * pullStrength;
+							cell2.y -= dy * pullStrength;
+						}
+
+						// B) Odpuzování, pokud je čas na oddělení (mergeTimer > 0)
+						if (cell1.mergeTimer > 0 || cell2.mergeTimer > 0) {
+							const dx = cell2.x - cell1.x;
+							const dy = cell2.y - cell1.y;
+							const dist = Math.sqrt(dx * dx + dy * dy);
+							const minDist = cell1.radius + cell2.radius;
+
+							if (dist < minDist) {
+								const overlap = (minDist - dist) / 2;
+								const ox = (dx / dist) * overlap;
+								const oy = (dy / dist) * overlap;
+
+								cell1.x -= ox;
+								cell1.y -= oy;
+								cell2.x += ox;
+								cell2.y += oy;
+							}
+						}
+					}
+				}
+			}
+
+
+
+			function handlePlayerMerging() {
+				if (playerCells.length <= 1) return;
+				for (let i = 0; i < playerCells.length; i++) {
+					for (let j = i + 1; j < playerCells.length; j++) {
+						const cell1 = playerCells[i];
+						const cell2 = playerCells[j];
+						// merge jen pokud už mohou:
+						if (cell1.mergeTimer <= 0 && cell2.mergeTimer <= 0) {
+							const dx = cell1.x - cell2.x;
+							const dy = cell1.y - cell2.y;
+							const dist = Math.sqrt(dx * dx + dy * dy);
+							const bigger = cell1.mass > cell2.mass ? cell1 : cell2;
+							const smaller = cell1.mass > cell2.mass ? cell2 : cell1;
+
+							if (dist < bigger.radius * 0.2) {
+								bigger.mass += smaller.mass;
+								bigger.updateRadius();
+								bigger.mergeTimer = 0;
+								bigger.splitVelocity.x = 0;
+								bigger.splitVelocity.y = 0;
+								playerCells.splice(playerCells.indexOf(smaller), 1);
+								j--;
+							}
+						}
+					}
+				}
+			}
+
+
+        
+			function splitPlayer() {
+				const playerCenter = getPlayerCenter();
+				const camX = -playerCenter.x + canvas.width / 2;
+				const camY = -playerCenter.y + canvas.height / 2;
+				const clampedCamX = Math.max(Math.min(camX, 0), canvas.width - world.width);
+				const clampedCamY = Math.max(Math.min(camY, 0), canvas.height - world.height);
+
+				const worldMouseX = mouse.x - clampedCamX;
+				const worldMouseY = mouse.y - clampedCamY;
+
+				const cellsToSplit = [...playerCells];
+				for (const cell of cellsToSplit) {
+					if (cell.mass >= MIN_MASS_TO_SPLIT) {
+						cell.mass /= 2;
+						cell.updateRadius();
+						const newMass = cell.mass;
+						const angle = Math.atan2(worldMouseY - cell.y, worldMouseX - cell.x);
+						const newCell = new PlayerCell(cell.x, cell.y, newMass);
+						const launchSpeed = 20;
+						newCell.splitVelocity.x = Math.cos(angle) * launchSpeed;
+						newCell.splitVelocity.y = Math.sin(angle) * launchSpeed;
+						cell.setMergeDelay();
+						newCell.setMergeDelay();
+						playerCells.push(newCell);
+					}
+				}
+			}
+
+
+        function getPlayerCenter() {
+            if (playerCells.length === 0) {
+                return { x: world.width / 2, y: world.height / 2 };
+            }
+            let totalX = 0, totalY = 0, totalMass = 0;
+            playerCells.forEach(cell => {
+                totalX += cell.x * cell.mass;
+                totalY += cell.y * cell.mass;
+                totalMass += cell.mass;
+            });
+            return { x: totalX / totalMass, y: totalY / totalMass };
+        }
+        
+		function updateHUD() {
+			const totalMass = playerCells.reduce((sum, cell) => sum + cell.mass, 0);
+			massDisplay.textContent = Math.round(totalMass);
+			cellCountDisplay.textContent = playerCells.length;
+
+			// Sleduj maximum
+			if (totalMass > maxPlayerMass) {
+				maxPlayerMass = totalMass;
+			}
+		}
+
+		function endGame() {
+			isGameOver = true;
+			cancelAnimationFrame(animationFrameId);
+			const totalMass = playerCells.reduce((sum, cell) => sum + cell.mass, 0);
+			finalMassDisplay.textContent = Math.round(totalMass);
+
+			// Zobraz i maximum
+			const maxMassElement = document.createElement('p');
+			maxMassElement.textContent = `Maximální dosažená hmotnost: ${Math.round(maxPlayerMass)}`;
+			gameOverScreen.insertBefore(maxMassElement, gameOverScreen.querySelector('button'));
+
+			hud.classList.add('hidden');
+			gameOverScreen.classList.remove('hidden');
+		}
+
+
+        window.addEventListener('mousemove', e => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+        window.addEventListener('resize', () => {
+            if (!startScreen.classList.contains('hidden')) init();
+        });
+        window.addEventListener('keydown', e => {
+            if (e.code === 'Space' && playerCells.length > 0 && !isGameOver) {
+                e.preventDefault();
+                splitPlayer();
+            }
+        });
+        startButton.addEventListener('click', () => {
+            startScreen.classList.add('hidden');
+            init();
+        });
+        restartButton.addEventListener('click', () => {
+            gameOverScreen.classList.add('hidden');
+            init();
+        });
+    });
+    </script>
+</body>
+</html>
