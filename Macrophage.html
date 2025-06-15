@@ -92,21 +92,41 @@
         <div>Celková Hmotnost: <span id="massDisplay">0</span></div>
         <div>Počet buněk: <span id="cellCountDisplay">1</span></div>
     </div>
+	<div id="leaderboard" style="
+	  position: absolute;
+	  top: 20px;
+	  right: 20px;
+	  color: white;
+	  background-color: rgba(0, 0, 0, 0.5);
+	  padding: 10px 15px;
+	  border-radius: 10px;
+	  font-family: Arial, sans-serif;
+	  font-size: 16px;
+	  z-index: 5;">
+	</div>
     
     <div id="startScreen" class="ui-overlay">
-        <h1>Agar.io Klon</h1>
+        <h1>Makrofág</h1>
         <p>Pohybuj myší. Mezerníkem se rozděl. Cíl: sněz všechno!</p>
         <button id="startButton">Spustit Hru</button>
     </div>
 
-    <div id="gameOverScreen" class="ui-overlay hidden">
-        <h1>Konec Hry</h1>
-        <p>Tvá konečná hmotnost byla: <span id="finalMass">0</span></p>
-        <button id="restartButton">Hrát Znovu</button>
-    </div>
+	<div id="gameOverScreen" class="ui-overlay hidden">
+		<h1>Konec Hry</h1>
+		<p>Tvá konečná hmotnost byla: <span id="finalMass">0</span></p>
+		<p id="maxMassElement"></p> <!-- <<< DOPLNIT TADY -->
+		<button id="restartButton">Hrát Znovu</button>
+	</div>
+
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+
+		const eatSmallSound = new Audio('Macrophage-eat-small.mp3');
+		const eatBigSound = new Audio('Macrophage-eat-big.mp3');
+		const splitSound = new Audio('Macrophage-split.mp3');
+		const fuseSound = new Audio('Macrophage-fuse.mp3');
+
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -118,20 +138,27 @@
         const finalMassDisplay = document.getElementById('finalMass');
         const cellCountDisplay = document.getElementById('cellCountDisplay');
         const hud = document.getElementById('hud');
+		const leaderboard = document.getElementById('leaderboard');
+
 
         // --- HERNÍ KONSTANTY A NASTAVENÍ (VAŠE HODNOTY) ---
         const WORLD_SCALE_FACTOR = 3; 
         const INITIAL_PLAYER_MASS = 50; // VAŠE HODNOTA
         const FOOD_COUNT = 300;
-        const AI_COUNT = 15;
+        const AI_COUNT = 25;
 		const RADIUS_SCALE_FACTOR = 5; // VAŠE HODNOTA
         const MIN_MASS_TO_SPLIT = 40;
         const MIN_MASS_TO_EAT = 1.1;
         const MASS_LOSS_PER_FRAME = 0.00000; // VAŠE HODNOTA - KORF ÚBYTKU MASY standard 0.00005
+		let bacteriaFoodMultiplier = 1;  // cheat
         
         // --- KONSTANTY PRO NOVOU MECHANIKU DĚLENÍ ---
         const MERGE_TOTAL_TIME = 15; // Celkový čas do možnosti sloučení (10s + 5s)
 		const MERGE_PULL_START_TIME = 5; // Čas (od konce), kdy se buňky začnou přitahovat
+		
+		// --- AMÉBA ---
+		const SHAPE_FREQUENCY   = 7;    // počet vln kolem kruhu
+		const SHAPE_AMPLITUDE   = 0.1; 
 
         // --- HERNÍ STAVOVÉ PROMĚNNÉ ---
         let world = { width: 0, height: 0 };
@@ -142,6 +169,46 @@
         let animationFrameId;
         let isGameOver = false;
 		let maxPlayerMass = 0;
+		let isPaused = false; 
+		
+		// klávesy
+		let keys = {
+			ArrowUp: false,
+			ArrowDown: false,
+			ArrowLeft: false,
+			ArrowRight: false
+		};
+		let arrowControlActive = false;
+
+		// zvuky
+		function playSound(sound) {
+			const s = sound.cloneNode();
+			s.play();
+		}
+
+		// tyčinky na bakteriích
+		function drawRadialSticks(context, x, y, radius, mass, options = {}) {
+			const numSticks = Math.max(1, Math.floor(Math.sqrt(mass) + mass / 20));
+			const stickLength = options.stickLength || radius * 0.4;
+			const stickColor = options.stickColor || '#000';
+			const stickWidth = options.stickWidth || 2;
+
+			for (let i = 0; i < numSticks; i++) {
+				const angle = (i / numSticks) * 2 * Math.PI;
+				const startX = x + Math.cos(angle) * radius;
+				const startY = y + Math.sin(angle) * radius;
+				const endX = x + Math.cos(angle) * (radius + stickLength);
+				const endY = y + Math.sin(angle) * (radius + stickLength);
+
+				context.beginPath();
+				context.strokeStyle = stickColor;
+				context.lineWidth = stickWidth;
+				context.moveTo(startX, startY);
+				context.lineTo(endX, endY);
+				context.stroke();
+			}
+		}
+
 
         class Cell {
             constructor(x, y, mass, color) {
@@ -251,6 +318,9 @@
 					super(x, y, mass, '#3498db');
 					this.mergeTimer = 0; 
 					this.splitVelocity = { x: 0, y: 0 };
+					this.vx = 0;   // okamžitá rychlost po ose X
+					this.vy = 0;   // okamžitá rychlost po ose Y
+
 				}
 
 				updateTarget(mouseX, mouseY) {
@@ -269,40 +339,113 @@
 				}
 
 				draw(context) {
-					// nejprve základní kruh a obrys (z rodiče)
-					super.draw(context);
+					// spočítáme čas pro animaci výběžků
+					const time = performance.now() * 0.002;
+					const steps = 20; // počet segmentů tvaru
+					const points = [];
 
-					// teď text s mass doprostřed
+					// vygenerujeme body kolem kruhu s vlnkami
+					for (let i = 0; i < steps; i++) {
+						const angle = (i / steps) * Math.PI * 2;
+						const noise = Math.sin(angle * SHAPE_FREQUENCY + time);
+						const r = this.radius * (1 + noise * SHAPE_AMPLITUDE);
+						points.push({
+							x: this.x + r * Math.cos(angle),
+							y: this.y + r * Math.sin(angle)
+						});
+					}
+
+					// vykreslíme nepravidelný útvar
+					context.beginPath();
+					context.fillStyle = this.color;
+					context.moveTo(points[0].x, points[0].y);
+					points.forEach(p => context.lineTo(p.x, p.y));
+					context.closePath();
+					context.fill();
+
+					// obrys
+					context.strokeStyle = this.getStrokeColor();
+					context.lineWidth = Math.max(2, this.radius * 0.05);
+					context.stroke();
+
+					// číslo uprostřed
 					context.fillStyle = '#fff';
-					context.font = `${Math.max(10, this.radius * 0.5)}px Arial`;
+					context.font = `${Math.max(10, this.radius * 0.1 + 10)}px Arial`;
 					context.textAlign = 'center';
 					context.textBaseline = 'middle';
 					context.fillText(Math.round(this.mass), this.x, this.y);
 				}
+
 			}
 
 
 
         class AiCell extends Cell {
-            constructor(x, y, mass) {
+            constructor(x, y, mass, groupID = null) {
                 super(x, y, mass);
+				this.groupID = groupID || Math.random().toString(36).substr(2, 9);
                 this.aiState = 'wandering';
                 this.decisionTimer = 0;
+				this.mergeTimer = 0;
             }
-            updateAI(allCells, food) {
-                this.decisionTimer -= 1 / 60;
-                if (this.decisionTimer <= 0) {
-                    this.makeDecision(allCells, food);
-                    this.decisionTimer = Math.random() * 2 + 1;
-                }
-                switch(this.aiState) {
-                    case 'hunting': break;
-                    case 'fleeing': break;
-                    case 'wandering': if (this.isTargetReached()) { this.findNewWanderTarget(); } break;
-                }
-                this.move();
-                this.loseMass();
-            }
+			
+			
+			draw(context) {
+				// Kruh buňky
+				context.beginPath();
+				context.fillStyle = this.color;
+				context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+				context.fill();
+
+				// Tyčinky:
+				drawRadialSticks(context, this.x, this.y, this.radius, this.mass, {
+					stickColor: '#000',
+					stickLength: this.radius * 0.4,
+					stickWidth: 2
+				});
+
+				// Obvod
+				context.beginPath();
+				context.strokeStyle = this.getStrokeColor();
+				context.lineWidth = Math.max(2, this.radius * 0.05);
+				context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+				context.stroke();
+			}
+
+			
+			updateAI(allCells, food) {
+			  if (this.mergeTimer > 0) {
+				this.mergeTimer -= 1/60;
+			  }
+
+			  this.decisionTimer -= 1 / 60;
+			  if (this.decisionTimer <= 0) {
+				this.makeDecision(allCells, food);
+				this.decisionTimer = Math.random() * 2 + 1;
+			  }
+
+			  this.move();
+			  this.loseMass();
+
+			  // === NOVÝ KOUSEK: AKTIVNÍ kontrola u kraje ===
+			  if (this.aiState === 'fleeing') {
+				const margin = this.radius + 10;
+
+				if (this.x <= margin || this.x >= world.width - margin ||
+					this.y <= margin || this.y >= world.height - margin) {
+
+				  // Odraz od stěny: nasměruj zpět do mapy
+				  const toCenterX = world.width / 2 - this.x;
+				  const toCenterY = world.height / 2 - this.y;
+				  const len = Math.hypot(toCenterX, toCenterY);
+				  this.targetX = this.x + (toCenterX / len) * 500;
+				  this.targetY = this.y + (toCenterY / len) * 500;
+				}
+			  }
+			}
+
+			
+			
             isTargetReached() {
                 const dx = this.targetX - this.x;
                 const dy = this.targetY - this.y;
@@ -328,41 +471,139 @@
                     this.targetY = Math.random() * world.height;
                 }
             }
-            makeDecision(allCells, food) {
-                let potentialThreats = [];
-                let potentialPrey = [];
-                for (const other of allCells) {
-                    if (other === this) continue;
-                    const dx = other.x - this.x;
-                    const dy = other.y - this.y;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    if (other.mass > this.mass * MIN_MASS_TO_EAT && dist < other.radius + this.radius + 300) {
-                        potentialThreats.push({cell: other, dist: dist});
-                    } 
-                    else if (this.mass > other.mass * MIN_MASS_TO_EAT && dist < this.radius + 300) {
-                        potentialPrey.push({cell: other, dist: dist});
-                    }
-                }
-                if (potentialThreats.length > 0) {
-                    potentialThreats.sort((a, b) => a.dist - b.dist);
-                    const closestThreat = potentialThreats[0].cell;
-                    this.aiState = 'fleeing';
-                    const fleeAngle = Math.atan2(this.y - closestThreat.y, this.x - closestThreat.x);
-                    this.targetX = this.x + Math.cos(fleeAngle) * 500;
-                    this.targetY = this.y + Math.sin(fleeAngle) * 500;
-                    return;
-                }
-                if (potentialPrey.length > 0) {
-                    potentialPrey.sort((a, b) => a.dist - b.dist);
-                    const closestPrey = potentialPrey[0].cell;
-                    this.aiState = 'hunting';
-                    this.targetX = closestPrey.x;
-                    this.targetY = closestPrey.y;
-                    return;
-                }
-                this.aiState = 'wandering';
-                this.findNewWanderTarget();
-            }
+			makeDecision(allCells, food) {
+			  const group = this.getGroupCells();
+			  const leader = group.reduce((a,b) => a.mass > b.mass ? a : b);
+
+			  if (this !== leader) {
+				// nově: synchronizovat i stav
+				this.aiState  = leader.aiState;
+				this.targetX  = leader.targetX;
+				this.targetY  = leader.targetY;
+				return;
+			  }
+
+				// leader normálně rozhoduje
+				let potentialThreats = [];
+				let potentialPrey = [];
+				for (const other of allCells) {
+					if (other === this) continue;
+					const dx = other.x - this.x;
+					const dy = other.y - this.y;
+					const dist = Math.sqrt(dx*dx + dy*dy);
+					if (other.mass > this.mass * MIN_MASS_TO_EAT && dist < other.radius + this.radius + 300) {
+						potentialThreats.push({cell: other, dist: dist});
+					} 
+					else if (this.mass > other.mass * MIN_MASS_TO_EAT && dist < this.radius + 300) {
+						potentialPrey.push({cell: other, dist: dist});
+					}
+				}
+
+				if (potentialThreats.length > 0) {
+					potentialThreats.sort((a, b) => a.dist - b.dist);
+					const closestThreat = potentialThreats[0].cell;
+					this.aiState = 'fleeing';
+					const fleeAngle = Math.atan2(this.y - closestThreat.y, this.x - closestThreat.x);
+					this.targetX = this.x + Math.cos(fleeAngle) * 500;
+					this.targetY = this.y + Math.sin(fleeAngle) * 500;
+					return;
+				}
+
+				if (potentialPrey.length > 0) {
+				  // seřaď podle vzdálenosti
+				  potentialPrey.sort((a, b) => a.dist - b.dist);
+				  const closestPrey = potentialPrey[0].cell;
+				  const dist = potentialPrey[0].dist;
+
+				  // === NOVÁ INTELIGENCE ===
+				  // 1) spočítej největší kořist
+				  const maxPreyMass = potentialPrey.reduce((max, p) => Math.max(max, p.cell.mass), 0);
+				  // 2) spočítej kolik jich je blízko (např. do 300 px)
+				  const nearbyPreyCount = potentialPrey.filter(p => p.dist < 300).length;
+
+				  this.aiState = 'hunting';
+				  this.targetX = closestPrey.x;
+				  this.targetY = closestPrey.y;
+
+				  // 3) splitni pokud:
+				  // - mám dost massy
+				  // - největší cíl je malý
+				  // - je jich víc poblíž
+				  if (
+					this.mass >= MIN_MASS_TO_SPLIT &&
+					this.mass > maxPreyMass * 2 &&
+					nearbyPreyCount >= 2 && // alespoň 2 splitnuté kousky
+					dist < 250              // nejbližší je fakt blízko
+				  ) {
+					this.performHuntingSplit(closestPrey);
+				  }
+
+				  return;
+				}
+
+				
+				// Pokud je u okraje a v módu fleeing -> rozjet se podél okraje
+				if (this.aiState === 'fleeing') {
+					const margin = this.radius + 10; // tolerance k okraji
+
+					// Když je moc u okraje...
+					if (this.x < margin || this.x > world.width - margin ||
+						this.y < margin || this.y > world.height - margin) {
+						
+						// Najdi úhel podél stěny: kolmo na vektor od hrozby
+						const dx = this.targetX - this.x;
+						const dy = this.targetY - this.y;
+						const fleeAngle = Math.atan2(dy, dx);
+
+						// Náhodně +90° nebo -90° pro jízdu podél zdi
+						const sideAngle = fleeAngle + (Math.random() < 0.5 ? Math.PI / 2 : -Math.PI / 2);
+
+						const runDistance = 500;
+						this.targetX = this.x + Math.cos(sideAngle) * runDistance;
+						this.targetY = this.y + Math.sin(sideAngle) * runDistance;
+
+						// Ořez do mapy
+						this.targetX = Math.max(margin, Math.min(world.width - margin, this.targetX));
+						this.targetY = Math.max(margin, Math.min(world.height - margin, this.targetY));
+
+						return; // konec
+					}
+				}
+
+
+				this.aiState = 'wandering';
+				this.findNewWanderTarget();
+			}
+
+			getGroupCells() {
+				return aiCells.filter(c => c.groupID === this.groupID);
+			}
+			
+
+			performHuntingSplit(target) {
+				this.mass /= 2;
+				this.updateRadius();
+
+				const angle = Math.atan2(target.y - this.y, target.x - this.x);
+				const newMass = this.mass;
+
+				const newCell = new AiCell(this.x, this.y, newMass, this.groupID);
+				newCell.color = this.color;           // Stejná barva!
+				newCell.mergeTimer = MERGE_TOTAL_TIME; // Stejné chování jako hráč
+				this.mergeTimer = MERGE_TOTAL_TIME;
+
+				const launchSpeed = 20;
+				newCell.splitVelocity = {
+					x: Math.cos(angle) * launchSpeed,
+					y: Math.sin(angle) * launchSpeed
+				};
+
+				this.decisionTimer = 2; // cooldown
+				aiCells.push(newCell);
+				//playSound(splitSound);
+			}
+
+
         }
 
 		// VAŠE TŘÍDA PRO JÍDLO
@@ -389,34 +630,39 @@
 			}
 		}
 
-        function init() {
-            isGameOver = false;
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            world.width = canvas.width * WORLD_SCALE_FACTOR;
-            world.height = canvas.height * WORLD_SCALE_FACTOR;
-            playerCells = [new PlayerCell(world.width / 2, world.height / 2, INITIAL_PLAYER_MASS)];
-            aiCells = [];
-            for (let i = 0; i < AI_COUNT; i++) {
-                const mass = Math.random() * 40 + 10;
-                aiCells.push(new AiCell(Math.random() * world.width, Math.random() * world.height, mass));
-            }
-            food = [];
-            for (let i = 0; i < FOOD_COUNT; i++) {
-                food.push(new Food(Math.random() * world.width, Math.random() * world.height));
-            }
-            hud.classList.remove('hidden');
-            gameOverScreen.classList.add('hidden');
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            gameLoop();
-        }
+			function init() {
+				isGameOver = false;
+				canvas.width = window.innerWidth;
+				canvas.height = window.innerHeight;
+				world.width = canvas.width * WORLD_SCALE_FACTOR;
+				world.height = canvas.height * WORLD_SCALE_FACTOR;
+				playerCells = [new PlayerCell(world.width / 2, world.height / 2, INITIAL_PLAYER_MASS)];
+				aiCells = [];
+				for (let i = 0; i < AI_COUNT; i++) {
+					const mass = Math.random() * 80 + 30;   // VELIKOST
+					aiCells.push(new AiCell(Math.random() * world.width, Math.random() * world.height, mass));
+				}
+				food = [];
+				for (let i = 0; i < FOOD_COUNT; i++) {
+					food.push(new Food(Math.random() * world.width, Math.random() * world.height));
+				}
+				hud.classList.add('hidden'); // skryj HUD při pauze
+				gameOverScreen.classList.add('hidden');
+				if (animationFrameId) cancelAnimationFrame(animationFrameId);
+				draw(); // hned vykresli pauznutou scénu
+			}
 
-        function gameLoop() {
-            if (isGameOver) return;
-            update();
-            draw();
-            animationFrameId = requestAnimationFrame(gameLoop);
-        }
+
+			function gameLoop() {
+				if (isGameOver) return;
+
+				if (startScreen.classList.contains('hidden') && !isPaused) {
+					update(); // jen když není pauza
+				}
+				draw(); // kreslíme vždy
+				animationFrameId = requestAnimationFrame(gameLoop);
+			}
+
 		
         function update() {
 			const playerCenter = getPlayerCenter();
@@ -427,15 +673,48 @@
 			const worldMouseX = mouse.x - clampedCamX;
 			const worldMouseY = mouse.y - clampedCamY;
 
-            playerCells.forEach(playerCell => {
-                playerCell.updateTarget(worldMouseX, worldMouseY);
-                playerCell.move();
-                playerCell.loseMass();
-                playerCell.updateMergeTimer();
-            });
+			playerCells.forEach(playerCell => {
+				if (arrowControlActive) {
+					if (keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight) {
+						// 1) nastavíme novou rychlost
+						const speed = playerCell.getSpeed();
+						let dx = 0, dy = 0;
+						if (keys.ArrowUp)    dy -= 1;
+						if (keys.ArrowDown)  dy += 1;
+						if (keys.ArrowLeft)  dx -= 1;
+						if (keys.ArrowRight) dx += 1;
+						const len = Math.hypot(dx, dy);
+						if (len > 0) {
+							dx /= len; dy /= len;
+							playerCell.vx = dx * speed;
+							playerCell.vy = dy * speed;
+						}
+					} else {
+						// 2) zpomalení při uvolnění šipek během 2 s (≈120 snímků)
+						const friction = 1 - (1 / 60);
+						playerCell.vx *= friction;
+						playerCell.vy *= friction;
+					}
+					// 3) aplikace rychlosti na pozici a ořez do hran světa
+					playerCell.x = Math.max(playerCell.radius,
+						Math.min(world.width  - playerCell.radius, playerCell.x + playerCell.vx));
+					playerCell.y = Math.max(playerCell.radius,
+						Math.min(world.height - playerCell.radius, playerCell.y + playerCell.vy));
+				} else {
+					// standardní pohyb podle myši
+					playerCell.updateTarget(worldMouseX, worldMouseY);
+					playerCell.move();
+				}
+				playerCell.loseMass();
+				playerCell.updateMergeTimer();
+			});
+
+
             
             applyMergeForce();
+			applyAIMergeForce();
             handlePlayerMerging();
+			handleAIMerging();
             const allCells = [...playerCells, ...aiCells];
             aiCells.forEach(ai => ai.updateAI(allCells, food));
             handleCollisions();
@@ -443,15 +722,15 @@
 			playerCells.forEach(cell => cell.animateMass(1/60));
 			aiCells.forEach(cell => cell.animateMass(1/60));
             
+			  // === CHEAT ZDE ===
+			applyCheat_BoostBacteriaMass();
+			
             if (playerCells.length === 0 && !isGameOver) {
                 endGame();
             }
             updateHUD();
 			
-			console.clear();
-playerCells.forEach((cell, i) => {
-    console.log(`Cell ${i}: mergeTimer = ${cell.mergeTimer?.toFixed(2)}`);
-});
+
         }
 
         function draw() {
@@ -468,6 +747,18 @@ playerCells.forEach((cell, i) => {
             const allCells = [...playerCells, ...aiCells].sort((a, b) => a.mass - b.mass);
             allCells.forEach(cell => cell.draw(ctx));
             ctx.restore();
+			
+			    // <<< TADY: když pauza, napiš text
+			if (isPaused) {
+				ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+				ctx.fillStyle = "white";
+				ctx.font = "bold 60px Arial";
+				ctx.textAlign = "center";
+				ctx.fillText("PAUZA (P)", canvas.width / 2, canvas.height / 2);
+			}
+			
         }
 
         function drawGrid() {
@@ -499,10 +790,19 @@ playerCells.forEach((cell, i) => {
 					const dy = cell.y - f.y;
 					const dist = Math.sqrt(dx * dx + dy * dy);
 					if (dist < cell.radius) {
-						cell.mass += f.mass;
+						      if (aiCells.includes(cell)) {
+								cell.mass += f.mass * bacteriaFoodMultiplier;
+							  } else {
+								cell.mass += f.mass;
+							  }
 						cell.updateRadius();
 						food.splice(i, 1);
 						food.push(new Food(Math.random() * world.width, Math.random() * world.height));
+
+							if (playerCells.includes(cell)) {
+								playSound(eatSmallSound);
+							}
+
 						break;
 					}
 				}
@@ -529,6 +829,12 @@ playerCells.forEach((cell, i) => {
 						if (bigger.mass > smaller.mass * MIN_MASS_TO_EAT) {
 							bigger.mass += smaller.mass;
 							bigger.updateRadius();
+							
+							        // Pokud bigger je hráč a smaller je AI:
+								if (playerCells.includes(bigger) && aiCells.includes(smaller)) {
+									playSound(eatBigSound);
+								}
+							
 							removeCell(smaller);
 							allMovingCells.splice(j, 1);
 							if (j < i) i--;
@@ -539,19 +845,22 @@ playerCells.forEach((cell, i) => {
 		}
 
         
-        function removeCell(cellToRemove) {
-            let index = playerCells.indexOf(cellToRemove);
-            if (index > -1) {
-                playerCells.splice(index, 1);
-                return;
-            }
-            index = aiCells.indexOf(cellToRemove);
-            if (index > -1) {
-                aiCells.splice(index, 1);
-                const mass = Math.random() * 20 + 10;
-                aiCells.push(new AiCell(Math.random() * world.width, Math.random() * world.height, mass));
-            }
-        }
+			function removeCell(cellToRemove) {
+				let index = playerCells.indexOf(cellToRemove);
+				if (index > -1) {
+					playerCells.splice(index, 1);
+					return;
+				}
+				index = aiCells.indexOf(cellToRemove);
+				if (index > -1) {
+					aiCells.splice(index, 1);
+					// Přidá novou AI jen pokud celkový počet AI je menší než AI_COUNT
+					if (aiCells.length < AI_COUNT) {
+						const mass = Math.random() * 80 + 30;
+						aiCells.push(new AiCell(Math.random() * world.width, Math.random() * world.height, mass));
+					}
+				}
+			}
 
 			function applyMergeForce() {
 				for (let i = 0; i < playerCells.length; i++) {
@@ -595,6 +904,46 @@ playerCells.forEach((cell, i) => {
 				}
 			}
 
+			function applyAIMergeForce() {
+				for (let i = 0; i < aiCells.length; i++) {
+					for (let j = i + 1; j < aiCells.length; j++) {
+						const cell1 = aiCells[i];
+						const cell2 = aiCells[j];
+						if (cell1.groupID !== cell2.groupID) continue; // jen vlastní splity
+
+						if (
+							cell1.mergeTimer > 0 && cell1.mergeTimer <= MERGE_PULL_START_TIME &&
+							cell2.mergeTimer > 0 && cell2.mergeTimer <= MERGE_PULL_START_TIME
+						) {
+							const dx = cell2.x - cell1.x;
+							const dy = cell2.y - cell1.y;
+							const pullStrength = 0.01;
+							cell1.x += dx * pullStrength;
+							cell1.y += dy * pullStrength;
+							cell2.x -= dx * pullStrength;
+							cell2.y -= dy * pullStrength;
+						}
+
+						if (cell1.mergeTimer > 0 || cell2.mergeTimer > 0) {
+							const dx = cell2.x - cell1.x;
+							const dy = cell2.y - cell1.y;
+							const dist = Math.sqrt(dx * dx + dy * dy);
+							const minDist = cell1.radius + cell2.radius;
+
+							if (dist < minDist) {
+								const overlap = (minDist - dist) / 2;
+								const ox = (dx / dist) * overlap;
+								const oy = (dy / dist) * overlap;
+
+								cell1.x -= ox;
+								cell1.y -= oy;
+								cell2.x += ox;
+								cell2.y += oy;
+							}
+						}
+					}
+				}
+			}
 
 
 			function handlePlayerMerging() {
@@ -619,6 +968,34 @@ playerCells.forEach((cell, i) => {
 								bigger.splitVelocity.y = 0;
 								playerCells.splice(playerCells.indexOf(smaller), 1);
 								j--;
+								playSound(fuseSound);
+							}
+						}
+					}
+				}
+			}
+
+			function handleAIMerging() {
+				if (aiCells.length <= 1) return;
+				for (let i = 0; i < aiCells.length; i++) {
+					for (let j = i + 1; j < aiCells.length; j++) {
+						const cell1 = aiCells[i];
+						const cell2 = aiCells[j];
+						if (cell1.groupID !== cell2.groupID) continue; // jen stejné AI
+
+						if (cell1.mergeTimer <= 0 && cell2.mergeTimer <= 0) {
+							const dx = cell1.x - cell2.x;
+							const dy = cell1.y - cell2.y;
+							const dist = Math.sqrt(dx * dx + dy * dy);
+							const bigger = cell1.mass > cell2.mass ? cell1 : cell2;
+							const smaller = cell1.mass > cell2.mass ? cell2 : cell1;
+
+							if (dist < bigger.radius * 0.2) {
+								bigger.mass += smaller.mass;
+								bigger.updateRadius();
+								aiCells.splice(aiCells.indexOf(smaller), 1);
+								j--;
+								playSound(fuseSound);
 							}
 						}
 					}
@@ -653,6 +1030,7 @@ playerCells.forEach((cell, i) => {
 						playerCells.push(newCell);
 					}
 				}
+				playSound(splitSound);
 			}
 
 
@@ -670,15 +1048,77 @@ playerCells.forEach((cell, i) => {
         }
         
 		function updateHUD() {
-			const totalMass = playerCells.reduce((sum, cell) => sum + cell.mass, 0);
-			massDisplay.textContent = Math.round(totalMass);
-			cellCountDisplay.textContent = playerCells.length;
+		  const totalMass = playerCells.reduce((sum, cell) => sum + cell.mass, 0);
+		  massDisplay.textContent = Math.round(totalMass);
+		  cellCountDisplay.textContent = playerCells.length;
 
-			// Sleduj maximum
-			if (totalMass > maxPlayerMass) {
-				maxPlayerMass = totalMass;
-			}
+		  if (totalMass > maxPlayerMass) {
+			maxPlayerMass = totalMass;
+		  }
+
+		  // === NOVÝ LEADERBOARD ===
+		  const leaderboardMap = new Map();
+
+		  // 1) Hráč: všechny jeho buňky jako jeden záznam
+		  leaderboardMap.set('Player', playerCells.reduce((sum, c) => sum + c.mass, 0));
+
+		  // 2) AI: seskupit podle groupID
+		  for (const ai of aiCells) {
+			const id = ai.groupID;
+			const prev = leaderboardMap.get(id) || 0;
+			leaderboardMap.set(id, prev + ai.mass);
+		  }
+
+		  // 3) Převést na pole a seřadit
+		  const allGroups = [];
+		  for (const [key, mass] of leaderboardMap) {
+			const label = key === 'Player' ? 'Hráč' : 'AI';
+			allGroups.push({ label, mass });
+		  }
+
+		  allGroups.sort((a, b) => b.mass - a.mass);
+
+		  // 4) Top 10
+		  const top10 = allGroups.slice(0, 10);
+
+		  // 5) Vykreslit
+		  let html = `<strong>Top 10:</strong><br>`;
+		  top10.forEach((entry, idx) => {
+			html += `${idx + 1}. ${entry.label}: ${Math.round(entry.mass)}<br>`;
+		  });
+
+		  leaderboard.innerHTML = html;
 		}
+
+
+
+		function applyCheat_BoostBacteriaMass() {
+		  if (playerCells.length === 0) {
+			bacteriaFoodMultiplier = 1;
+			return;
+		  }
+
+		  const playerMass = playerCells.reduce((sum, c) => sum + c.mass, 0);
+		  const aiMasses = aiCells.map(c => c.mass);
+		  if (aiMasses.length === 0) {
+			bacteriaFoodMultiplier = 1;
+			return;
+		  }
+
+		  const maxAiMass = Math.max(...aiMasses);
+		  const secondMaxMass = aiMasses.filter(m => m !== maxAiMass)
+										 .reduce((max, m) => Math.max(max, m), 0);
+
+		  if (playerMass > maxAiMass) {
+			bacteriaFoodMultiplier = 2;
+			if (playerMass > secondMaxMass * 1.2) {
+			  bacteriaFoodMultiplier = 5;
+			}
+		  } else {
+			bacteriaFoodMultiplier = 1;
+		  }
+		}
+
 
 		function endGame() {
 			isGameOver = true;
@@ -686,38 +1126,80 @@ playerCells.forEach((cell, i) => {
 			const totalMass = playerCells.reduce((sum, cell) => sum + cell.mass, 0);
 			finalMassDisplay.textContent = Math.round(totalMass);
 
-			// Zobraz i maximum
-			const maxMassElement = document.createElement('p');
+			// Nastav text jen do existujícího <p> elementu
+			const maxMassElement = document.getElementById('maxMassElement');
 			maxMassElement.textContent = `Maximální dosažená hmotnost: ${Math.round(maxPlayerMass)}`;
-			gameOverScreen.insertBefore(maxMassElement, gameOverScreen.querySelector('button'));
 
 			hud.classList.add('hidden');
 			gameOverScreen.classList.remove('hidden');
 		}
 
 
-        window.addEventListener('mousemove', e => {
-            mouse.x = e.clientX;
-            mouse.y = e.clientY;
-        });
+
+			window.addEventListener('mousemove', e => {
+				arrowControlActive = false;          // obnoví ovládání myší
+				mouse.x = e.clientX;
+				mouse.y = e.clientY;
+			});
+
+		
+		window.addEventListener('mousedown', e => {
+			if (e.button === 0 && playerCells.length > 0 && !isGameOver && !isPaused && startScreen.classList.contains('hidden')) {
+				splitPlayer();
+			}
+		});
+		
         window.addEventListener('resize', () => {
             if (!startScreen.classList.contains('hidden')) init();
         });
-        window.addEventListener('keydown', e => {
-            if (e.code === 'Space' && playerCells.length > 0 && !isGameOver) {
-                e.preventDefault();
-                splitPlayer();
-            }
-        });
-        startButton.addEventListener('click', () => {
-            startScreen.classList.add('hidden');
-            init();
-        });
-        restartButton.addEventListener('click', () => {
-            gameOverScreen.classList.add('hidden');
-            init();
-        });
+		
+		window.addEventListener('keydown', e => {
+			if (e.code in keys) {
+				keys[e.code] = true;        // klávesu držíme
+				arrowControlActive = true;  // přepni do režimu šipky
+			}
+			if (e.code === 'Space' && playerCells.length > 0 && !isGameOver) {
+				e.preventDefault();
+				splitPlayer();
+			}
+			if (e.code === 'KeyP' && !isGameOver && startScreen.classList.contains('hidden')) {
+				isPaused = !isPaused;
+			}
+		});
+
+
+		window.addEventListener('keyup', e => {
+			if (e.code in keys) {
+				keys[e.code] = false;      // klávesu uvolněnou nastavíme na false
+				// režim arrowControlActive zůstává aktivní až do prvního pohybu myší
+			}
+		});
+
+
+		startButton.addEventListener('click', () => {
+			startScreen.classList.add('hidden');
+			hud.classList.remove('hidden');
+			gameOverScreen.classList.add('hidden');
+			isGameOver = false; // důležité!
+		});
+
+		restartButton.addEventListener('click', () => {
+			isGameOver = false;
+			gameOverScreen.classList.add('hidden');
+			startScreen.classList.add('hidden');
+			hud.classList.remove('hidden');
+			init();            // reset mapy
+			gameLoop();        // <<< znovu spustí loop!
+		});
+
+
+		init();
+		gameLoop();
     });
+	
+	
+
+	
     </script>
 </body>
 </html>
