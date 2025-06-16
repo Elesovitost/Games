@@ -148,7 +148,7 @@
         const AI_COUNT = 25;
 		const RADIUS_SCALE_FACTOR = 5; // VAŠE HODNOTA
         const MIN_MASS_TO_SPLIT = 40;
-        const MIN_MASS_TO_EAT = 1.1;
+        const MIN_MASS_TO_EAT = 1.2;
         const MASS_LOSS_PER_FRAME = 0.00000; // VAŠE HODNOTA - KORF ÚBYTKU MASY standard 0.00005
 		let bacteriaFoodMultiplier = 1;  // cheat
         
@@ -188,8 +188,8 @@
 
 		// tyčinky na bakteriích
 		function drawRadialSticks(context, x, y, radius, mass, options = {}) {
-			const numSticks = Math.max(1, Math.floor(Math.sqrt(mass) + mass / 20));
-			const stickLength = options.stickLength || radius * 0.4;
+			const numSticks = Math.max(1, Math.floor(Math.sqrt(mass)));
+			const stickLength = options.stickLength || radius * 0.2;
 			const stickColor = options.stickColor || '#000';
 			const stickWidth = options.stickWidth || 2;
 
@@ -400,7 +400,7 @@
 				// Tyčinky:
 				drawRadialSticks(context, this.x, this.y, this.radius, this.mass, {
 					stickColor: '#000',
-					stickLength: this.radius * 0.4,
+					stickLength: this.radius * 0.2,
 					stickWidth: 2
 				});
 
@@ -413,38 +413,36 @@
 			}
 
 			
+
 			updateAI(allCells, food) {
+			  // 1) Merge-timer ubíhá, aby se buňky mohly později sloučit
 			  if (this.mergeTimer > 0) {
 				this.mergeTimer -= 1/60;
 			  }
 
-			  this.decisionTimer -= 1 / 60;
+			  // 2) Identifikace leadera v rámci skupiny
+			  const group  = this.getGroupCells();
+			  const leader = group.reduce((a, b) => a.mass > b.mass ? a : b);
+
+			  // 3) Follower: vždy target na leadera a pohyb
+			  if (this !== leader && this.decisionTimer <= 0) {
+				this.targetX = leader.x;
+				this.targetY = leader.y;
+				this.move();
+				this.loseMass();
+				return;
+			  }
+
+			  // 4) Leader: klasické rozhodování
+			  this.decisionTimer -= 1/60;
 			  if (this.decisionTimer <= 0) {
 				this.makeDecision(allCells, food);
 				this.decisionTimer = Math.random() * 2 + 1;
 			  }
-
 			  this.move();
 			  this.loseMass();
-
-			  // === NOVÝ KOUSEK: AKTIVNÍ kontrola u kraje ===
-			  if (this.aiState === 'fleeing') {
-				const margin = this.radius + 10;
-
-				if (this.x <= margin || this.x >= world.width - margin ||
-					this.y <= margin || this.y >= world.height - margin) {
-
-				  // Odraz od stěny: nasměruj zpět do mapy
-				  const toCenterX = world.width / 2 - this.x;
-				  const toCenterY = world.height / 2 - this.y;
-				  const len = Math.hypot(toCenterX, toCenterY);
-				  this.targetX = this.x + (toCenterX / len) * 500;
-				  this.targetY = this.y + (toCenterY / len) * 500;
-				}
-			  }
 			}
 
-			
 			
             isTargetReached() {
                 const dx = this.targetX - this.x;
@@ -472,102 +470,159 @@
                 }
             }
 			makeDecision(allCells, food) {
-			  const group = this.getGroupCells();
-			  const leader = group.reduce((a,b) => a.mass > b.mass ? a : b);
+				const group = this.getGroupCells();
+				const leader = group.reduce((a, b) => a.mass > b.mass ? a : b);
 
-			  if (this !== leader) {
-				// nově: synchronizovat i stav
-				this.aiState  = leader.aiState;
-				this.targetX  = leader.targetX;
-				this.targetY  = leader.targetY;
-				return;
-			  }
-
-				// leader normálně rozhoduje
-				let potentialThreats = [];
-				let potentialPrey = [];
-				for (const other of allCells) {
-					if (other === this) continue;
-					const dx = other.x - this.x;
-					const dy = other.y - this.y;
-					const dist = Math.sqrt(dx*dx + dy*dy);
-					if (other.mass > this.mass * MIN_MASS_TO_EAT && dist < other.radius + this.radius + 300) {
-						potentialThreats.push({cell: other, dist: dist});
-					} 
-					else if (this.mass > other.mass * MIN_MASS_TO_EAT && dist < this.radius + 300) {
-						potentialPrey.push({cell: other, dist: dist});
-					}
-				}
-
-				if (potentialThreats.length > 0) {
-					potentialThreats.sort((a, b) => a.dist - b.dist);
-					const closestThreat = potentialThreats[0].cell;
-					this.aiState = 'fleeing';
-					const fleeAngle = Math.atan2(this.y - closestThreat.y, this.x - closestThreat.x);
-					this.targetX = this.x + Math.cos(fleeAngle) * 500;
-					this.targetY = this.y + Math.sin(fleeAngle) * 500;
+				if (this !== leader) {
+					// Podřízené buňky sledují vůdce
+					this.aiState = leader.aiState;
+					this.targetX = leader.targetX;
+					this.targetY = leader.targetY;
 					return;
 				}
 
-				if (potentialPrey.length > 0) {
-				  // seřaď podle vzdálenosti
-				  potentialPrey.sort((a, b) => a.dist - b.dist);
-				  const closestPrey = potentialPrey[0].cell;
-				  const dist = potentialPrey[0].dist;
+				// Vůdce rozhoduje za celou skupinu
+				const potentialThreats = [];
+				const potentialPrey = [];
 
-				  // === NOVÁ INTELIGENCE ===
-				  // 1) spočítej největší kořist
-				  const maxPreyMass = potentialPrey.reduce((max, p) => Math.max(max, p.cell.mass), 0);
-				  // 2) spočítej kolik jich je blízko (např. do 300 px)
-				  const nearbyPreyCount = potentialPrey.filter(p => p.dist < 300).length;
+				// Zjisti všechny ostatní buňky
+				const allOtherCells = allCells.filter(c => {
+					if (c === this) return false; // Ignoruj sebe
+					if (c.groupID && c.groupID === this.groupID) return false; // Ignoruj buňky ze své skupiny
+					return true;
+				});
 
-				  this.aiState = 'hunting';
-				  this.targetX = closestPrey.x;
-				  this.targetY = closestPrey.y;
+				for (const other of allOtherCells) {
+					const dx = other.x - this.x;
+					const dy = other.y - this.y;
+					const dist = Math.hypot(dx, dy);
 
-				  // 3) splitni pokud:
-				  // - mám dost massy
-				  // - největší cíl je malý
-				  // - je jich víc poblíž
-				  if (
-					this.mass >= MIN_MASS_TO_SPLIT &&
-					this.mass > maxPreyMass * 2 &&
-					nearbyPreyCount >= 2 && // alespoň 2 splitnuté kousky
-					dist < 250              // nejbližší je fakt blízko
-				  ) {
-					this.performHuntingSplit(closestPrey);
-				  }
-
-				  return;
+					// Hrozby (větší buňky) v dosahu 400px
+					if (other.mass > this.mass * MIN_MASS_TO_EAT && dist < other.radius + this.radius + 400) {
+						potentialThreats.push({ cell: other, dist: dist, dx: dx, dy: dy });
+					} 
+					// Kořist (menší buňky) v dosahu 400px
+					else if (this.mass > other.mass * MIN_MASS_TO_EAT && dist < this.radius + 400) {
+						potentialPrey.push({ cell: other, dist: dist });
+					}
 				}
 
-				
-				// Pokud je u okraje a v módu fleeing -> rozjet se podél okraje
-				if (this.aiState === 'fleeing') {
-					const margin = this.radius + 10; // tolerance k okraji
+				// === NOVÁ, VYLEPŠENÁ LOGIKA ÚTĚKU ===
+				if (potentialThreats.length > 0) {
+					this.aiState = 'fleeing';
+					
+					// 1. Vypočítej kombinovaný vektor útěku od VŠECH hrozeb
+					let totalFleeX = 0;
+					let totalFleeY = 0;
+					potentialThreats.forEach(threat => {
+						const fleeVecX = this.x - threat.cell.x;
+						const fleeVecY = this.y - threat.cell.y;
+						const weight = 1 / (threat.dist * threat.dist);
+						totalFleeX += fleeVecX * weight;
+						totalFleeY += fleeVecY * weight;
+					});
 
-					// Když je moc u okraje...
-					if (this.x < margin || this.x > world.width - margin ||
-						this.y < margin || this.y > world.height - margin) {
-						
-						// Najdi úhel podél stěny: kolmo na vektor od hrozby
-						const dx = this.targetX - this.x;
-						const dy = this.targetY - this.y;
-						const fleeAngle = Math.atan2(dy, dx);
-
-						// Náhodně +90° nebo -90° pro jízdu podél zdi
-						const sideAngle = fleeAngle + (Math.random() < 0.5 ? Math.PI / 2 : -Math.PI / 2);
-
-						const runDistance = 500;
-						this.targetX = this.x + Math.cos(sideAngle) * runDistance;
-						this.targetY = this.y + Math.sin(sideAngle) * runDistance;
-
-						// Ořez do mapy
-						this.targetX = Math.max(margin, Math.min(world.width - margin, this.targetX));
-						this.targetY = Math.max(margin, Math.min(world.height - margin, this.targetY));
-
-						return; // konec
+					const fleeMagnitude = Math.hypot(totalFleeX, totalFleeY);
+					if (fleeMagnitude === 0) { // Vzácný případ, kdy se síly vyruší
+						 this.aiState = 'wandering';
+						 this.findNewWanderTarget();
+						 return;
 					}
+
+					let fleeDirX = totalFleeX / fleeMagnitude;
+					let fleeDirY = totalFleeY / fleeMagnitude;
+					
+					const margin = this.radius + 15;
+
+					// 2. Zkontroluj past v rohu a případně proveď "MiseryEscape"
+					const isTop = this.y < margin;
+					const isBottom = this.y > world.height - margin;
+					const isLeft = this.x < margin;
+					const isRight = this.x > world.width - margin;
+					
+					const trappedInCorner = (isTop && isLeft) || (isTop && isRight) || (isBottom && isLeft) || (isBottom && isRight);
+
+					if (trappedInCorner && this.mass >= MIN_MASS_TO_SPLIT) {
+						this.performMiseryEscape();
+						return; // Rozhodnutí bylo provedeno
+					}
+
+					// 3. Chování u okraje: držet se zdi, nebo se odlepit?
+					if (isTop || isBottom || isLeft || isRight) {
+						potentialThreats.sort((a, b) => a.dist - b.dist);
+						const closestThreat = potentialThreats[0];
+						// Bezpečná vzdálenost pro opuštění zdi
+						const safeLeaveDistance = closestThreat.cell.radius + this.radius + 200;
+
+						// Pokud je nejbližší hrozba dostatečně daleko, snaž se odlepit od zdi
+						if (closestThreat.dist > safeLeaveDistance) {
+							let wallNormalX = 0, wallNormalY = 0;
+							if(isLeft) wallNormalX = 1; else if(isRight) wallNormalX = -1;
+							if(isTop) wallNormalY = 1; else if(isBottom) wallNormalY = -1;
+							
+							const peelFactor = 0.4; // Jak silně se má AI "odlepit"
+							fleeDirX = fleeDirX * (1 - peelFactor) + wallNormalX * peelFactor;
+							fleeDirY = fleeDirY * (1 - peelFactor) + wallNormalY * peelFactor;
+
+						} else {
+							// Není bezpečno: drž se zdi, pokud do ní směřuješ
+							if (isLeft && fleeDirX < 0) fleeDirX = 0;
+							if (isRight && fleeDirX > 0) fleeDirX = 0;
+							if (isTop && fleeDirY < 0) fleeDirY = 0;
+							if (isBottom && fleeDirY > 0) fleeDirY = 0;
+						}
+
+						// Přepočítání a normalizace finálního vektoru směru
+						const finalMagnitude = Math.hypot(fleeDirX, fleeDirY);
+						if (finalMagnitude > 0.01) {
+							fleeDirX /= finalMagnitude;
+							fleeDirY /= finalMagnitude;
+						}
+					}
+					
+					// 4. Nastav finální cíl útěku
+					const fleeDistance = 600;
+					this.targetX = this.x + fleeDirX * fleeDistance;
+					this.targetY = this.y + fleeDirY * fleeDistance;
+					
+					return;
+				}
+
+				// === PŮVODNÍ LOGIKA LOVU A TOULÁNÍ (beze změny) ===
+				if (potentialPrey.length > 0) {
+					// Seřadíme potenciální kořist podle vzdálenosti
+					potentialPrey.sort((a, b) => a.dist - b.dist);
+					const closestPrey = potentialPrey[0].cell;
+					const dist = potentialPrey[0].dist;
+					const maxPreyMass = potentialPrey.reduce((max, p) => Math.max(max, p.cell.mass), 0);
+					const nearbyPreyCount = potentialPrey.filter(p => p.dist < 300).length;
+
+					this.aiState = 'hunting';
+					this.targetX = closestPrey.x;
+					this.targetY = closestPrey.y;
+
+					// --- Standardní split: pokud je v dosahu (300 px) a kořist má méně než polovinu hmotnosti ---
+					if (
+						this.mergeTimer <= 0 &&
+						this.mass >= MIN_MASS_TO_SPLIT &&
+						closestPrey.mass * 2.2 < this.mass &&
+						dist < 300
+					) {
+						this.performHuntingSplit(closestPrey);
+						return;  // Ukončíme rozhodování po splitu
+					}
+
+					// --- Vylepšený split pro více kořisti (stávající implementace) ---
+					if (
+						this.mergeTimer <= 0 &&
+						this.mass >= MIN_MASS_TO_SPLIT &&
+						this.mass > maxPreyMass * 2.2 &&
+						nearbyPreyCount >= 2 &&
+						dist < 300
+					) {
+						this.performHuntingSplit(closestPrey);
+					}
+					return;
 				}
 
 
@@ -581,26 +636,84 @@
 			
 
 			performHuntingSplit(target) {
+			  // 1) Poloviční hmotnost a aktualizace poloměru
+			  this.mass /= 2;
+			  this.updateRadius();
+
+			  // 2) Inicializace merge-timer (blokace zpětného sloučení)
+			  this.mergeTimer = MERGE_TOTAL_TIME;
+
+			  // 3) Vypočítáme úhel směrem ke kořisti
+			  const angle = Math.atan2(target.y - this.y, target.x - this.x);
+
+			  // 4) Vytvoříme dceřinou buňku se split-velocity
+			  const newCell = new AiCell(this.x, this.y, this.mass, this.groupID);
+			  newCell.color = this.color;
+			  newCell.mergeTimer = MERGE_TOTAL_TIME;
+			  const launchSpeed = 20;
+			  newCell.splitVelocity = {
+				x: Math.cos(angle) * launchSpeed,
+				y: Math.sin(angle) * launchSpeed
+			  };
+
+			  // 5) Dceřiná buňka ihned targetuje střed rodiče
+				newCell.targetX = newCell.x + Math.cos(angle) * 400;
+				newCell.targetY = newCell.y + Math.sin(angle) * 400;
+				newCell.decisionTimer = 0.5;
+
+			  // 6) Rodič ihned dělá nové rozhodnutí
+			  this.decisionTimer = 0;
+			  this.makeDecision([...playerCells, ...aiCells], food);
+
+			  // 7) Přidání dcery do pole AI buněk
+			  aiCells.push(newCell);
+			}
+			
+			performMiseryEscape() {
+				if (this.mass < MIN_MASS_TO_SPLIT) return;
+
+				//playSound(splitSound); // Volitelný zvuk pro útěk
 				this.mass /= 2;
 				this.updateRadius();
 
-				const angle = Math.atan2(target.y - this.y, target.x - this.x);
 				const newMass = this.mass;
-
 				const newCell = new AiCell(this.x, this.y, newMass, this.groupID);
-				newCell.color = this.color;           // Stejná barva!
-				newCell.mergeTimer = MERGE_TOTAL_TIME; // Stejné chování jako hráč
+				newCell.color = this.color;
+				
+				// Obě buňky dostanou časovač, aby se hned nespojily
 				this.mergeTimer = MERGE_TOTAL_TIME;
+				newCell.mergeTimer = MERGE_TOTAL_TIME;
+				
+				// Určí směr úniku - diagonálně pryč z rohu
+				let escapeDirX = this.x < world.width / 2 ? 1 : -1;
+				let escapeDirY = this.y < world.height / 2 ? 1 : -1;
+				
+				// Normalizace vektoru (aby měl délku 1)
+				const mag = Math.hypot(escapeDirX, escapeDirY);
+				escapeDirX /= mag;
+				escapeDirY /= mag;
 
-				const launchSpeed = 20;
+				const launchSpeed = 25; // Vyšší rychlost pro zoufalý únik
 				newCell.splitVelocity = {
-					x: Math.cos(angle) * launchSpeed,
-					y: Math.sin(angle) * launchSpeed
+					x: escapeDirX * launchSpeed,
+					y: escapeDirY * launchSpeed
 				};
 
-				this.decisionTimer = 2; // cooldown
+				newCell.targetX      = newCell.x + escapeDirX * 400;
+				newCell.targetY      = newCell.y + escapeDirY * 400;
+				newCell.decisionTimer = MERGE_TOTAL_TIME;
+				this.decisionTimer    = MERGE_TOTAL_TIME;
+
 				aiCells.push(newCell);
-				//playSound(splitSound);
+
+				// Původní buňka se také lehce odsune od rohu
+				this.splitVelocity = {
+					x: escapeDirX * -5,
+					y: escapeDirY * -5
+				};
+				
+				this.decisionTimer = 3; // Dej AI čas na útěk, než se znovu rozhodne
+				aiCells.push(newCell);
 			}
 
 
@@ -728,6 +841,28 @@
             if (playerCells.length === 0 && !isGameOver) {
                 endGame();
             }
+
+			const playerMass = playerCells.reduce((sum, c) => sum + c.mass, 0);
+
+			// Spočítat všechny skupiny AI podle groupID
+			const aiGroupMasses = new Map();
+			for (const ai of aiCells) {
+				const prev = aiGroupMasses.get(ai.groupID) || 0;
+				aiGroupMasses.set(ai.groupID, prev + ai.mass);
+			}
+
+			// Získat všechny skupiny včetně hráče
+			const allGroupMasses = [playerMass, ...aiGroupMasses.values()];
+
+			// Najít největší skupinu
+			const maxGroupMass = Math.max(...allGroupMasses);
+
+			// Podmínka: mám aspoň 10 000 a jsem největší ze všech
+			if (playerMass >= 10000 && playerMass === maxGroupMass && !isGameOver) {
+				showBestMacrophageScreen();
+			}
+
+			
             updateHUD();
 			
 
@@ -862,88 +997,65 @@
 				}
 			}
 
+			// --- NOVÉ applyMergeForce: během mergeTimer>0 jen separace (žádný pull) ---
 			function applyMergeForce() {
-				for (let i = 0; i < playerCells.length; i++) {
-					for (let j = i + 1; j < playerCells.length; j++) {
-						const cell1 = playerCells[i];
-						const cell2 = playerCells[j];
+			  for (let i = 0; i < playerCells.length; i++) {
+				for (let j = i + 1; j < playerCells.length; j++) {
+				  const cell1 = playerCells[i];
+				  const cell2 = playerCells[j];
 
-						// A) Přitahování, pokud je čas na pull
-						if (
-							cell1.mergeTimer > 0 && cell1.mergeTimer <= MERGE_PULL_START_TIME &&
-							cell2.mergeTimer > 0 && cell2.mergeTimer <= MERGE_PULL_START_TIME
-						) {
-							const dx = cell2.x - cell1.x;
-							const dy = cell2.y - cell1.y;
-							const pullStrength = 0.01;
-							cell1.x += dx * pullStrength;
-							cell1.y += dy * pullStrength;
-							cell2.x -= dx * pullStrength;
-							cell2.y -= dy * pullStrength;
-						}
+				  // pokud je jedna z buněk ve fázi mergeTimer > 0, zabráníme překrytí
+				  if (cell1.mergeTimer > 0 || cell2.mergeTimer > 0) {
+					const dx   = cell2.x - cell1.x;
+					const dy   = cell2.y - cell1.y;
+					const dist = Math.hypot(dx, dy);
+					const minDist = cell1.radius + cell2.radius;
 
-						// B) Odpuzování, pokud je čas na oddělení (mergeTimer > 0)
-						if (cell1.mergeTimer > 0 || cell2.mergeTimer > 0) {
-							const dx = cell2.x - cell1.x;
-							const dy = cell2.y - cell1.y;
-							const dist = Math.sqrt(dx * dx + dy * dy);
-							const minDist = cell1.radius + cell2.radius;
+					if (dist > 0 && dist < minDist) {
+					  const overlap = (minDist - dist) / 2;
+					  const ox = (dx / dist) * overlap;
+					  const oy = (dy / dist) * overlap;
 
-							if (dist < minDist) {
-								const overlap = (minDist - dist) / 2;
-								const ox = (dx / dist) * overlap;
-								const oy = (dy / dist) * overlap;
-
-								cell1.x -= ox;
-								cell1.y -= oy;
-								cell2.x += ox;
-								cell2.y += oy;
-							}
-						}
+					  cell1.x -= ox;
+					  cell1.y -= oy;
+					  cell2.x += ox;
+					  cell2.y += oy;
 					}
+				  }
 				}
+			  }
 			}
 
+			// --- NOVÉ applyAIMergeForce: během mergeTimer>0 jen separace (žádný pull) ---
 			function applyAIMergeForce() {
-				for (let i = 0; i < aiCells.length; i++) {
-					for (let j = i + 1; j < aiCells.length; j++) {
-						const cell1 = aiCells[i];
-						const cell2 = aiCells[j];
-						if (cell1.groupID !== cell2.groupID) continue; // jen vlastní splity
+			  for (let i = 0; i < aiCells.length; i++) {
+				for (let j = i + 1; j < aiCells.length; j++) {
+				  const cell1 = aiCells[i];
+				  const cell2 = aiCells[j];
+				  if (cell1.groupID !== cell2.groupID) continue;
 
-						if (
-							cell1.mergeTimer > 0 && cell1.mergeTimer <= MERGE_PULL_START_TIME &&
-							cell2.mergeTimer > 0 && cell2.mergeTimer <= MERGE_PULL_START_TIME
-						) {
-							const dx = cell2.x - cell1.x;
-							const dy = cell2.y - cell1.y;
-							const pullStrength = 0.01;
-							cell1.x += dx * pullStrength;
-							cell1.y += dy * pullStrength;
-							cell2.x -= dx * pullStrength;
-							cell2.y -= dy * pullStrength;
-						}
+				  // pokud je jedna z buněk ve fázi mergeTimer > 0, zabráníme překrytí
+				  if (cell1.mergeTimer > 0 || cell2.mergeTimer > 0) {
+					const dx   = cell2.x - cell1.x;
+					const dy   = cell2.y - cell1.y;
+					const dist = Math.hypot(dx, dy);
+					const minDist = cell1.radius + cell2.radius;
 
-						if (cell1.mergeTimer > 0 || cell2.mergeTimer > 0) {
-							const dx = cell2.x - cell1.x;
-							const dy = cell2.y - cell1.y;
-							const dist = Math.sqrt(dx * dx + dy * dy);
-							const minDist = cell1.radius + cell2.radius;
+					if (dist > 0 && dist < minDist) {
+					  const overlap = (minDist - dist) / 2;
+					  const ox = (dx / dist) * overlap;
+					  const oy = (dy / dist) * overlap;
 
-							if (dist < minDist) {
-								const overlap = (minDist - dist) / 2;
-								const ox = (dx / dist) * overlap;
-								const oy = (dy / dist) * overlap;
-
-								cell1.x -= ox;
-								cell1.y -= oy;
-								cell2.x += ox;
-								cell2.y += oy;
-							}
-						}
+					  cell1.x -= ox;
+					  cell1.y -= oy;
+					  cell2.x += ox;
+					  cell2.y += oy;
 					}
+				  }
 				}
+			  }
 			}
+
 
 
 			function handlePlayerMerging() {
@@ -1135,6 +1247,26 @@
 		}
 
 
+		function showBestMacrophageScreen() {
+			isGameOver = true;
+			cancelAnimationFrame(animationFrameId);
+			const totalMass = playerCells.reduce((sum, cell) => sum + cell.mass, 0);
+			finalMassDisplay.textContent = Math.round(totalMass);
+
+			const maxMassElement = document.getElementById('maxMassElement');
+			maxMassElement.innerHTML = `<span style="
+				font-size: 3em;
+				font-weight: bold;
+				background: linear-gradient(90deg, red, orange, yellow, green, cyan, blue, violet);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				display: inline-block;
+			">NEJLEPŠÍ MAKROFÁG</span>`;
+
+			hud.classList.add('hidden');
+			gameOverScreen.classList.remove('hidden');
+		}
+
 
 			window.addEventListener('mousemove', e => {
 				arrowControlActive = false;          // obnoví ovládání myší
@@ -1165,6 +1297,14 @@
 			if (e.code === 'KeyP' && !isGameOver && startScreen.classList.contains('hidden')) {
 				isPaused = !isPaused;
 			}
+			if (e.code === 'KeyB' && !isGameOver && startScreen.classList.contains('hidden')) {
+    // Cheat: přidá hráči +1000 mass rovnoměrně
+    const extra = 1000 / playerCells.length;
+    playerCells.forEach(cell => {
+        cell.mass += extra;
+        cell.updateRadius();
+    });
+}
 		});
 
 
