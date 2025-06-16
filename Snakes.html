@@ -12,55 +12,6 @@ body {
   overflow: hidden;
 }
   
-#headerBar {
-  height: 16px;
-  background-color: white;
-  display: flex;
-  align-items: center;
-  justify-content: space-between; 
-  padding: 0 10px;
-  z-index: 20;
-  top: 3px;
-  flex-shrink: 0;
-}
-
-
-	#hadiTitle {
-	  color: #ffcc00;
-	  font-family: 'IgnisEtGlaciesSharp', sans-serif;
-	  font-size: 18px;
-	  line-height: 1;
-	  text-shadow:
-		-1px -1px 0 #000,
-		 1px -1px 0 #000,
-		-1px  1px 0 #000,
-		 1px  1px 0 #000,
-		 0 0 6px #ff6600,
-		 0 0 12px #ff3300,
-		 0 0 20px rgba(255, 80, 0, 0.7);
-	  transition: text-shadow 0.2s;
-	}
-
-#backArrow {
-  display: inline-block;
-  color: #ffcc00;
-  font-size: 8px;
-  margin-right: 5px;
-  text-decoration: none;
-  text-shadow:
-    -1px -1px 0 #000,
-     1px -1px 0 #000,
-    -1px  1px 0 #000,
-     1px  1px 0 #000,
-     0 0 6px #ff6600,
-     0 0 12px #ff3300;
-  transition: transform 0.2s;
-}
-#backArrow:hover {
-  transform: scale(1.5);
-  cursor: pointer;
-}
-  
   
     @font-face {
 	  font-family: 'IgnisEtGlaciesSharp';
@@ -232,10 +183,6 @@ body {
   </style>
 </head>
 <body>
-<div id="headerBar">
-  <span id="hadiTitle">HADI</span>
-  <a href="index.html" id="backArrow">&#x25C0;</a>
-</div>
 
   <!-- Horní lišta s tlačítky hráčů a startem -->
   <div id="topBar">
@@ -287,7 +234,7 @@ body {
   const resultText = document.getElementById('resultText');
   
 
-const colorCycle = ['orange', 'red', 'purple', 'blue', 'green', 'brown'];
+const colorCycle = ['orange', 'red', 'purple', 'blue', 'green', 'brown', 'black'];
 let playerColorIndexes = [null, null, null, null]; // výběrový index pro každého hráče
 
 
@@ -447,7 +394,7 @@ const updateLabel = () => {
 
   const btnColor = (playerColorIndexes[idx] !== null)
     ? colorCycle[playerColorIndexes[idx]]
-    : 'black';
+    : '#888';
 
 	btn.innerHTML =
 	  '<span class="kbdGroup" style="display:inline-flex; gap:4px;">' +

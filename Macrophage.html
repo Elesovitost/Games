@@ -162,6 +162,7 @@
 
         // --- HERNÍ STAVOVÉ PROMĚNNÉ ---
         let world = { width: 0, height: 0 };
+		let lastKnownPlayerCenter = null;
         let playerCells = [];
         let aiCells = [];
         let food = [];
@@ -1146,18 +1147,21 @@
 			}
 
 
-        function getPlayerCenter() {
-            if (playerCells.length === 0) {
-                return { x: world.width / 2, y: world.height / 2 };
-            }
-            let totalX = 0, totalY = 0, totalMass = 0;
-            playerCells.forEach(cell => {
-                totalX += cell.x * cell.mass;
-                totalY += cell.y * cell.mass;
-                totalMass += cell.mass;
-            });
-            return { x: totalX / totalMass, y: totalY / totalMass };
-        }
+		function getPlayerCenter() {
+		  if (playerCells.length === 0) {
+			return lastKnownPlayerCenter || { x: world.width / 2, y: world.height / 2 };
+		  }
+		  let totalX = 0, totalY = 0, totalMass = 0;
+		  playerCells.forEach(cell => {
+			totalX += cell.x * cell.mass;
+			totalY += cell.y * cell.mass;
+			totalMass += cell.mass;
+		  });
+		  const center = { x: totalX / totalMass, y: totalY / totalMass };
+		  lastKnownPlayerCenter = center; // uložíme pro případ budoucí prázdnoty
+		  return center;
+		}
+
         
 		function updateHUD() {
 		  const totalMass = playerCells.reduce((sum, cell) => sum + cell.mass, 0);
@@ -1231,20 +1235,28 @@
 		  }
 		}
 
-
+		let gameOverTimeoutId = null;
 		function endGame() {
-			isGameOver = true;
-			cancelAnimationFrame(animationFrameId);
-			const totalMass = playerCells.reduce((sum, cell) => sum + cell.mass, 0);
-			finalMassDisplay.textContent = Math.round(totalMass);
+		  if (gameOverTimeoutId !== null) return; // ZABRÁNÍ opakovanému volání!
 
-			// Nastav text jen do existujícího <p> elementu
-			const maxMassElement = document.getElementById('maxMassElement');
-			maxMassElement.textContent = `Maximální dosažená hmotnost: ${Math.round(maxPlayerMass)}`;
+		  lastKnownPlayerCenter = getPlayerCenter();
 
-			hud.classList.add('hidden');
+		  const totalMass = playerCells.reduce((sum, cell) => sum + cell.mass, 0);
+		  finalMassDisplay.textContent = Math.round(totalMass);
+		  const maxMassElement = document.getElementById('maxMassElement');
+		  maxMassElement.textContent = `Maximální dosažená hmotnost: ${Math.round(maxPlayerMass)}`;
+
+		  hud.classList.add('hidden');
+
+		  gameOverTimeoutId = setTimeout(() => {
+			isGameOver = true; // Tím vypneš update + loop
+			cancelAnimationFrame(animationFrameId); // pro jistotu
 			gameOverScreen.classList.remove('hidden');
+			gameOverTimeoutId = null; // reset, aby šlo opakovat
+		  }, 3000);
 		}
+
+
 
 
 		function showBestMacrophageScreen() {
@@ -1324,13 +1336,15 @@
 		});
 
 		restartButton.addEventListener('click', () => {
-			isGameOver = false;
-			gameOverScreen.classList.add('hidden');
-			startScreen.classList.add('hidden');
-			hud.classList.remove('hidden');
-			init();            // reset mapy
-			gameLoop();        // <<< znovu spustí loop!
+		  if (animationFrameId) cancelAnimationFrame(animationFrameId); // <-- TADY ZASTAV!
+		  isGameOver = false;
+		  gameOverScreen.classList.add('hidden');
+		  startScreen.classList.add('hidden');
+		  hud.classList.remove('hidden');
+		  init();
+		  gameLoop(); // spustí NOVÝ loop
 		});
+
 
 
 		init();
