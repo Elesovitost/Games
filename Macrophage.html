@@ -186,6 +186,9 @@
 			const s = sound.cloneNode();
 			s.play();
 		}
+		const backgroundMusic = new Audio('Macrophage-background.mp3');
+		backgroundMusic.loop = true;
+		backgroundMusic.volume = 0.5; // Volitelně, hlasitost od 0 do 1
 
 		// tyčinky na bakteriích
 		function drawRadialSticks(context, x, y, radius, mass, options = {}) {
@@ -1253,6 +1256,7 @@
 			cancelAnimationFrame(animationFrameId); // pro jistotu
 			gameOverScreen.classList.remove('hidden');
 			gameOverTimeoutId = null; // reset, aby šlo opakovat
+			backgroundMusic.currentTime = 0;
 		  }, 3000);
 		}
 
@@ -1277,6 +1281,8 @@
 
 			hud.classList.add('hidden');
 			gameOverScreen.classList.remove('hidden');
+			backgroundMusic.pause();
+			backgroundMusic.currentTime = 0;
 		}
 
 
@@ -1333,6 +1339,7 @@
 			hud.classList.remove('hidden');
 			gameOverScreen.classList.add('hidden');
 			isGameOver = false; // důležité!
+			backgroundMusic.play();
 		});
 
 		restartButton.addEventListener('click', () => {
