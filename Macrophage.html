@@ -135,6 +135,7 @@
         const startButton = document.getElementById('startButton');
         const restartButton = document.getElementById('restartButton');
         const massDisplay = document.getElementById('massDisplay');
+		let cameraCenter = null;
         const finalMassDisplay = document.getElementById('finalMass');
         const cellCountDisplay = document.getElementById('cellCountDisplay');
         const hud = document.getElementById('hud');
@@ -145,7 +146,7 @@
         const WORLD_SCALE_FACTOR = 3; 
         const INITIAL_PLAYER_MASS = 50; // VAŠE HODNOTA
         const FOOD_COUNT = 300;
-        const AI_COUNT = 25;
+        const AI_COUNT = 20;
 		const RADIUS_SCALE_FACTOR = 5; // VAŠE HODNOTA
         const MIN_MASS_TO_SPLIT = 40;
         const MIN_MASS_TO_EAT = 1.2;
@@ -171,6 +172,19 @@
         let isGameOver = false;
 		let maxPlayerMass = 0;
 		let isPaused = false; 
+		
+		
+		//NÁZVy
+		const AI_NAMES = [
+		  "Influenza", "HIV", "Hepatitis", "Herpes", "Coronavirus", "Rotavirus", "Norovirus",
+		  "RSV", "Rubella", "Enterovirus", "Streptococcus", "Staphylococcus", "Escherichia",
+		  "Salmonella", "Clostridium", "Mycobacterium", "Neisseria", "Pseudomonas",
+		  "Bordetella", "Shigella", "Listeria", "Klebsiella", "Legionella"
+		];
+		const AVAILABLE_AI_NAMES = [...AI_NAMES];
+			
+			
+		
 		
 		// klávesy
 		let keys = {
@@ -384,14 +398,22 @@
 
 
 
-        class AiCell extends Cell {
-            constructor(x, y, mass, groupID = null) {
-                super(x, y, mass);
+			class AiCell extends Cell {
+			  constructor(x, y, mass, groupID = null, name = null) {
+				super(x, y, mass);
 				this.groupID = groupID || Math.random().toString(36).substr(2, 9);
-                this.aiState = 'wandering';
-                this.decisionTimer = 0;
+				this.aiState = 'wandering';
+				this.decisionTimer = 0;
 				this.mergeTimer = 0;
-            }
+
+				// Při prvním vytvoření dostane nové unikátní jméno:
+				if (!name) {
+				  this.name = AVAILABLE_AI_NAMES.shift() || "Unknown";
+				} else {
+				  this.name = name; // Při splitu se dědí!
+				}
+			  }
+
 			
 			
 			draw(context) {
@@ -414,6 +436,14 @@
 				context.lineWidth = Math.max(2, this.radius * 0.05);
 				context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
 				context.stroke();
+				
+				const fontSize = Math.max(8, 8 + 28 * Math.pow(this.mass / 10000, 0.5));
+				context.fillStyle = '#fff';
+				context.font = `${fontSize}px Arial`;
+				context.textAlign = 'center';
+				context.textBaseline = 'middle';
+				context.fillText(this.name, this.x, this.y);
+				Math.max(8, 8 + 28 * Math.pow(this.mass / 10000, 0.5))
 			}
 
 			
@@ -651,7 +681,7 @@
 			  const angle = Math.atan2(target.y - this.y, target.x - this.x);
 
 			  // 4) Vytvoříme dceřinou buňku se split-velocity
-			  const newCell = new AiCell(this.x, this.y, this.mass, this.groupID);
+			  const newCell = new AiCell(this.x, this.y, this.mass, this.groupID, this.name);
 			  newCell.color = this.color;
 			  newCell.mergeTimer = MERGE_TOTAL_TIME;
 			  const launchSpeed = 20;
@@ -681,7 +711,7 @@
 				this.updateRadius();
 
 				const newMass = this.mass;
-				const newCell = new AiCell(this.x, this.y, newMass, this.groupID);
+				const newCell = new AiCell(this.x, this.y, newMass, this.groupID, this.name);
 				newCell.color = this.color;
 				
 				// Obě buňky dostanou časovač, aby se hned nespojily
@@ -748,6 +778,7 @@
 		}
 
 			function init() {
+				cameraCenter = getPlayerCenter();
 				isGameOver = false;
 				canvas.width = window.innerWidth;
 				canvas.height = window.innerHeight;
@@ -783,8 +814,10 @@
 		
         function update() {
 			const playerCenter = getPlayerCenter();
-			const camX = -playerCenter.x + canvas.width / 2;
-			const camY = -playerCenter.y + canvas.height / 2;
+			cameraCenter.x += (playerCenter.x - cameraCenter.x) * 0.1;  // poměr 0.1 = rychlost
+			cameraCenter.y += (playerCenter.y - cameraCenter.y) * 0.1;
+			const camX = -cameraCenter.x + canvas.width / 2;
+			const camY = -cameraCenter.y + canvas.height / 2;
 			const clampedCamX = Math.max(Math.min(camX, 0), canvas.width - world.width);
 			const clampedCamY = Math.max(Math.min(camY, 0), canvas.height - world.height);
 			const worldMouseX = mouse.x - clampedCamX;
@@ -862,7 +895,7 @@
 			const maxGroupMass = Math.max(...allGroupMasses);
 
 			// Podmínka: mám aspoň 10 000 a jsem největší ze všech
-			if (playerMass >= 10000 && playerMass === maxGroupMass && !isGameOver) {
+			if (playerMass >= 20000 && playerMass === maxGroupMass && !isGameOver) {
 				showBestMacrophageScreen();
 			}
 
@@ -876,8 +909,8 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.save();
             const playerCenter = getPlayerCenter();
-            const camX = -playerCenter.x + canvas.width / 2;
-            const camY = -playerCenter.y + canvas.height / 2;
+			const camX = -cameraCenter.x + canvas.width / 2;
+			const camY = -cameraCenter.y + canvas.height / 2;
             const clampedCamX = Math.max(Math.min(camX, 0), canvas.width - world.width);
             const clampedCamY = Math.max(Math.min(camY, 0), canvas.height - world.height);
             ctx.translate(clampedCamX, clampedCamY);
@@ -992,13 +1025,15 @@
 				}
 				index = aiCells.indexOf(cellToRemove);
 				if (index > -1) {
-					aiCells.splice(index, 1);
-					// Přidá novou AI jen pokud celkový počet AI je menší než AI_COUNT
-					if (aiCells.length < AI_COUNT) {
-						const mass = Math.random() * 80 + 30;
-						aiCells.push(new AiCell(Math.random() * world.width, Math.random() * world.height, mass));
-					}
+				  // vrátí jméno zpět do poolu
+				  AVAILABLE_AI_NAMES.push(aiCells[index].name);
+				  aiCells.splice(index, 1);
+				  if (aiCells.length < AI_COUNT) {
+					const mass = Math.random() * 80 + 30;
+					aiCells.push(new AiCell(Math.random() * world.width, Math.random() * world.height, mass));
+				  }
 				}
+
 			}
 
 			// --- NOVÉ applyMergeForce: během mergeTimer>0 jen separace (žádný pull) ---
@@ -1178,36 +1213,55 @@
 		  // === NOVÝ LEADERBOARD ===
 		  const leaderboardMap = new Map();
 
-		  // 1) Hráč: všechny jeho buňky jako jeden záznam
-		  leaderboardMap.set('Player', playerCells.reduce((sum, c) => sum + c.mass, 0));
+		  // 1) Hráč
+		  leaderboardMap.set('Player', totalMass);
 
-		  // 2) AI: seskupit podle groupID
+		  // 2) AI - seskupit podle groupID a uložit i leadera
+		  const aiGroupLeaders = new Map();
+
 		  for (const ai of aiCells) {
 			const id = ai.groupID;
-			const prev = leaderboardMap.get(id) || 0;
-			leaderboardMap.set(id, prev + ai.mass);
+			const prevMass = leaderboardMap.get(id) || 0;
+			leaderboardMap.set(id, prevMass + ai.mass);
+
+			// Ulož leadera s největší mass
+			if (!aiGroupLeaders.has(id) || ai.mass > aiGroupLeaders.get(id).mass) {
+			  aiGroupLeaders.set(id, ai);
+			}
 		  }
 
-		  // 3) Převést na pole a seřadit
+		  // 3) Převést na pole
 		  const allGroups = [];
 		  for (const [key, mass] of leaderboardMap) {
-			const label = key === 'Player' ? 'Hráč' : 'AI';
-			allGroups.push({ label, mass });
+			let label;
+			if (key === 'Player') {
+			  label = 'Makrofág'; // ✅ Fix: jméno hráče
+			} else {
+			  const leader = aiGroupLeaders.get(key);
+			  label = leader ? leader.name : 'AI';
+			}
+			allGroups.push({ label, mass, isPlayer: key === 'Player' });
 		  }
 
+		  // 4) Seřadit sestupně podle mass
 		  allGroups.sort((a, b) => b.mass - a.mass);
 
-		  // 4) Top 10
+		  // 5) Top 10
 		  const top10 = allGroups.slice(0, 10);
 
-		  // 5) Vykreslit
+		  // 6) Vykreslit
 		  let html = `<strong>Top 10:</strong><br>`;
 		  top10.forEach((entry, idx) => {
-			html += `${idx + 1}. ${entry.label}: ${Math.round(entry.mass)}<br>`;
+			if (entry.isPlayer) {
+			  html += `<strong>${idx + 1}. ${entry.label}: ${Math.round(entry.mass)}</strong><br>`;
+			} else {
+			  html += `${idx + 1}. ${entry.label}: ${Math.round(entry.mass)}<br>`;
+			}
 		  });
 
 		  leaderboard.innerHTML = html;
 		}
+
 
 
 
