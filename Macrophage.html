@@ -117,6 +117,17 @@
 		<p id="maxMassElement"></p> <!-- <<< DOPLNIT TADY -->
 		<button id="restartButton">Hrát Znovu</button>
 	</div>
+	
+	<div id="victoryAnimationContainer" class="hidden" style="
+	  position: absolute;
+	  top: 20px;
+	  left: 50%;
+	  transform: translateX(-50%);
+	  z-index: 20;
+	  pointer-events: none;
+	">
+	  <img id="victoryGif" src="" style="max-height: 200px;" />
+	</div>
 
 
     <script>
@@ -126,6 +137,9 @@
 		const eatBigSound = new Audio('Macrophage-eat-big.mp3');
 		const splitSound = new Audio('Macrophage-split.mp3');
 		const fuseSound = new Audio('Macrophage-fuse.mp3');
+		const victoryAnimationContainer = document.getElementById('victoryAnimationContainer');
+		const victoryGif = document.getElementById('victoryGif');
+		let victoryMusic = null;
 
 
         const canvas = document.getElementById('gameCanvas');
@@ -152,6 +166,7 @@
         const MIN_MASS_TO_EAT = 1.2;
         const MASS_LOSS_PER_FRAME = 0.00000; // VAŠE HODNOTA - KORF ÚBYTKU MASY standard 0.00005
 		let bacteriaFoodMultiplier = 1;  // cheat
+		
         
         // --- KONSTANTY PRO NOVOU MECHANIKU DĚLENÍ ---
         const MERGE_TOTAL_TIME = 15; // Celkový čas do možnosti sloučení (10s + 5s)
@@ -304,7 +319,7 @@
                 context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 context.fill();
                 context.strokeStyle = this.getStrokeColor();
-                context.lineWidth = Math.max(2, this.radius * 0.05);
+                context.lineWidth = Math.max(2, this.radius * 0.01);
                 context.stroke();
                 context.closePath();
             }
@@ -334,6 +349,7 @@
 			class PlayerCell extends Cell {
 				constructor(x, y, mass) {
 					super(x, y, mass, '#3498db');
+					this.residues = [];
 					this.mergeTimer = 0; 
 					this.splitVelocity = { x: 0, y: 0 };
 					this.vx = 0;   // okamžitá rychlost po ose X
@@ -383,7 +399,7 @@
 
 					// obrys
 					context.strokeStyle = this.getStrokeColor();
-					context.lineWidth = Math.max(2, this.radius * 0.05);
+					context.lineWidth = Math.max(2, this.radius * 0.01);
 					context.stroke();
 
 					// číslo uprostřed
@@ -433,7 +449,7 @@
 				// Obvod
 				context.beginPath();
 				context.strokeStyle = this.getStrokeColor();
-				context.lineWidth = Math.max(2, this.radius * 0.05);
+				context.lineWidth = Math.max(2, this.radius * 0.01);
 				context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
 				context.stroke();
 				
@@ -753,6 +769,54 @@
 
         }
 
+		class Residue {
+		  constructor(name, mass) {
+			this.name = name;
+			this.mass = mass;
+			this.radius = RADIUS_SCALE_FACTOR * Math.sqrt(mass / Math.PI);
+			this.x = 0; // pozice relativně k centru hráče
+			this.y = 0;
+			this.vx = (Math.random() - 0.5) * 0.5;
+			this.vy = (Math.random() - 0.5) * 0.5;
+			this.baseFontSize = Math.max(8, 8 + 28 * Math.pow(mass / 10000, 0.5));
+		  }
+
+		  update(playerRadius) {
+			this.x += this.vx;
+			this.y += this.vy;
+
+			// odraz od okraje hráče:
+			const dist = Math.hypot(this.x, this.y);
+			const maxDist = playerRadius - 10; // 10px buffer od obvodu
+			if (dist + this.radius > maxDist) {
+			  const nx = this.x / dist;
+			  const ny = this.y / dist;
+			  const dot = this.vx * nx + this.vy * ny;
+			  this.vx -= 2 * dot * nx;
+			  this.vy -= 2 * dot * ny;
+			}
+
+		  }
+
+		  draw(context, centerX, centerY) {
+			const px = centerX + this.x;
+			const py = centerY + this.y;
+			context.beginPath();
+			context.strokeStyle = '#444'; // šedý obrys
+			context.lineWidth = 2;
+			context.arc(px, py, this.radius, 0, Math.PI * 2);
+			context.stroke();
+
+			context.fillStyle = '#444'; // šedý text
+			context.font = `${this.baseFontSize}px Arial`; 
+			context.textAlign = 'center';
+			context.textBaseline = 'middle';
+			context.fillText(this.name, px, py);
+		  }
+		}
+
+
+
 		// VAŠE TŘÍDA PRO JÍDLO
 		class Food {
 			constructor(x, y) {
@@ -894,10 +958,16 @@
 			// Najít největší skupinu
 			const maxGroupMass = Math.max(...allGroupMasses);
 
-			// Podmínka: mám aspoň 10 000 a jsem největší ze všech
+			// Podmínka: mám aspoň 20000 a jsem největší ze všech
 			if (playerMass >= 20000 && playerMass === maxGroupMass && !isGameOver) {
-				showBestMacrophageScreen();
+				if (!gameOverTimeoutId) {
+					gameOverTimeoutId = setTimeout(() => {
+						showBestMacrophageScreen();
+						gameOverTimeoutId = null;
+					}, 1000); // 2 sekundy prodleva
+				}
 			}
+
 
 			
             updateHUD();
@@ -919,6 +989,18 @@
             const allCells = [...playerCells, ...aiCells].sort((a, b) => a.mass - b.mass);
             allCells.forEach(cell => cell.draw(ctx));
             ctx.restore();
+			
+			playerCells.forEach(cell => {
+			  const centerX = cell.x + clampedCamX;
+			  const centerY = cell.y + clampedCamY;
+			  const playerRadius = cell.radius;
+
+			  cell.residues.forEach(r => {
+				r.update(playerRadius);
+				r.draw(ctx, centerX, centerY);
+			  });
+			});
+
 			
 			    // <<< TADY: když pauza, napiš text
 			if (isPaused) {
@@ -1002,10 +1084,14 @@
 							bigger.mass += smaller.mass;
 							bigger.updateRadius();
 							
-							        // Pokud bigger je hráč a smaller je AI:
-								if (playerCells.includes(bigger) && aiCells.includes(smaller)) {
-									playSound(eatBigSound);
-								}
+					if (playerCells.includes(bigger) && aiCells.includes(smaller)) {
+					  playSound(eatBigSound);
+
+					  const residue = new Residue(smaller.name, smaller.mass);
+					  bigger.residues.push(residue);
+					}
+
+
 							
 							removeCell(smaller);
 							allMovingCells.splice(j, 1);
@@ -1117,6 +1203,7 @@
 								bigger.mergeTimer = 0;
 								bigger.splitVelocity.x = 0;
 								bigger.splitVelocity.y = 0;
+								bigger.residues.push(...smaller.residues);
 								playerCells.splice(playerCells.indexOf(smaller), 1);
 								j--;
 								playSound(fuseSound);
@@ -1168,6 +1255,11 @@
 				const cellsToSplit = [...playerCells];
 				for (const cell of cellsToSplit) {
 					if (cell.mass >= MIN_MASS_TO_SPLIT) {
+					cell.residues.forEach(r => {
+					  r.x = 0;
+					  r.y = 0;
+					});
+					cell.residues = cell.residues.filter(r => r.radius < 0.8 * cell.radius);
 						cell.mass /= 2;
 						cell.updateRadius();
 						const newMass = cell.mass;
@@ -1318,25 +1410,50 @@
 
 
 		function showBestMacrophageScreen() {
-			isGameOver = true;
-			cancelAnimationFrame(animationFrameId);
-			const totalMass = playerCells.reduce((sum, cell) => sum + cell.mass, 0);
-			finalMassDisplay.textContent = Math.round(totalMass);
+		  isGameOver = true;
+		  cancelAnimationFrame(animationFrameId);
 
-			const maxMassElement = document.getElementById('maxMassElement');
-			maxMassElement.innerHTML = `<span style="
-				font-size: 3em;
-				font-weight: bold;
-				background: linear-gradient(90deg, red, orange, yellow, green, cyan, blue, violet);
-				-webkit-background-clip: text;
-				-webkit-text-fill-color: transparent;
-				display: inline-block;
-			">NEJLEPŠÍ MAKROFÁG</span>`;
+		  const totalMass = playerCells.reduce((sum, cell) => sum + cell.mass, 0);
+		  finalMassDisplay.textContent = Math.round(totalMass);
 
-			hud.classList.add('hidden');
-			gameOverScreen.classList.remove('hidden');
-			backgroundMusic.pause();
-			backgroundMusic.currentTime = 0;
+		  const maxMassElement = document.getElementById('maxMassElement');
+		  maxMassElement.innerHTML = `<span style="
+			font-size: 3em;
+			font-weight: bold;
+			background: linear-gradient(90deg, red, orange, yellow, green, cyan, blue, violet);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			display: inline-block;
+		  ">NEJLEPŠÍ MAKROFÁG</span>`;
+
+		  hud.classList.add('hidden');
+		  gameOverScreen.classList.remove('hidden');
+		  backgroundMusic.pause();
+		  backgroundMusic.currentTime = 0;
+
+		  // === NOVÉ ===
+		  const randomGif = `dance${Math.floor(Math.random() * 17 + 1)}.gif`;
+		  const randomMusic = `music${Math.floor(Math.random() * 7 + 1)}.mp3`;
+
+		  victoryGif.src = randomGif;
+		  victoryAnimationContainer.classList.remove('hidden');
+
+		  victoryMusic = new Audio(randomMusic);
+		  victoryMusic.play();
+
+		  // Když dohraje:
+		  victoryMusic.onended = stopVictoryAnimation;
+		}
+
+
+		function stopVictoryAnimation() {
+		  victoryAnimationContainer.classList.add('hidden');
+		  victoryGif.src = '';
+		  if (victoryMusic) {
+			victoryMusic.pause();
+			victoryMusic.currentTime = 0;
+			victoryMusic = null;
+		  }
 		}
 
 
@@ -1398,6 +1515,7 @@
 
 		restartButton.addEventListener('click', () => {
 		  if (animationFrameId) cancelAnimationFrame(animationFrameId); // <-- TADY ZASTAV!
+		  stopVictoryAnimation();
 		  isGameOver = false;
 		  gameOverScreen.classList.add('hidden');
 		  startScreen.classList.add('hidden');

@@ -105,6 +105,31 @@ opacity:0.95;
   100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 }
 
+/* 1s po přidání 3 stejně barevných medailí – chvění */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25%,75% { transform: translateX(-5px); }
+  50%     { transform: translateX(5px); }
+}
+.medal.shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* bleskový výbuch při spojení */
+.flash-effect {
+  position: absolute;
+  width: 60px; height: 60px;
+  background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: flash 0.5s forwards;
+  transform: translate(-50%, -50%) scale(0);
+}
+@keyframes flash {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scale(0); }
+  50%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+}
 
 .dip-effect {
   animation: screen-dip 0.5s ease-out;
@@ -126,6 +151,11 @@ img {max-width:80vw;height:auto;}
 
 /* kolečko settings rotace */
 #settings-toggle { width:48px; height:42px; font-size:24px; line-height:40px; text-align:center; display:inline-block; transform-origin:center; } #settings-toggle:hover { animation: rotate360 1s linear infinite; } @keyframes rotate360 { to { transform: rotate(360deg); } }
+
+.medal.pop-in {
+  animation: pop-in 0.2s ease-out;
+}
+
 </style>
 
 </head>
@@ -219,6 +249,9 @@ img {max-width:80vw;height:auto;}
   <audio id="sound-correct" src="correct.mp3"></audio>
   <audio id="sound-wrong" src="wrong.mp3"></audio>
   <audio id="sound-win" src="win.mp3"></audio>
+  <audio id="sound-metal-fall" src="sound-metal-fall.mp3"></audio>
+  <audio id="sound-metal-fuse" src="sound-metal-fuse.mp3"></audio>
+
 
 <div id="win-banner" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:64px;font-weight:bold;color:gold;text-shadow:4px 4px 10px black;z-index:9999;display:none;animation:pop-win 1s ease-out;">VYHRÁL JSI!</div>
 
@@ -1153,7 +1186,7 @@ function showCelebration() {
   const gif = document.getElementById('gif-animation');
 
   // === Animace ===
-  const gifCount = 13; // např. dance1.gif až dance5.gif
+  const gifCount = 15; // např. dance1.gif až dance5.gif
   const randomGif = Math.floor(Math.random() * gifCount) + 1;
   gif.src = `dance${randomGif}.gif`;
 
@@ -1245,7 +1278,7 @@ function addProgress(points) {
     }
 
     progressPoints = 0;
-    addMedal();
+    addMedal("bronze");
     progressLayer = (progressLayer + 1) % maxLayer;
   }
 
@@ -1289,37 +1322,126 @@ function resetProgressBar() {
 
 // MEDAILE
 
-function addMedal() {
-  medals.bronze += 1;
-
-  while (medals.bronze >= 3) {
-    medals.bronze -= 3;
-    medals.silver += 1;
+function updateMedals() {
+  const container = document.getElementById("medals-container");
+  container.innerHTML = "";
+  // vytvoří span pro každou trofej
+  for (let i = 0; i < (medals.trophy||0); i++) {
+    const s = document.createElement("span");
+    s.className = "medal trophy";
+    s.textContent = "🏆";
+    container.appendChild(s);
   }
-  while (medals.silver >= 3) {
-    medals.silver -= 3;
-    medals.gold += 1;
-  }
+  // a pak medaile gold, silver, bronze
+  ["gold","silver","bronze"].forEach(type => {
+    const icon = type==="gold"?"🥇":type==="silver"?"🥈":"🥉";
+    for (let i = 0; i < medals[type]; i++) {
+      const s = document.createElement("span");
+      s.className = `medal ${type}`;
+      s.textContent = icon;
+      container.appendChild(s);
+    }
+  });
+  // titul zobrazíme jen pokud je alespoň jedna
+  document.getElementById("medals-today-title").style.display =
+    (medals.gold||medals.silver||medals.bronze||medals.trophy) ? "block" : "none";
+}
 
-  // Spustí animaci a až po jejím konci aktualizuje řádek medailí
-  animateMedal("bronze", () => {
+function addMedal(type = "bronze") {
+  medals[type]++;
+  animateMedal(type, () => {
+    playSound("sound-metal-fall");
     updateMedals();
     saveMedals();
-    showCelebration();
+    tryMerge(type, () => {
+      setTimeout(() => {
+        showCelebration();
+      }, 500);
+    });
   });
 }
 
 
-function updateMedals() {
-  const container = document.getElementById("medals-container");
-  container.innerHTML =
-    "🥇".repeat(medals.gold) +
-    "🥈".repeat(medals.silver) +
-    "🥉".repeat(medals.bronze);
 
-  const hasAny = medals.gold || medals.silver || medals.bronze;
-  document.getElementById("medals-today-title").style.display = hasAny ? "block" : "none";
+function tryMerge(type, onComplete) {
+  let nextType = null;
+  if (type === "bronze" && medals.bronze >= 3) nextType = "silver";
+  else if (type === "silver" && medals.silver >= 3) nextType = "gold";
+  else if (type === "gold" && medals.gold >= 3) nextType = "trophy";
+
+  if (nextType) {
+    merge(type, nextType, onComplete);
+  } else {
+    if (onComplete) onComplete();
+  }
 }
+
+
+
+function merge(type, nextType, onComplete) {
+  const container = document.getElementById("medals-container");
+  const spans = Array.from(container.querySelectorAll(`.medal.${type}`)).slice(-3);
+  spans.forEach(s => s.classList.add("shake"));
+
+  setTimeout(() => {
+    spans.forEach(s => s.remove());
+    medals[type] -= 3;
+    medals[nextType] = (medals[nextType] || 0) + 1;
+    saveMedals();
+    updateMedals();
+
+    playSound("sound-metal-fuse");
+
+    animatePopNext(nextType, () => {
+      // ⏳ ZKUS další merge
+      let hasNext = false;
+      if (nextType === "bronze" && medals.bronze >= 3) hasNext = true;
+      else if (nextType === "silver" && medals.silver >= 3) hasNext = true;
+      else if (nextType === "gold" && medals.gold >= 3) hasNext = true;
+
+      if (hasNext) {
+        merge(nextType, nextMedal(nextType), onComplete);
+      } else {
+        // ⏳ KONEC všech merge → AŽ TEĎ zavoláme onComplete
+        if (onComplete) onComplete();
+      }
+    });
+
+  }, 400);
+}
+
+// pomocná funkce:
+function nextMedal(type) {
+  if (type === "bronze") return "silver";
+  if (type === "silver") return "gold";
+  if (type === "gold") return "trophy";
+  return null;
+}
+
+
+
+
+function animatePopNext(type, onComplete = null) {
+  const span = document.querySelector(`#medals-container .medal.${type}:last-child`);
+  if (!span) {
+    if (onComplete) onComplete();
+    return;
+  }
+  const rect = span.getBoundingClientRect();
+  const flash = document.createElement("div");
+  flash.className = "flash-effect";
+  flash.style.left = `${rect.left + rect.width/2}px`;
+  flash.style.top  = `${rect.top  + rect.height/2}px`;
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 500);
+
+  span.classList.add("pop-in");
+  span.addEventListener("animationend", () => {
+    span.classList.remove("pop-in");
+    if (onComplete) onComplete();
+  }, { once: true });
+}
+
 
 
 
@@ -1373,11 +1495,12 @@ function animateMedal(type, onComplete = null) {
 
 // reset medailí
 function resetTodayMedals() {
-  medals = { gold: 0, silver: 0, bronze: 0 };
+  medals = { gold: 0, silver: 0, bronze: 0, trophy: 0 };
   saveMedals();
   updateMedals();
   console.log("Dnešní medaile byly resetovány.");
 }
+
 
 // vítěz
 
