@@ -1368,6 +1368,7 @@ function tryMerge(type, onComplete) {
   if (type === "bronze" && medals.bronze >= 3) nextType = "silver";
   else if (type === "silver" && medals.silver >= 3) nextType = "gold";
   else if (type === "gold" && medals.gold >= 3) nextType = "trophy";
+  else if (type === "trophy" && medals.trophy >= 3) nextType = "crown"; // <-- DŮLEŽITÝ PŘIDANÝ ŘÁDEK
 
   if (nextType) {
     merge(type, nextType, onComplete);
@@ -1384,6 +1385,7 @@ function merge(type, nextType, onComplete) {
   spans.forEach(s => s.classList.add("shake"));
 
   setTimeout(() => {
+    // Odstranění starých a přidání nové medaile
     spans.forEach(s => s.remove());
     medals[type] -= 3;
     medals[nextType] = (medals[nextType] || 0) + 1;
@@ -1392,19 +1394,9 @@ function merge(type, nextType, onComplete) {
 
     playSound("sound-metal-fuse");
 
+    // Animace nové medaile a následné spuštění kontroly pro další slučování
     animatePopNext(nextType, () => {
-      // ⏳ ZKUS další merge
-      let hasNext = false;
-      if (nextType === "bronze" && medals.bronze >= 3) hasNext = true;
-      else if (nextType === "silver" && medals.silver >= 3) hasNext = true;
-      else if (nextType === "gold" && medals.gold >= 3) hasNext = true;
-
-      if (hasNext) {
-        merge(nextType, nextMedal(nextType), onComplete);
-      } else {
-        // ⏳ KONEC všech merge → AŽ TEĎ zavoláme onComplete
-        if (onComplete) onComplete();
-      }
+      tryMerge(nextType, onComplete);
     });
 
   }, 400);
@@ -1490,12 +1482,9 @@ function animateMedal(type, onComplete = null) {
 }
 
 
-
-
-
 // reset medailí
 function resetTodayMedals() {
-  medals = { gold: 0, silver: 0, bronze: 0, trophy: 0 };
+  medals = { gold: 0, silver: 0, bronze: 0, trophy: 0, crown: 0 };
   saveMedals();
   updateMedals();
   console.log("Dnešní medaile byly resetovány.");
