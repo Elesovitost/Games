@@ -191,11 +191,36 @@
 		
 		//NÁZVy
 		const AI_NAMES = [
-		  "Influenza", "HIV", "Hepatitis", "Herpes", "Coronavirus", "Rotavirus", "Norovirus",
-		  "RSV", "Rubella", "Enterovirus", "Streptococcus", "Staphylococcus", "Escherichia",
-		  "Salmonella", "Clostridium", "Mycobacterium", "Neisseria", "Pseudomonas",
-		  "Bordetella", "Shigella", "Listeria", "Klebsiella", "Legionella"
+		  "Chřipka",      
+		  "HIV",
+		  "Hepatitida",
+		  "Herpes",
+		  "Koronavir",
+		  "Rotavirus",
+		  "Norovirus",
+		  "RSV",
+		  "Rubeola",
+		  "Echovirus",
+		  "Pneumokok",
+		  "Stafylokok",
+		  "Salmonela",
+		  "Shigella",
+		  "Listerie",
+		  "Klebsiella",
+		  "Legionella",
+		  "Adenovirus",
+		  "Parvovirus",
+		  "Moraxella",
+		  "Morbili", 
+		  "Citrobacter",
+		  "Proteus",
+		  "Yersinia",
+		  "Brucella",
+		  "Vibrio",
+		  "Haemophilus",
+		  "Bacillus"
 		];
+
 		const AVAILABLE_AI_NAMES = [...AI_NAMES];
 			
 			
@@ -769,51 +794,165 @@
 
         }
 
-		class Residue {
-		  constructor(name, mass) {
-			this.name = name;
-			this.mass = mass;
-			this.radius = RADIUS_SCALE_FACTOR * Math.sqrt(mass / Math.PI);
-			this.x = 0; // pozice relativně k centru hráče
-			this.y = 0;
-			this.vx = (Math.random() - 0.5) * 0.5;
-			this.vy = (Math.random() - 0.5) * 0.5;
-			this.baseFontSize = Math.max(8, 8 + 28 * Math.pow(mass / 10000, 0.5));
-		  }
+	// === NOVÁ VERZE TŘÍDY Residue ===
+	class Residue {
+	  constructor(name, mass) {
+		this.name   = name;
+		this.mass   = mass;
+		this.radius = RADIUS_SCALE_FACTOR * Math.sqrt(mass / Math.PI);
 
-		  update(playerRadius) {
-			this.x += this.vx;
-			this.y += this.vy;
+		/* poloha vůči středu hostitelské buňky */
+		this.x  = 0;
+		this.y  = 0;
+		this.vx = (Math.random() - 0.5) * 0.5;
+		this.vy = (Math.random() - 0.5) * 0.5;
 
-			// odraz od okraje hráče:
-			const dist = Math.hypot(this.x, this.y);
-			const maxDist = playerRadius - 10; // 10px buffer od obvodu
-			if (dist + this.radius > maxDist) {
-			  const nx = this.x / dist;
-			  const ny = this.y / dist;
-			  const dot = this.vx * nx + this.vy * ny;
-			  this.vx -= 2 * dot * nx;
-			  this.vy -= 2 * dot * ny;
-			}
+		/* --- DECAY --- */
+		this.createdAt      = performance.now(); // čas vzniku
+		this.decayDelayMs   = 5000;              // 5 s do rozpadu
+		this.fadeDurationMs = 10000;              // 5 s na vyblednutí
+		this.decaying       = false;
 
-		  }
+		this.letterFrags  = []; // {char,x,y,vx,vy}
+		this.outlineFrags = []; // {x1,y1,x2,y2,vx,vy}
+		this.alpha        = 1;  // průhlednost 1→0
 
-		  draw(context, centerX, centerY) {
-			const px = centerX + this.x;
-			const py = centerY + this.y;
-			context.beginPath();
-			context.strokeStyle = '#444'; // šedý obrys
-			context.lineWidth = 2;
-			context.arc(px, py, this.radius, 0, Math.PI * 2);
-			context.stroke();
+		this.baseFontSize = Math.max(8, 8 + 28 * Math.pow(mass / 10000, 0.5));
+	  }
 
-			context.fillStyle = '#444'; // šedý text
-			context.font = `${this.baseFontSize}px Arial`; 
-			context.textAlign = 'center';
-			context.textBaseline = 'middle';
-			context.fillText(this.name, px, py);
-		  }
+	  startDecay() {
+		this.decaying = true;
+
+		/* písmena */
+		const chars = this.name.split('');
+		const step  = (Math.PI * 2) / chars.length;
+		chars.forEach((c, i) => {
+		  const a = i * step;
+		  this.letterFrags.push({
+			char: c,
+			x : Math.cos(a) * (this.radius * 0.2),
+			y : Math.sin(a) * (this.radius * 0.2),
+			vx: (Math.random() - 0.5) * 1.2,
+			vy: (Math.random() - 0.5) * 1.2,
+		  });
+		});
+
+		/* 20 úlomků obrysu */
+		for (let i = 0; i < 20; i++) {
+		  const a1 = (i / 20) * Math.PI * 2;
+		  const a2 = ((i + 1) / 20) * Math.PI * 2;
+		  this.outlineFrags.push({
+			x1: Math.cos(a1) * this.radius,
+			y1: Math.sin(a1) * this.radius,
+			x2: Math.cos(a2) * this.radius,
+			y2: Math.sin(a2) * this.radius,
+			vx: (Math.random() - 0.5) * 1,
+			vy: (Math.random() - 0.5) * 1,
+		  });
 		}
+
+	  }
+
+	  /* update vrací true, je-li reziduum zcela zaniklé */
+	  update(playerRadius) {
+		const now     = performance.now();
+		const elapsed = now - this.createdAt;
+
+		/* pohyb celku před rozpadem */
+		if (!this.decaying) {
+		  this.x += this.vx;
+		  this.y += this.vy;
+
+		  const dist    = Math.hypot(this.x, this.y);
+		  const maxDist = playerRadius - 10;
+		  if (dist + this.radius > maxDist) {
+			const nx = this.x / dist, ny = this.y / dist;
+			const dot = this.vx * nx + this.vy * ny;
+			this.vx -= 2 * dot * nx;
+			this.vy -= 2 * dot * ny;
+		  }
+		  if (elapsed >= this.decayDelayMs) this.startDecay();
+		  return false;
+		}
+
+		/* už se rozpadá */
+		const t = (elapsed - this.decayDelayMs) / this.fadeDurationMs; // 0→1
+		this.alpha = Math.max(0, 1 - t);
+
+		/* písmena */
+		this.letterFrags.forEach(f => {
+		  f.x += f.vx; f.y += f.vy;
+		  const d = Math.hypot(f.x, f.y);
+		  if (d > this.radius) {         // odraz od okraje rezidua
+			const nx = f.x / d, ny = f.y / d;
+			const dot = f.vx * nx + f.vy * ny;
+			f.vx -= 2 * dot * nx;
+			f.vy -= 2 * dot * ny;
+		  }
+		});
+
+		/* obrysové kousky */
+		this.outlineFrags.forEach(s => {
+		  s.x1 += s.vx; s.y1 += s.vy;
+		  s.x2 += s.vx; s.y2 += s.vy;
+		  const mx = (s.x1 + s.x2) * 0.5;
+		  const my = (s.y1 + s.y2) * 0.5;
+		  const d  = Math.hypot(mx, my);
+		  if (d > this.radius) {
+			const nx = mx / d, ny = my / d;
+			const dot = s.vx * nx + s.vy * ny;
+			s.vx -= 2 * dot * nx;
+			s.vy -= 2 * dot * ny;
+		  }
+		});
+
+		return this.alpha <= 0;
+	  }
+
+	  draw(ctx, cx, cy) {
+		ctx.save();
+		ctx.translate(cx + this.x, cy + this.y);
+		ctx.globalAlpha = this.alpha;
+
+		if (!this.decaying) {
+		  /* původní vzhled */
+		  ctx.beginPath();
+		  ctx.strokeStyle = '#444';
+		  ctx.lineWidth   = 2;
+		  ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+		  ctx.stroke();
+
+		  ctx.fillStyle = '#444';
+		  ctx.font      = `${this.baseFontSize}px Arial`;
+		  ctx.textAlign = 'center';
+		  ctx.textBaseline = 'middle';
+		  ctx.fillText(this.name, 0, 0);
+		  ctx.restore();
+		  return;
+		}
+
+		/* fragmenty obrysu */
+		ctx.strokeStyle = `rgba(68,68,68,${this.alpha})`;
+		ctx.lineWidth   = 2;
+		this.outlineFrags.forEach(s => {
+		  ctx.beginPath();
+		  ctx.moveTo(s.x1, s.y1);
+		  ctx.lineTo(s.x2, s.y2);
+		  ctx.stroke();
+		});
+
+		/* fragmenty písmen */
+		ctx.fillStyle = `rgba(68,68,68,${this.alpha})`;
+		this.letterFrags.forEach(f => {
+		  ctx.font = `${this.baseFontSize}px Arial`;
+		  ctx.textAlign = 'center';
+		  ctx.textBaseline = 'middle';
+		  ctx.fillText(f.char, f.x, f.y);
+		});
+
+		ctx.restore();
+	  }
+	}
 
 
 
@@ -991,15 +1130,18 @@
             ctx.restore();
 			
 			playerCells.forEach(cell => {
-			  const centerX = cell.x + clampedCamX;
-			  const centerY = cell.y + clampedCamY;
+			  const centerX      = cell.x + clampedCamX;
+			  const centerY      = cell.y + clampedCamY;
 			  const playerRadius = cell.radius;
 
-			  cell.residues.forEach(r => {
-				r.update(playerRadius);
+			  for (let i = cell.residues.length - 1; i >= 0; i--) {
+				const r    = cell.residues[i];
+				const gone = r.update(playerRadius);
 				r.draw(ctx, centerX, centerY);
-			  });
+				if (gone) cell.residues.splice(i, 1);   // úplně zmizelo
+			  }
 			});
+
 
 			
 			    // <<< TADY: když pauza, napiš text
