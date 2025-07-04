@@ -265,11 +265,16 @@ img {max-width:80vw;height:auto;}
 
   <script>
 
+const GIF_COUNT = 16;
+const MUSIC_COUNT = 10;
+
+
 let data = [];
 let writingPool = [];
 let readingPool = [];
 let syllablesPool = [];
 
+let allowCelebration = true;
 
 // Použijeme asynchronní funkci, abychom mohli počkat na načtení souboru
 (async () => {
@@ -1182,42 +1187,32 @@ function showWrongRobot() {
 // TADY TADY TADY TADY																						TADY TADY animace POČET 
 
 function showCelebration() {
+  if (!allowCelebration) return;
   const gifContainer = document.getElementById('gif-container');
   const gif = document.getElementById('gif-animation');
 
-  // === Animace ===
-  const gifCount = 15; // např. dance1.gif až dance5.gif
-  const randomGif = Math.floor(Math.random() * gifCount) + 1;
+  const randomGif = Math.floor(Math.random() * GIF_COUNT) + 1;
   gif.src = `dance${randomGif}.gif`;
 
-  // === Hudba ===
-  const musicCount = 8; // např. music1.mp3 až music4.mp3
-  const randomMusic = Math.floor(Math.random() * musicCount) + 1;
+  const randomMusic = Math.floor(Math.random() * MUSIC_COUNT) + 1;
   const audio = new Audio(`music${randomMusic}.mp3`);
   audio.volume = 1;
-  audio.play().catch(() => {});
 
-  // Zobrazit animaci
   gifContainer.style.display = 'block';
 
-  // Spustit fade-out ve 4. sekundě
-  setTimeout(() => {
-    const fadeInterval = setInterval(() => {
-      if (audio.volume > 0.05) {
-        audio.volume -= 0.05;
-      } else {
-        audio.volume = 0;
-        audio.pause();
-        clearInterval(fadeInterval);
-      }
-    }, 50); // každých 50 ms sníží hlasitost
-  }, 4000);
-
-  // Skryj animaci po 5 sekundách
-  setTimeout(() => {
-    gifContainer.style.display = 'none';
-  }, 5000);
+  audio.play()
+    .then(() => {
+      audio.addEventListener('ended', () => {
+        gifContainer.style.display = 'none';
+      });
+    })
+    .catch(() => {
+      setTimeout(() => {
+        gifContainer.style.display = 'none';
+      }, 5000);
+    });
 }
+
 
 
 
@@ -1494,52 +1489,52 @@ function resetTodayMedals() {
 // vítěz
 
 function showWinBanner() {
+  allowCelebration = false;
   const banner = document.getElementById("win-banner");
   banner.textContent = "🎉 VÍTĚZ! 🎉";
   banner.style.display = "block";
 
-  let danceIndex = 1;
-  let musicIndex = 1;
-  const maxDances = 8;
-  const maxMusic = 5;
-  let cycleInterval;
-
   const gifContainer = document.getElementById("gif-container");
   const gif = document.getElementById("gif-animation");
 
-  const audio = new Audio();
-  audio.volume = 1;
+  const gifSequence = Array.from({ length: GIF_COUNT }, (_, i) => i + 1)
+                           .sort(() => Math.random() - 0.5);
 
-  function cycleCelebration() {
-    // Změna GIFu
-    gif.src = `dance${danceIndex}.gif`;
+  let index = 0;
+
+  function playNextCelebration() {
+    if (index >= gifSequence.length) {
+      banner.style.display = "none";
+      gifContainer.style.display = "none";
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    const currentGif = gifSequence[index];
+    const randomMusic = Math.floor(Math.random() * MUSIC_COUNT) + 1;
+
+    gif.src = `dance${currentGif}.gif`;
     gifContainer.style.display = "block";
 
-    // Změna hudby
-    audio.pause();
-    audio.src = `music${musicIndex}.mp3`;
-    audio.currentTime = 0;
-    audio.play().catch(() => {});
+    const audio = new Audio(`music${randomMusic}.mp3`);
+    audio.volume = 1;
 
-    // Další iterace
-    danceIndex = (danceIndex % maxDances) + 1;
-    musicIndex = (musicIndex % maxMusic) + 1;
+    audio.play()
+      .then(() => {
+        audio.addEventListener('ended', () => {
+          index++;
+          playNextCelebration();
+        });
+      })
+      .catch(() => {
+        setTimeout(() => {
+          index++;
+          playNextCelebration();
+        }, 5000);
+      });
   }
 
-
-	setTimeout(() => {
-	  cycleCelebration();
-	  cycleInterval = setInterval(cycleCelebration, 6000);
-	}, 7000);
-
-  // Ukončení celé show po 20 vteřinách
-  setTimeout(() => {
-    clearInterval(cycleInterval);
-    audio.pause();
-    gifContainer.style.display = "none";
-    banner.style.display = "none";
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }, 60000);
+  playNextCelebration();
 }
 
 
