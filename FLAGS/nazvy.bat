@@ -1,0 +1,6 @@
+@echo off
+echo 🟡 Spoustim PowerShell skript...
+powershell -ExecutionPolicy Bypass -NoLogo -NoProfile -File "%~dp0nazvy.ps1"
+echo.
+echo 🔚 Hotovo. Stiskni Enter pro ukonceni...
+pause >nul
