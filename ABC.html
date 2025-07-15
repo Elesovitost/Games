@@ -167,7 +167,7 @@ img {max-width:80vw;height:auto;}
   <div style="display: flex; gap: 10px;">
     <button class="mode-button writing" onclick="startGame('writing')">✍️ PSANÍ</button>
 	<button class="mode-button free" style="display: none;" onclick="startGame('free')">✒️ VOLNÉ</button>
-    <button class="mode-button reading" onclick="startGame('reading')">📖 ČTENÍ</button>
+    <button id="reading-btn" class="mode-button reading" onclick="toggleReadingMode()">  <span id="reading-icon">📖</span> ČTENÍ</button>
     <button class="mode-button syllables" onclick="startGame('syllables')">➕ SLABIKY</button>
   </div>
 </div>
@@ -276,43 +276,52 @@ let syllablesPool = [];
 
 let allowCelebration = true;
 
-// Použijeme asynchronní funkci, abychom mohli počkat na načtení souboru
+
+let wordsData = [], flagsData = [];
+
 (async () => {
   try {
-    const response = await fetch('WORDS/words.txt');
-    if (!response.ok) {
-      throw new Error(`Failed to fetch words.txt: ${response.statusText}`);
-    }
-    const textContent = await response.text();
+    const [respW, respF] = await Promise.all([
+      fetch('WORDS/words.txt'),
+      fetch('FLAGS/words.txt')
+    ]);
+    if (!respW.ok || !respF.ok) throw new Error('Failed to fetch WORDS or FLAGS');
 
-    const words = textContent.split('\n').map(word => word.trim()).filter(word => word !== '');
+    const [textW, textF] = await Promise.all([respW.text(), respF.text()]);
+    const listW = textW.split('\n').map(w=>w.trim()).filter(w=>w);
+    const listF = textF.split('\n').map(w=>w.trim()).filter(w=>w);
 
-    data = words.map(word => ({
-      word: word,
-      img: null 
-    }));
-
-    data.forEach(item => {
-      const tryLoad = (exts, index = 0) => {
-        if (index >= exts.length) return; 
+    // WORDS
+    wordsData = listW.map(word=>({ word, img: null }));
+    wordsData.forEach(item => {
+      const tryLoad = (exts, idx = 0) => {
+        if (idx >= exts.length) return;
         const img = new Image();
-        img.onload = () => { item.img = img.src; }; 
-        img.onerror = () => tryLoad(exts, index + 1); 
-        img.src = `WORDS/${item.word}.${exts[index]}`;
+        img.onload = () => { item.img = img.src; };
+        img.onerror = () => tryLoad(exts, idx+1);
+        img.src = `WORDS/${item.word}.${exts[idx]}`;
       };
-      tryLoad(['jpeg', 'jpg']); 
+      tryLoad(['jpeg','jpg']);
     });
 
+    // FLAGS
+    flagsData = listF.map(word=>({
+      word,
+      img: `FLAGS/${word}.png`
+    }));
+
+    // Zpětná kompatibilita pro starší kód
+    data = wordsData;
     writingPool = [...data];
     readingPool = [...data];
-    
-    console.log(`Successfully loaded ${data.length} words.`);
 
+    console.log(`Loaded WORDS: ${wordsData.length}, FLAGS: ${flagsData.length}`);
   } catch (error) {
     console.error("Critical error loading game data:", error);
-    alert("Nepodařilo se načíst data pro hru. Zkontrolujte konzoli (F12) pro více detailů.");
+    alert("Nepodařilo se načíst data pro hru. Zkontrolujte konzoli (F12).");
   }
 })();
+
 
     let currentWord = '';
     let userInput = [];
@@ -322,7 +331,7 @@ let allowCelebration = true;
 	let lastInputLength = 0;
 	let currentMode = null;
 	let correctAnswer = null;
-	let medals = { gold: 0, silver: 0, bronze: 0 };
+	let medals = { gold: 0, silver: 0, bronze: 0, trophy: 0, crown: 0 };
 	const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 
@@ -450,6 +459,16 @@ document.getElementById("toggle-kid-mode").addEventListener("click", () => {
 
 
 
+// toggle mezi WORDS a FLAGS
+let useFlags = false;
+
+function toggleReadingMode() {
+  useFlags = !useFlags;
+  document.getElementById("reading-icon").textContent = useFlags ? "🚩" : "📖";
+  startGame('reading');
+}
+
+
 
 // Změň existující playSound funkci:
 function playSound(id) {
@@ -511,9 +530,10 @@ function startGame(mode) {
     document.getElementById('letters').style.display = 'block';
     document.addEventListener('keydown', handleKey);
 
-  } else if (mode === 'reading') {
-    readingPool = [...data];
-    loadReadingTask();
+	} else if (mode === 'reading') {
+	  readingPool = useFlags ? [...flagsData] : [...wordsData];
+	  loadReadingTask();
+
 
 	} else if (mode === 'syllables') {
 	  syllablesPool = [...data]; // ⬅️ nový řádek
@@ -665,38 +685,39 @@ function updateDisplay() {
 
 
 
-    function loadReadingTask() {
-      if (readingPool.length === 0) {
-        alert("Všechna slova byla přečtena!");
-        return;
-      }
-      const index = Math.floor(Math.random() * readingPool.length);
-      const correct = readingPool.splice(index, 1)[0];
-      currentWord = correct.word;
+	function loadReadingTask() {
+	  const pool = useFlags ? flagsData : wordsData;
+	  if (pool.length === 0) {
+		alert("Všechna slova byla přečtena!");
+		return;
+	  }
+	  const index = Math.floor(Math.random() * pool.length);
+	  const correct = pool.splice(index, 1)[0];
+	  currentWord = correct.word;
+	  document.getElementById('reading-word').textContent = currentWord;
+	  const container = document.getElementById('reading-options');
+	  container.innerHTML = '';
 
-      document.getElementById('reading-word').textContent = currentWord;
-      const container = document.getElementById('reading-options');
-      container.innerHTML = '';
+	  const distractors = pool
+		.filter(item => item.word !== currentWord)
+		.sort(() => 0.5 - Math.random())
+		.slice(0, 4);
 
-      const shuffled = [...data]
-        .filter(item => item.word !== currentWord)
-        .sort(() => 0.5 - Math.random())
-        .slice(0, 4);
+	  distractors.push(correct);
+	  distractors.sort(() => 0.5 - Math.random());
 
-      shuffled.push(correct);
-      shuffled.sort(() => 0.5 - Math.random());
+	  distractors.forEach(item => {
+		const img = document.createElement("img");
+		img.src = item.img;
+		img.alt = item.word;
+		img.style.filter = "";
+		img.addEventListener("mouseenter", () => img.style.border = "2px solid blue");
+		img.addEventListener("mouseleave", () => img.style.border = "2px solid #333");
+		img.addEventListener("click", () => handleReadingClick(img, item.word === currentWord));
+		container.appendChild(img);
+	  });
+	}
 
-      shuffled.forEach(item => {
-        const img = document.createElement('img');
-        img.src = item.img;
-        img.alt = item.word;
-        img.style.filter = '';
-        img.addEventListener('mouseenter', () => img.style.border = '2px solid blue');
-        img.addEventListener('mouseleave', () => img.style.border = '2px solid #333');
-        img.addEventListener('click', () => handleReadingClick(img, item.word === currentWord));
-        container.appendChild(img);
-      });
-    }
 
     function handleReadingClick(img, isCorrect) {
 	
@@ -1264,6 +1285,18 @@ let progressPoints = 0;
 let progressLayer = 0;
 const maxLayer = 9;
 
+
+function addMedal(type) {
+  medals[type] = (medals[type] || 0) + 1;
+  saveMedals();
+  updateMedals();
+  playSound("sound-metal-fall");
+  animateMedal(type, () => {
+    tryMerge(type);
+  });
+}
+
+
 function addProgress(points) {
   progressPoints += points;
 
@@ -1320,16 +1353,28 @@ function resetProgressBar() {
 function updateMedals() {
   const container = document.getElementById("medals-container");
   container.innerHTML = "";
-  // vytvoří span pro každou trofej
-  for (let i = 0; i < (medals.trophy||0); i++) {
+
+  // 1) Koruny
+  for (let i = 0; i < (medals.crown || 0); i++) {
+    const s = document.createElement("span");
+    s.className = "medal crown";
+    s.textContent = "👑";
+    container.appendChild(s);
+  }
+
+  // 2) Trofeje
+  for (let i = 0; i < (medals.trophy || 0); i++) {
     const s = document.createElement("span");
     s.className = "medal trophy";
     s.textContent = "🏆";
     container.appendChild(s);
   }
-  // a pak medaile gold, silver, bronze
+
+  // 3) Medaile (gold, silver, bronze)
   ["gold","silver","bronze"].forEach(type => {
-    const icon = type==="gold"?"🥇":type==="silver"?"🥈":"🥉";
+    const icon = type === "gold"   ? "🥇"
+               : type === "silver" ? "🥈"
+               :                     "🥉";
     for (let i = 0; i < medals[type]; i++) {
       const s = document.createElement("span");
       s.className = `medal ${type}`;
@@ -1337,24 +1382,14 @@ function updateMedals() {
       container.appendChild(s);
     }
   });
-  // titul zobrazíme jen pokud je alespoň jedna
+
+  // 4) Zobrazení nadpisu jen pokud máme cokoliv k zobrazení
   document.getElementById("medals-today-title").style.display =
-    (medals.gold||medals.silver||medals.bronze||medals.trophy) ? "block" : "none";
+    (medals.crown || medals.trophy || medals.gold || medals.silver || medals.bronze)
+      ? "block"
+      : "none";
 }
 
-function addMedal(type = "bronze") {
-  medals[type]++;
-  animateMedal(type, () => {
-    playSound("sound-metal-fall");
-    updateMedals();
-    saveMedals();
-    tryMerge(type, () => {
-      setTimeout(() => {
-        showCelebration();
-      }, 500);
-    });
-  });
-}
 
 
 
@@ -1454,7 +1489,14 @@ updateProgressBar();
 
 function animateMedal(type, onComplete = null) {
   const anim = document.getElementById("medal-animation");
-  const emoji = type === "gold" ? "🥇" : type === "silver" ? "🥈" : "🥉";
+  let emoji;
+	if      (type === "bronze") emoji = "🥉";
+	else if (type === "silver") emoji = "🥈";
+	else if (type === "gold")   emoji = "🥇";
+	else if (type === "trophy") emoji = "🏆";
+	else if (type === "crown")  emoji = "👑";
+	else                        emoji = "";
+
   const container = document.getElementById("medals-container");
   const rect = container.getBoundingClientRect();
   const targetLeft = rect.left + rect.width / 2;
