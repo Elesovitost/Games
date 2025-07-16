@@ -167,7 +167,7 @@ img {max-width:80vw;height:auto;}
   <div style="display: flex; gap: 10px;">
     <button class="mode-button writing" onclick="startGame('writing')">✍️ PSANÍ</button>
 	<button class="mode-button free" style="display: none;" onclick="startGame('free')">✒️ VOLNÉ</button>
-    <button id="reading-btn" class="mode-button reading" onclick="toggleReadingMode()">  <span id="reading-icon">📖</span> ČTENÍ</button>
+    <button id="reading-btn" class="mode-button reading" onclick="handleReadingButtonClick()">  <span id="reading-icon" onclick="handleReadingIconClick(event)">📖</span> ČTENÍ</button>
     <button class="mode-button syllables" onclick="startGame('syllables')">➕ SLABIKY</button>
   </div>
 </div>
@@ -462,10 +462,26 @@ document.getElementById("toggle-kid-mode").addEventListener("click", () => {
 // toggle mezi WORDS a FLAGS
 let useFlags = false;
 
-function toggleReadingMode() {
-  useFlags = !useFlags;
-  document.getElementById("reading-icon").textContent = useFlags ? "🚩" : "📖";
-  startGame('reading');
+// Function to handle clicks on the main "ČTENÍ" button
+function handleReadingButtonClick() {
+    // Always set to basic reading mode (words)
+    useFlags = false;
+    document.getElementById("reading-icon").textContent = "📖"; // Ensure icon is reading book
+    startGame('reading'); // Start the game in basic reading mode
+}
+
+// Function to handle clicks specifically on the icon (📖 or 🏳️)
+function handleReadingIconClick(event) {
+    event.stopPropagation(); // Prevent the click from bubbling up to the button
+
+    useFlags = !useFlags; // Toggle the flag mode
+    document.getElementById("reading-icon").textContent = useFlags ? "🏳️" : "📖";
+
+    // If the current game mode is already 'reading', reload the task
+    // with the new flag setting. If not, the main button click handles starting the game.
+    if (currentMode === 'reading') {
+        loadReadingTask(); // This function already correctly uses the 'useFlags' variable
+    }
 }
 
 
@@ -1308,6 +1324,7 @@ function addProgress(points) {
     progressPoints = 0;
     addMedal("bronze");
     progressLayer = (progressLayer + 1) % maxLayer;
+	showCelebration(); 
   }
 
   updateProgressBar();
