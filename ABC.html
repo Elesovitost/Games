@@ -1649,7 +1649,7 @@ document.getElementById("free-ok").addEventListener("click", async () => {
   const btn = document.getElementById("free-ok");
 
   try {
-    const response = await fetch("slovnikCJ.txt");
+    const response = await fetch("WORDS/slovnikCJ.txt");
     const text = await response.text();
     const words = text.split('\n').map(w => w.trim());
 
