@@ -190,7 +190,7 @@
   <section class="middle">
     <button class="pay" id="payBtn">PLATÍM</button>
     <button class="small" id="undoBtn">↩️ Zpět</button>
-    <button class="small" id="clearBtn">🧹 Znovu</button>
+    <button class="small" id="clearBtn">🧹 Reset</button>
     <div class="msg" id="msg"></div>
   </section>
 
@@ -219,9 +219,8 @@
 
 <!-- Nastavení rozsahu pro randomNeed -->
 <div id="settings-bar" style="margin:10px 0 24px 0; text-align:center;">
-  <div id="settings-btn" style="cursor:pointer; display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid #333; border-radius:10px; background:#fff;">
-    <span style="font-size:20px;">⚙</span>
-    <span>Nastavení</span>
+  <div id="settings-btn" style="cursor:pointer; display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:0px solid #333; border-radius:10px; background:#fff;">
+    <span style="font-size:20px;">⚙</span
   </div>
 
   <div id="settings-panel" style="display:none; margin-top:10px;">
@@ -276,7 +275,10 @@ const MONEY = [
   { v:10, img:"MONEY/10_Koruna.png", label:"10 Kč" },
   { v:20, img:"MONEY/20_Koruna.png", label:"20 Kč" },
   { v:50, img:"MONEY/50_Koruna.jpg", label:"50 Kč" },
-  { v:100,img:"MONEY/100_Koruna.jpg",label:"100 Kč" }
+  { v:100,img:"MONEY/100_Koruna.jpg",label:"100 Kč" },
+  { v:200,img:"MONEY/200_Korun.jpg",label:"200 Kč" },
+  { v:500,img:"MONEY/500_Korun.jpg",label:"500 Kč" },
+  { v:1000,img:"MONEY/1000_Korun.jpg",label:"1000 Kč" }
 ];
 
 /* ---------- STAV ---------- */
