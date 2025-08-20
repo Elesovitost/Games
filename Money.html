@@ -43,18 +43,30 @@
   .seller-wrap{position:relative;display:flex;gap:10px;align-items:flex-start;justify-content:center}
   .seller img{max-height:180px;border-radius:10px;border:2px solid #333}
   .bubble{
-    position:absolute; left:58%; top:6px; transform:translateX(0);
+    position:absolute; top:-90px; left:60%; transform:translateX(-50%);
     background:#fff;border:2px solid #333;border-radius:16px;padding:10px 14px;min-width:140px;
     box-shadow:2px 2px 8px rgba(0,0,0,.15); font-weight:700
   }
-  .bubble:after{
-    content:"";position:absolute;left:-14px;top:32px; width:0;height:0; border-top:10px solid transparent;
-    border-bottom:10px solid transparent;border-right:14px solid #333;
-  }
-  .bubble:before{
-    content:"";position:absolute;left:-12px;top:34px; width:0;height:0; border-top:8px solid transparent;
-    border-bottom:8px solid transparent;border-right:12px solid #fff;
-  }
+	.bubble:after{
+	  content:"";
+	  position:absolute;
+	  left:50%;
+	  bottom:-14px;
+	  transform:translateX(-50%);
+	  border-left:10px solid transparent;
+	  border-right:10px solid transparent;
+	  border-top:14px solid #333;
+	}
+	.bubble:before{
+	  content:"";
+	  position:absolute;
+	  left:50%;
+	  bottom:-12px;
+	  transform:translateX(-50%);
+	  border-left:8px solid transparent;
+	  border-right:8px solid transparent;
+	  border-top:12px solid #fff;
+	}
   .bubble .hint{font-weight:600}
   .price{font-size:28px;color:#000}
 
@@ -109,47 +121,47 @@
     .game{grid-template-columns:1fr}
     .bubble{position:static;transform:none;margin:6px auto 0}
   }
-  
+
   /* --- Medaile & poháry (ABC styl) --- */
-#trophy-bar{
-  margin: 30px auto 20px auto;   /* nahoře odsazení, dole mezera */
-  text-align: center;
-  width: 100%;
-}
+  #trophy-bar{ margin: 30px auto 20px auto; text-align: center; width: 100%; }
+  #medals-container{ font-size: 40px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
 
-#medals-container{
-  font-size: 40px;
-  display: flex;
-  justify-content: center; /* vystředí obsah */
-  gap: 8px;
-  flex-wrap: wrap;
-}
+  @keyframes medal-from-depth{
+    0%{transform:translate(-50%,-50%) scale(5);opacity:0}
+    95%{transform:translate(-50%,-50%) scale(0.8);opacity:1}
+    100%{transform:translate(-50%,-50%) scale(1);opacity:1}
+  }
+  .medal.pop-in{animation:pop-in .2s ease-out}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%,75%{transform:translateX(-5px)}50%{transform:translateX(5px)}}
+  .medal.shake{animation:shake .5s ease-in-out}
+  .flash-effect{
+    position:fixed;left:50%;top:50%;width:60px;height:60px;border-radius:50%;
+    background:radial-gradient(circle,#fff 0%,rgba(255,255,255,0) 70%);
+    pointer-events:none;transform:translate(-50%,-50%) scale(0);animation:flash .5s forwards;z-index:9999
+  }
+  @keyframes flash{0%{opacity:1;transform:translate(-50%,-50%) scale(0)}
+  50%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.5)}}
 
-
-/* efekt „vylétnutí“ nové medaile */
-@keyframes medal-from-depth{
-  0%{transform:translate(-50%,-50%) scale(5);opacity:0}
-  95%{transform:translate(-50%,-50%) scale(0.8);opacity:1}
-  100%{transform:translate(-50%,-50%) scale(1);opacity:1}
-}
-.medal.pop-in{animation:pop-in .2s ease-out}
-
-/* krátké „zatřesení“ po sloučení 3 ks */
-@keyframes shake{0%,100%{transform:translateX(0)}25%,75%{transform:translateX(-5px)}50%{transform:translateX(5px)}}
-.medal.shake{animation:shake .5s ease-in-out}
-
-/* blesk při sloučení – jako v ABC */
-.flash-effect{
-  position:fixed;left:50%;top:50%;width:60px;height:60px;border-radius:50%;
-  background:radial-gradient(circle,#fff 0%,rgba(255,255,255,0) 70%);
-  pointer-events:none;transform:translate(-50%,-50%) scale(0);animation:flash .5s forwards;z-index:9999
-}
-@keyframes flash{0%{opacity:1;transform:translate(-50%,-50%) scale(0)}
-50%{opacity:1;transform:translate(-50%,-50%) scale(1)}
-100%{opacity:0;transform:translate(-50%,-50%) scale(1.5)}}
-
-
-  
+  /* --- NOVÉ: Ikona požadovaného zboží & košík --- */
+  .req-icon{
+    width: 120px; min-height: 120px;
+    border: 2px dashed #aaa; border-radius: 16px; background:#fff;
+    display:flex;align-items:center;justify-content:center;
+    margin-right:8px; user-select:none;
+  }
+  .icon-emoji{ font-size: 24px; line-height: 1; filter: drop-shadow(2px 2px 0 rgba(0,0,0,.08)); }
+  .icon-emoji.big{ font-size: 70px; }
+  .basket{
+    margin-top: 10px; border: 2px solid #333; background:#fff; border-radius: 14px;
+    min-height: 88px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-start;
+    padding:8px 10px; text-align:left
+  }
+  .basket::before{ content:"Nákup:"; font-weight:800; margin-right:8px; }
+  @media (max-width:950px){
+    .req-icon{ width: 88px; min-height: 88px; }
+    .icon-emoji.big{ font-size: 100px; }
+  }
 </style>
 </head>
 <body>
@@ -164,7 +176,6 @@
 <audio id="sound-metal-fall" src="sound-metal-fall.mp3"></audio>
 <audio id="sound-metal-fuse" src="sound-metal-fuse.mp3"></audio>
 
-
 <div class="topbar">
   <div style="font-weight:700">SCORE</div>
   <div class="score">
@@ -176,15 +187,22 @@
 <div class="game">
 
   <!-- LEVÝ PANEL – prodavačka + výběr peněz -->
-<section class="seller">
-  <div class="seller-wrap">
-    <img src="MONEY/Prodavačka.jpg" alt="prodavačka">
-          <div class="bubble" id="bubble">
-          <div class="price" id="need">–</div>
-		   <div class="hint">Zaplaťte prosím</div>
+  <section class="seller">
+    <div class="seller-wrap">
+      <!-- NOVÉ: box pro velkou ikonu produktu -->
+      <div id="reqIcon" class="req-icon" aria-label="požadované zboží"></div>
+
+      <img src="MONEY/Prodavačka.jpg" alt="prodavačka">
+
+      <div class="bubble" id="bubble">
+        <div class="price" id="need">–</div>
+        <div class="hint">Zaplaťte prosím</div>
       </div>
-  </div>
-</section>
+    </div>
+
+    <!-- NOVÉ: košík pod prodavačkou -->
+    <div class="basket" id="basket" aria-label="hotový nákup"></div>
+  </section>
 
   <!-- STŘED – tlačítka -->
   <section class="middle">
@@ -195,20 +213,19 @@
   </section>
 
   <!-- PRAVÝ PANEL – stůl -->
-<section class="table">
-  <div class="desk" id="desk"></div>
-  <div class="sum" id="sum">0 Kč</div>
-  <div class="money-row" id="moneyRow"></div> <!-- SEM PATŘÍ -->
-</section>
+  <section class="table">
+    <div class="desk" id="desk"></div>
+    <div class="sum" id="sum">0 Kč</div>
+    <div class="money-row" id="moneyRow"></div>
+  </section>
 
-<!-- Ohňostroj + “oslava” -->
-<canvas id="fw"></canvas>
-<div class="celebrate" id="celebrate">🎉🎊🥳</div>
+  <!-- Ohňostroj + “oslava” -->
+  <canvas id="fw"></canvas>
+  <div class="celebrate" id="celebrate">🎉🎊🥳</div>
 
-<!-- Dočasná „vyskakovací“ ikona při přidání -->
-<div id="medal-animation"
-     style="position:fixed;top:-100px;left:50%;transform:translateX(-50%);font-size:80px;z-index:9999;pointer-events:none;display:none;"></div>
-
+  <!-- Dočasná „vyskakovací“ ikona při přidání -->
+  <div id="medal-animation"
+       style="position:fixed;top:-100px;left:50%;transform:translateX(-50%);font-size:80px;z-index:9999;pointer-events:none;display:none;"></div>
 </div>
 
 <!-- Medaile & poháry (ABC) -->
@@ -234,9 +251,7 @@
   </div>
 </div>
 
-
 <script>
-
 function playSound(id){
   const el = document.getElementById(id);
   if(!el) return;
@@ -247,25 +262,19 @@ function playSound(id){
 /* Celebration (ported from ABC) */
 const GIF_COUNT = 16;   // dance1.gif ... dance16.gif
 const MUSIC_COUNT = 10; // music1.mp3 ... music10.mp3
-
 function showCelebration(){
   const box = document.getElementById('gif-container');
   const img = document.getElementById('gif-animation');
-
   const g = Math.floor(Math.random()*GIF_COUNT)+1;
   const m = Math.floor(Math.random()*MUSIC_COUNT)+1;
-
   img.src = `dance${g}.gif`;
   box.style.display = 'block';
-
   const audio = new Audio(`music${m}.mp3`);
   audio.volume = 1;
   audio.play()
     .then(()=> audio.addEventListener('ended', ()=>{ box.style.display='none'; }))
     .catch(()=>{ setTimeout(()=> box.style.display='none', 5000); });
 }
-
-
 
 /* ---------- DATA PENĚZ ---------- */
 const MONEY = [
@@ -298,6 +307,8 @@ const bubble   = document.getElementById('bubble');
 const goodEl   = document.getElementById('good');
 const badEl    = document.getElementById('bad');
 const celebrate= document.getElementById('celebrate');
+const reqIcon  = document.getElementById('reqIcon');
+const basketEl = document.getElementById('basket');
 
 const settingsBtn   = document.getElementById('settings-btn');
 const settingsPanel = document.getElementById('settings-panel');
@@ -319,12 +330,12 @@ MONEY.forEach(m=>{
 
 function addMoney(m){
   placed.push(m.v);
-  // vizuálně naklonovat
   const img = document.createElement('img');
   img.src = m.img; img.alt = m.label; img.className = 'removable';
   img.title = `${m.label} (klik = odebrat)`;
   img.addEventListener('click', ()=> removePiece(img, m.v));
   desk.appendChild(img);
+  playSound('sound-correct');
   updateSum();
 }
 
@@ -342,79 +353,216 @@ function updateSum(){
   bubble.querySelector('.hint').textContent = 'Zaplaťte prosím';
 }
 
-function randomNeed(){
-  const span = maxRange - minRange + 1;
-  if (span < 1) {
-    // bezpečnostní pojistka – kdyby byl rozsah špatně, spadne zpět na 10–100
-    minRange = 10; maxRange = 100;
-  }
-  need = Math.floor(Math.random() * (maxRange - minRange + 1)) + minRange;
-  needEl.textContent = `${need} Kč`;
+/* ===========================================================
+   TABULKA REALISTICKÝCH CEN A PRODUKTŮ (3 možnosti v intervalu)
+   Rozpětí:
+   - 10–50 po 5 Kč
+   - 51–100 po 10 Kč
+   - 101–500 po 50 Kč
+   - 501–1000 po 100 Kč
+   =========================================================== */
+const PRICE_TABLE = [
+  {min:10,max:15,  options:[
+    {name:"Jablko", price:12, icon:"🍎"},
+    {name:"Banán",  price:13, icon:"🍌"},
+    {name:"Sušenka",price:12, icon:"🍪"}
+  ]},
+  {min:16,max:20,  options:[
+    {name:"Hruška", price:18, icon:"🍐"},
+    {name:"Jogurt", price:19, icon:"🥛"},
+    {name:"Tatranka",price:18,icon:"🍫"}
+  ]},
+  {min:21,max:25,  options:[
+    {name:"Tyčinka",price:24, icon:"🍫"},
+    {name:"Pomeranč",price:25,icon:"🍊"},
+    {name:"Sušenka větší",price:25,icon:"🍪"}
+  ]},
+  {min:26,max:30,  options:[
+    {name:"Plátek melounu",price:29,icon:"🍉"},
+    {name:"Zmrzlina (kopeček)",price:28,icon:"🍨"},
+    {name:"Donut",price:29,icon:"🍩"}
+  ]},
+  {min:31,max:35,  options:[
+    {name:"Kefír",price:33,icon:"🥛"},
+    {name:"Kobliha",price:33,icon:"🍩"},
+    {name:"Popcorn malý",price:35,icon:"🍿"}
+  ]},
+  {min:36,max:40,  options:[
+    {name:"Tavený sýr",price:39,icon:"🧀"},
+    {name:"Džus 0.3 l",price:39,icon:"🧃"},
+    {name:"Oříšky mini",price:39,icon:"🥜"}
+  ]},
+  {min:41,max:45,  options:[
+    {name:"Párek v rohlíku",price:45,icon:"🌭"},
+    {name:"Bageta malá",price:45,icon:"🥖"},
+    {name:"Čokoláda malá",price:44,icon:"🍫"}
+  ]},
+  {min:46,max:50,  options:[
+    {name:"Plátek pizzy",price:49,icon:"🍕"},
+    {name:"Jahody 250 g",price:49,icon:"🍓"},
+    {name:"Zmrzlina kelímek",price:49,icon:"🍦"}
+  ]},
+  {min:51,max:60,  options:[
+    {name:"Caffè latte",price:59,icon:"☕"},
+    {name:"Jablečný mošt 1 l",price:59,icon:"🧃"},
+    {name:"Sýrové tyčinky",price:59,icon:"🧀"}
+  ]},
+  {min:61,max:70,  options:[
+    {name:"Máslo 250 g",price:65,icon:"🧈"},
+    {name:"Eidam 200 g",price:69,icon:"🧀"},
+    {name:"Šunka 100 g",price:65,icon:"🍖"}
+  ]},
+  {min:71,max:80,  options:[
+    {name:"Granola 500 g",price:79,icon:"🥣"},
+    {name:"Olivy 300 g",price:75,icon:"🫒"},
+    {name:"Tortilly 6 ks",price:79,icon:"🌯"}
+  ]},
+  {min:81,max:90,  options:[
+    {name:"Bageta velká",price:89,icon:"🥖"},
+    {name:"Kuřecí nugety",price:89,icon:"🍗"},
+    {name:"Dortík",price:89,icon:"🍰"}
+  ]},
+  {min:91,max:100, options:[
+    {name:"Čokoláda velká",price:99,icon:"🍫"},
+    {name:"Hrozny 1 kg",price:99,icon:"🍇"},
+    {name:"Květák 1 ks",price:95,icon:"🥦"}
+  ]},
+  {min:101,max:150, options:[
+    {name:"Oběd menu",price:129,icon:"🍛"},
+    {name:"Sýr camembert",price:129,icon:"🧀"},
+    {name:"Káva – zrna 250 g",price:149,icon:"☕"}
+  ]},
+  {min:151,max:200, options:[
+    {name:"Triko basic",price:199,icon:"👕"},
+    {name:"Míč",price:179,icon:"⚽"},
+    {name:"Víno láhev",price:189,icon:"🍷"}
+  ]},
+  {min:201,max:250, options:[
+    {name:"Stavebnice malá",price:249,icon:"🧩"},
+    {name:"Powerbanka 2500 mAh",price:249,icon:"🔋"},
+    {name:"Sluchátka drátová",price:229,icon:"🎧"}
+  ]},
+  {min:251,max:300, options:[
+    {name:"Rodinná pizza",price:299,icon:"🍕"},
+    {name:"Kuchyňská váha",price:299,icon:"⚖️"},
+    {name:"Čtečka karet",price:279,icon:"💾"}
+  ]},
+  {min:301,max:350, options:[
+    {name:"Mikina",price:349,icon:"🧥"},
+    {name:"Batoh malý",price:349,icon:"🎒"},
+    {name:"Fén",price:329,icon:"💨"}
+  ]},
+  {min:351,max:400, options:[
+    {name:"Tenisky",price:399,icon:"👟"},
+    {name:"Mixér",price:399,icon:"⚙️"},
+    {name:"Toaletní voda",price:399,icon:"🧴"}
+  ]},
+  {min:401,max:450, options:[
+    {name:"Kávovar kapslový",price:449,icon:"☕"},
+    {name:"Stavebnice střední",price:449,icon:"🧱"},
+    {name:"Flash disk 128 GB",price:429,icon:"💾"}
+  ]},
+  {min:451,max:500, options:[
+    {name:"Chytré hodinky basic",price:499,icon:"⌚"},
+    {name:"Dětská bunda",price:499,icon:"🧥"},
+    {name:"Společenská hra",price:479,icon:"🎲"}
+  ]},
+  {min:501,max:600, options:[
+    {name:"Tlačítkový telefon",price:599,icon:"📱"},
+    {name:"Kolečkové brusle",price:599,icon:"🛼"},
+    {name:"Stolní lampa",price:549,icon:"💡"}
+  ]},
+  {min:601,max:700, options:[
+    {name:"Wi-Fi router",price:699,icon:"📶"},
+    {name:"Mikrovlnka malá",price:699,icon:"🍲"},
+    {name:"Sluchátka BT",price:699,icon:"🎧"}
+  ]},
+  {min:701,max:800, options:[
+    {name:"Tablet dětský",price:799,icon:"📱"},
+    {name:"Kávovar pákový",price:799,icon:"☕"},
+    {name:"Mixér výkonný",price:799,icon:"🌀"}
+  ]},
+  {min:801,max:900, options:[
+    {name:"Robotický vysavač",price:899,icon:"🤖"},
+    {name:"Zimní pneu 1 ks",price:899,icon:"🛞"},
+    {name:"Monitor 22″",price:899,icon:"🖥️"}
+  ]},
+  {min:901,max:1000, options:[
+    {name:"Telefon basic",price:999,icon:"📱"},
+    {name:"Mikrověž",price:999,icon:"📻"},
+    {name:"Herní ovladač",price:999,icon:"🎮"}
+  ]}
+];
+
+function findRange(val){
+  return PRICE_TABLE.find(r => val>=r.min && val<=r.max) || null;
+}
+function pickProduct(val){
+  const r = findRange(val);
+  if(!r) return {name:"Košík", price:val, icon:"🛒"};
+  const i = Math.floor(Math.random()*r.options.length);
+  return r.options[i];
+}
+function showRequestProduct(val){
+  const p = pickProduct(val);
+  reqIcon.innerHTML = '';
+  const span = document.createElement('span');
+  span.className = 'icon-emoji big';
+  span.textContent = p.icon;
+  reqIcon.appendChild(span);
+  // uložit pro přesun do koše
+  reqIcon.dataset.icon = p.icon;
+  reqIcon.dataset.name = p.name;
+  reqIcon.title = `${p.name} – ~${p.price} Kč`;
+}
+function moveIconToBasket(){
+  const icon = reqIcon.dataset.icon;
+  const name = reqIcon.dataset.name || '';
+  if(!icon) return; // nic k přesunu
+  const piece = document.createElement('span');
+  piece.className = 'icon-emoji';
+  piece.textContent = icon;
+  piece.title = name;
+  basketEl.appendChild(piece);
+  // vyčisti box
+  reqIcon.innerHTML = '';
+  delete reqIcon.dataset.icon;
+  delete reqIcon.dataset.name;
 }
 
+/* ---------- Náhodná částka ---------- */
+function randomNeed(){
+  const span = maxRange - minRange + 1;
+  if (span < 1) { minRange = 10; maxRange = 100; }
+  need = Math.floor(Math.random() * (maxRange - minRange + 1)) + minRange;
+  needEl.textContent = `${need} Kč`;
+  showRequestProduct(need); // NOVĚ: zobraz ikonku dle intervalu
+}
 
-// ⚙ otevřít/zavřít panel
+/* ---------- Nastavení rozsahu ---------- */
 settingsBtn.addEventListener('click', () => {
-  // při otevření doplň aktuální hodnoty
   minInput.value = minRange;
   maxInput.value = maxRange;
   rangeMsg.textContent = '';
   settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
 });
-
-cancelRangeBtn.addEventListener('click', () => {
-  settingsPanel.style.display = 'none';
-});
-
-// Uložit nové rozmezí
+cancelRangeBtn.addEventListener('click', () => { settingsPanel.style.display = 'none'; });
 saveRangeBtn.addEventListener('click', () => {
   const newMin = parseInt(minInput.value, 10);
   const newMax = parseInt(maxInput.value, 10);
-
-  if (Number.isNaN(newMin) || Number.isNaN(newMax)) {
-    rangeMsg.style.color = 'var(--red)';
-    rangeMsg.textContent = 'Zadej prosím čísla.';
-    return;
-  }
-  if (newMin < 0) {
-    rangeMsg.style.color = 'var(--red)';
-    rangeMsg.textContent = 'Min nesmí být záporné.';
-    return;
-  }
-  if (newMax < newMin) {
-    rangeMsg.style.color = 'var(--red)';
-    rangeMsg.textContent = 'Max musí být ≥ Min.';
-    return;
-  }
-
-  minRange = newMin;
-  maxRange = newMax;
-  rangeMsg.style.color = 'var(--green)';
-  rangeMsg.textContent = `Rozsah uložen (${minRange}–${maxRange}).`;
-
-  // rovnou vygenerovat novou částku
+  if (Number.isNaN(newMin) || Number.isNaN(newMax)) { rangeMsg.style.color = 'var(--red)'; rangeMsg.textContent = 'Zadej prosím čísla.'; return; }
+  if (newMin < 0) { rangeMsg.style.color = 'var(--red)'; rangeMsg.textContent = 'Min nesmí být záporné.'; return; }
+  if (newMax < newMin) { rangeMsg.style.color = 'var(--red)'; rangeMsg.textContent = 'Max musí být ≥ Min.'; return; }
+  minRange = newMin; maxRange = newMax;
+  rangeMsg.style.color = 'var(--green)'; rangeMsg.textContent = `Rozsah uložen (${minRange}–${maxRange}).`;
   randomNeed();
-
-  // zavřít panel po krátké chvilce
   setTimeout(() => { settingsPanel.style.display = 'none'; }, 400);
 });
 
-
+/* ---------- Reset stolu ---------- */
 function resetDesk(){
   placed = [];
   desk.innerHTML = '';
-  updateSum();
-}
-
-
-function addMoney(m){
-  placed.push(m.v);
-  const img = document.createElement('img');
-  img.src = m.img; img.alt = m.label; img.className = 'removable';
-  img.title = `${m.label} (klik = odebrat)`;
-  img.addEventListener('click', ()=> removePiece(img, m.v));
-  desk.appendChild(img);
-  playSound('sound-correct'); // volitelné „ťuknutí“
   updateSum();
 }
 
@@ -424,17 +572,25 @@ document.getElementById('payBtn').addEventListener('click', ()=>{
   if(total === need){
     scoreGood++; goodEl.textContent = scoreGood;
     msg.style.color = 'var(--green)'; msg.textContent = 'Správně! Děkuji.';
-    playSound('sound-win');   // přidej – vítězný zvuk (ABC)
-	launchFireworks();        // zůstává
-    maybeCelebrate(scoreGood);               // oslava při násobku 5
-	randomNeed();
-	if (scoreGood % 5 === 0) addMedal('bronze');
+    playSound('sound-win');
+    launchFireworks();
+    maybeCelebrate(scoreGood);
+    if (scoreGood % 5 === 0) addMedal('bronze');
+
+    /* DŮLEŽITÉ POŘADÍ:
+       1) přesunout aktuální ikonku do košíku,
+       2) vyčistit stůl,
+       3) vygenerovat novou částku (ta zobrazí novou velkou ikonku)
+    */
+    moveIconToBasket();   // ← nejdřív přesun
+    resetDesk();          // vyprázdnit peníze na stole
+    randomNeed();         // nová částka + nová ikona
+
     setTimeout(()=>{ stopFireworks(); }, 1600);
-    resetDesk();
-	updateMedals();
+    updateMedals();
   }else{
     scoreBad++; badEl.textContent = scoreBad;
-	playSound('sound-wrong');
+    playSound('sound-wrong');
     if(total < need){
       msg.style.color = 'var(--red)'; msg.textContent = 'Málo!';
       bubble.querySelector('.hint').textContent = 'Je to málo…';
@@ -442,7 +598,6 @@ document.getElementById('payBtn').addEventListener('click', ()=>{
       msg.style.color = 'var(--red)'; msg.textContent = 'Moc!';
       bubble.querySelector('.hint').textContent = 'Je to moc…';
     }
-    // stůl se neresetuje – hráč může upravit částku
   }
 });
 
@@ -450,7 +605,7 @@ document.getElementById('clearBtn').addEventListener('click', resetDesk);
 document.getElementById('undoBtn').addEventListener('click', ()=>{
   if(!desk.lastElementChild) return;
   const lastImg = desk.lastElementChild;
-  lastImg.click(); // využijeme stejný handler – odebere i ze stavu
+  lastImg.click(); // využije handler odebrání
 });
 
 /* ---------- Start ---------- */
@@ -459,21 +614,16 @@ randomNeed();
 /* ---------- OSLAVA – každých 5 bodů ---------- */
 function maybeCelebrate(score){
   if(score>0 && score % 5 === 0){
-    showCelebration(); // místo starého banneru
+    showCelebration();
   }
 }
-
 
 /* ---------- OHŇOSTROJ (canvas) ---------- */
 const fwCanvas = document.getElementById('fw');
 const fctx = fwCanvas.getContext('2d');
 let fwTimer=null, rockets=[];
-
-function sizeCanvas(){
-  fwCanvas.width = innerWidth; fwCanvas.height = innerHeight;
-}
+function sizeCanvas(){ fwCanvas.width = innerWidth; fwCanvas.height = innerHeight; }
 addEventListener('resize', sizeCanvas); sizeCanvas();
-
 function createFirework(){
   const x = Math.random()*fwCanvas.width;
   const y = Math.random()*fwCanvas.height*0.4+40;
@@ -487,7 +637,6 @@ function createFirework(){
   }
   return {parts};
 }
-
 function launchFireworks(){
   sizeCanvas();
   rockets = [];
@@ -512,19 +661,15 @@ function updateFW(){
   fctx.globalAlpha=1;
 }
 
-
 /* ===== Medaile & poháry – jako v ABC ===== */
 const medals = { bronze:0, silver:0, gold:0, trophy:0 };
-
 function updateMedals(){
   const c = document.getElementById('medals-container');
   c.innerHTML = '';
-  // pořadí: trofeje, zlato, stříbro, bronz
   for(let i=0;i<medals.trophy;i++) addIcon('🏆','trophy');
   for(let i=0;i<medals.gold;i++)   addIcon('🥇','gold');
   for(let i=0;i<medals.silver;i++) addIcon('🥈','silver');
   for(let i=0;i<medals.bronze;i++) addIcon('🥉','bronze');
-
   function addIcon(char, cls){
     const s=document.createElement('span');
     s.className='medal '+cls;
@@ -532,9 +677,7 @@ function updateMedals(){
     c.appendChild(s);
   }
 }
-
 function popMedal(char){
-  // velká ikona „z hloubky“ + zvuk
   const m = document.getElementById('medal-animation');
   m.textContent = char;
   m.style.display='block';
@@ -544,7 +687,6 @@ function popMedal(char){
   document.getElementById('sound-metal-fall')?.play().catch(()=>{});
   setTimeout(()=>{ m.style.display='none'; m.style.animation=''; m.style.top='-100px'; }, 650);
 }
-
 function flashMerge(){
   const f=document.createElement('div');
   f.className='flash-effect';
@@ -552,44 +694,30 @@ function flashMerge(){
   setTimeout(()=>f.remove(),520);
   document.getElementById('sound-metal-fuse')?.play().catch(()=>{});
 }
-
 function addMedal(type){
-  medals[type]++; updateMedals(); // přidej kus
-
-  // sloučení 3→1 (rekurzivně)
+  medals[type]++; updateMedals();
   tryMerge(type);
 }
-
 function tryMerge(type){
   const next = { bronze:'silver', silver:'gold', gold:'trophy' }[type] || null;
   if(!next) return;
-
   if(medals[type] >= 3){
     medals[type] -= 3;
     medals[next] += 1;
-    flashMerge();        // blesk + zvuk spojení
+    flashMerge();
     updateMedals();
-
-    // krátké zatřesení všech ikon next
     document.querySelectorAll('.medal.'+next).forEach(el=>{
       el.classList.add('shake');
       setTimeout(()=>el.classList.remove('shake'),550);
     });
-
-    // ukaz „pop“ velké ikony
     popMedal(next==='silver'?'🥈':next==='gold'?'🥇':'🏆');
-
-    // může se řetězit (např. třetí 🥇 ➜ 🏆)
     tryMerge(next);
   }else{
-    // jen obyčejné přidání – malé „pop-in“ aktuální ikonky
     const last = [...document.querySelectorAll('.medal.'+type)].pop();
     if(last){ last.classList.add('pop-in'); setTimeout(()=>last.classList.remove('pop-in'),220); }
     popMedal(type==='bronze'?'🥉':type==='silver'?'🥈':'🥇');
   }
 }
-
-
 </script>
 </body>
 </html>
