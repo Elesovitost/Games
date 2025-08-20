@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MONEY – Zaplať přesně</title>
+<style>
+  :root{
+    --green:#25a525;
+    --red:#d63636;
+    --ink:#222;
+    --panel:#f7f7f9;
+    --accent:#00bcd4;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;
+    margin:0; padding:14px; color:var(--ink); background:#fff;
+    text-align:center;
+  }
+
+  /* Top bar – inspirováno ABC.html */
+  .topbar{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:12px}
+  .score{display:flex;gap:10px}
+  .score-box{display:inline-flex;align-items:center;justify-content:center;width:90px;height:44px;
+    border:2px solid #333;border-radius:12px;background:#fff;box-shadow:2px 2px 8px rgba(0,0,0,.12)}
+  .good{color:var(--green);font-family:Impact,system-ui;font-size:24px}
+  .bad{color:var(--red);font-family:Impact,system-ui;font-size:24px}
+
+  /* Layout */
+  .game{
+    max-width:1100px;margin-inline:auto;display:grid;gap:16px;
+    grid-template-columns: 1fr auto 1fr;
+    align-items:start;
+  }
+  .seller, .table, .middle{
+    background:var(--panel); border:2px solid #333; border-radius:16px;
+    padding:14px; box-shadow:2px 2px 10px rgba(0,0,0,.12);
+    min-height:220px;
+  }
+
+  /* Prodavačka + bublina */
+  .seller-wrap{position:relative;display:flex;gap:10px;align-items:flex-start;justify-content:center}
+  .seller img{max-height:180px;border-radius:10px;border:2px solid #333}
+  .bubble{
+    position:absolute; left:58%; top:6px; transform:translateX(0);
+    background:#fff;border:2px solid #333;border-radius:16px;padding:10px 14px;min-width:140px;
+    box-shadow:2px 2px 8px rgba(0,0,0,.15); font-weight:700
+  }
+  .bubble:after{
+    content:"";position:absolute;left:-14px;top:32px; width:0;height:0; border-top:10px solid transparent;
+    border-bottom:10px solid transparent;border-right:14px solid #333;
+  }
+  .bubble:before{
+    content:"";position:absolute;left:-12px;top:34px; width:0;height:0; border-top:8px solid transparent;
+    border-bottom:8px solid transparent;border-right:12px solid #fff;
+  }
+  .bubble .hint{font-weight:600}
+  .price{font-size:28px;color:#000}
+
+  /* Řada peněz */
+  .money-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+  .money-btn{
+    background:#fff;border:2px solid #333;border-radius:12px;padding:6px;cursor:pointer;
+    box-shadow:1px 1px 6px rgba(0,0,0,.12);transition:transform .15s;
+  }
+  .money-btn:hover{transform:translateY(-2px)}
+  .money-btn img{height:64px;display:block}
+  .money-btn span{display:block;font-weight:700;font-size:12px}
+
+  /* Prostřední panel s tlačítkem */
+  .middle{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+  .pay{
+    font-size:24px;font-weight:800;letter-spacing:1px;
+    background:linear-gradient(#fff,#eee); border:2px solid #000; border-radius:14px;
+    padding:12px 20px; cursor:pointer; box-shadow:2px 2px 8px rgba(0,0,0,.25);
+    transition:transform .05s;
+  }
+  .pay:active{transform:scale(.98)}
+  .small{
+    font-size:14px; border:1px solid #000; background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer
+  }
+  .msg{min-height:26px;font-weight:800}
+
+  /* Stůl */
+  .table{position:relative}
+  .desk{
+    border:3px dashed #666;border-radius:14px;min-height:180px;background:#fff;
+    display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start;justify-content:flex-start;
+    padding:10px; text-align:left
+  }
+  .desk img{height:58px}
+  .sum{position:absolute;right:10px;bottom:8px;font-weight:800}
+  .sum{display:none !important}
+  .removable{cursor:pointer;border-radius:10px;box-shadow:0 0 0 2px transparent;transition:box-shadow .15s}
+  .removable:hover{box-shadow:0 0 0 2px var(--accent)}
+
+  /* Fireworks & celebration */
+  canvas#fw{position:fixed;inset:0;pointer-events:none;z-index:999}
+  .celebrate{
+    position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+    z-index:998;pointer-events:none;font-size:64px;text-shadow:3px 3px 0 #0002
+  }
+  .celebrate.show{display:flex;animation:pop 0.9s ease-out}
+  @keyframes pop{0%{transform:scale(.6);opacity:0}80%{transform:scale(1.05);opacity:1}100%{transform:scale(1)}}
+
+  /* Responsivita */
+  @media (max-width:950px){
+    .game{grid-template-columns:1fr}
+    .bubble{position:static;transform:none;margin:6px auto 0}
+  }
+  
+  /* --- Medaile & poháry (ABC styl) --- */
+#trophy-bar{
+  margin: 30px auto 20px auto;   /* nahoře odsazení, dole mezera */
+  text-align: center;
+  width: 100%;
+}
+
+#medals-container{
+  font-size: 40px;
+  display: flex;
+  justify-content: center; /* vystředí obsah */
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+
+/* efekt „vylétnutí“ nové medaile */
+@keyframes medal-from-depth{
+  0%{transform:translate(-50%,-50%) scale(5);opacity:0}
+  95%{transform:translate(-50%,-50%) scale(0.8);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(1);opacity:1}
+}
+.medal.pop-in{animation:pop-in .2s ease-out}
+
+/* krátké „zatřesení“ po sloučení 3 ks */
+@keyframes shake{0%,100%{transform:translateX(0)}25%,75%{transform:translateX(-5px)}50%{transform:translateX(5px)}}
+.medal.shake{animation:shake .5s ease-in-out}
+
+/* blesk při sloučení – jako v ABC */
+.flash-effect{
+  position:fixed;left:50%;top:50%;width:60px;height:60px;border-radius:50%;
+  background:radial-gradient(circle,#fff 0%,rgba(255,255,255,0) 70%);
+  pointer-events:none;transform:translate(-50%,-50%) scale(0);animation:flash .5s forwards;z-index:9999
+}
+@keyframes flash{0%{opacity:1;transform:translate(-50%,-50%) scale(0)}
+50%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+100%{opacity:0;transform:translate(-50%,-50%) scale(1.5)}}
+
+
+  
+</style>
+</head>
+<body>
+
+<div id="gif-container" style="position:fixed;top:80px;left:50%;transform:translateX(-160px);z-index:999;display:none;">
+  <img id="gif-animation" src="dance1.gif" style="height:100px;" />
+</div>
+
+<audio id="sound-correct" src="correct.mp3"></audio>
+<audio id="sound-wrong"   src="wrong.mp3"></audio>
+<audio id="sound-win"     src="win.mp3"></audio>
+<audio id="sound-metal-fall" src="sound-metal-fall.mp3"></audio>
+<audio id="sound-metal-fuse" src="sound-metal-fuse.mp3"></audio>
+
+
+<div class="topbar">
+  <div style="font-weight:700">SCORE</div>
+  <div class="score">
+    <div class="score-box"><span class="good" id="good">0</span></div>
+    <div class="score-box"><span class="bad" id="bad">0</span></div>
+  </div>
+</div>
+
+<div class="game">
+
+  <!-- LEVÝ PANEL – prodavačka + výběr peněz -->
+<section class="seller">
+  <div class="seller-wrap">
+    <img src="MONEY/Prodavačka.jpg" alt="prodavačka">
+          <div class="bubble" id="bubble">
+          <div class="price" id="need">–</div>
+		   <div class="hint">Zaplaťte prosím</div>
+      </div>
+  </div>
+</section>
+
+  <!-- STŘED – tlačítka -->
+  <section class="middle">
+    <button class="pay" id="payBtn">PLATÍM</button>
+    <button class="small" id="undoBtn">↩️ Zpět</button>
+    <button class="small" id="clearBtn">🧹 Znovu</button>
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <!-- PRAVÝ PANEL – stůl -->
+<section class="table">
+  <div class="desk" id="desk"></div>
+  <div class="sum" id="sum">0 Kč</div>
+  <div class="money-row" id="moneyRow"></div> <!-- SEM PATŘÍ -->
+</section>
+
+<!-- Ohňostroj + “oslava” -->
+<canvas id="fw"></canvas>
+<div class="celebrate" id="celebrate">🎉🎊🥳</div>
+
+<!-- Dočasná „vyskakovací“ ikona při přidání -->
+<div id="medal-animation"
+     style="position:fixed;top:-100px;left:50%;transform:translateX(-50%);font-size:80px;z-index:9999;pointer-events:none;display:none;"></div>
+
+</div>
+
+<!-- Medaile & poháry (ABC) -->
+<div id="trophy-bar">
+  <h3 style="margin:6px 0">MEDAILE</h3>
+  <div id="medals-container"></div>
+</div>
+
+<script>
+
+function playSound(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.currentTime = 0;
+  el.play().catch(()=>{});
+}
+
+/* Celebration (ported from ABC) */
+const GIF_COUNT = 16;   // dance1.gif ... dance16.gif
+const MUSIC_COUNT = 10; // music1.mp3 ... music10.mp3
+
+function showCelebration(){
+  const box = document.getElementById('gif-container');
+  const img = document.getElementById('gif-animation');
+
+  const g = Math.floor(Math.random()*GIF_COUNT)+1;
+  const m = Math.floor(Math.random()*MUSIC_COUNT)+1;
+
+  img.src = `dance${g}.gif`;
+  box.style.display = 'block';
+
+  const audio = new Audio(`music${m}.mp3`);
+  audio.volume = 1;
+  audio.play()
+    .then(()=> audio.addEventListener('ended', ()=>{ box.style.display='none'; }))
+    .catch(()=>{ setTimeout(()=> box.style.display='none', 5000); });
+}
+
+
+
+/* ---------- DATA PENĚZ ---------- */
+const MONEY = [
+  { v:1,  img:"MONEY/1_Koruna.png",  label:"1 Kč" },
+  { v:2,  img:"MONEY/2_Koruna.png",  label:"2 Kč" },
+  { v:5,  img:"MONEY/5_Koruna.png",  label:"5 Kč" },
+  { v:10, img:"MONEY/10_Koruna.png", label:"10 Kč" },
+  { v:20, img:"MONEY/20_Koruna.png", label:"20 Kč" },
+  { v:50, img:"MONEY/50_Koruna.jpg", label:"50 Kč" },
+  { v:100,img:"MONEY/100_Koruna.jpg",label:"100 Kč" }
+];
+
+/* ---------- STAV ---------- */
+let need = 0;
+let placed = [];  // seznam hodnot na stole
+let scoreGood = 0, scoreBad = 0;
+
+/* ---------- ELEMENTY ---------- */
+const moneyRow = document.getElementById('moneyRow');
+const desk     = document.getElementById('desk');
+const sumEl    = document.getElementById('sum');
+const msg      = document.getElementById('msg');
+const needEl   = document.getElementById('need');
+const bubble   = document.getElementById('bubble');
+const goodEl   = document.getElementById('good');
+const badEl    = document.getElementById('bad');
+const celebrate= document.getElementById('celebrate');
+
+/* ---------- UI – vytvoření řady mincí ---------- */
+MONEY.forEach(m=>{
+  const b = document.createElement('button');
+  b.className = 'money-btn';
+  b.title = m.label;
+  b.innerHTML = `<img src="${m.img}" alt="${m.label}"><span>${m.label}</span>`;
+  b.addEventListener('click',()=> addMoney(m));
+  moneyRow.appendChild(b);
+});
+
+function addMoney(m){
+  placed.push(m.v);
+  // vizuálně naklonovat
+  const img = document.createElement('img');
+  img.src = m.img; img.alt = m.label; img.className = 'removable';
+  img.title = `${m.label} (klik = odebrat)`;
+  img.addEventListener('click', ()=> removePiece(img, m.v));
+  desk.appendChild(img);
+  updateSum();
+}
+
+function removePiece(node, value){
+  const idx = placed.indexOf(value);
+  if(idx>-1){ placed.splice(idx,1); }
+  node.remove();
+  updateSum();
+}
+
+function updateSum(){
+  const s = placed.reduce((a,b)=>a+b,0);
+  sumEl.textContent = `${s} Kč`;
+  msg.textContent = '';
+  bubble.querySelector('.hint').textContent = 'Zaplaťte prosím';
+}
+
+function randomNeed(){
+  // 10–100 Kč (včetně)
+  need = Math.floor(Math.random()*91)+10;
+  needEl.textContent = `${need} Kč`;
+}
+
+function resetDesk(){
+  placed = [];
+  desk.innerHTML = '';
+  updateSum();
+}
+
+
+function addMoney(m){
+  placed.push(m.v);
+  const img = document.createElement('img');
+  img.src = m.img; img.alt = m.label; img.className = 'removable';
+  img.title = `${m.label} (klik = odebrat)`;
+  img.addEventListener('click', ()=> removePiece(img, m.v));
+  desk.appendChild(img);
+  playSound('sound-correct'); // volitelné „ťuknutí“
+  updateSum();
+}
+
+/* ---------- HRA ---------- */
+document.getElementById('payBtn').addEventListener('click', ()=>{
+  const total = placed.reduce((a,b)=>a+b,0);
+  if(total === need){
+    scoreGood++; goodEl.textContent = scoreGood;
+    msg.style.color = 'var(--green)'; msg.textContent = 'Správně! Děkuji.';
+    playSound('sound-win');   // přidej – vítězný zvuk (ABC)
+	launchFireworks();        // zůstává
+    maybeCelebrate(scoreGood);               // oslava při násobku 5
+	if (scoreGood % 5 === 0) addMedal('bronze');
+    setTimeout(()=>{ stopFireworks(); }, 1600);
+    resetDesk();
+    randomNeed();
+	updateMedals();
+  }else{
+    scoreBad++; badEl.textContent = scoreBad;
+	playSound('sound-wrong');
+    if(total < need){
+      msg.style.color = 'var(--red)'; msg.textContent = 'Málo!';
+      bubble.querySelector('.hint').textContent = 'Je to málo…';
+    }else{
+      msg.style.color = 'var(--red)'; msg.textContent = 'Moc!';
+      bubble.querySelector('.hint').textContent = 'Je to moc…';
+    }
+    // stůl se neresetuje – hráč může upravit částku
+  }
+});
+
+document.getElementById('clearBtn').addEventListener('click', resetDesk);
+document.getElementById('undoBtn').addEventListener('click', ()=>{
+  if(!desk.lastElementChild) return;
+  const lastImg = desk.lastElementChild;
+  lastImg.click(); // využijeme stejný handler – odebere i ze stavu
+});
+
+/* ---------- Start ---------- */
+randomNeed();
+
+/* ---------- OSLAVA – každých 5 bodů ---------- */
+function maybeCelebrate(score){
+  if(score>0 && score % 5 === 0){
+    showCelebration(); // místo starého banneru
+  }
+}
+
+
+/* ---------- OHŇOSTROJ (canvas) ---------- */
+const fwCanvas = document.getElementById('fw');
+const fctx = fwCanvas.getContext('2d');
+let fwTimer=null, rockets=[];
+
+function sizeCanvas(){
+  fwCanvas.width = innerWidth; fwCanvas.height = innerHeight;
+}
+addEventListener('resize', sizeCanvas); sizeCanvas();
+
+function createFirework(){
+  const x = Math.random()*fwCanvas.width;
+  const y = Math.random()*fwCanvas.height*0.4+40;
+  const colors=['#ff3b3b','#33cc33','#3399ff','#ffd166','#ff66cc','#00ffff'];
+  const color=colors[(Math.random()*colors.length)|0];
+  const parts=[];
+  for(let i=0;i<40;i++){
+    const ang=Math.random()*Math.PI*2;
+    const sp = Math.random()*5+2;
+    parts.push({x,y,dx:Math.cos(ang)*sp,dy:Math.sin(ang)*sp,alpha:1,col:color});
+  }
+  return {parts};
+}
+
+function launchFireworks(){
+  sizeCanvas();
+  rockets = [];
+  for(let i=0;i<5;i++) rockets.push(createFirework());
+  if(fwTimer) clearInterval(fwTimer);
+  fwTimer = setInterval(updateFW, 50);
+}
+function stopFireworks(){
+  clearInterval(fwTimer); fwTimer=null;
+  rockets=[]; fctx.clearRect(0,0,fwCanvas.width,fwCanvas.height);
+}
+function updateFW(){
+  fctx.clearRect(0,0,fwCanvas.width,fwCanvas.height);
+  rockets.forEach(r=>{
+    r.parts.forEach(p=>{ p.x+=p.dx; p.y+=p.dy; p.alpha-=0.02; });
+    r.parts = r.parts.filter(p=>p.alpha>0);
+    r.parts.forEach(p=>{
+      fctx.beginPath(); fctx.arc(p.x,p.y,3,0,2*Math.PI);
+      fctx.fillStyle = p.col; fctx.globalAlpha = p.alpha; fctx.fill();
+    });
+  });
+  fctx.globalAlpha=1;
+}
+
+
+/* ===== Medaile & poháry – jako v ABC ===== */
+const medals = { bronze:0, silver:0, gold:0, trophy:0 };
+
+function updateMedals(){
+  const c = document.getElementById('medals-container');
+  c.innerHTML = '';
+  // pořadí: trofeje, zlato, stříbro, bronz
+  for(let i=0;i<medals.trophy;i++) addIcon('🏆','trophy');
+  for(let i=0;i<medals.gold;i++)   addIcon('🥇','gold');
+  for(let i=0;i<medals.silver;i++) addIcon('🥈','silver');
+  for(let i=0;i<medals.bronze;i++) addIcon('🥉','bronze');
+
+  function addIcon(char, cls){
+    const s=document.createElement('span');
+    s.className='medal '+cls;
+    s.textContent=char;
+    c.appendChild(s);
+  }
+}
+
+function popMedal(char){
+  // velká ikona „z hloubky“ + zvuk
+  const m = document.getElementById('medal-animation');
+  m.textContent = char;
+  m.style.display='block';
+  m.style.top='50%';
+  m.style.animation='medal-from-depth 0.6s ease-out';
+  document.body.appendChild(m);
+  document.getElementById('sound-metal-fall')?.play().catch(()=>{});
+  setTimeout(()=>{ m.style.display='none'; m.style.animation=''; m.style.top='-100px'; }, 650);
+}
+
+function flashMerge(){
+  const f=document.createElement('div');
+  f.className='flash-effect';
+  document.body.appendChild(f);
+  setTimeout(()=>f.remove(),520);
+  document.getElementById('sound-metal-fuse')?.play().catch(()=>{});
+}
+
+function addMedal(type){
+  medals[type]++; updateMedals(); // přidej kus
+
+  // sloučení 3→1 (rekurzivně)
+  tryMerge(type);
+}
+
+function tryMerge(type){
+  const next = { bronze:'silver', silver:'gold', gold:'trophy' }[type] || null;
+  if(!next) return;
+
+  if(medals[type] >= 3){
+    medals[type] -= 3;
+    medals[next] += 1;
+    flashMerge();        // blesk + zvuk spojení
+    updateMedals();
+
+    // krátké zatřesení všech ikon next
+    document.querySelectorAll('.medal.'+next).forEach(el=>{
+      el.classList.add('shake');
+      setTimeout(()=>el.classList.remove('shake'),550);
+    });
+
+    // ukaz „pop“ velké ikony
+    popMedal(next==='silver'?'🥈':next==='gold'?'🥇':'🏆');
+
+    // může se řetězit (např. třetí 🥇 ➜ 🏆)
+    tryMerge(next);
+  }else{
+    // jen obyčejné přidání – malé „pop-in“ aktuální ikonky
+    const last = [...document.querySelectorAll('.medal.'+type)].pop();
+    if(last){ last.classList.add('pop-in'); setTimeout(()=>last.classList.remove('pop-in'),220); }
+    popMedal(type==='bronze'?'🥉':type==='silver'?'🥈':'🥇');
+  }
+}
+
+
+</script>
+</body>
+</html>
