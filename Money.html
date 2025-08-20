@@ -217,6 +217,25 @@
   <div id="medals-container"></div>
 </div>
 
+<!-- Nastavení rozsahu pro randomNeed -->
+<div id="settings-bar" style="margin:10px 0 24px 0; text-align:center;">
+  <div id="settings-btn" style="cursor:pointer; display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid #333; border-radius:10px; background:#fff;">
+    <span style="font-size:20px;">⚙</span>
+    <span>Nastavení</span>
+  </div>
+
+  <div id="settings-panel" style="display:none; margin-top:10px;">
+    <label>Min: <input type="number" id="minValue" value="10" style="width:80px;"></label>
+    &nbsp;&nbsp;
+    <label>Max: <input type="number" id="maxValue" value="100" style="width:80px;"></label>
+    &nbsp;&nbsp;
+    <button id="saveRange" class="small">Uložit</button>
+    <button id="cancelRange" class="small">Zavřít</button>
+    <div id="rangeMsg" style="margin-top:6px; font-size:13px;"></div>
+  </div>
+</div>
+
+
 <script>
 
 function playSound(id){
@@ -264,6 +283,8 @@ const MONEY = [
 let need = 0;
 let placed = [];  // seznam hodnot na stole
 let scoreGood = 0, scoreBad = 0;
+let minRange = 10;
+let maxRange = 100;
 
 /* ---------- ELEMENTY ---------- */
 const moneyRow = document.getElementById('moneyRow');
@@ -275,6 +296,14 @@ const bubble   = document.getElementById('bubble');
 const goodEl   = document.getElementById('good');
 const badEl    = document.getElementById('bad');
 const celebrate= document.getElementById('celebrate');
+
+const settingsBtn   = document.getElementById('settings-btn');
+const settingsPanel = document.getElementById('settings-panel');
+const minInput      = document.getElementById('minValue');
+const maxInput      = document.getElementById('maxValue');
+const saveRangeBtn  = document.getElementById('saveRange');
+const cancelRangeBtn= document.getElementById('cancelRange');
+const rangeMsg      = document.getElementById('rangeMsg');
 
 /* ---------- UI – vytvoření řady mincí ---------- */
 MONEY.forEach(m=>{
@@ -312,10 +341,62 @@ function updateSum(){
 }
 
 function randomNeed(){
-  // 10–100 Kč (včetně)
-  need = Math.floor(Math.random()*91)+10;
+  const span = maxRange - minRange + 1;
+  if (span < 1) {
+    // bezpečnostní pojistka – kdyby byl rozsah špatně, spadne zpět na 10–100
+    minRange = 10; maxRange = 100;
+  }
+  need = Math.floor(Math.random() * (maxRange - minRange + 1)) + minRange;
   needEl.textContent = `${need} Kč`;
 }
+
+
+// ⚙ otevřít/zavřít panel
+settingsBtn.addEventListener('click', () => {
+  // při otevření doplň aktuální hodnoty
+  minInput.value = minRange;
+  maxInput.value = maxRange;
+  rangeMsg.textContent = '';
+  settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
+});
+
+cancelRangeBtn.addEventListener('click', () => {
+  settingsPanel.style.display = 'none';
+});
+
+// Uložit nové rozmezí
+saveRangeBtn.addEventListener('click', () => {
+  const newMin = parseInt(minInput.value, 10);
+  const newMax = parseInt(maxInput.value, 10);
+
+  if (Number.isNaN(newMin) || Number.isNaN(newMax)) {
+    rangeMsg.style.color = 'var(--red)';
+    rangeMsg.textContent = 'Zadej prosím čísla.';
+    return;
+  }
+  if (newMin < 0) {
+    rangeMsg.style.color = 'var(--red)';
+    rangeMsg.textContent = 'Min nesmí být záporné.';
+    return;
+  }
+  if (newMax < newMin) {
+    rangeMsg.style.color = 'var(--red)';
+    rangeMsg.textContent = 'Max musí být ≥ Min.';
+    return;
+  }
+
+  minRange = newMin;
+  maxRange = newMax;
+  rangeMsg.style.color = 'var(--green)';
+  rangeMsg.textContent = `Rozsah uložen (${minRange}–${maxRange}).`;
+
+  // rovnou vygenerovat novou částku
+  randomNeed();
+
+  // zavřít panel po krátké chvilce
+  setTimeout(() => { settingsPanel.style.display = 'none'; }, 400);
+});
+
 
 function resetDesk(){
   placed = [];
