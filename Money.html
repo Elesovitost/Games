@@ -220,7 +220,7 @@
 <!-- Nastavení rozsahu pro randomNeed -->
 <div id="settings-bar" style="margin:10px 0 24px 0; text-align:center;">
   <div id="settings-btn" style="cursor:pointer; display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:0px solid #333; border-radius:10px; background:#fff;">
-    <span style="font-size:20px;">⚙</span
+    <span style="font-size:20px;">⚙</span>
   </div>
 
   <div id="settings-panel" style="display:none; margin-top:10px;">
@@ -427,10 +427,10 @@ document.getElementById('payBtn').addEventListener('click', ()=>{
     playSound('sound-win');   // přidej – vítězný zvuk (ABC)
 	launchFireworks();        // zůstává
     maybeCelebrate(scoreGood);               // oslava při násobku 5
+	randomNeed();
 	if (scoreGood % 5 === 0) addMedal('bronze');
     setTimeout(()=>{ stopFireworks(); }, 1600);
     resetDesk();
-    randomNeed();
 	updateMedals();
   }else{
     scoreBad++; badEl.textContent = scoreBad;
