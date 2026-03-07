@@ -1,3 +1,6 @@
+"domov"
+table-stůl
+
 "jídlo"
 apple-jablko
 banana-banán
@@ -11,7 +14,18 @@ colour-barva
 cut-stříhat
 sit_down-posaď_se
 stand_up-postav_se
-table-stůl
+bag-taška
+desk-pracovní stůl
+eraser-guma
+folder-složka
+glue-lepidlo
+notebook-notebook
+pen-pero
+pencil-tužka
+pencil_case-penál
+ruler-pravítko
+scissors-nůžky
+sharpener-ořezávátko
 
 "slovesa"
 drink-pít
@@ -84,3 +98,5 @@ She_is-ona_je
 They_are-oni_jsou
 We_are-my_jsme
 You_are-ty_jsi_vy_jste
+
+
