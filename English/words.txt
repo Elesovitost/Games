@@ -120,5 +120,12 @@ on-na
 opposite-naproti
 under-pod
 
+"pocity"
+sad-smutný
+angry-rozzlobený
+tired-unavený
+hungry-hladový
+thirsty-žíznivý
+scared-vyděšený
 
 

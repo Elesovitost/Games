@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from deep_translator import GoogleTranslator
 
 # --- KONFIGURACE ---
-words_to_process = ["dog", "cat", "rabbit", "bird", "fish", "lion", "elephant", "monkey", "snake", "spider"]
+words_to_process = ["happy", "sad", "angry", "tired", "hungry", "thirsty", "scared"]
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 WORDS_FILE = "words.txt"
 
