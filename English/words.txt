@@ -67,7 +67,7 @@ dress-šaty
 hat-čepice
 jacket-bunda
 jeans-džíny
-jumper-propojka
+jumper-svetr
 shirt-košile
 shoes-obuv
 shorts-šortky
