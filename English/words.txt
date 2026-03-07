@@ -128,4 +128,35 @@ hungry-hladový
 thirsty-žíznivý
 scared-vyděšený
 
+"sentences"
+Alex likes cars. / Alex má_rád auta.
+Max is hungry. / Max je hladový.
+Do you like school? / Máš rád školu?
+What food do you like? / Jaké jídlo máš rád?
+Where is my book? / Kde je moje kniha?
+Can I go to the toilet? / Můžu jít na záchod?
+What is this? / Co je to?
+What is your name? / Jak se jmenuješ?
+My name is Bobo. / Moje jméno je Bobo.
+Do you have a pencil? / Máš tužku?
+How old are you? / Kolik je ti let?
+I am six years old. / Jsem šest let starý.
+Where is the teacher? / Kde je učitelka?
+How are you? / Jak se máš?
+I am fine. / Jsem v_pohodě.
+Are we going outside? / Půjdeme ven?
+Do you have a brother or sister? / Máš bratra nebo sestru?
+I have a red apple. / Mám červené jablko.
+This is my friend. / Tohle je můj kamarád.
+I like to play. / Rád si hraju.
+I see a big dog. / Vidím velkého psa.
+I am thirsty. / Mám žízeň.
+Today is Monday. / Dnes je pondělí.
+I can play chess. / Umím hrát šachy.
+My school bag is blue. / Moje školní taška je modrá.
+I cant read this. / Neumím to přečíst.
+Please help me. / Prosím, pomoz mi.
+I can count to ten. / Umím počítat do deseti.
 
+
+january-leden
