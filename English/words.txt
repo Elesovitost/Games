@@ -1,21 +1,33 @@
-"domov"
-table-stůl
+"zvířata"
+dog-pes
+cat-kočka
+rabbit-králičí
+bird-pták
+fish-ryba
+lion-lev
+elephant-slon
+monkey-opice
+snake-had
+spider-pavouk
 
-"jídlo"
+"podstatná"
+car-auto
+song-píseň
+table-stůl
 apple-jablko
 banana-banán
-
-"dopravní prostředky"
-car-auto
+plane-letadlo
+train-vlak
+bus-autobus
 
 "škola"
+desk-pracovní_stůl
 chair-židle
 colour-barva
 cut-stříhat
 sit_down-posaď_se
 stand_up-postav_se
 bag-taška
-desk-pracovní stůl
 eraser-guma
 folder-složka
 glue-lepidlo
@@ -45,7 +57,6 @@ read-číst
 run-běhat
 say-říct
 sing-zpívat
-song-píseň
 take-vzít
 touch-dotknout_se
 write-psát
@@ -98,5 +109,16 @@ She_is-ona_je
 They_are-oni_jsou
 We_are-my_jsme
 You_are-ty_jsi_vy_jste
+
+"předložky"
+behind-za
+between-mezi
+in-v
+in_front_of-před
+next_to-vedle
+on-na
+opposite-naproti
+under-pod
+
 
 
