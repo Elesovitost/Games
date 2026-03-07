@@ -314,7 +314,12 @@ function loadReadingTask() {
   const container = document.getElementById('reading-options');
   container.innerHTML = '';
 
-  const options = [...englishData.filter(i => i.en !== currentWord).sort(() => 0.5 - Math.random()).slice(0, 4), currentItem].sort(() => 0.5 - Math.random());
+  // --- NOVÁ ČÁST: Vyfiltrujeme možná slova podle zakliknutých skupin ---
+  let filteredPool = selectedGroups.includes("vše") ? englishData : englishData.filter(item => selectedGroups.includes(item.group));
+  if (filteredPool.length === 0) filteredPool = englishData; // Pojistka pro prázdný výběr
+
+  // Losujeme 4 náhodné nesprávné obrázky POUZE z vyfiltrovaného seznamu
+  const options = [...filteredPool.filter(i => i.en !== currentWord).sort(() => 0.5 - Math.random()).slice(0, 4), currentItem].sort(() => 0.5 - Math.random());
 
   options.forEach(item => {
     const wrapper = document.createElement('div');
