@@ -1,7 +1,7 @@
 "zvířata"
 dog-pes
 cat-kočka
-rabbit-králičí
+rabbit-králík
 bird-pták
 fish-ryba
 lion-lev
