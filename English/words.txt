@@ -19,6 +19,9 @@ banana-banán
 plane-letadlo
 train-vlak
 bus-autobus
+phone-telefon
+home-domov
+computer-počítač
 
 "škola"
 desk-pracovní_stůl
@@ -123,6 +126,7 @@ under-pod
 "pocity"
 sad-smutný
 angry-rozzlobený
+happy-šťastný
 tired-unavený
 hungry-hladový
 thirsty-žíznivý
@@ -157,6 +161,6 @@ My school bag is blue. / Moje školní taška je modrá.
 I cant read this. / Neumím to přečíst.
 Please help me. / Prosím, pomoz mi.
 I can count to ten. / Umím počítat do deseti.
-
-
-january-leden
+I like my mommy. / Mám rád moji maminku.
+What time is it? / Kolik je hodin?
+Computer games are fun. / Počítačové hry jsou zábava.
