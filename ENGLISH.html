@@ -63,7 +63,14 @@ body {font-family:sans-serif;text-align:center;padding:10px;background-color:#f8
 .shake {animation:shake 0.3s ease-in-out;}
 
 /* Čtení - Volby */
-#reading-word {font-size:48px;font-weight:bold;margin:20px;color:#333;text-transform:uppercase;letter-spacing:2px;}
+#reading-word {font-size:48px;font-weight:bold;margin:20px;color:#333;letter-spacing:2px;}
+
+body.uppercase-text .letter-box,
+body.uppercase-text #reading-word,
+body.uppercase-text .reading-label,
+body.uppercase-text #sentence-source,
+body.uppercase-text .sentence-word {text-transform: uppercase;}
+
 #reading-options {display:flex;justify-content:center;gap:20px;flex-wrap:wrap;align-items:flex-start;}
 .reading-option {display: flex;flex-direction: column;align-items: center;gap: 5px;}
 .reading-label {font-size: 18px;font-weight: bold;color: #333;}
@@ -183,6 +190,7 @@ let isLocked = false;
 let medals = { gold: 0, silver: 0, bronze: 0, trophy: 0, crown: 0 };
 let settings = { uppercase: true, sound: true, kidMode: false };
 let groups = ["vše"], selectedGroups = ["vše"], holdTimer;
+let sentenceGroups = ["vše"], selectedSentenceGroups = ["vše"];
 let wordWeights = JSON.parse(localStorage.getItem('englishWeights')) || {};
 
 // Proměnné pro Sentences
@@ -198,22 +206,34 @@ let selectedSentenceWord = null; // Pro mobilní click-to-move
     const text = await resp.text();
     const lines = text.split(/\r?\n/);
     
-    let currentGroup = "vše";
+    let currentWordGroup = "vše";
+    let currentSentenceGroup = "vše"; // Nová proměnná pro kontext vět
     englishData = [];
     sentencesData = [];
     
     lines.forEach(line => {
       const trimmed = line.trim();
       if (!trimmed) return;
+      
       if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-        currentGroup = trimmed.replace(/"/g, '');
-        currentGroup.split(',').forEach(g => { let clean = g.trim(); if (clean !== "sentences" && !groups.includes(clean)) groups.push(clean); });
-      } else if (currentGroup === "sentences" && trimmed.includes('/')) {
+        // Skupiny pro slovíčka
+        currentWordGroup = trimmed.replace(/"/g, '');
+        currentWordGroup.split(',').forEach(g => { 
+          let clean = g.trim(); 
+          if (!groups.includes(clean)) groups.push(clean); 
+        });
+      } else if (trimmed.startsWith('*') && trimmed.endsWith('*')) {
+        // Skupiny pro věty
+        currentSentenceGroup = trimmed.replace(/\*/g, '').trim();
+        if (!sentenceGroups.includes(currentSentenceGroup)) sentenceGroups.push(currentSentenceGroup);
+      } else if (trimmed.includes('/')) {
+        // Věty se nyní poznají podle lomítka
         const [en, cz] = trimmed.split('/').map(s => s.trim());
-        sentencesData.push({ en, cz });
+        sentencesData.push({ en, cz, group: currentSentenceGroup });
       } else if (trimmed.includes('-')) {
+        // Slovíčka podle pomlčky
         const [en, cz] = trimmed.split('-').map(s => s.trim());
-        englishData.push({ en, cz, img: `English/${en}.jpg`, audio: `English/${en}.mp3`, group: currentGroup });
+        englishData.push({ en, cz, img: `English/${en}.jpg`, audio: `English/${en}.mp3`, group: currentWordGroup });
       }
     });
   } catch (e) {
@@ -226,7 +246,13 @@ function loadSettings() {
   if (match) {
     try {
       settings = JSON.parse(match[1]);
-      document.getElementById('toggle-uppercase').textContent = settings.uppercase ? '🔠' : '🔡';
+      document.getElementById('toggle-uppercase').onclick = () => { 
+        settings.uppercase = !settings.uppercase; 
+        document.getElementById('toggle-uppercase').textContent = settings.uppercase ? '🔠' : '🔡'; 
+        document.body.classList.toggle('uppercase-text', settings.uppercase); // Přidáno přepínání třídy
+        saveSettings(); 
+        updateDisplay(); 
+      };
       document.getElementById('toggle-sound').textContent = settings.sound ? '🔊' : '🔇';
       document.getElementById('toggle-kid-mode').textContent = settings.kidMode ? '👶' : '🧒';
     } catch (e) {}
@@ -428,9 +454,15 @@ function loadSentencesTask() {
   sentenceCorrectCount = 0;
   selectedSentenceWord = null;
 
-  let availableSentences = sentencesData;
-  if (sentencesData.length > 1 && currentSentenceItem) {
-    availableSentences = sentencesData.filter(s => s.en !== currentSentenceItem.en);
+  // NOVÉ: Filtrace podle vybraných skupin vět
+  let filteredPool = selectedSentenceGroups.includes("vše") 
+    ? sentencesData 
+    : sentencesData.filter(item => selectedSentenceGroups.includes(item.group));
+  if (filteredPool.length === 0) filteredPool = sentencesData;
+
+  let availableSentences = filteredPool;
+  if (filteredPool.length > 1 && currentSentenceItem) {
+    availableSentences = filteredPool.filter(s => s.en !== currentSentenceItem.en);
   }
   currentSentenceItem = availableSentences[Math.floor(Math.random() * availableSentences.length)];
 
@@ -609,11 +641,13 @@ function updateDisplay() {
   const boxes = document.getElementById('letters').children;
   for (let i = 0; i < boxes.length; i++) {
     const char = userInput[i];
-    if (currentWord[i] === '_') { boxes[i].textContent = ''; boxes[i].className = 'letter-box space'; } 
-    else {
+    if (currentWord[i] === '_') { 
+      boxes[i].textContent = ''; 
+      boxes[i].className = 'letter-box space'; 
+    } else {
       boxes[i].textContent = char || '';
       boxes[i].className = 'letter-box' + (char ? ' correct' : '');
-      if (settings.uppercase && char) boxes[i].style.textTransform = 'uppercase';
+      // Řádek "if (settings.uppercase && char)..." byl smazán, řeší to CSS
     }
   }
   updateScoreDisplay();
@@ -729,23 +763,49 @@ document.getElementById('toggle-sound').onclick = () => { settings.sound = !sett
 document.getElementById('toggle-kid-mode').onclick = () => { settings.kidMode = !settings.kidMode; document.getElementById('toggle-kid-mode').textContent = settings.kidMode ? '👶' : '🧒'; saveSettings(); };
 document.getElementById('mobile-input').oninput = (e) => { const val = e.target.value; if (val) { handleKey({key: val.slice(-1)}); e.target.value = ''; } };
 
-function showGroupMenu(x, y) {
+function showGroupMenu(x, y, mode = 'reading') {
   const menu = document.getElementById('group-menu'); if (!menu) return; menu.innerHTML = '';
-  let sortedGroups = ["vše", ...groups.filter(g => g !== "vše").sort((a, b) => a.localeCompare(b, 'cs'))];
+  
+  const isSentences = (mode === 'sentences');
+  const currentGroupsList = isSentences ? sentenceGroups : groups;
+  let currentSelectedList = isSentences ? selectedSentenceGroups : selectedGroups;
+  const currentDataList = isSentences ? sentencesData : englishData;
+
+  let sortedGroups = ["vše", ...currentGroupsList.filter(g => g !== "vše").sort((a, b) => a.localeCompare(b, 'cs'))];
+  
   sortedGroups.forEach(group => {
-    const btn = document.createElement('button'); const isActive = selectedGroups.includes(group);
-    const wordCount = group === "vše" ? englishData.length : englishData.filter(item => item.group.split(',').map(s=>s.trim()).includes(group)).length;
-    btn.innerHTML = `<span>${group} (${wordCount})</span><span style="visibility: ${isActive ? 'visible' : 'hidden'}; font-weight: bold;">✓</span>`;
+    const btn = document.createElement('button'); 
+    const isActive = currentSelectedList.includes(group);
+    
+    // Dynamický výpočet počtu položek ve skupině
+    let itemCount = group === "vše" 
+      ? currentDataList.length 
+      : currentDataList.filter(item => isSentences ? item.group === group : item.group.split(',').map(s=>s.trim()).includes(group)).length;
+    
+    btn.innerHTML = `<span>${group} (${itemCount})</span><span style="visibility: ${isActive ? 'visible' : 'hidden'}; font-weight: bold;">✓</span>`;
     if (isActive) btn.className = 'active-group';
+    
     btn.onclick = (e) => { 
       e.stopPropagation(); 
-      if (group === "vše") { selectedGroups = ["vše"]; } 
-      else {
-        selectedGroups = selectedGroups.filter(g => g !== "vše");
-        if (selectedGroups.includes(group)) { selectedGroups = selectedGroups.filter(g => g !== group); if (selectedGroups.length === 0) selectedGroups = ["vše"]; } 
-        else { selectedGroups.push(group); }
+      if (group === "vše") { 
+        if (isSentences) selectedSentenceGroups = ["vše"]; else selectedGroups = ["vše"];
+      } else {
+        if (isSentences) {
+          selectedSentenceGroups = selectedSentenceGroups.filter(g => g !== "vše");
+          if (selectedSentenceGroups.includes(group)) { 
+            selectedSentenceGroups = selectedSentenceGroups.filter(g => g !== group); 
+            if (selectedSentenceGroups.length === 0) selectedSentenceGroups = ["vše"]; 
+          } else { selectedSentenceGroups.push(group); }
+        } else {
+          selectedGroups = selectedGroups.filter(g => g !== "vše");
+          if (selectedGroups.includes(group)) { 
+            selectedGroups = selectedGroups.filter(g => g !== group); 
+            if (selectedGroups.length === 0) selectedGroups = ["vše"]; 
+          } else { selectedGroups.push(group); }
+        }
       }
-      recentWords = []; showGroupMenu(x, y);
+      recentWords = []; 
+      showGroupMenu(x, y, mode); // Předáme mode dál při překreslení
     };
     menu.appendChild(btn);
   });
@@ -761,7 +821,10 @@ function setupModeButtons() {
     const onStart = (e) => {
       longPressTriggered = false;
       const x = e.touches ? e.touches[0].pageX : e.pageX; const y = e.touches ? e.touches[0].pageY : e.pageY;
-      if (modeName === 'reading') { holdTimer = setTimeout(() => { longPressTriggered = true; showGroupMenu(x, y); }, 1000); }
+      // NOVÉ: Přidána podpora pro sentences a předání modeName
+      if (modeName === 'reading' || modeName === 'sentences') { 
+        holdTimer = setTimeout(() => { longPressTriggered = true; showGroupMenu(x, y, modeName); }, 1000); 
+      }
     };
     const onEnd = (e) => {
       clearTimeout(holdTimer);
@@ -786,6 +849,7 @@ document.addEventListener('click', (e) => {
 setupModeButtons();
 const statsBtn = document.getElementById('toggle-stats'); if (statsBtn) statsBtn.onclick = toggleStatsPopup;
 loadSettings();
+document.body.classList.toggle('uppercase-text', settings.uppercase);
 </script>
 </body>
 </html>
