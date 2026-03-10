@@ -84,7 +84,7 @@ def process_vocabulary():
         else:
             # Zpracování slov
             parts = line.split('-')
-            en_word = parts[0].strip()
+            en_word = parts[0].strip().lower()
             search_word = en_word.replace("_", " ")
             mp3_path = base_path / f"{en_word}.mp3"
 
