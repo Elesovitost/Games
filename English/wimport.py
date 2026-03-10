@@ -57,6 +57,10 @@ def process_vocabulary():
         original_line = line
         line = line.strip()
         
+        if re.search(r'\*[^*]+\*', line):
+            retained_lines.append(original_line)
+            continue
+
         if not line:
             retained_lines.append(original_line)
             continue

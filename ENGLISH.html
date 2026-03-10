@@ -207,7 +207,7 @@ let selectedSentenceWord = null; // Pro mobilní click-to-move
       if (!trimmed) return;
       if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
         currentGroup = trimmed.replace(/"/g, '');
-        if (currentGroup !== "sentences" && !groups.includes(currentGroup)) groups.push(currentGroup);
+        currentGroup.split(',').forEach(g => { let clean = g.trim(); if (clean !== "sentences" && !groups.includes(clean)) groups.push(clean); });
       } else if (currentGroup === "sentences" && trimmed.includes('/')) {
         const [en, cz] = trimmed.split('/').map(s => s.trim());
         sentencesData.push({ en, cz });
@@ -246,7 +246,7 @@ function updateWordWeight(word, hadError) {
 }
 
 function getNextWord() {
-  let filtered = selectedGroups.includes("vše") ? englishData : englishData.filter(item => selectedGroups.includes(item.group));
+  let filtered = selectedGroups.includes("vše") ? englishData : englishData.filter(item => selectedGroups.some(g => item.group.split(',').map(s=>s.trim()).includes(g)));
   if (filtered.length === 0) filtered = englishData;
   let bufferSize = Math.max(0, Math.min(5, Math.floor(filtered.length * 0.4)));
   let candidates = filtered.filter(item => !recentWords.includes(item.en));
@@ -346,7 +346,7 @@ function loadReadingTask() {
   const container = document.getElementById('reading-options');
   container.innerHTML = '';
 
-  let filteredPool = selectedGroups.includes("vše") ? englishData : englishData.filter(item => selectedGroups.includes(item.group));
+  let filteredPool = selectedGroups.includes("vše") ? englishData : englishData.filter(item => selectedGroups.some(g => item.group.split(',').map(s=>s.trim()).includes(g)));
   if (filteredPool.length === 0) filteredPool = englishData;
 
   const options = [...filteredPool.filter(i => i.en !== currentWord).sort(() => 0.5 - Math.random()).slice(0, 4), currentItem].sort(() => 0.5 - Math.random());
@@ -731,9 +731,10 @@ document.getElementById('mobile-input').oninput = (e) => { const val = e.target.
 
 function showGroupMenu(x, y) {
   const menu = document.getElementById('group-menu'); if (!menu) return; menu.innerHTML = '';
-  groups.forEach(group => {
+  let sortedGroups = ["vše", ...groups.filter(g => g !== "vše").sort((a, b) => a.localeCompare(b, 'cs'))];
+  sortedGroups.forEach(group => {
     const btn = document.createElement('button'); const isActive = selectedGroups.includes(group);
-    const wordCount = group === "vše" ? englishData.length : englishData.filter(item => item.group === group).length;
+    const wordCount = group === "vše" ? englishData.length : englishData.filter(item => item.group.split(',').map(s=>s.trim()).includes(group)).length;
     btn.innerHTML = `<span>${group} (${wordCount})</span><span style="visibility: ${isActive ? 'visible' : 'hidden'}; font-weight: bold;">✓</span>`;
     if (isActive) btn.className = 'active-group';
     btn.onclick = (e) => { 

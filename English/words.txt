@@ -1,3 +1,23 @@
+
+"sloveso být, gramatika"
+He_is-on_je
+I_am-já_jsem
+It_is-to_je
+She_is-ona_je
+They_are-oni_jsou
+We_are-my_jsme
+You_are-ty_jsi_vy_jste
+
+"předložky, gramatika"
+behind-za
+between-mezi
+in-v
+in_front_of-před
+next_to-vedle
+on-na
+opposite-naproti
+under-pod
+
 "čas"
 Now-teď
 Today-dnes
@@ -125,24 +145,6 @@ socks-ponožky
 Tshirt-tričko
 trousers-kalhoty
 
-"sloveso být"
-He_is-on_je
-I_am-já_jsem
-It_is-to_je
-She_is-ona_je
-They_are-oni_jsou
-We_are-my_jsme
-You_are-ty_jsi_vy_jste
-
-"předložky"
-behind-za
-between-mezi
-in-v
-in_front_of-před
-next_to-vedle
-on-na
-opposite-naproti
-under-pod
 
 "pocity"
 sad-smutný
