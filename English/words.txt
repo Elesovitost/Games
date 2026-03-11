@@ -160,12 +160,15 @@ Max is hungry. / Max je hladový.
 Where is my book? / Kde je moje kniha?
 What is this? / Co je to?
 What is your name? / Jak se jmenuješ?
-My name is Bobo. / Moje jméno je Bobo.
-How old are you? / Jak starý jsi?
+My name is Bobo. / Jmenuji se Bobo.
+How old are you? / Jak starý jsi ty?
 I am six years old. / Jsem šest let starý.
 Where is the teacher? / Kde je učitelka?
 How are you? / Jak se máš?
 I am fine. / Jsem v_pohodě.
+I am not old. / Nejsem starý.
+You are not sleepy. / Nejsi ospalý.
+It is not green. / To není zelené. 
 This is my friend. / Tohle je můj kamarád.
 I am thirsty. / Jsem žíznivý.
 Today is Monday. / Dnes je pondělí.
@@ -199,7 +202,15 @@ Please help me. / Prosím, pomoz mi.
 I dont know. / Já nevím.
 
 
-
++Be+
+I_am+já_jsem
+You_are+ty_jsi
+He_is+on_je
+She_is+ona_je
+It_is+to_je
+They_are+oni_jsou
+We_are+my_jsme
+You_are+vy_jste
 
 
 
