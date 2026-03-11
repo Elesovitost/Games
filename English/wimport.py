@@ -71,15 +71,19 @@ def process_vocabulary():
                 en_mp3_path = base_path / f"sentence-{safe_en}.mp3"
                 cs_mp3_path = base_path / f"věta-{safe_cs}.mp3"
 
+                # Odstranění podtržítek pro čisté čtení v TTS
+                en_sentence_clean = en_sentence.replace('_', ' ')
+                cs_sentence_clean = cs_sentence.replace('_', ' ')
+
                 # EN Audio
                 if not en_mp3_path.exists():
                     print(f"[VĚTA EN] Generuji MP3: {en_mp3_path.name}")
-                    gTTS(en_sentence, lang='en').save(en_mp3_path)
+                    gTTS(en_sentence_clean, lang='en').save(en_mp3_path)
 
                 # CS Audio
                 if not cs_mp3_path.exists():
                     print(f"[VĚTA CS] Generuji MP3: {cs_mp3_path.name}")
-                    gTTS(cs_sentence, lang='cs').save(cs_mp3_path)
+                    gTTS(cs_sentence_clean, lang='cs').save(cs_mp3_path)
 
         # ZPRACOVÁNÍ SLOV (detekce pomocí pomlčky)
         elif '-' in line:

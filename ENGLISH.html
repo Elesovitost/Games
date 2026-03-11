@@ -182,7 +182,7 @@ body.uppercase-text .sentence-word {text-transform: uppercase;}
 
 <script>
 const GIF_COUNT = 16, MUSIC_COUNT = 10;
-let englishData = [], sentencesData = [], pool = [], recentWords = [];
+let englishData = [], sentencesData = [], pool = [], recentWords = [], sentencesPool = [];
 let currentItem = null, currentSentenceItem = null, currentWord = '', currentMode = null;
 let userInput = [];
 let scoreGood = 0, scoreBad = 0;
@@ -461,11 +461,12 @@ function loadSentencesTask() {
     : sentencesData.filter(item => selectedSentenceGroups.includes(item.group));
   if (filteredPool.length === 0) filteredPool = sentencesData;
 
-  let availableSentences = filteredPool;
-  if (filteredPool.length > 1 && currentSentenceItem) {
-    availableSentences = filteredPool.filter(s => s.en !== currentSentenceItem.en);
+  if (sentencesPool.length === 0) {
+    sentencesPool = [...filteredPool].sort(() => Math.random() - 0.5);
   }
-  currentSentenceItem = availableSentences[Math.floor(Math.random() * availableSentences.length)];
+  
+  // Odejmutí poslední věty z balíčku
+  currentSentenceItem = sentencesPool.pop();
 
   currentSentenceIsEnToCz = Math.random() > 0.5;
 
@@ -823,6 +824,7 @@ function showGroupMenu(x, y, mode = 'reading') {
             selectedSentenceGroups = selectedSentenceGroups.filter(g => g !== group); 
             if (selectedSentenceGroups.length === 0) selectedSentenceGroups = ["vše"]; 
           } else { selectedSentenceGroups.push(group); }
+          sentencesPool = []; // Reset balíčku při změně kategorií
         } else {
           selectedGroups = selectedGroups.filter(g => g !== "vše");
           if (selectedGroups.includes(group)) { 
