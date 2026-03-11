@@ -187,7 +187,12 @@ let currentItem = null, currentSentenceItem = null, currentWord = '', currentMod
 let userInput = [];
 let scoreGood = 0, scoreBad = 0;
 let isLocked = false;
-let medals = { gold: 0, silver: 0, bronze: 0, trophy: 0, crown: 0 };
+let medals = JSON.parse(localStorage.getItem('englishMedals')) || { gold: 0, silver: 0, bronze: 0, trophy: 0, crown: 0 };
+
+function saveMedals() {
+  localStorage.setItem('englishMedals', JSON.stringify(medals));
+}
+
 let settings = { uppercase: true, sound: true, kidMode: false };
 let groups = ["vše"], selectedGroups = ["vše"], holdTimer;
 let sentenceGroups = ["vše"], selectedSentenceGroups = ["vše"];
@@ -196,7 +201,8 @@ let wordWeights = JSON.parse(localStorage.getItem('englishWeights')) || {};
 // Proměnné pro Sentences
 let sentenceCorrectCount = 0;
 let totalSentenceWords = 0;
-let selectedSentenceWord = null; // Pro mobilní click-to-move
+let selectedSentenceWord = null; 
+let currentSentenceIsEnToCz = true;
 
 // --- INICIALIZACE A NAČÍTÁNÍ DAT ---
 (async () => {
@@ -207,7 +213,7 @@ let selectedSentenceWord = null; // Pro mobilní click-to-move
     const lines = text.split(/\r?\n/);
     
     let currentWordGroup = "vše";
-    let currentSentenceGroup = "vše"; // Nová proměnná pro kontext vět
+    let currentSentenceGroup = "vše"; 
     englishData = [];
     sentencesData = [];
     
@@ -216,22 +222,18 @@ let selectedSentenceWord = null; // Pro mobilní click-to-move
       if (!trimmed) return;
       
       if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-        // Skupiny pro slovíčka
         currentWordGroup = trimmed.replace(/"/g, '');
         currentWordGroup.split(',').forEach(g => { 
           let clean = g.trim(); 
           if (!groups.includes(clean)) groups.push(clean); 
         });
       } else if (trimmed.startsWith('*') && trimmed.endsWith('*')) {
-        // Skupiny pro věty
         currentSentenceGroup = trimmed.replace(/\*/g, '').trim();
         if (!sentenceGroups.includes(currentSentenceGroup)) sentenceGroups.push(currentSentenceGroup);
       } else if (trimmed.includes('/')) {
-        // Věty se nyní poznají podle lomítka
         const [en, cz] = trimmed.split('/').map(s => s.trim());
         sentencesData.push({ en, cz, group: currentSentenceGroup });
       } else if (trimmed.includes('-')) {
-        // Slovíčka podle pomlčky
         const [en, cz] = trimmed.split('-').map(s => s.trim());
         englishData.push({ en, cz, img: `English/${en}.jpg`, audio: `English/${en}.mp3`, group: currentWordGroup });
       }
@@ -249,7 +251,7 @@ function loadSettings() {
       document.getElementById('toggle-uppercase').onclick = () => { 
         settings.uppercase = !settings.uppercase; 
         document.getElementById('toggle-uppercase').textContent = settings.uppercase ? '🔠' : '🔡'; 
-        document.body.classList.toggle('uppercase-text', settings.uppercase); // Přidáno přepínání třídy
+        document.body.classList.toggle('uppercase-text', settings.uppercase); 
         saveSettings(); 
         updateDisplay(); 
       };
@@ -384,7 +386,7 @@ function loadReadingTask() {
     img.src = item.img;
     img.onclick = () => {
       if (isLocked) return;
-      item.en === currentWord ? handleSuccess(img, item.audio) : handleError(img, item.audio);
+      item.en === currentWord ? handleSuccess(img, item) : handleError(img, item);
     };
     const label = document.createElement('div');
     label.className = 'reading-label';
@@ -454,7 +456,6 @@ function loadSentencesTask() {
   sentenceCorrectCount = 0;
   selectedSentenceWord = null;
 
-  // NOVÉ: Filtrace podle vybraných skupin vět
   let filteredPool = selectedSentenceGroups.includes("vše") 
     ? sentencesData 
     : sentencesData.filter(item => selectedSentenceGroups.includes(item.group));
@@ -466,22 +467,20 @@ function loadSentencesTask() {
   }
   currentSentenceItem = availableSentences[Math.floor(Math.random() * availableSentences.length)];
 
-  let isEnToCz = Math.random() > 0.5;
+  currentSentenceIsEnToCz = Math.random() > 0.5;
 
-  let sourceText = isEnToCz ? currentSentenceItem.en : currentSentenceItem.cz;
-  let targetText = isEnToCz ? currentSentenceItem.cz : currentSentenceItem.en;
+  let sourceText = currentSentenceIsEnToCz ? currentSentenceItem.en : currentSentenceItem.cz;
+  let targetText = currentSentenceIsEnToCz ? currentSentenceItem.cz : currentSentenceItem.en;
 
   document.getElementById('sentence-source').textContent = sourceText.replace(/_/g, ' ');
-  if (isEnToCz) {
-    let cleanEnSentence = currentSentenceItem.en.replace(/[.?!]/g, '');
-    let audioName = 'English/sentence-' + cleanEnSentence.replace(/ /g, '_') + '.mp3';
-    playAudio(audioName);
-  }
-  // NOVÉ: Zjištění a oddělení interpunkce z cílové věty
+  
+  let sourceAudioPath = getSentenceAudioPath(sourceText, currentSentenceIsEnToCz);
+  playAudio(sourceAudioPath);
+
   let punctuation = "";
   if (/[.?!]$/.test(targetText)) {
-    punctuation = targetText.slice(-1); // Uložíme si znak (tečku, otazník...)
-    targetText = targetText.slice(0, -1); // Odstraníme ho z věty pro parsování slov
+    punctuation = targetText.slice(-1); 
+    targetText = targetText.slice(0, -1); 
   }
 
   let targetWordsArray = targetText.split(' ').map((w, i) => ({
@@ -514,15 +513,14 @@ function loadSentencesTask() {
     container.appendChild(slot);
   });
 
-  // NOVÉ: Vykreslení interpunkce za poslední slot
   if (punctuation) {
     let punctEl = document.createElement('div');
     punctEl.textContent = punctuation;
     punctEl.style.fontSize = '40px';
     punctEl.style.fontWeight = 'bold';
-    punctEl.style.color = '#d39e00'; // Ladí k okraji kontejneru
+    punctEl.style.color = '#d39e00'; 
     punctEl.style.display = 'flex';
-    punctEl.style.alignItems = 'flex-end'; // Usadí tečku dolů
+    punctEl.style.alignItems = 'flex-end'; 
     punctEl.style.paddingBottom = '5px';
     container.appendChild(punctEl);
   }
@@ -575,7 +573,6 @@ function processWordDrop(wordEl, slot) {
   }
 
   if (wordEl.dataset.index === slot.dataset.index) {
-    // Správně
     slot.appendChild(wordEl);
     wordEl.draggable = false;
     wordEl.style.cursor = 'default';
@@ -591,7 +588,6 @@ function processWordDrop(wordEl, slot) {
       finishSentenceTask();
     }
   } else {
-    // Špatně
     playSound('sound-wrong');
     showWrongRobot();
     scoreBad++; updateScoreDisplay();
@@ -605,36 +601,45 @@ function processWordDrop(wordEl, slot) {
 function finishSentenceTask() {
   isLocked = true;
   
-  // NOVÉ: Odstranění interpunkce z názvu mp3 souboru
-  let cleanEnSentence = currentSentenceItem.en.replace(/[.?!]/g, '');
-  let audioName = 'English/sentence-' + cleanEnSentence.replace(/ /g, '_') + '.mp3';
-  
+  let sourceText = currentSentenceIsEnToCz ? currentSentenceItem.en : currentSentenceItem.cz;
+  let targetText = currentSentenceIsEnToCz ? currentSentenceItem.cz : currentSentenceItem.en;
+
+  let sourceAudioPath = getSentenceAudioPath(sourceText, currentSentenceIsEnToCz);
+  let targetAudioPath = getSentenceAudioPath(targetText, !currentSentenceIsEnToCz);
+
+  // Sestavení pole zvuků podle jazyka horní věty
+  let audioSequence = currentSentenceIsEnToCz 
+    ? [targetAudioPath, sourceAudioPath] // Horní anglicky: přehraje česky (cíl) a pak anglicky (zdroj)
+    : [targetAudioPath];                 // Horní česky: přehraje jen anglicky (cíl)
+
   playSound('sound-win');
-  setTimeout(() => {
-    playAudio(audioName);
-  }, 500);
   
   const isCelebrating = addProgress(2); 
   
-  if (!isCelebrating) {
-    setTimeout(() => { loadSentencesTask(); }, 3000);
-  }
+  setTimeout(() => {
+    playAudioSequence(audioSequence, () => {
+      if (!isCelebrating) {
+        setTimeout(() => { loadSentencesTask(); }, 1000);
+      }
+    });
+  }, 500);
 }
 
-
-function handleSuccess(img, audioPath) {
-  isLocked = true; img.classList.add('image-pop'); playAudio(audioPath);
+function handleSuccess(img, item) {
+  isLocked = true; img.classList.add('image-pop'); 
+  playAudioSequence([`English/${item.cz}.mp3`, item.audio]);
   scoreGood++; updateWordWeight(currentItem.en, currentItem.firstTryError);
   const isCelebrating = addProgress(1.5); updateScoreDisplay();
-  if (!isCelebrating) setTimeout(loadReadingTask, 2000);
+  if (!isCelebrating) setTimeout(loadReadingTask, 2500);
 }
 
-function handleError(img, audioPath) {
+function handleError(img, item) {
   isLocked = true; img.style.filter = 'grayscale(1) opacity(0.5)';
   scoreBad++; if (currentItem) currentItem.firstTryError = true;
   if (!settings.kidMode) resetProgressBar();
-  playAudio(audioPath); playSound('sound-wrong'); showWrongRobot(); updateScoreDisplay();
-  setTimeout(() => { isLocked = false; }, 1000);
+  playAudioSequence([`English/${item.cz}.mp3`, item.audio]); 
+  playSound('sound-wrong'); showWrongRobot(); updateScoreDisplay();
+  setTimeout(() => { isLocked = false; }, 2500);
 }
 
 function updateDisplay() {
@@ -647,7 +652,6 @@ function updateDisplay() {
     } else {
       boxes[i].textContent = char || '';
       boxes[i].className = 'letter-box' + (char ? ' correct' : '');
-      // Řádek "if (settings.uppercase && char)..." byl smazán, řeší to CSS
     }
   }
   updateScoreDisplay();
@@ -659,6 +663,30 @@ function playSound(id) {
   const s = document.getElementById(id); if (s) { s.currentTime = 0; s.play().catch(()=>{}); }
 }
 function playAudio(path) { if (settings.sound) new Audio(path).play().catch(()=>{}); }
+
+function playAudioSequence(paths, onComplete) {
+  if (!settings.sound || paths.length === 0) {
+    if (onComplete) onComplete();
+    return;
+  }
+  const playNext = (index) => {
+    if (index >= paths.length) {
+      if (onComplete) onComplete();
+      return;
+    }
+    const audio = new Audio(paths[index]);
+    audio.onended = () => playNext(index + 1);
+    audio.play().catch(() => playNext(index + 1));
+  };
+  playNext(0);
+}
+
+function getSentenceAudioPath(text, isEnglish) {
+  let cleanText = text.replace(/[.?!]/g, '').trim();
+  let prefix = isEnglish ? 'sentence-' : 'věta-';
+  return 'English/' + prefix + cleanText.replace(/ /g, '_') + '.mp3';
+}
+
 function updateScoreDisplay() { document.getElementById('score-good').textContent = scoreGood; document.getElementById('score-bad').textContent = scoreBad; }
 function showWrongRobot() {
   if (settings.kidMode) return;
@@ -690,13 +718,13 @@ function updateProgressBar() {
 function resetProgressBar() { progressPoints = 0; progressLayer = 0; updateProgressBar(); }
 
 function addMedal(type) {
-  medals[type]++; updateMedalsUI(); playSound('sound-metal-fall');
+  medals[type]++; updateMedalsUI(); saveMedals(); playSound('sound-metal-fall');
   if (medals[type] >= 3 && type !== 'crown') setTimeout(() => mergeMedals(type), 1000);
 }
 function mergeMedals(type) {
   const next = {bronze:'silver', silver:'gold', gold:'trophy', trophy:'crown'}[type];
   medals[type] -= 3; medals[next]++;
-  playSound('sound-metal-fuse'); updateMedalsUI();
+  playSound('sound-metal-fuse'); updateMedalsUI(); saveMedals();
   if (medals[next] >= 3 && next !== 'crown') mergeMedals(next);
 }
 function updateMedalsUI() {
@@ -777,7 +805,6 @@ function showGroupMenu(x, y, mode = 'reading') {
     const btn = document.createElement('button'); 
     const isActive = currentSelectedList.includes(group);
     
-    // Dynamický výpočet počtu položek ve skupině
     let itemCount = group === "vše" 
       ? currentDataList.length 
       : currentDataList.filter(item => isSentences ? item.group === group : item.group.split(',').map(s=>s.trim()).includes(group)).length;
@@ -805,7 +832,7 @@ function showGroupMenu(x, y, mode = 'reading') {
         }
       }
       recentWords = []; 
-      showGroupMenu(x, y, mode); // Předáme mode dál při překreslení
+      showGroupMenu(x, y, mode); 
     };
     menu.appendChild(btn);
   });
@@ -821,7 +848,6 @@ function setupModeButtons() {
     const onStart = (e) => {
       longPressTriggered = false;
       const x = e.touches ? e.touches[0].pageX : e.pageX; const y = e.touches ? e.touches[0].pageY : e.pageY;
-      // NOVÉ: Přidána podpora pro sentences a předání modeName
       if (modeName === 'reading' || modeName === 'sentences') { 
         holdTimer = setTimeout(() => { longPressTriggered = true; showGroupMenu(x, y, modeName); }, 1000); 
       }
@@ -849,6 +875,7 @@ document.addEventListener('click', (e) => {
 setupModeButtons();
 const statsBtn = document.getElementById('toggle-stats'); if (statsBtn) statsBtn.onclick = toggleStatsPopup;
 loadSettings();
+updateMedalsUI(); // Zobrazí uložené medaile hned po startu
 document.body.classList.toggle('uppercase-text', settings.uppercase);
 </script>
 </body>

@@ -8,9 +8,8 @@ from bs4 import BeautifulSoup
 
 try:
     from gtts import gTTS
-    from deep_translator import GoogleTranslator
 except ImportError:
-    print("Některé knihovny chybí. Nainstaluj je: pip install requests beautifulsoup4 deep-translator gTTS")
+    print("Některé knihovny chybí. Nainstaluj je: pip install requests beautifulsoup4 gTTS")
     exit(1)
 
 # --- KONFIGURACE ---
@@ -37,10 +36,13 @@ def get_image_urls(query, limit=5):
         print(f"Chyba při hledání obrázků: {e}")
         return []
 
+def sanitize_filename(text):
+    """Odstraní nepovolené znaky pro bezpečný název souboru."""
+    return re.sub(r'[^\w\s]', '', text).strip().replace(' ', '_')
+
 def process_vocabulary():
     base_path = pathlib.Path(".")
     words_file = base_path / WORDS_FILE
-    translator = GoogleTranslator(source='en', target='cs')
     
     if not words_file.exists():
         print(f"Chyba: Soubor {WORDS_FILE} nebyl nalezen.")
@@ -49,125 +51,96 @@ def process_vocabulary():
     with open(words_file, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
-    new_words = []
-    new_sentences = []
-    retained_lines = []
-
     for line in lines:
-        original_line = line
         line = line.strip()
         
-        if re.search(r'\*[^*]+\*', line):
-            retained_lines.append(original_line)
+        # Ignorování metadat a prázdných řádků
+        if not line or line.startswith('"') or re.search(r'\*[^*]+\*', line):
             continue
 
-        if not line:
-            retained_lines.append(original_line)
-            continue
-
-        if line.startswith('"'):
-            # Ignorujeme existující hlavičky NEW (a staré NEW SENTENCES pro zpětnou kompatibilitu)
-            if line.upper() in ['"NEW"', '"NEW SENTENCES"']:
-                continue
-            retained_lines.append(original_line)
-            continue
-
-        # Detekce věty na základě lomítka
+        # ZPRACOVÁNÍ VĚT (detekce pomocí lomítka)
         if '/' in line:
-            # Zpracování vět
-            en_sentence = line.split('/')[0].strip()
-            safe_name = re.sub(r'[^\w\s]', '', en_sentence).strip().replace(' ', '_')
-            mp3_path = base_path / f"sentence-{safe_name}.mp3"
+            parts = line.split('/')
+            if len(parts) >= 2:
+                en_sentence = parts[0].strip()
+                cs_sentence = parts[1].strip()
 
-            if not mp3_path.exists():
-                print(f"\n[VĚTA] Generuji MP3: {mp3_path.name}")
-                gTTS(en_sentence, lang='en').save(mp3_path)
-                new_sentences.append(original_line.strip())
-            else:
-                retained_lines.append(original_line)
-        else:
-            # Zpracování slov
+                safe_en = sanitize_filename(en_sentence)
+                safe_cs = sanitize_filename(cs_sentence)
+
+                en_mp3_path = base_path / f"sentence-{safe_en}.mp3"
+                cs_mp3_path = base_path / f"věta-{safe_cs}.mp3"
+
+                # EN Audio
+                if not en_mp3_path.exists():
+                    print(f"[VĚTA EN] Generuji MP3: {en_mp3_path.name}")
+                    gTTS(en_sentence, lang='en').save(en_mp3_path)
+
+                # CS Audio
+                if not cs_mp3_path.exists():
+                    print(f"[VĚTA CS] Generuji MP3: {cs_mp3_path.name}")
+                    gTTS(cs_sentence, lang='cs').save(cs_mp3_path)
+
+        # ZPRACOVÁNÍ SLOV (detekce pomocí pomlčky)
+        elif '-' in line:
             parts = line.split('-')
-            en_word = parts[0].strip().lower()
-            search_word = en_word.replace("_", " ")
-            mp3_path = base_path / f"{en_word}.mp3"
+            if len(parts) >= 2:
+                en_word_raw = parts[0].strip().lower()
+                cs_word_raw = parts[1].strip().lower()
+                
+                en_word_clean = en_word_raw.replace("_", " ")
+                cs_word_clean = cs_word_raw.replace("_", " ")
 
-            if not mp3_path.exists():
-                print(f"\n=== Zpracovávám nové slovo: {en_word.upper()} ===")
-                
-                # 1. Generování Zvuku
-                gTTS(search_word, lang='en').save(mp3_path)
-                print(f"✓ MP3 vytvořeno: {mp3_path.name}")
-                
-                # 2. Obrázek (Interaktivně)
-                img_urls = get_image_urls(search_word)
-                if img_urls:
-                    print("Dostupné obrázky (otevírám náhled v prohlížeči...):")
-                    webbrowser.open(f"https://www.google.com/search?q={search_word}+clipart&tbm=isch")
+                en_mp3_path = base_path / f"{en_word_raw}.mp3"
+                cs_mp3_path = base_path / f"{cs_word_raw}.mp3"
+                img_path = base_path / f"{en_word_raw}.jpg"
+
+                # EN Audio
+                if not en_mp3_path.exists():
+                    print(f"[SLOVO EN] Generuji MP3: {en_mp3_path.name}")
+                    gTTS(en_word_clean, lang='en').save(en_mp3_path)
+
+                # CS Audio
+                if not cs_mp3_path.exists() and cs_word_clean:
+                    print(f"[SLOVO CS] Generuji MP3: {cs_mp3_path.name}")
+                    gTTS(cs_word_clean, lang='cs').save(cs_mp3_path)
+
+                # Obrázek (interaktivní stažení)
+                if not img_path.exists():
+                    print(f"\n[OBRÁZEK] Chybí obrázek pro: {en_word_raw.upper()}")
+                    img_urls = get_image_urls(en_word_clean)
                     
-                    for i, url in enumerate(img_urls):
-                        print(f"[{i+1}] {url[:60]}...")
-                    
-                    choice = input("Vyber číslo obrázku (1-5) nebo vlož vlastní URL (0 = přeskočit): ").strip()
-                    
-                    try:
-                        selected_url = None
-                        if choice.isdigit() and 1 <= int(choice) <= len(img_urls):
-                            selected_url = img_urls[int(choice)-1]
-                        elif choice and choice != '0':
-                            selected_url = choice
+                    if img_urls:
+                        print("Otevírám náhled v prohlížeči...")
+                        webbrowser.open(f"https://www.google.com/search?q={urllib.parse.quote(en_word_clean)}+clipart&tbm=isch")
                         
-                        if selected_url:
-                            r_img = requests.get(selected_url, headers=HEADERS)
-                            if r_img.status_code == 200:
-                                with open(base_path / f"{en_word}.jpg", "wb") as img_file:
-                                    img_file.write(r_img.content)
-                                print("✓ Obrázek uložen.")
-                            else:
-                                print("X Nepodařilo se stáhnout vybraný obrázek.")
-                    except Exception as e:
-                        print(f"X Chyba při stahování obrázku: {e}")
-                else:
-                    print("X Žádné obrázky nebyly nalezeny.")
-
-                # 3. Překlad (Interaktivně)
-                try:
-                    suggestion = translator.translate(search_word).lower()
-                    print(f"Navržený překlad: {suggestion}")
-                    final_cz = input(f"Potvrď překlad (Enter) nebo napiš vlastní: ").strip()
-                    if not final_cz:
-                        final_cz = suggestion
-                    
-                    cz_formatted = final_cz.replace(" ", "_")
-                    word_pair = f"{en_word}-{cz_formatted}"
-                    
-                    new_words.append(word_pair)
-                except Exception as e:
-                    print(f"X Chyba u překladu: {e}")
-                    new_words.append(f"{en_word}-") # Fallback v případě chyby sítě
-            else:
-                retained_lines.append(original_line)
-
-    # 4. Přepis souboru s novou strukturou
-    with open(words_file, "w", encoding="utf-8") as f:
-        # Nová slova zcela nahoře
-        if new_words:
-            f.write('"NEW"\n')
-            for w in new_words:
-                f.write(f"{w}\n")
-            f.write("\n")
-            
-        # Původní obsah (již bez zpracovaných nových slov/vět a s pročištěnými starými tagy)
-        for line in retained_lines:
-            f.write(line)
-            
-        # Nové věty zcela dole na konec "sentences"
-        if new_sentences:
-            for s in new_sentences:
-                f.write(f"{s}\n")
+                        for i, url in enumerate(img_urls):
+                            print(f"[{i+1}] {url[:60]}...")
+                        
+                        choice = input("Vyber číslo obrázku (1-5) nebo vlož vlastní URL (0 = přeskočit): ").strip()
+                        
+                        try:
+                            selected_url = None
+                            if choice.isdigit() and 1 <= int(choice) <= len(img_urls):
+                                selected_url = img_urls[int(choice)-1]
+                            elif choice and choice != '0':
+                                selected_url = choice
+                            
+                            if selected_url:
+                                r_img = requests.get(selected_url, headers=HEADERS)
+                                if r_img.status_code == 200:
+                                    with open(img_path, "wb") as img_file:
+                                        img_file.write(r_img.content)
+                                    print(f"✓ Obrázek uložen jako {img_path.name}.")
+                                else:
+                                    print("X HTTP chyba při stahování vybraného obrázku.")
+                        except Exception as e:
+                            print(f"X Chyba při ukládání obrázku: {e}")
+                    else:
+                        print("X Žádné obrázky nebyly přes Google nalezeny.")
 
     print("-" * 30)
-    print(f"Dokončeno. Přidáno slov nahoru: {len(new_words)}. Přidáno vět dolů na konec: {len(new_sentences)}.")
+    print("Zpracování dokončeno. Soubor words.txt zůstal nezměněn.")
 
 if __name__ == "__main__":
     process_vocabulary()
