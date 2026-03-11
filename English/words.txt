@@ -19,16 +19,16 @@ opposite-naproti
 under-pod
 
 "čas"
-Now-teď
-Today-dnes
-Yesterday-včera
-Tomorrow-zítra
-First-první
-Last-poslední
-Morning-ráno
-Afternoon-odpoledne
-Evening-večer
-Night-noc
+now-teď
+today-dnes
+yesterday-včera
+tomorrow-zítra
+first-první
+last-poslední
+morning-ráno
+afternoon-odpoledne
+evening-večer
+night-noc
 Monday-pondělí
 Tuesday-úterý
 Wednesday-středa
@@ -36,7 +36,7 @@ Thursday-čtvrtek
 Friday-pátek
 Saturday-sobota
 Sunday-neděle
-Time-čas
+time-čas
 
 
 "zvířata"
