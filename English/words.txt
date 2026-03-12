@@ -162,7 +162,7 @@ Where is my book? / Kde je moje kniha?
 What is this? / Co je to?
 What is your name? / Jak se jmenuješ?
 My name is Bobo. / Jmenuji se Bobo.
-How old are you? / Jak starý jsi ty?
+How old are you? / Jak starý jsi?
 I am six years old. / Jsem šest let starý.
 Where is the teacher? / Kde je učitelka?
 How are you? / Jak se máš?
@@ -179,10 +179,12 @@ Computer games are fun. / Počítačové hry jsou zábava.
 
 
 *Have*
-Do you have a pencil? / Máš tužku?
-Do you have a brother or sister? / Máš bratra nebo sestru?
-I have a red apple. / Mám červené jablko.
+Do_you have a_pencil? / Máš tužku?
+Do_you have a_brother or sister? / Máš bratra nebo sestru?
+I have a_red apple. / Mám červené jablko.
 He has nice toys. / Má hezké hračky.
+We have two grandmas. / Máme dvě babičky.
+I dont_have a_sister. / Nemám sestru.
 
 *Like*
 Do_you_like school? / Máš_rád školu?
@@ -199,7 +201,7 @@ I cant read this. / Neumím to přečíst.
 I can count to ten. / Umím počítat do deseti.
 
 *Others*
-I see a big dog. / Vidím velkého psa.
+I see a_big_dog. / Vidím velkého psa.
 Please help me. / Prosím, pomoz mi.
 I dont know. / Já nevím.
 

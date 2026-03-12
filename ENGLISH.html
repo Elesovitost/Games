@@ -628,19 +628,19 @@ function finishSentenceTask() {
 
 function handleSuccess(img, item) {
   isLocked = true; img.classList.add('image-pop'); 
-  playAudioSequence([`English/${item.cz}.mp3`, item.audio]);
+  playAudioSequence([item.audio, `English/${item.cz}.mp3`]);
   scoreGood++; updateWordWeight(currentItem.en, currentItem.firstTryError);
   const isCelebrating = addProgress(1.5); updateScoreDisplay();
-  if (!isCelebrating) setTimeout(loadReadingTask, 2500);
+  if (!isCelebrating) setTimeout(loadReadingTask, 3500);
 }
 
 function handleError(img, item) {
   isLocked = true; img.style.filter = 'grayscale(1) opacity(0.5)';
   scoreBad++; if (currentItem) currentItem.firstTryError = true;
   if (!settings.kidMode) resetProgressBar();
-  playAudioSequence([`English/${item.cz}.mp3`, item.audio]); 
+  playAudioSequence([item.audio, `English/${item.cz}.mp3`]);
   playSound('sound-wrong'); showWrongRobot(); updateScoreDisplay();
-  setTimeout(() => { isLocked = false; }, 2500);
+  setTimeout(() => { isLocked = false; }, 3500);
 }
 
 function updateDisplay() {
