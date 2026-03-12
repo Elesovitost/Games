@@ -199,6 +199,9 @@ Can I go to the toilet? / Můžu jít na záchod?
 I can play chess. / Umím hrát šachy.
 I cant read this. / Neumím to přečíst.
 I can count to ten. / Umím počítat do deseti.
+He can speak English. / Umí mluvit anglicky.
+Can you read books? / Umíš číst knihy?
+Can you sing? / Umíš zpívat?
 
 *Others*
 I see a_big_dog. / Vidím velkého psa.
