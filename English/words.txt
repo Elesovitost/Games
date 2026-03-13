@@ -83,6 +83,8 @@ pencil_case-penál
 ruler-pravítko
 scissors-nůžky
 sharpener-ořezávátko
+math-matematika
+
 
 "slovesa"
 drink-pít
@@ -146,7 +148,6 @@ socks-ponožky
 Tshirt-tričko
 trousers-kalhoty
 
-
 "pocity"
 sad-smutný
 angry-rozzlobený
@@ -207,6 +208,9 @@ Can you sing? / Umíš zpívat?
 I see a_big_dog. / Vidím velkého psa.
 Please help me. / Prosím, pomoz mi.
 I dont know. / Já nevím.
+Give me the_book. / Dej mi knihu.
+Show me your pencil. / Ukaž mi tvojí tužku.
+
 
 
 +Be+
