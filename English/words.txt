@@ -29,13 +29,13 @@ morning-ráno
 afternoon-odpoledne
 evening-večer
 night-noc
-Monday-pondělí
-Tuesday-úterý
-Wednesday-středa
-Thursday-čtvrtek
-Friday-pátek
-Saturday-sobota
-Sunday-neděle
+monday-pondělí
+tuesday-úterý
+wednesday-středa
+thursday-čtvrtek
+friday-pátek
+saturday-sobota
+sunday-neděle
 time-čas
 
 
@@ -172,7 +172,7 @@ grandma-babička
 grandpa-dědeček
 
 "adjectives"
-big-velký 
+big-velký
 small-malý
 tall-vysoký
 short-krátký
