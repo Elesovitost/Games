@@ -206,11 +206,6 @@ Today is Monday. / Dnes je pondělí.
 What color is the_sun? / Jakou barvu má slunce?
 The sun is yellow. / Slunce je žluté.
 
-*Tázací*
-Who is it? / Kdo je to?
-What is it? / Co je to?
-Where is it? / Kde je to?
-
 *Have*
 Do_you_have a_pencil? / Máš tužku?
 Do_you_have a_brother or sister? / Máš bratra nebo sestru?
@@ -244,7 +239,7 @@ Can you sing? / Umíš zpívat?
 Can you open the window? / Můžeš otevřít okno?
 Yes I can do it. / Ano můžu to udělat.
 
-*Others*
+*běžná slovesa*
 I see a_big_dog. / Vidím velkého psa.
 Please help me. / Prosím, pomoz mi.
 I dont know. / Já nevím.
@@ -257,16 +252,41 @@ Listen to me. / Poslouchej mě.
 How do_you_go to school? / Jak chodíš do školy?
 I go by car. / Jezdím autem.
 
+*zápory*
+I am not lazy. / Nejsem líný.
+You are not sleepy. / Nejsi ospalý.
+It is not green. / To není zelené.
+I dont_have a_sister. / Nemám sestru.
+I_dont_like vegetables. / Nemám_rád zeleninu.
+I cant read this. / Neumím to přečíst.
+I dont know. / Já nevím.
 
-+Be+
-I_am+já_jsem
-You_are+ty_jsi
-He_is+on_je
-She_is+ona_je
-It_is+to_je
-They_are+oni_jsou
-We_are+my_jsme
-You_are+vy_jste
+*otázky*
+Where is my book? / Kde je moje kniha?
+What is this? / Co je tohle?
+What is your name? / Jak se jmenuješ?
+How_old_are_you? / Jak starý jsi?
+Where is the teacher? / Kde je učitelka?
+How_are_you? / Jak_se_máš?
+What_time_is_it? / Kolik_je_hodin?
+What is your favorite color? / Jaká je tvoje oblíbená barva?
+What day is it today? / Jaký den je dnes?
+What color is the_sun? / Jakou barvu má slunce?
+Who is it? / Kdo je to?
+What is it? / Co je to?
+Where is it? / Kde je to?
+Do_you_have a_pencil? / Máš tužku?
+Do_you_have a_brother or sister? / Máš bratra nebo sestru?
+Do_you_like school? / Máš_rád školu?
+What food do_you_like? / Jaké jídlo máš_rád?
+Do_you_like chocolate? / Máš_rád čokoládu?
+What do_you_like to_eat? / Co rád jíš?
+What animals do you like? / Jaká zvířata máš rád?
+Can I go to the toilet? / Můžu jít na záchod?
+Can you read books? / Umíš číst knihy?
+Can you sing? / Umíš zpívat?
+Can you open the window? / Můžeš otevřít okno?
+How do_you_go to school? / Jak chodíš do školy?
 
 
 

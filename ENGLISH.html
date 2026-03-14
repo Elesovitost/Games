@@ -4,7 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>English ABC Game</title>
+  <link rel="icon" href="data:,">
 <style>
+/* Základní tělo stránky */
 /* Základní tělo stránky */
 body {font-family:sans-serif;text-align:center;padding:10px;background-color:#f8f9fa;margin:0;}
 
@@ -234,10 +236,26 @@ let currentSentenceIsEnToCz = true;
         if (!sentenceGroups.includes(currentSentenceGroup)) sentenceGroups.push(currentSentenceGroup);
       } else if (trimmed.includes('/')) {
         const [en, cz] = trimmed.split('/').map(s => s.trim());
-        sentencesData.push({ en, cz, group: currentSentenceGroup });
+        const existingSentence = sentencesData.find(s => s.en === en);
+        
+        if (existingSentence) {
+          if (!existingSentence.groups.includes(currentSentenceGroup)) {
+            existingSentence.groups.push(currentSentenceGroup);
+          }
+        } else {
+          sentencesData.push({ en, cz, groups: [currentSentenceGroup] });
+        }
       } else if (trimmed.includes('-')) {
         const [en, cz] = trimmed.split('-').map(s => s.trim());
-        englishData.push({ en, cz, img: `English/${en}.jpg`, audio: `English/${en}.mp3`, group: currentWordGroup });
+        const existingWord = englishData.find(w => w.en === en);
+        
+        if (existingWord) {
+          if (!existingWord.group.includes(currentWordGroup)) {
+            existingWord.group += `, ${currentWordGroup}`;
+          }
+        } else {
+          englishData.push({ en, cz, img: `English/${en}.jpg`, audio: `English/${en}.mp3`, group: currentWordGroup });
+        }
       }
     });
   } catch (e) {
@@ -305,7 +323,7 @@ function getNextWord() {
 function getNextSentence() {
   let filtered = selectedSentenceGroups.includes("vše") 
     ? sentencesData 
-    : sentencesData.filter(item => selectedSentenceGroups.includes(item.group));
+    : sentencesData.filter(item => selectedSentenceGroups.some(g => item.groups.includes(g)));
   if (filtered.length === 0) filtered = sentencesData;
   
   // Buffer na 40 % aktuální sady, max 5 vět
@@ -851,7 +869,7 @@ function showGroupMenu(x, y, mode = 'reading') {
     
     let itemCount = group === "vše" 
       ? currentDataList.length 
-      : currentDataList.filter(item => isSentences ? item.group === group : item.group.split(',').map(s=>s.trim()).includes(group)).length;
+      : currentDataList.filter(item => isSentences ? item.groups.includes(group) : item.group.split(',').map(s=>s.trim()).includes(group)).length;
     
     btn.innerHTML = `<span>${group} (${itemCount})</span><span style="visibility: ${isActive ? 'visible' : 'hidden'}; font-weight: bold;">✓</span>`;
     if (isActive) btn.className = 'active-group';
