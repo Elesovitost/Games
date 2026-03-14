@@ -64,6 +64,11 @@ ship-loď
 phone-telefon
 home-domov
 computer-počítač
+milk-mléko
+water-voda
+bread-chléb
+cheese-sýr
+egg-vejce
 
 "škola"
 desk-pracovní_stůl
@@ -157,6 +162,24 @@ hungry-hladový
 thirsty-žíznivý
 scared-vyděšený
 
+"rodina"
+mommy-maminka
+daddy-tatínek
+brother-bratr
+sister-sestra
+baby-miminko
+grandma-babička
+grandpa-dědeček
+
+"adjectives"
+big-velký 
+small-malý
+tall-vysoký
+short-krátký
+hot-horký
+cold-studený
+ 
+
 *Be*
 Max is hungry. / Max je hladový.
 Where is my book? / Kde je moje kniha?
@@ -178,6 +201,10 @@ My school bag is blue. / Moje školní taška je modrá.
 What time is it? / Kolik je hodin?
 Computer games are fun. / Počítačové hry jsou zábava.
 
+*Tázací*
+Who is it? / Kdo je to?
+What is it? / Co to je?
+Where is it? / Kde to je?
 
 *Have*
 Do_you have a_pencil? / Máš tužku?
@@ -210,7 +237,10 @@ Please help me. / Prosím, pomoz mi.
 I dont know. / Já nevím.
 Give me the_book. / Dej mi knihu.
 Show me your pencil. / Ukaž mi tvojí tužku.
-
+Open your book. / Otevři knihu.
+Close your book. / Zavři knihu.
+Look at the board. / Podívej se na tabuli.
+Listen to me. / Poslouchej mě.
 
 
 +Be+
