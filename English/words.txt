@@ -150,7 +150,7 @@ shoes-obuv
 shorts-šortky
 skirt-sukně
 socks-ponožky
-Tshirt-tričko
+tshirt-tričko
 trousers-kalhoty
 
 "pocity"
