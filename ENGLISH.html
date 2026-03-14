@@ -154,17 +154,17 @@ body.uppercase-text .sentence-word {text-transform: uppercase;}
     <button id="toggle-stats" style="font-size: 24px;">%</button>
     
     <div id="stats-popup" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; border:3px solid #333; border-radius:15px; padding:20px; z-index:10001; max-height:80vh; overflow-y:auto; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
-        <h2 style="margin-top:0;">Word Progress</h2>
+      <h2 style="margin-top:0;">Learning Progress</h2>
         <table id="stats-table" style="width:100%; border-collapse:collapse; text-align:left;">
             <thead>
                 <tr style="border-bottom:2px solid #333;">
-                    <th style="padding:10px;">Word</th>
+                    <th style="padding:10px;">Item (Word / Sentence)</th>
                     <th style="padding:10px;">Probability</th>
                 </tr>
             </thead>
             <tbody id="stats-body"></tbody>
         </table>
-        <p id="stats-empty" style="display:none;">Všechna slova mají základní váhu (100 %).</p>
+        <p id="stats-empty" style="display:none;">Všechna slova i věty mají základní váhu (100 %).</p>
         <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
             <button onclick="resetAllWeights()" style="padding:10px 20px; cursor:pointer; font-weight:bold; background-color: #ff4444; color: white; border: none; border-radius: 8px;">RESET MEMORY</button>
             <button onclick="toggleStatsPopup()" style="padding:10px 20px; cursor:pointer; font-weight:bold; border-radius: 8px; border: 1px solid #333;">CLOSE</button>
@@ -197,6 +197,8 @@ let settings = { uppercase: true, sound: true, kidMode: false };
 let groups = ["vše"], selectedGroups = ["vše"], holdTimer;
 let sentenceGroups = ["vše"], selectedSentenceGroups = ["vše"];
 let wordWeights = JSON.parse(localStorage.getItem('englishWeights')) || {};
+let sentenceWeights = JSON.parse(localStorage.getItem('englishSentenceWeights')) || {};
+let recentSentences = []; // Buffer proti okamžitému opakování vět
 
 // Proměnné pro Sentences
 let sentenceCorrectCount = 0;
@@ -265,12 +267,19 @@ function saveSettings() {
   document.cookie = `englishSettings=${JSON.stringify(settings)};path=/;max-age=31536000`;
 }
 
-// --- LOGIKA VÁŽENÉ PRAVDĚPODOBNOSTI (Slovíčka) ---
+// --- LOGIKA VÁŽENÉ PRAVDĚPODOBNOSTI ---
 function saveWeights() { localStorage.setItem('englishWeights', JSON.stringify(wordWeights)); }
 function updateWordWeight(word, hadError) {
   let w = wordWeights[word] || 100;
   wordWeights[word] = hadError ? Math.min(300, w + 50) : Math.max(25, w - 25);
   saveWeights();
+}
+
+function saveSentenceWeights() { localStorage.setItem('englishSentenceWeights', JSON.stringify(sentenceWeights)); }
+function updateSentenceWeight(sentence, hadError) {
+  let w = sentenceWeights[sentence] || 100;
+  sentenceWeights[sentence] = hadError ? Math.min(300, w + 50) : Math.max(25, w - 25);
+  saveSentenceWeights();
 }
 
 function getNextWord() {
@@ -290,6 +299,30 @@ function getNextWord() {
 
   recentWords.push(selectedItem.en);
   if (recentWords.length > bufferSize) recentWords.shift();
+  return selectedItem;
+}
+
+function getNextSentence() {
+  let filtered = selectedSentenceGroups.includes("vše") 
+    ? sentencesData 
+    : sentencesData.filter(item => selectedSentenceGroups.includes(item.group));
+  if (filtered.length === 0) filtered = sentencesData;
+  
+  // Buffer na 40 % aktuální sady, max 5 vět
+  let bufferSize = Math.max(0, Math.min(5, Math.floor(filtered.length * 0.4)));
+  let candidates = filtered.filter(item => !recentSentences.includes(item.en));
+  if (candidates.length === 0) { candidates = [...filtered]; recentSentences = []; }
+
+  let totalWeight = candidates.reduce((sum, item) => sum + (sentenceWeights[item.en] || 100), 0);
+  let random = Math.random() * totalWeight, cursor = 0, selectedItem = candidates[0];
+
+  for (let item of candidates) {
+    cursor += (sentenceWeights[item.en] || 100);
+    if (random <= cursor) { selectedItem = item; break; }
+  }
+
+  recentSentences.push(selectedItem.en);
+  if (recentSentences.length > bufferSize) recentSentences.shift();
   return selectedItem;
 }
 
@@ -456,17 +489,9 @@ function loadSentencesTask() {
   sentenceCorrectCount = 0;
   selectedSentenceWord = null;
 
-  let filteredPool = selectedSentenceGroups.includes("vše") 
-    ? sentencesData 
-    : sentencesData.filter(item => selectedSentenceGroups.includes(item.group));
-  if (filteredPool.length === 0) filteredPool = sentencesData;
-
-  if (sentencesPool.length === 0) {
-    sentencesPool = [...filteredPool].sort(() => Math.random() - 0.5);
-  }
-  
-  // Odejmutí poslední věty z balíčku
-  currentSentenceItem = sentencesPool.pop();
+  // Získání věty pomocí vážené pravděpodobnosti
+  currentSentenceItem = getNextSentence();
+  currentSentenceItem.firstTryError = false;
 
   currentSentenceIsEnToCz = Math.random() > 0.5;
 
@@ -594,6 +619,9 @@ function processWordDrop(wordEl, slot) {
     scoreBad++; updateScoreDisplay();
     if (!settings.kidMode) resetProgressBar();
     
+    // Zaznamenání chyby pro úpravu pravděpodobnosti
+    currentSentenceItem.firstTryError = true;
+    
     wordEl.classList.add('incorrect', 'shake');
     setTimeout(() => wordEl.classList.remove('incorrect', 'shake'), 400);
   }
@@ -601,6 +629,9 @@ function processWordDrop(wordEl, slot) {
 
 function finishSentenceTask() {
   isLocked = true;
+  
+  // Aplikování nové váhy do paměti
+  updateSentenceWeight(currentSentenceItem.en, currentSentenceItem.firstTryError);
   
   let sourceText = currentSentenceIsEnToCz ? currentSentenceItem.en : currentSentenceItem.cz;
   let targetText = currentSentenceIsEnToCz ? currentSentenceItem.cz : currentSentenceItem.en;
@@ -768,13 +799,21 @@ function toggleStatsPopup() {
 function renderStatsTable() {
   const tbody = document.getElementById('stats-body'), emptyMsg = document.getElementById('stats-empty');
   tbody.innerHTML = '';
-  const statsData = englishData.map(item => ({ en: item.en, cz: item.cz.replace(/_/g, ' '), weight: wordWeights[item.en] || 100 }))
-    .filter(item => item.weight !== 100).sort((a, b) => b.weight - a.weight);
+  
+  // Zmapování slov a vět do jednotného formátu
+  const wordsStats = englishData.map(item => ({ en: item.en, cz: item.cz.replace(/_/g, ' '), weight: wordWeights[item.en] || 100 }));
+  const sentencesStats = sentencesData.map(item => ({ en: item.en, cz: item.cz.replace(/_/g, ' '), weight: sentenceWeights[item.en] || 100 }));
+  
+  // Spojení, filtrace základní váhy a seřazení (nejvyšší váha/chybovost nahoře)
+  const statsData = [...wordsStats, ...sentencesStats]
+    .filter(item => item.weight !== 100)
+    .sort((a, b) => b.weight - a.weight);
 
   if (statsData.length === 0) { emptyMsg.style.display = 'block'; return; }
   emptyMsg.style.display = 'none';
+  
   statsData.forEach(item => {
-    const color = item.weight > 100 ? "#e74c3c" : (item.weight < 100 ? "#27ae60" : "#333");
+    const color = getWeightColor(item.weight); // Použití dynamické barvy z existující funkce
     const row = document.createElement('tr'); row.style.borderBottom = "1px solid #eee";
     row.innerHTML = `<td style="padding:10px;"><strong>${item.en}</strong><br><small>${item.cz}</small></td><td style="padding:10px; color:${color}; font-weight:bold;">${item.weight}%</td>`;
     tbody.appendChild(row);
@@ -782,7 +821,11 @@ function renderStatsTable() {
 }
 
 function resetAllWeights() {
-  if (confirm("Opravdu chcete vymazat veškerý naučený pokrok a vrátit všechna slova na 100 %?")) { wordWeights = {}; saveWeights(); renderStatsTable(); }
+  if (confirm("Opravdu chcete vymazat veškerý naučený pokrok a vrátit všechna slova i věty na 100 %?")) { 
+    wordWeights = {}; saveWeights(); 
+    sentenceWeights = {}; saveSentenceWeights();
+    renderStatsTable(); 
+  }
 }
 
 // --- OVLÁDÁNÍ ---
@@ -824,7 +867,6 @@ function showGroupMenu(x, y, mode = 'reading') {
             selectedSentenceGroups = selectedSentenceGroups.filter(g => g !== group); 
             if (selectedSentenceGroups.length === 0) selectedSentenceGroups = ["vše"]; 
           } else { selectedSentenceGroups.push(group); }
-          sentencesPool = []; // Reset balíčku při změně kategorií
         } else {
           selectedGroups = selectedGroups.filter(g => g !== "vše");
           if (selectedGroups.includes(group)) { 
