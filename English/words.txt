@@ -251,7 +251,7 @@ I dont know. / Já nevím.
 Give me the_book. / Dej mi knihu.
 Show me your pencil. / Ukaž mi tvojí tužku.
 Open your book. / Otevři knihu.
-Close your book. / Zavři knihu.
+Close your book. / Zavři svojí knihu.
 Look at the board. / Podívej se na tabuli.
 Listen to me. / Poslouchej mě.
 How do_you_go to school? / Jak chodíš do školy?
