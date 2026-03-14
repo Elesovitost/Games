@@ -212,8 +212,8 @@ What is it? / Co je to?
 Where is it? / Kde je to?
 
 *Have*
-Do_you have a_pencil? / Máš tužku?
-Do_you have a_brother or sister? / Máš bratra nebo sestru?
+Do_you_have a_pencil? / Máš tužku?
+Do_you_have a_brother or sister? / Máš bratra nebo sestru?
 I have a_red apple. / Mám červené jablko.
 He has nice toys. / On má hezké hračky.
 We have two grandmas. / Máme dvě babičky.
