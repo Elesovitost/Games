@@ -207,7 +207,7 @@ let currentSentenceIsEnToCz = true;
 // --- INICIALIZACE A NAČÍTÁNÍ DAT ---
 (async () => {
   try {
-    const resp = await fetch('../English/words.txt');
+    const resp = await fetch('English/words.txt');
     if (!resp.ok) throw new Error();
     const text = await resp.text();
     const lines = text.split(/\r?\n/);
@@ -235,7 +235,7 @@ let currentSentenceIsEnToCz = true;
         sentencesData.push({ en, cz, group: currentSentenceGroup });
       } else if (trimmed.includes('-')) {
         const [en, cz] = trimmed.split('-').map(s => s.trim());
-        englishData.push({ en, cz, img: `../English/${en}.jpg`, audio: `../English/${en}.mp3`, group: currentWordGroup });
+        englishData.push({ en, cz, img: `English/${en}.jpg`, audio: `English/${en}.mp3`, group: currentWordGroup });
       }
     });
   } catch (e) {
@@ -685,7 +685,7 @@ function playAudioSequence(paths, onComplete) {
 function getSentenceAudioPath(text, isEnglish) {
   let cleanText = text.replace(/[.?!]/g, '').trim();
   let prefix = isEnglish ? 'sentence-' : 'věta-';
-  return '../English/' + prefix + cleanText.replace(/ /g, '_') + '.mp3';
+  return 'English/' + prefix + cleanText.replace(/ /g, '_') + '.mp3';
 }
 
 function updateScoreDisplay() { document.getElementById('score-good').textContent = scoreGood; document.getElementById('score-bad').textContent = scoreBad; }
