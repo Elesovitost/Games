@@ -182,22 +182,22 @@ cold-studený
 *Be*
 Max is hungry. / Max je hladový.
 Where is my book? / Kde je moje kniha?
-What is this? / Co je to?
+What is this? / Co je tohle?
 What is your name? / Jak se jmenuješ?
 My name is Bobo. / Jmenuji se Bobo.
-How old are you? / Jak starý jsi?
+How_old_are_you? / Jak starý jsi?
 I am six years old. / Jsem šest let starý.
 Where is the teacher? / Kde je učitelka?
-How are you? / Jak se máš?
+How_are_you? / Jak_se_máš?
 I am fine. / Jsem v_pohodě.
-I am not old. / Nejsem starý.
+I am not lazy. / Nejsem líný.
 You are not sleepy. / Nejsi ospalý.
 It is not green. / To není zelené. 
 This is my friend. / Tohle je můj kamarád.
 I am thirsty. / Jsem žíznivý.
 Today is Monday. / Dnes je pondělí.
 My school bag is blue. / Moje školní taška je modrá.
-What time is it? / Kolik je hodin?
+What_time_is_it? / Kolik_je_hodin?
 Computer games are fun. / Počítačové hry jsou zábava.
 What is your favorite color? / Jaká je tvoje oblíbená barva?
 My favorite color is blue. / Moje oblíbená barva je modrá.
@@ -215,13 +215,14 @@ Where is it? / Kde je to?
 Do_you have a_pencil? / Máš tužku?
 Do_you have a_brother or sister? / Máš bratra nebo sestru?
 I have a_red apple. / Mám červené jablko.
-He has nice toys. / Má hezké hračky.
+He has nice toys. / On má hezké hračky.
 We have two grandmas. / Máme dvě babičky.
 I dont_have a_sister. / Nemám sestru.
 I have one brother. / Mám jednoho bratra.
 
 *Like*
 Do_you_like school? / Máš_rád školu?
+I_dont_like vegetables. / Nemám_rád zeleninu.
 Alex likes cars. / Alex má_rád auta.
 What food do_you_like? / Jaké jídlo máš_rád?
 I like to_play. / Rád si hraju.
