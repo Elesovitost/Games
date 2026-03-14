@@ -1,0 +1,262 @@
+
+"sloveso být, gramatika"
+He_is-on_je
+I_am-já_jsem
+It_is-to_je
+She_is-ona_je
+They_are-oni_jsou
+We_are-my_jsme
+You_are-ty_jsi_vy_jste
+
+"předložky, gramatika"
+behind-za
+between-mezi
+in-v
+in_front_of-před
+next_to-vedle
+on-na
+opposite-naproti
+under-pod
+
+"čas"
+now-teď
+today-dnes
+yesterday-včera
+tomorrow-zítra
+first-první
+last-poslední
+morning-ráno
+afternoon-odpoledne
+evening-večer
+night-noc
+monday-pondělí
+tuesday-úterý
+wednesday-středa
+thursday-čtvrtek
+friday-pátek
+saturday-sobota
+sunday-neděle
+time-čas
+
+
+"zvířata"
+dog-pes
+cat-kočka
+rabbit-králík
+bird-pták
+fish-ryba
+lion-lev
+elephant-slon
+monkey-opice
+snake-had
+spider-pavouk
+
+"podstatná"
+car-auto
+song-píseň
+table-stůl
+apple-jablko
+banana-banán
+plane-letadlo
+train-vlak
+bus-autobus
+ship-loď
+phone-telefon
+home-domov
+computer-počítač
+milk-mléko
+water-voda
+bread-chléb
+cheese-sýr
+egg-vejce
+
+"škola"
+desk-pracovní_stůl
+chair-židle
+colour-barva
+cut-stříhat
+sit_down-posaď_se
+stand_up-postav_se
+bag-taška
+eraser-guma
+folder-složka
+glue-lepidlo
+notebook-notebook
+pen-pero
+pencil-tužka
+pencil_case-penál
+ruler-pravítko
+scissors-nůžky
+sharpener-ořezávátko
+math-matematika
+
+
+"slovesa"
+drink-pít
+eat-jíst
+give-dát
+go-jít
+jump-skákat
+learn-učit_se
+listen-poslouchat
+live-žít
+look-dívat_se
+pick_up-sebrat
+play-hrát
+point-ukázat
+quiet-ticho
+read-číst
+run-běhat
+say-říct
+sing-zpívat
+take-vzít
+touch-dotknout_se
+write-psát
+
+"čísla"
+eight-osm
+five-pět
+four-čtyři
+nine-devět
+one-jeden
+seven-sedm
+six-šest
+ten-deset
+three-tři
+two-dva
+
+"tělo"
+ankle-kotník
+arm-paže
+back-záda
+body-tělo
+finger-prst
+foot-chodidlo
+hand-ruka
+head-hlava
+knee-koleno
+leg-noha
+shoulders-ramena
+toes-prsty_na_nohou
+
+"oblečení"
+dress-šaty
+hat-čepice
+jacket-bunda
+jeans-džíny
+jumper-svetr
+shirt-košile
+shoes-obuv
+shorts-šortky
+skirt-sukně
+socks-ponožky
+Tshirt-tričko
+trousers-kalhoty
+
+"pocity"
+sad-smutný
+angry-rozzlobený
+happy-šťastný
+tired-unavený
+hungry-hladový
+thirsty-žíznivý
+scared-vyděšený
+
+"rodina"
+mommy-maminka
+daddy-tatínek
+brother-bratr
+sister-sestra
+baby-miminko
+grandma-babička
+grandpa-dědeček
+
+"adjectives"
+big-velký
+small-malý
+tall-vysoký
+short-krátký
+hot-horký
+cold-studený
+ 
+
+*Be*
+Max is hungry. / Max je hladový.
+Where is my book? / Kde je moje kniha?
+What is this? / Co je to?
+What is your name? / Jak se jmenuješ?
+My name is Bobo. / Jmenuji se Bobo.
+How old are you? / Jak starý jsi?
+I am six years old. / Jsem šest let starý.
+Where is the teacher? / Kde je učitelka?
+How are you? / Jak se máš?
+I am fine. / Jsem v_pohodě.
+I am not old. / Nejsem starý.
+You are not sleepy. / Nejsi ospalý.
+It is not green. / To není zelené. 
+This is my friend. / Tohle je můj kamarád.
+I am thirsty. / Jsem žíznivý.
+Today is Monday. / Dnes je pondělí.
+My school bag is blue. / Moje školní taška je modrá.
+What time is it? / Kolik je hodin?
+Computer games are fun. / Počítačové hry jsou zábava.
+
+*Tázací*
+Who is it? / Kdo je to?
+What is it? / Co to je?
+Where is it? / Kde to je?
+
+*Have*
+Do_you have a_pencil? / Máš tužku?
+Do_you have a_brother or sister? / Máš bratra nebo sestru?
+I have a_red apple. / Mám červené jablko.
+He has nice toys. / Má hezké hračky.
+We have two grandmas. / Máme dvě babičky.
+I dont_have a_sister. / Nemám sestru.
+
+*Like*
+Do_you_like school? / Máš_rád školu?
+Alex likes cars. / Alex má_rád auta.
+What food do_you_like? / Jaké jídlo máš_rád?
+I like to_play. / Rád si hraju.
+I like my mommy. / Mám_rád moji maminku.
+Do_you_like chocolate? / Máš_rád čokoládu?
+
+*Can*
+Can I go to the toilet? / Můžu jít na záchod?
+I can play chess. / Umím hrát šachy.
+I cant read this. / Neumím to přečíst.
+I can count to ten. / Umím počítat do deseti.
+He can speak English. / Umí mluvit anglicky.
+Can you read books? / Umíš číst knihy?
+Can you sing? / Umíš zpívat?
+
+*Others*
+I see a_big_dog. / Vidím velkého psa.
+Please help me. / Prosím, pomoz mi.
+I dont know. / Já nevím.
+Give me the_book. / Dej mi knihu.
+Show me your pencil. / Ukaž mi tvojí tužku.
+Open your book. / Otevři knihu.
+Close your book. / Zavři knihu.
+Look at the board. / Podívej se na tabuli.
+Listen to me. / Poslouchej mě.
+
+
++Be+
+I_am+já_jsem
+You_are+ty_jsi
+He_is+on_je
+She_is+ona_je
+It_is+to_je
+They_are+oni_jsou
+We_are+my_jsme
+You_are+vy_jste
+
+
+
+
+
+
+
+
