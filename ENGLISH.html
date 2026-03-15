@@ -464,7 +464,7 @@ function handleListeningFeedback(isCorrect) {
     scoreGood++; 
     updateScoreDisplay();
     updateSentenceWeight(currentSentenceItem.en, false);
-    const isCelebrating = addProgress(5); 
+    const isCelebrating = addProgress(3); 
     if (!isCelebrating) setTimeout(loadListeningTask, 1000);
   } else {
     playSound('sound-wrong');
