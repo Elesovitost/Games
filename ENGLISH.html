@@ -159,6 +159,10 @@ body.uppercase-text #listening-cz {text-transform: uppercase;}
   <div id="listening-en"></div>
   <button id="listening-cz-btn" onclick="handleListeningCzClick()">ČESKY</button>
   <div id="listening-cz"></div>
+  <div id="listening-feedback" style="display:none; gap: 20px; justify-content: center; margin-top: 20px;">
+    <button onclick="handleListeningFeedback(true)" style="font-size: 50px; background: none; border: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">👍</button>
+    <button onclick="handleListeningFeedback(false)" style="font-size: 50px; background: none; border: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">👎</button>
+  </div>
 </div>
 
 <h5 id="medals-today-title" style="margin-top:30px; display:none;">MEDALS</h5>
@@ -422,6 +426,7 @@ function loadListeningTask() {
   
   document.getElementById('listening-en').textContent = currentSentenceItem.en.replace(/_/g, ' ');
   document.getElementById('listening-cz').textContent = '';
+  document.getElementById('listening-feedback').style.display = 'none';
   
   const btn = document.getElementById('listening-cz-btn');
   btn.disabled = false;
@@ -437,19 +442,39 @@ function handleListeningCzClick() {
   const btn = document.getElementById('listening-cz-btn');
   btn.disabled = true;
   
-  // Zobrazí a přečte český překlad
   document.getElementById('listening-cz').textContent = currentSentenceItem.cz.replace(/_/g, ' ');
   let czAudio = getSentenceAudioPath(currentSentenceItem.cz, false);
   
   playAudioSequence([czAudio], () => {
-    // Čekáme 1.5 sekundy po dokončení audia, než nahrajeme novou větu
-    setTimeout(() => {
-      // Dvojitá kontrola, zda uživatel během timeoutu nepřepnul mód
-      if (currentMode === 'listening') {
-        loadListeningTask();
-      }
-    }, 1500);
+    if (currentMode === 'listening') {
+      document.getElementById('listening-feedback').style.display = 'flex';
+      isLocked = false; // Odemkne rozhraní pro kliknutí na palce
+    }
   });
+}
+
+function handleListeningFeedback(isCorrect) {
+  if (isLocked || currentMode !== 'listening') return;
+  isLocked = true; // Zabrání vícenásobnému kliknutí
+  
+  document.getElementById('listening-feedback').style.display = 'none';
+
+  if (isCorrect) {
+    playSound('sound-correct');
+    scoreGood++; 
+    updateScoreDisplay();
+    updateSentenceWeight(currentSentenceItem.en, false);
+    const isCelebrating = addProgress(5); 
+    if (!isCelebrating) setTimeout(loadListeningTask, 1000);
+  } else {
+    playSound('sound-wrong');
+    showWrongRobot();
+    scoreBad++; 
+    updateScoreDisplay();
+    if (!settings.kidMode) resetProgressBar();
+    updateSentenceWeight(currentSentenceItem.en, true);
+    setTimeout(loadListeningTask, 1500);
+  }
 }
 
 function loadWritingTask() {
