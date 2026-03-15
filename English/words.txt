@@ -252,6 +252,8 @@ Listen to me. / Poslouchej mě.
 How do_you_go to school? / Jak chodíš do školy?
 I go by car. / Jezdím autem.
 
+
+
 *zápory*
 I am not lazy. / Nejsem líný.
 You are not sleepy. / Nejsi ospalý.

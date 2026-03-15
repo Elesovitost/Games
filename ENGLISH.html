@@ -7,7 +7,6 @@
   <link rel="icon" href="data:,">
 <style>
 /* Základní tělo stránky */
-/* Základní tělo stránky */
 body {font-family:sans-serif;text-align:center;padding:10px;background-color:#f8f9fa;margin:0;}
 
 /* Horní panel */
@@ -20,6 +19,7 @@ body {font-family:sans-serif;text-align:center;padding:10px;background-color:#f8
 .mode-button.writing {background-color:#ffcc70;color:#4b2e00;}
 .mode-button.reading {background-color:#a0e8af;color:#004d25;}
 .mode-button.sentences {background-color:#c8b6ff;color:#3a0ca3;}
+.mode-button.listening {background-color:#90e0ef;color:#003f5c;}
 .mode-button:hover {transform:scale(1.05);box-shadow:4px 4px 10px rgba(0,0,0,0.3);}
 
 /* Styl pro menu skupin */
@@ -43,6 +43,14 @@ body {font-family:sans-serif;text-align:center;padding:10px;background-color:#f8
 .sentence-word {padding: 10px 20px; background: white; border: 1px solid #333; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 20px; user-select: none; transition: transform 0.1s;}
 .sentence-word.dragging {opacity: 0.5;}
 .sentence-word.selected {border-color: #007bff; box-shadow: 3px 3px 0px #007bff; transform: translateY(-3px);}
+
+/* Herní prvky: Poslech */
+#listening-area {display:none; flex-direction:column; align-items:center; width: 100%; max-width: 800px; margin: 0 auto; margin-top: 20px;}
+#listening-en {font-size: 32px; font-weight: bold; color: #2c3e50; margin-bottom: 30px; text-align: center; min-height: 45px;}
+#listening-cz {font-size: 24px; color: #666; margin-top: 25px; min-height: 40px; text-align: center; font-weight: bold;}
+#listening-cz-btn {font-size: 18px; padding: 12px 30px; background-color: #ffc107; border: 3px solid #d39e00; border-radius: 12px; cursor: pointer; font-weight: bold; transition: transform 0.2s; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);}
+#listening-cz-btn:hover:not(:disabled) {transform: scale(1.05);}
+#listening-cz-btn:disabled {opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none;}
 
 /* Skóre */
 .score-label {font-size:16px;font-weight:bold;margin-bottom:5px;}
@@ -71,7 +79,9 @@ body.uppercase-text .letter-box,
 body.uppercase-text #reading-word,
 body.uppercase-text .reading-label,
 body.uppercase-text #sentence-source,
-body.uppercase-text .sentence-word {text-transform: uppercase;}
+body.uppercase-text .sentence-word,
+body.uppercase-text #listening-en,
+body.uppercase-text #listening-cz {text-transform: uppercase;}
 
 #reading-options {display:flex;justify-content:center;gap:20px;flex-wrap:wrap;align-items:flex-start;}
 .reading-option {display: flex;flex-direction: column;align-items: center;gap: 5px;}
@@ -107,6 +117,7 @@ body.uppercase-text .sentence-word {text-transform: uppercase;}
     <button class="mode-button writing" data-mode="writing">✍️ WRITING</button>
     <button class="mode-button reading" data-mode="reading">📖 READING</button>
     <button class="mode-button sentences" data-mode="sentences">🧩 SENTENCES</button>
+    <button class="mode-button listening" data-mode="listening">🎧 LISTENING</button>
   </div>
   <div id="group-menu"></div>
   <div class="score-container">
@@ -142,6 +153,12 @@ body.uppercase-text .sentence-word {text-transform: uppercase;}
   <div id="sentence-source"></div>
   <div id="sentence-target-container"></div>
   <div id="sentence-bank"></div>
+</div>
+
+<div id="listening-area">
+  <div id="listening-en"></div>
+  <button id="listening-cz-btn" onclick="handleListeningCzClick()">ČESKY</button>
+  <div id="listening-cz"></div>
 </div>
 
 <h5 id="medals-today-title" style="margin-top:30px; display:none;">MEDALS</h5>
@@ -360,16 +377,23 @@ function startGame(mode) {
   
   const wordsArea = document.getElementById('words-area');
   const sentencesArea = document.getElementById('sentences-area');
+  const listeningArea = document.getElementById('listening-area');
   
   document.removeEventListener('keydown', handleKey);
   
+  // Resetování viditelnosti
+  wordsArea.style.display = 'none';
+  sentencesArea.style.display = 'none';
+  listeningArea.style.display = 'none';
+  
   if (mode === 'sentences') {
-    wordsArea.style.display = 'none';
     sentencesArea.style.display = 'flex';
     loadSentencesTask();
+  } else if (mode === 'listening') {
+    listeningArea.style.display = 'flex';
+    loadListeningTask();
   } else {
     wordsArea.style.display = 'block';
-    sentencesArea.style.display = 'none';
     
     document.getElementById('image').hidden = true;
     document.getElementById('translation-hint').textContent = '';
@@ -386,7 +410,46 @@ function startGame(mode) {
     }
   }
   const mobileInput = document.getElementById('mobile-input');
-  if (mobileInput && mode !== 'sentences') mobileInput.focus();
+  if (mobileInput && mode !== 'sentences' && mode !== 'listening') mobileInput.focus();
+}
+
+// --- LOGIKA POSLECHU (LISTENING) ---
+function loadListeningTask() {
+  if (sentencesData.length === 0) return;
+  isLocked = false;
+  
+  currentSentenceItem = getNextSentence();
+  
+  document.getElementById('listening-en').textContent = currentSentenceItem.en.replace(/_/g, ' ');
+  document.getElementById('listening-cz').textContent = '';
+  
+  const btn = document.getElementById('listening-cz-btn');
+  btn.disabled = false;
+  
+  let audioPath = getSentenceAudioPath(currentSentenceItem.en, true);
+  playAudio(audioPath);
+}
+
+function handleListeningCzClick() {
+  if (isLocked || currentMode !== 'listening') return;
+  isLocked = true;
+  
+  const btn = document.getElementById('listening-cz-btn');
+  btn.disabled = true;
+  
+  // Zobrazí a přečte český překlad
+  document.getElementById('listening-cz').textContent = currentSentenceItem.cz.replace(/_/g, ' ');
+  let czAudio = getSentenceAudioPath(currentSentenceItem.cz, false);
+  
+  playAudioSequence([czAudio], () => {
+    // Čekáme 1.5 sekundy po dokončení audia, než nahrajeme novou větu
+    setTimeout(() => {
+      // Dvojitá kontrola, zda uživatel během timeoutu nepřepnul mód
+      if (currentMode === 'listening') {
+        loadListeningTask();
+      }
+    }, 1500);
+  });
 }
 
 function loadWritingTask() {
@@ -800,6 +863,7 @@ function showCelebration() {
     if(currentMode === 'writing') loadWritingTask(); 
     else if(currentMode === 'reading') loadReadingTask(); 
     else if(currentMode === 'sentences') loadSentencesTask();
+    else if(currentMode === 'listening') loadListeningTask();
   };
   if (!settings.sound) { setTimeout(finish, 4000); return; }
   const audio = new Audio(`music${Math.floor(Math.random()*MUSIC_COUNT)+1}.mp3`);
@@ -856,7 +920,8 @@ document.getElementById('mobile-input').oninput = (e) => { const val = e.target.
 function showGroupMenu(x, y, mode = 'reading') {
   const menu = document.getElementById('group-menu'); if (!menu) return; menu.innerHTML = '';
   
-  const isSentences = (mode === 'sentences');
+  // Poslech bere data i z kategorií pro věty
+  const isSentences = (mode === 'sentences' || mode === 'listening');
   const currentGroupsList = isSentences ? sentenceGroups : groups;
   let currentSelectedList = isSentences ? selectedSentenceGroups : selectedGroups;
   const currentDataList = isSentences ? sentencesData : englishData;
@@ -910,7 +975,7 @@ function setupModeButtons() {
     const onStart = (e) => {
       longPressTriggered = false;
       const x = e.touches ? e.touches[0].pageX : e.pageX; const y = e.touches ? e.touches[0].pageY : e.pageY;
-      if (modeName === 'reading' || modeName === 'sentences') { 
+      if (modeName === 'reading' || modeName === 'sentences' || modeName === 'listening') { 
         holdTimer = setTimeout(() => { longPressTriggered = true; showGroupMenu(x, y, modeName); }, 1000); 
       }
     };
