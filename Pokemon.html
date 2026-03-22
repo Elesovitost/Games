@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Defense - Slimes Added</title>
+    <style>
+        :root {
+            --bg-dark: #2c3e50;
+            --panel-bg: #34495e;
+            --text-light: #ecf0f1;
+            --accent: #e74c3c;
+            --canvas-bg: #1a252f;
+            --win-color: #2ecc71;
+            --upgrade-color: #f39c12;
+            --level-menu-bg: #2c3e50;
+            --btn-size: 40px;
+        }
+
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--bg-dark);
+            font-family: system-ui, -apple-system, sans-serif;
+            color: var(--text-light);
+        }
+
+        .main-container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .level-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            height: 800px; 
+            box-sizing: border-box;
+            overflow-y: auto;
+            margin-top: 85px;
+        }
+
+        .level-btn {
+            width: 60px;
+            height: 60px;
+            background: var(--level-menu-bg);
+            border: 2px solid #7f8c8d;
+            border-radius: 8px;
+            color: var(--text-light);
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .level-btn.unlocked { border-color: var(--win-color); background: #27ae60; color: white; }
+        .level-btn.unlocked:hover { transform: scale(1.05); filter: brightness(1.2); }
+        .level-btn.completed { background: #f1c40f; border-color: #f39c12; color: #2c3e50; }
+        .level-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #34495e; border-color: #2c3e50; color: #7f8c8d; }
+
+        .game-wrapper { display: flex; flex-direction: column; gap: 1rem; }
+        .game-ui { display: flex; justify-content: space-between; align-items: center; background: var(--panel-bg); padding: 1rem 2rem; border-radius: 8px; font-size: clamp(1rem, 2vw, 1.2rem); visibility: hidden; }
+        .game-ui.active { visibility: visible; }
+        .stats { display: flex; gap: 1.5rem; }
+        .controls-group { display: flex; gap: 10px; }
+
+        .icon-btn { width: var(--btn-size); height: var(--btn-size); background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: filter 0.2s ease, transform 0.1s ease; }
+        .icon-btn:hover:not(:disabled) { filter: brightness(1.1); transform: scale(1.05); }
+        .icon-btn:active:not(:disabled) { transform: scale(0.95); }
+        .icon-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #7f8c8d; }
+        .icon-btn svg { width: 20px; height: 20px; fill: currentColor; }
+        .btn-end { background: #c0392b; }
+        .btn-play-pause { background: #27ae60; }
+        
+        .btn-primary { background: var(--accent); color: white; border: none; padding: 0.5rem 1rem; font-size: 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: filter 0.2s ease; }
+        .btn-primary:hover { filter: brightness(1.1); }
+
+        .canvas-container { position: relative; border: 4px solid var(--panel-bg); border-radius: 8px; overflow: hidden; background: #000; width: 800px; height: 800px; }
+        #game-canvas { display: block; image-rendering: pixelated; }
+
+        #tower-menu, #upgrade-menu { position: absolute; pointer-events: none; z-index: 5; }
+        .hidden { display: none !important; }
+
+        .radial-btn { position: absolute; background: rgba(52, 73, 94, 0.9); border: 2px solid transparent; cursor: pointer; border-radius: 50%; width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform 0.2s ease, border-color 0.2s ease; color: white; pointer-events: auto; transform: translate(-50%, -50%); box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
+        .radial-btn:hover:not(:disabled) { border-color: var(--text-light); transform: translate(-50%, -50%) scale(1.1); }
+        .radial-btn.upgrade { background: rgba(243, 156, 18, 0.9); border-color: #e67e22; }
+        .radial-btn:disabled { background: rgba(127, 140, 141, 0.9); border-color: #95a5a6; cursor: not-allowed; }
+        
+        .price-tag { font-size: 0.7rem; font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 4px; border-radius: 4px; position: absolute; bottom: -10px; }
+
+        .modal { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 3rem; font-weight: bold; z-index: 10; }
+        #modal-text.win { color: var(--win-color); }
+        #modal-text.lose { color: var(--accent); }
+
+        .pokemon-menu-icon { width: 48px; height: 48px; background-size: 200% auto; background-repeat: no-repeat; background-position: 0% center; image-rendering: pixelated; animation: sleepAnim 1s steps(1) infinite; }
+        @keyframes sleepAnim { 0% { background-position: 0% center; } 50% { background-position: 100% center; } }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <nav class="level-sidebar" id="level-sidebar"></nav>
+
+        <main class="game-wrapper">
+            <header class="game-ui" id="game-ui-header">
+                <div class="stats">
+                    <span>Zlato: <strong id="gold-display">500</strong></span>
+                    <span>Vlna: <strong id="wave-display">0/10</strong></span>
+                </div>
+                <div class="controls-group">
+                    <button id="btn-end-game" class="icon-btn btn-end" title="Ukončit hru" disabled>
+                        <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                    </button>
+                    <button id="btn-play-pause" class="icon-btn btn-play-pause" title="Spustit hru" disabled>
+                        <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <svg class="icon-pause hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    </button>
+                </div>
+            </header>
+
+            <section class="canvas-container" id="main-canvas-container">
+                <canvas id="game-canvas" width="800" height="800"></canvas>
+                <div id="tower-menu" class="hidden" aria-label="Výběr věže"></div>
+                <div id="upgrade-menu" class="hidden" aria-label="Vylepšení věže">
+                    <button id="btn-upgrade" class="radial-btn upgrade">
+                        <div id="upgrade-icon" class="pokemon-menu-icon"></div>
+                        <span id="upgrade-price" class="price-tag"></span>
+                    </button>
+                </div>
+                <div id="game-modal" class="modal hidden" role="dialog" aria-labelledby="modal-text">
+                    <span id="modal-text"></span>
+                    <button id="restart-btn" class="btn-primary" style="margin-top: 1rem; font-size: 1.5rem;">Zpět na výběr levelu</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const ENEMY_STATS = {
+            vampire: {
+                1: { hp: 30, speed: 50, size: 1, res: { grass: 0, water: 0, fire: 0, electric: 0 }, 
+                     walkSrc: 'Pokemon/SPRITES/Vampire1/Vampires1_Walk_with_shadow.png', walkFrames: 6,
+                     dieSrc: 'Pokemon/SPRITES/Vampire1/Vampires1_Death_with_shadow.png', dieFrames: 11 },
+                2: { hp: 55, speed: 55, size: 1, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                     walkSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Walk_with_shadow.png', walkFrames: 6,
+                     dieSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Death_with_shadow.png', dieFrames: 11 },
+                3: { hp: 80, speed: 60, size: 1, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                     walkSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Walk_with_shadow.png', walkFrames: 6,
+                     dieSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Death_with_shadow.png', dieFrames: 11 }
+            },
+            orc: {
+                1: { hp: 40, speed: 40, size: 1, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                     walkSrc: 'Pokemon/SPRITES/Orc1/Orcs1_Walk_with_shadow.png', walkFrames: 6,
+                     dieSrc: 'Pokemon/SPRITES/Orc1/Orcs1_Death_with_shadow.png', dieFrames: 8 },
+                2: { hp: 75, speed: 42, size: 1, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                     walkSrc: 'Pokemon/SPRITES/Orc2/Orcs2_Walk_with_shadow.png', walkFrames: 6,
+                     dieSrc: 'Pokemon/SPRITES/Orc2/Orcs2_Death_with_shadow.png', dieFrames: 8 },
+                3: { hp: 120, speed: 45, size: 1, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                     walkSrc: 'Pokemon/SPRITES/Orc3/Orcs3_Walk_with_shadow.png', walkFrames: 6,
+                     dieSrc: 'Pokemon/SPRITES/Orc3/Orcs3_Death_with_shadow.png', dieFrames: 8 }
+            },
+            slime: {
+                1: { hp: 20, speed: 65, size: 1, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                     walkSrc: 'Pokemon/SPRITES/Slime1/Slime1_Walk_with_shadow.png', walkFrames: 8,
+                     dieSrc: 'Pokemon/SPRITES/Slime1/Slime1_Death_with_shadow.png', dieFrames: 10 },
+                2: { hp: 45, speed: 70, size: 1, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                     walkSrc: 'Pokemon/SPRITES/Slime2/Slime2_Walk_with_shadow.png', walkFrames: 8,
+                     dieSrc: 'Pokemon/SPRITES/Slime2/Slime2_Death_with_shadow.png', dieFrames: 10 },
+                3: { hp: 65, speed: 75, size: 1, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                     walkSrc: 'Pokemon/SPRITES/Slime3/Slime3_Walk_with_shadow.png', walkFrames: 8,
+                     dieSrc: 'Pokemon/SPRITES/Slime3/Slime3_Death_with_shadow.png', dieFrames: 10 }
+            }
+        };
+
+        const LEVEL_DATA = [
+            {
+                id: 1, background: 'Pokemon/Backgrounds/grass.png', startingGold: 500,
+                path: [{ x: 600, y: 10 }, { x: 560, y: 60 }, { x: 430, y: 160 }, { x: 320, y: 240 }, { x: 210, y: 340 }, { x: 130, y: 470 }, { x: 180, y: 560 }, { x: 270, y: 600 }, { x: 430, y: 600 }, { x: 570, y: 530 }, { x: 680, y: 470 }, { x: 790, y: 460 }],
+                slots: [{ x: 250, y: 470 }, { x: 310, y: 520 }, { x: 120, y: 320 }, { x: 150, y: 640 }, { x: 670, y: 580 }, { x: 590, y: 150 }, { x: 420, y: 280 }],
+                waves: [
+                    { enemyType: 'slime', enemyLevel: 1, count: 5, interval: 1.0, delay: 0 },
+                    { enemyType: 'orc', enemyLevel: 2, count: 5, interval: 1.0, delay: 10 },
+                    { enemyType: 'vampire', enemyLevel: 3, count: 5, interval: 1.0, delay: 10 },
+                    { enemyType: 'orc', enemyLevel: 3, count: 5, interval: 1.0, delay: 10 },
+                    { enemyType: 'slime', enemyLevel: 3, count: 5, interval: 1.0, delay: 10 }
+                ]
+            },
+            {
+                id: 2, background: 'Pokemon/Backgrounds/sand.png', startingGold: 750,
+                path: [{ x: 180, y: 10 }, { x: 180, y: 100 }, { x: 290, y: 180 }, { x: 440, y: 210 }, { x: 610, y: 220 }, { x: 670, y: 310 }, { x: 640, y: 400 }, { x: 500, y: 400 }, { x: 340, y: 400 }, { x: 170, y: 430 }, { x: 130, y: 530 }, { x: 210, y: 600 }, { x: 410, y: 610 }, { x: 590, y: 640 }, { x: 630, y: 720 }, { x: 650, y: 790 }],
+                slots: [{ x: 370, y: 110 }, { x: 540, y: 310 }, { x: 260, y: 510 }, { x: 540, y: 540 }, { x: 350, y: 690 }, { x: 190, y: 330 }],
+                waves: [
+                    { enemyType: 'orc', enemyLevel: 2, count: 10, interval: 0.7, delay: 0 },
+                    { enemyType: 'slime', enemyLevel: 2, count: 12, interval: 0.6, delay: 8 },
+                    { enemyType: 'orc', enemyLevel: 3, count: 15, interval: 0.5, delay: 10 },
+                    { enemyType: 'vampire', enemyLevel: 3, count: 6, interval: 1.2, delay: 12 },
+                    { enemyType: 'slime', enemyLevel: 3, count: 4, interval: 2.0, delay: 15 }
+                ]
+            },
+             {
+                id: 3, background: 'Pokemon/Backgrounds/water.png', startingGold: 450,
+                path: [{ x: 180, y: 0 }, { x: 180, y: 100 }, { x: 250, y: 160 }, { x: 400, y: 200 }, { x: 550, y: 200 }, { x: 660, y: 230 }, { x: 680, y: 300 }, { x: 590, y: 370 }, { x: 470, y: 370 }, { x: 330, y: 380 }, { x: 230, y: 380 }, { x: 150, y: 420 }, { x: 130, y: 510 }, { x: 200, y: 560 }, { x: 400, y: 590 }, { x: 550, y: 570 }, { x: 620, y: 620 }, { x: 620, y: 710 }, { x: 620, y: 790 }],
+                slots: [{ x: 560, y: 280 }, { x: 220, y: 480 }, { x: 520, y: 650 }, { x: 430, y: 280 }, { x: 260, y: 90 }, { x: 490, y: 500 }, { x: 280, y: 650 }],
+                waves: [
+                    { enemyType: 'vampire', enemyLevel: 3, count: 10, interval: 0.5, delay: 0 },
+                    { enemyType: 'orc', enemyLevel: 3, count: 10, interval: 0.5, delay: 10 },
+                    { enemyType: 'slime', enemyLevel: 3, count: 10, interval: 0.5, delay: 10 }
+                ]
+            },
+            ...Array.from({ length: 7 }, (_, i) => ({
+                id: i + 4, background: 'Pokemon/Backgrounds/grass.png', startingGold: 500 + i * 50,
+                path: [{ x: -20, y: 100 }, { x: 820, y: 700 }], 
+                slots: [{ x: 200, y: 200 }, { x: 400, y: 400 }, { x: 600, y: 600 }],
+                waves: [
+                    { enemyType: i % 2 === 0 ? 'orc' : 'slime', enemyLevel: Math.min(i + 1, 3), count: 15, interval: 0.5, delay: 0 },
+                    { enemyType: i % 2 === 0 ? 'vampire' : 'orc', enemyLevel: Math.min(i + 2, 3), count: 5, interval: 1.0, delay: 10 }
+                ]
+            }))
+        ];
+
+        let maxUnlockedLevel = parseInt(localStorage.getItem('pokemonTD_maxLevel')) || 1;
+
+        const TOWER_STATS = {
+            electric: {
+                levels: {
+                    1: { name: 'Pikachu', range: 140, attackName: 'thundershock', damage: 10, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 5, beamWidth: 2, size: 1 },
+                    2: { name: 'Pichu', range: 160, attackName: 'thunderbolt', damage: 20, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 10, beamWidth: 5, size: 1 },
+                    3: { name: 'Raichu', range: 200, attackName: 'thunder', damage: 30, cooldown: 1000, paraChance: 0.30, paraDuration: 2.0, paraDps: 20, beamWidth: 9, size: 1 }
+                }
+            },
+            grass: {
+                levels: {
+                    1: { name: 'Bulbasaur', range: 130, attackName: 'vine_whip', damage: 10, cooldown: 1000, size: 1 },
+                    2: { name: 'Ivysaur', range: 150, attackName: 'razor_leaf', damage: 20, cooldown: 1000, doubleChance: 0.5, size: 1 },
+                    3: { name: 'Venusaur', range: 180, attackName: 'solar_beam', damage: 25, cooldown: 1000, splash: 10, size: 1 }
+                }
+            },
+            water: {
+                levels: {
+                    1: { name: 'Squirtle', range: 120, attackName: 'water_gun', damage: 10, continuous: true, size: 1 },
+                    2: { name: 'Wartortle', range: 140, attackName: 'water_pulse', damage: 20, cooldown: 1000, turnChance: 0.2, turnDuration: 1.0, size: 1 },
+                    3: { name: 'Blastoise', range: 170, attackName: 'hydro_pump', damage: 30, continuous: true, splash: 10, size: 1 }
+                }
+            },
+            fire: {
+                levels: {
+                    1: { name: 'Charmander', range: 120, attackName: 'ember', damage: 10, cooldown: 1000, size: 1 },
+                    2: { name: 'Charmeleon', range: 140, attackName: 'flamethrower', damage: 20, continuous: true, burnChance: 0.10, burnDuration: 2.0, burnDps: 20, size: 1 },
+                    3: { name: 'Charizard', range: 160, attackName: 'fire_spin', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 3.0, size: 1 }
+                }
+            }
+        };
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        const towerMenu = document.getElementById('tower-menu');
+        const upgradeMenu = document.getElementById('upgrade-menu');
+        const btnUpgrade = document.getElementById('btn-upgrade');
+        const goldDisplay = document.getElementById('gold-display');
+        const waveDisplay = document.getElementById('wave-display');
+        const btnEndGame = document.getElementById('btn-end-game');
+        const btnPlayPause = document.getElementById('btn-play-pause');
+        const iconPlay = document.querySelector('.icon-play');
+        const iconPause = document.querySelector('.icon-pause');
+        const modal = document.getElementById('game-modal');
+        const modalText = document.getElementById('modal-text');
+        const gameUiHeader = document.getElementById('game-ui-header');
+        const upgradeIcon = document.getElementById('upgrade-icon');
+        const upgradePrice = document.getElementById('upgrade-price');
+        const levelSidebar = document.getElementById('level-sidebar');
+
+        const TOWER_COST = 100;
+        
+        function smoothPath(path, iterations = 2) {
+            if (path.length < 3) return path;
+            let result = [...path];
+            for (let i = 0; i < iterations; i++) {
+                let nextPath = [result[0]];
+                for (let j = 0; j < result.length - 1; j++) {
+                    let p0 = result[j], p1 = result[j + 1];
+                    nextPath.push({ x: 0.75 * p0.x + 0.25 * p1.x, y: 0.75 * p0.y + 0.25 * p1.y });
+                    nextPath.push({ x: 0.25 * p0.x + 0.75 * p1.x, y: 0.25 * p0.y + 0.75 * p1.y });
+                }
+                nextPath.push(result[result.length - 1]);
+                result = nextPath;
+            }
+            return result;
+        }
+        
+        const enemyImages = {};
+        let enemyFramesLoaded = 0;
+        let totalEnemyFrames = 0;
+
+        function loadEnemyImages() {
+            return new Promise((resolve) => {
+                for (const type in ENEMY_STATS) {
+                    enemyImages[type] = {};
+                    for (const level in ENEMY_STATS[type]) {
+                        const config = ENEMY_STATS[type][level];
+                        enemyImages[type][level] = { walk: new Image(), die: new Image() };
+                        totalEnemyFrames += 2;
+
+                        enemyImages[type][level].walk.src = config.walkSrc;
+                        enemyImages[type][level].walk.onload = () => { enemyFramesLoaded++; if (enemyFramesLoaded === totalEnemyFrames) resolve(); };
+                        enemyImages[type][level].walk.onerror = () => { enemyFramesLoaded++; if (enemyFramesLoaded === totalEnemyFrames) resolve(); };
+
+                        enemyImages[type][level].die.src = config.dieSrc;
+                        enemyImages[type][level].die.onload = () => { enemyFramesLoaded++; if (enemyFramesLoaded === totalEnemyFrames) resolve(); };
+                        enemyImages[type][level].die.onerror = () => { enemyFramesLoaded++; if (enemyFramesLoaded === totalEnemyFrames) resolve(); };
+                    }
+                }
+            });
+        }
+
+        const POKEMONS = [];
+        Object.values(TOWER_STATS).forEach(towerType => {
+            Object.values(towerType.levels).forEach(levelData => { POKEMONS.push(levelData.name); });
+        });
+
+        const ANIM_DATA = {};
+        POKEMONS.forEach(p => ANIM_DATA[p.toLowerCase()] = {});
+        const loadedImages = {};
+        const loadedSounds = {}; 
+        let otherAssetsLoaded = false;
+        
+        function playSound(pokemonName) {
+            const sound = loadedSounds[pokemonName.toLowerCase()];
+            if (sound) {
+                const soundClone = sound.cloneNode();
+                soundClone.volume = 0.5;
+                soundClone.play().catch(e => {});
+            }
+        }
+
+        POKEMONS.forEach(poke => {
+            const img = new Image();
+            img.src = `Pokemon/SPRITES/${poke}/Sleep-Anim.png`;
+            loadedImages[`${poke.toLowerCase()}_sleep`] = img;
+            
+            const audio = new Audio();
+            audio.src = `Pokemon/Sounds/${poke}-attack.mp3`;
+            loadedSounds[poke.toLowerCase()] = audio;
+        });
+
+        function getAnimImage(pokemonName, animName) {
+            const key = `${pokemonName}_${animName}`;
+            if (loadedImages[key]) return loadedImages[key];
+            const img = new Image();
+            img.src = `Pokemon/SPRITES/${pokemonName}/${animName}-Anim.png`; 
+            img.onerror = () => { if (img.src.includes('-Anim.png')) img.src = `Pokemon/SPRITES/${pokemonName}/${animName}.png`; };
+            loadedImages[key] = img;
+            return img;
+        }
+
+        function getDirectionRow(angle) {
+            let deg = angle * (180 / Math.PI);
+            if (deg < 0) deg += 360;
+            const sector = Math.floor((deg + 22.5) / 45) % 8;
+            const rowMap = { 0: 2, 1: 1, 2: 0, 3: 7, 4: 6, 5: 5, 6: 4, 7: 3 };
+            return rowMap[sector];
+        }
+        
+        function checkAllLoaded() {
+            if (enemyFramesLoaded >= totalEnemyFrames && otherAssetsLoaded) {
+                renderLevelMenu();
+                createRadialMenu();
+            }
+        }
+
+        function renderLevelMenu() {
+            levelSidebar.innerHTML = '';
+            for (let i = 1; i <= 10; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'level-btn';
+                
+                if (i < maxUnlockedLevel) {
+                    btn.classList.add('completed'); btn.textContent = '🏆'; btn.title = `Level ${i} (Dokončeno)`;
+                } else if (i === maxUnlockedLevel) {
+                    btn.classList.add('unlocked'); btn.textContent = i; btn.title = `Hrát Level ${i}`;
+                } else {
+                    btn.disabled = true; btn.textContent = '❓'; btn.title = `Level ${i} (Uzamčeno)`;
+                }
+                if (i <= maxUnlockedLevel) btn.onclick = () => initLevel(i);
+                levelSidebar.appendChild(btn);
+            }
+        }
+
+        const state = {
+            activeLevelId: null, gold: 0, wavesActive: false, isPaused: false, 
+            gameTime: 0, currentWaveIndex: 0, enemiesKilled: 0, 
+            gameOver: true, gameWon: false,
+            enemies: [], deadEnemies: [], towers: [], projectiles: [], 
+            lastTime: performance.now(), spawnTimer: 0, enemiesToSpawn: 0,
+            selectedSlot: null, hoveredSlot: null, hoveredTowerType: null, hoveredUpgrade: false,
+            bgImage: new Image(), path: [], slots: [], animationFrameId: null,
+            levelWaves: [], totalLevelEnemies: 0, isSpawningWave: false
+        };
+
+        function muteAllTowers() {
+            state.towers.forEach(t => {
+                if (t.currentSound) { t.currentSound.pause(); t.currentSound.currentTime = 0; t.currentSound = null; }
+            });
+        }
+
+        function resetUIButtons() {
+            btnPlayPause.disabled = false; btnEndGame.disabled = false;
+            iconPlay.classList.remove('hidden'); iconPause.classList.add('hidden');
+            btnPlayPause.title = "Spustit hru";
+        }
+
+        function initLevel(levelId) {
+            const levelData = LEVEL_DATA.find(l => l.id === levelId);
+            if (!levelData) return;
+
+            if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId);
+            muteAllTowers();
+            
+            state.activeLevelId = levelId;
+            state.gold = levelData.startingGold;
+            state.path = smoothPath(levelData.path, 2);
+            state.slots = levelData.slots.map(s => ({ ...s, radius: 25, tower: null }));
+            state.bgImage.src = levelData.background;
+            state.levelWaves = levelData.waves;
+            state.totalLevelEnemies = state.levelWaves.reduce((sum, wave) => sum + wave.count, 0);
+            
+            Object.assign(state, {
+                wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0, 
+                enemiesKilled: 0, gameOver: false, gameWon: false,
+                enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null,
+                spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false
+            });
+            
+            gameUiHeader.classList.add('active');
+            updateGold(0);
+            waveDisplay.textContent = `0/${state.levelWaves.length}`;
+            resetUIButtons();
+            
+            modal.classList.add('hidden'); towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden');
+            state.lastTime = performance.now();
+            
+            if (state.bgImage.complete) {
+                ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height);
+                drawPathAndRange(ctx);
+                state.animationFrameId = requestAnimationFrame(loop);
+            } else {
+                state.bgImage.onload = () => {
+                    ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height);
+                    drawPathAndRange(ctx);
+                    if (!state.animationFrameId) state.animationFrameId = requestAnimationFrame(loop);
+                };
+            }
+        }
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            if (state.gameWon && state.activeLevelId === maxUnlockedLevel && maxUnlockedLevel < 10) {
+                maxUnlockedLevel++;
+                localStorage.setItem('pokemonTD_maxLevel', maxUnlockedLevel);
+                renderLevelMenu();
+            }
+            if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId);
+            muteAllTowers();
+            state.gameOver = true;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            gameUiHeader.classList.remove('active');
+            modal.classList.add('hidden'); towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden');
+        });
+        
+        function createRadialMenu() {
+            towerMenu.innerHTML = '';
+            const types = ['grass', 'water', 'fire', 'electric'];
+            const radius = 60; 
+            
+            types.forEach((type, index) => {
+                const angle = (index / types.length) * Math.PI * 2 - Math.PI / 2;
+                const btn = document.createElement('button');
+                btn.className = 'radial-btn'; btn.dataset.type = type;
+                btn.style.left = `${Math.cos(angle) * radius}px`; btn.style.top = `${Math.sin(angle) * radius}px`;
+                
+                const icon = document.createElement('div');
+                icon.className = 'pokemon-menu-icon';
+                icon.style.backgroundImage = `url('Pokemon/SPRITES/${TOWER_STATS[type].levels[1].name}/Sleep-Anim.png')`;
+                
+                const price = document.createElement('span');
+                price.className = 'price-tag'; price.textContent = `${TOWER_COST}g`;
+                
+                btn.appendChild(icon); btn.appendChild(price);
+                btn.onclick = (e) => handleTowerPurchase(e, type);
+                btn.onmouseenter = () => { state.hoveredTowerType = type; };
+                btn.onmouseleave = () => { state.hoveredTowerType = null; };
+                towerMenu.appendChild(btn);
+            });
+        }
+        
+        btnUpgrade.onmouseenter = () => { state.hoveredUpgrade = true; };
+        btnUpgrade.onmouseleave = () => { state.hoveredUpgrade = false; };
+
+        async function loadAnimData() {
+            try {
+                const fetchPromises = POKEMONS.map(async (pokemon) => {
+                    const response = await fetch(`Pokemon/SPRITES/${pokemon}/AnimData.xml`);
+                    if (!response.ok) return;
+                    const xmlText = await response.text();
+                    const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
+                    const pKey = pokemon.toLowerCase();
+                    xmlDoc.querySelectorAll('Anim').forEach(anim => {
+                        const name = anim.querySelector('Name')?.textContent;
+                        if (!name) return;
+                        const copyOfNode = anim.querySelector('CopyOf');
+                        if (copyOfNode) { ANIM_DATA[pKey][name] = { isCopy: copyOfNode.textContent }; return; }
+                        const width = parseInt(anim.querySelector('FrameWidth')?.textContent || '32', 10);
+                        const height = parseInt(anim.querySelector('FrameHeight')?.textContent || '32', 10);
+                        ANIM_DATA[pKey][name] = { originalName: name, width, height };
+                    });
+                    
+                    for (const key in ANIM_DATA[pKey]) {
+                        if (ANIM_DATA[pKey][key].isCopy) {
+                            const target = ANIM_DATA[pKey][ANIM_DATA[pKey][key].isCopy];
+                            if (target) ANIM_DATA[pKey][key] = { ...target, originalName: target.originalName };
+                        }
+                    }
+                });
+                await Promise.all(fetchPromises);
+            } catch (error) { console.warn(error); } finally { otherAssetsLoaded = true; checkAllLoaded(); }
+        }
+
+        class Enemy {
+            constructor(type, level) {
+                this.type = type;
+                this.level = level; 
+                this.x = state.path[0].x; this.y = state.path[0].y;
+                
+                this.config = ENEMY_STATS[this.type][this.level];
+                this.hp = this.config.hp; this.maxHp = this.config.hp; this.baseSpeed = this.config.speed; this.resistances = this.config.res;
+                
+                const angleOffset = Math.random() * Math.PI * 2; const distance = Math.random() * 18;
+                this.offsetX = Math.cos(angleOffset) * distance; this.offsetY = Math.sin(angleOffset) * distance;
+                
+                this.pathIndex = 0; this.distanceTravelled = 0; 
+                this.slowTimer = 0; this.paraTimer = 0; this.paraDps = 0;
+                this.turnBackTimer = 0; this.burnTimer = 0; this.burnDps = 0; this.fadeTimer = 0;
+                
+                this.animTime = Math.random() * 1.0;
+                this.directionRow = 0; 
+            }
+            
+            takeDamage(amount, elementType) {
+                const resistance = this.resistances[elementType] || 0;
+                this.hp -= Math.max(0, amount - resistance);
+            }
+            
+            update(dt) {
+                this.animTime += dt;
+                if (this.hp <= 0) return 'dead';
+                
+                if (this.paraTimer > 0) { this.paraTimer -= dt; this.takeDamage(this.paraDps * dt, 'electric'); }
+                if (this.burnTimer > 0) { this.burnTimer -= dt; this.takeDamage(this.burnDps * dt, 'fire'); }
+                if (this.hp <= 0) return 'dead';
+                
+                if (this.slowTimer > 0) this.slowTimer -= dt;
+                const currentSpeed = (this.slowTimer > 0 || this.paraTimer > 0) ? this.baseSpeed * 0.5 : this.baseSpeed;
+
+                if (this.turnBackTimer > 0) {
+                    this.turnBackTimer -= dt;
+                    const target = state.path[this.pathIndex]; 
+                    const dx = target.x - this.x; const dy = target.y - this.y;
+                    const dist = Math.hypot(dx, dy); const move = currentSpeed * dt;
+                    
+                    if (Math.abs(dx) > Math.abs(dy)) this.directionRow = dx > 0 ? 3 : 2; else this.directionRow = dy > 0 ? 0 : 1;
+                    
+                    if (dist <= move) { this.x = target.x; this.y = target.y; if (this.pathIndex > 0) this.pathIndex--; } 
+                    else { this.x += (dx / dist) * move; this.y += (dy / dist) * move; }
+                    this.distanceTravelled -= move;
+                    return 'alive';
+                }
+
+                if (this.pathIndex >= state.path.length - 1) return 'reached_end';
+                
+                const target = state.path[this.pathIndex + 1];
+                const dx = target.x - this.x; const dy = target.y - this.y;
+                const dist = Math.hypot(dx, dy); const move = currentSpeed * dt;
+                
+                if (Math.abs(dx) > Math.abs(dy)) this.directionRow = dx > 0 ? 3 : 2; else this.directionRow = dy > 0 ? 0 : 1;
+                
+                if (dist <= move) { this.x = target.x; this.y = target.y; this.pathIndex++; } 
+                else { this.x += (dx / dist) * move; this.y += (dy / dist) * move; }
+                this.distanceTravelled += move;
+                return 'alive';
+            }
+
+            drawSprite(ctx, isDead = false) {
+                const drawX = this.x + this.offsetX;
+                const drawY = this.y + this.offsetY;
+                const imgObj = isDead ? enemyImages[this.type][this.level].die : enemyImages[this.type][this.level].walk;
+                
+                if (imgObj && imgObj.complete && imgObj.naturalHeight !== 0) {
+                    const cols = isDead ? this.config.dieFrames : this.config.walkFrames;
+                    
+                    const frameWidth = imgObj.naturalWidth / cols;
+                    const frameHeight = imgObj.naturalHeight / 4;
+                    
+                    let frameIndex = Math.floor(this.animTime * 11);
+                    if (isDead) frameIndex = Math.min(frameIndex, cols - 1);
+                    else frameIndex = frameIndex % cols;
+                    
+                    const sx = frameIndex * frameWidth;
+                    const sy = this.directionRow * frameHeight;
+                    const scale = 1.5 * (this.config.size || 1);
+                    const drawWidth = frameWidth * scale;
+                    const drawHeight = frameHeight * scale;
+                    
+                    ctx.save();
+                    ctx.translate(drawX, drawY);
+                    
+                    if (!isDead) {
+                        if (this.burnTimer > 0) ctx.filter = 'sepia(100%) hue-rotate(-50deg) saturate(200%)';
+                        else if (this.paraTimer > 0) ctx.filter = 'sepia(100%) hue-rotate(50deg) saturate(200%)';
+                        else if (this.slowTimer > 0) ctx.filter = 'sepia(100%) hue-rotate(180deg) saturate(200%)';
+                    }
+
+                    ctx.drawImage(imgObj, sx, sy, frameWidth, frameHeight, -drawWidth/2, -drawHeight/2, drawWidth, drawHeight);
+                    ctx.restore();
+                }
+            }
+            
+            draw(ctx) {
+                this.drawSprite(ctx, false);
+                const drawX = this.x + this.offsetX; const drawY = this.y + this.offsetY;
+                if (this.turnBackTimer > 0) { ctx.fillStyle = '#9b59b6'; ctx.beginPath(); ctx.arc(drawX, drawY - 20, 3, 0, Math.PI*2); ctx.fill(); }
+
+                ctx.fillStyle = '#e74c3c'; ctx.fillRect(drawX - 15, drawY - 30, 20, 4);
+                ctx.fillStyle = '#2ecc71'; ctx.fillRect(drawX - 15, drawY - 30, 20 * Math.max(0, this.hp / this.maxHp), 4);
+            }
+        }
+
+        class Tower {
+            constructor(x, y, elementType) {
+                this.x = x; this.y = y; this.elementType = elementType; this.config = TOWER_STATS[elementType];
+                this.level = 1; this.timeSinceLastShot = 0; this.angle = 0; 
+                this.sleepTime = 0; this.lungeTimer = 0; this.lungeDuration = 0.25; this.hasTarget = false; 
+                this.attackCount = 0; this.soundTimer = 0; this.currentSound = null; 
+            }
+
+            getStats() { return this.config.levels[this.level]; }
+            getPKey() { return this.getStats().name.toLowerCase(); }
+            
+            update(dt) {
+                let validTarget = null; let validMaxDist = -1; let mapTarget = null; let globalMaxDist = -1;
+                const stats = this.getStats();
+                const currentRange = stats.range;
+                
+                this.timeSinceLastShot += dt * 1000;
+                if (this.lungeTimer > 0) this.lungeTimer -= dt;
+                if (this.soundTimer > 0) this.soundTimer -= dt;
+
+                this.hasTarget = false;
+                state.enemies.forEach(e => {
+                    if (e.distanceTravelled > globalMaxDist) { mapTarget = e; globalMaxDist = e.distanceTravelled; this.hasTarget = true; }
+                    if (Math.hypot((e.x + e.offsetX) - this.x, (e.y + e.offsetY) - this.y) <= currentRange && e.distanceTravelled > validMaxDist) { validTarget = e; validMaxDist = e.distanceTravelled; }
+                });
+
+                if (this.hasTarget && mapTarget) {
+                    const lookTarget = validTarget || mapTarget;
+                    this.angle = Math.atan2((lookTarget.y + lookTarget.offsetY) - this.y, (lookTarget.x + lookTarget.offsetX) - this.x);
+                } else { this.sleepTime += dt; }
+
+                if (validTarget) {
+                    const hitX = validTarget.x + validTarget.offsetX; const hitY = validTarget.y + validTarget.offsetY;
+                    if (stats.continuous) this.handleContinuousAttack(dt, validTarget, stats, hitX, hitY);
+                    else if (this.timeSinceLastShot >= stats.cooldown) this.handleBurstAttack(validTarget, stats, hitX, hitY);
+                } else {
+                    if (this.currentSound) { this.currentSound.pause(); this.currentSound.currentTime = 0; this.currentSound = null; }
+                }
+            }
+            
+            handleContinuousAttack(dt, target, stats, hitX, hitY) {
+                this.lungeTimer = 0.1; const dmg = stats.damage * dt; target.takeDamage(dmg, this.elementType);
+                if (!this.currentSound) {
+                    const sound = loadedSounds[stats.name.toLowerCase()];
+                    if (sound) { this.currentSound = sound.cloneNode(); this.currentSound.volume = 0.5; this.currentSound.loop = true; this.currentSound.play().catch(() => {}); }
+                }
+                if (this.elementType === 'water' && stats.splash) {
+                    if (Math.random() < 0.2) spawnImpact(hitX + (Math.random()-0.5)*20, hitY + (Math.random()-0.5)*20, 'water');
+                    state.enemies.forEach(e => { if (e !== target && Math.hypot((e.x+e.offsetX) - hitX, (e.y+e.offsetY) - hitY) <= stats.splash) e.takeDamage(dmg, this.elementType); });
+                }
+                if (this.elementType === 'fire' && stats.burnChance && Math.random() < stats.burnChance * dt * 10) { target.burnTimer = stats.burnDuration; target.burnDps = stats.burnDps; }
+                state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: dt*2, maxLife: dt*2 });
+                if (Math.random() < 0.3) spawnImpact(hitX, hitY, this.elementType);
+            }
+            
+            handleBurstAttack(target, stats, hitX, hitY) {
+                this.timeSinceLastShot = 0; this.lungeTimer = this.lungeDuration; this.attackCount++;
+                if (this.currentSound) { this.currentSound.pause(); this.currentSound.currentTime = 0; this.currentSound = null; }
+                playSound(stats.name);
+                if (this.elementType === 'electric') state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.1, maxLife: 0.1, width: stats.beamWidth, damage: stats.damage, target: target, paraChance: stats.paraChance, paraDuration: stats.paraDuration, paraDps: stats.paraDps });
+                else if (this.elementType === 'grass') {
+                    let dmg = stats.damage; if (stats.doubleChance && Math.random() < stats.doubleChance) dmg *= 2;
+                    let isSplash = false; if (stats.splash && this.attackCount % 2 === 0) { dmg *= 2; isSplash = true; }
+                    state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.2, maxLife: 0.2, isSplash, splashR: stats.splash, damage: dmg, target: target });
+                } else if (this.elementType === 'water') state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.2, maxLife: 0.2, damage: stats.damage, target: target, turnChance: stats.turnChance, turnDuration: stats.turnDuration });
+                else if (this.elementType === 'fire') {
+                    if (stats.attackName === 'fire_spin') state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x: hitX, y: hitY, life: stats.firestormDur, maxLife: stats.firestormDur, dps: stats.firestormDps, radius: 50 });
+                    else state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.15, maxLife: 0.15, damage: stats.damage, target: target });
+                }
+            }
+            
+            draw(ctx) {
+                let drawX = this.x; let drawY = this.y; let animName = 'Rotate'; let frameIndex = 0;
+                if (this.lungeTimer > 0) {
+                    animName = 'Charge'; const progress = 1 - (this.lungeTimer / this.lungeDuration); const offset = Math.sin(progress * Math.PI) * 1; 
+                    drawX += Math.cos(this.angle) * offset; drawY += Math.sin(this.angle) * offset;
+                } else if (!this.hasTarget) { animName = 'Sleep'; frameIndex = Math.floor(this.sleepTime / 0.5) % 2; }
+
+                let pKey = this.getPKey(); const scale = 2 * (this.getStats().size || 1);
+                if (animName === 'Sleep') {
+                    const img = loadedImages[`${pKey}_sleep`];
+                    if (img && img.complete && img.naturalHeight !== 0) {
+                        const frameWidth = img.width / 2; const drawWidth = frameWidth * scale; const drawHeight = img.height * scale;
+                        ctx.drawImage(img, frameIndex * frameWidth, 0, frameWidth, img.height, Math.floor(drawX - drawWidth / 2), Math.floor(drawY - drawHeight / 2), drawWidth, drawHeight);
+                    }
+                } else {
+                    const animData = ANIM_DATA[pKey][animName];
+                    if (!animData || animData.isCopy) return;
+                    const img = getAnimImage(this.getStats().name, animData.originalName);
+                    const drawWidth = animData.width * scale; const drawHeight = animData.height * scale;
+                    if (img.complete && img.naturalHeight !== 0) ctx.drawImage(img, frameIndex * animData.width, getDirectionRow(this.angle) * animData.height, animData.width, animData.height, Math.floor(drawX - drawWidth / 2), Math.floor(drawY - drawHeight / 2), drawWidth, drawHeight);
+                }
+            }
+        }
+
+        function spawnImpact(x, y, elementType) {
+            const count = Math.floor(Math.random() * 3) + 3; let colors = []; let shapes = []; 
+            if (elementType === 'electric') { colors = ['#f1c40f', '#ffffff']; shapes = ['spark']; }
+            else if (elementType === 'grass') { colors = ['#2ecc71', '#27ae60']; shapes = ['leaf']; }
+            else if (elementType === 'water') { colors = ['#3498db', '#85c1e9']; shapes = ['drop']; }
+            else if (elementType === 'fire') { colors = ['#e74c3c', '#f39c12']; shapes = ['circle', 'spark']; }
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2; const speed = 20 + Math.random() * 50;
+                state.projectiles.push({ type: 'particle', shape: shapes[Math.floor(Math.random() * shapes.length)], x: x, y: y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 0.2 + Math.random() * 0.2, maxLife: 0.4, color: colors[Math.floor(Math.random() * colors.length)], size: 2 + Math.random() * 3 });
+            }
+            state.projectiles.push({ type: 'impact_ring', x: x, y: y, life: 0.15, maxLife: 0.15, color: colors[0] });
+        }
+
+        function updateGold(amount) {
+            state.gold += amount; goldDisplay.textContent = state.gold;
+            document.querySelectorAll('#tower-menu .radial-btn').forEach(btn => { btn.disabled = state.gold < TOWER_COST; });
+            if (state.selectedSlot?.tower && state.selectedSlot.tower.level < 3) btnUpgrade.disabled = state.gold < (state.selectedSlot.tower.level === 1 ? 150 : 300);
+        }
+
+        function endGame(isWin) {
+            state.gameOver = true; state.gameWon = isWin; muteAllTowers();
+            modal.classList.remove('hidden'); modalText.textContent = isWin ? 'VÍTĚZSTVÍ!' : 'GAME OVER'; modalText.className = isWin ? 'win' : 'lose';
+        }
+
+        btnPlayPause.addEventListener('click', () => {
+            if (state.gameOver) return;
+            if (!state.wavesActive) {
+                state.wavesActive = true; iconPlay.classList.add('hidden'); iconPause.classList.remove('hidden'); btnPlayPause.title = "Pozastavit hru"; state.lastTime = performance.now();
+            } else {
+                state.isPaused = !state.isPaused;
+                if (state.isPaused) { iconPause.classList.add('hidden'); iconPlay.classList.remove('hidden'); btnPlayPause.title = "Pokračovat"; muteAllTowers(); } 
+                else {
+                    iconPlay.classList.add('hidden'); iconPause.classList.remove('hidden'); btnPlayPause.title = "Pozastavit hru"; state.lastTime = performance.now();
+                    state.towers.forEach(t => { if (t.currentSound && t.hasTarget) t.currentSound.play().catch(() => {}); });
+                }
+            }
+        });
+
+        btnEndGame.addEventListener('click', () => { if (state.activeLevelId !== null) initLevel(state.activeLevelId); });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (state.gameOver || state.gameWon || state.isPaused) return;
+            const clickX = e.clientX - canvas.getBoundingClientRect().left; const clickY = e.clientY - canvas.getBoundingClientRect().top;
+            state.hoveredSlot = null; state.slots.forEach(slot => { if (Math.hypot(slot.x - clickX, slot.y - clickY) < slot.radius) state.hoveredSlot = slot; });
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (state.gameOver || state.gameWon || state.isPaused) return;
+            const clickX = e.clientX - canvas.getBoundingClientRect().left; const clickY = e.clientY - canvas.getBoundingClientRect().top;
+            towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden'); 
+            state.selectedSlot = null; state.hoveredTowerType = null; state.hoveredUpgrade = false;
+
+            state.slots.forEach(slot => {
+                if (Math.hypot(slot.x - clickX, slot.y - clickY) < slot.radius) {
+                    state.selectedSlot = slot;
+                    if (slot.tower) {
+                        if (slot.tower.level < 3) {
+                            const cost = slot.tower.level === 1 ? 150 : 300;
+                            const nextPokemonName = TOWER_STATS[slot.tower.elementType].levels[slot.tower.level + 1].name;
+                            upgradePrice.textContent = `${cost}g`; upgradeIcon.style.backgroundImage = `url('Pokemon/SPRITES/${nextPokemonName}/Sleep-Anim.png')`;
+                            btnUpgrade.disabled = state.gold < cost;
+                            upgradeMenu.style.left = `${slot.x}px`; upgradeMenu.style.top = `${slot.y - slot.radius - 20}px`; upgradeMenu.classList.remove('hidden');
+                        }
+                    } else {
+                        document.querySelectorAll('#tower-menu .radial-btn').forEach(btn => { btn.disabled = state.gold < TOWER_COST; });
+                        towerMenu.style.left = `${slot.x}px`; towerMenu.style.top = `${slot.y}px`; towerMenu.classList.remove('hidden');
+                    }
+                }
+            });
+        });
+
+        function handleTowerPurchase(e, type) {
+            if (state.selectedSlot && state.gold >= TOWER_COST) {
+                updateGold(-TOWER_COST); state.selectedSlot.tower = new Tower(state.selectedSlot.x, state.selectedSlot.y, type);
+                state.towers.push(state.selectedSlot.tower); towerMenu.classList.add('hidden');
+            }
+        }
+
+        btnUpgrade.addEventListener('click', () => {
+            const tower = state.selectedSlot?.tower;
+            if (tower && tower.level < 3) {
+                const cost = tower.level === 1 ? 150 : 300;
+                if (state.gold >= cost) { updateGold(-cost); tower.level++; upgradeMenu.classList.add('hidden'); state.hoveredUpgrade = false; }
+            }
+        });
+
+        function drawPathAndRange(ctx) {
+            ctx.strokeStyle = '#7f8c8d'; ctx.lineWidth = 100; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(state.path[0].x, state.path[0].y); for (let i = 1; i < state.path.length; i++) ctx.lineTo(state.path[i].x, state.path[i].y); ctx.stroke();
+            state.slots.forEach(slot => {
+                const rx = slot.radius;
+                const ry = slot.radius * 0.6;
+                const depth = 8;
+
+                if (slot.tower) {
+                    ctx.fillStyle = '#556470'; 
+                    ctx.beginPath();
+                    ctx.ellipse(slot.x, slot.y + depth, rx, ry, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillRect(slot.x - rx, slot.y, rx * 2, depth); 
+                    
+                    ctx.fillStyle = '#7f8c8d'; 
+                    ctx.beginPath();
+                    ctx.ellipse(slot.x, slot.y, rx, ry, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#2c3e50';
+                    ctx.stroke();
+                } else {
+                    ctx.beginPath();
+                    ctx.ellipse(slot.x, slot.y + depth, rx, ry, 0, 0, Math.PI);
+                    ctx.strokeStyle = 'rgba(46, 204, 113, 0.4)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(slot.x - rx, slot.y);
+                    ctx.lineTo(slot.x - rx, slot.y + depth);
+                    ctx.moveTo(slot.x + rx, slot.y);
+                    ctx.lineTo(slot.x + rx, slot.y + depth);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.ellipse(slot.x, slot.y, rx, ry, 0, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(46, 204, 113, 0.2)';
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(46, 204, 113, 0.8)';
+                    ctx.stroke();
+                }
+            });
+
+            if ((state.hoveredSlot && state.hoveredSlot.tower) || (state.hoveredUpgrade && state.selectedSlot && state.selectedSlot.tower)) {
+                const tower = state.hoveredUpgrade ? state.selectedSlot.tower : state.hoveredSlot.tower;
+                let displayRange;
+                if (state.hoveredUpgrade && tower.level < 3) {
+                    displayRange = tower.config.levels[tower.level + 1].range;
+                } else {
+                    displayRange = tower.getStats().range;
+                }
+                ctx.beginPath(); ctx.arc(tower.x, tower.y, displayRange, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
+            } else if (state.selectedSlot && !state.selectedSlot.tower && state.hoveredTowerType) {
+                ctx.beginPath(); ctx.arc(state.selectedSlot.x, state.selectedSlot.y, TOWER_STATS[state.hoveredTowerType].levels[1].range, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
+            }
+        }
+
+        function updateAndDrawProjectiles(dt, ctx) {
+            for (let i = state.projectiles.length - 1; i >= 0; i--) {
+                const p = state.projectiles[i]; p.life -= dt;
+                if (p.type === 'particle') {
+                    p.x += p.vx * dt; p.y += p.vy * dt; ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+                    ctx.beginPath();
+                    if (p.shape === 'leaf') ctx.ellipse(p.x, p.y, p.size, p.size/2, Math.atan2(p.vy, p.vx), 0, Math.PI*2);
+                    else if (p.shape === 'spark') { ctx.moveTo(p.x, p.y - p.size); ctx.lineTo(p.x + p.size/2, p.y + p.size); ctx.lineTo(p.x - p.size/2, p.y + p.size); }
+                    else ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                    ctx.fill(); ctx.globalAlpha = 1.0;
+                    if (p.life <= 0) state.projectiles.splice(i, 1); continue;
+                } else if (p.type === 'impact_ring') {
+                    ctx.strokeStyle = p.color; ctx.lineWidth = 2; ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 15 * (1 - p.life / p.maxLife), 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1.0;
+                    if (p.life <= 0) state.projectiles.splice(i, 1); continue;
+                }
+
+                if (p.type === 'fire_spin') {
+                    const intensity = p.life / p.maxLife; const radGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
+                    radGrad.addColorStop(0, `rgba(255, 255, 150, ${Math.min(1, intensity * 1.5)})`); radGrad.addColorStop(0.4, `rgba(255, 60, 0, ${intensity})`); radGrad.addColorStop(1, `rgba(139, 0, 0, 0)`);
+                    ctx.fillStyle = radGrad; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
+                    for(let k=0; k<5; k++) { const px = p.x + (Math.random() - 0.5) * p.radius * 1.5; const py = p.y + (Math.random() - 0.5) * p.radius * 1.5; ctx.fillStyle = Math.random() > 0.5 ? '#ffeb3b' : '#ff3300'; ctx.beginPath(); ctx.arc(px, py, Math.random() * 4 + 1, 0, Math.PI*2); ctx.fill(); }
+                    state.enemies.forEach(e => { if (Math.hypot((e.x+e.offsetX) - p.x, (e.y+e.offsetY) - p.y) <= p.radius) e.takeDamage(p.dps * dt, p.elementType); });
+                    if (p.life <= 0) state.projectiles.splice(i, 1); continue;
+                }
+
+                if (p.life <= 0) {
+                    if (p.target) {
+                        p.target.takeDamage(p.damage || 0, p.elementType);
+                        if (p.paraChance && Math.random() < p.paraChance) { p.target.paraTimer = p.paraDuration; p.target.paraDps = p.paraDps; }
+                        if (p.turnChance && Math.random() < p.turnChance) p.target.turnBackTimer = p.turnDuration;
+                    }
+                    if (p.isSplash) {
+                        state.projectiles.push({ type: 'splash_anim', x: p.x2, y: p.y2, maxLife: 0.3, life: 0.3, r: p.splashR, color: '#27ae60' });
+                        state.enemies.forEach(e => { if (e !== p.target && Math.hypot((e.x+e.offsetX) - p.x2, (e.y+e.offsetY) - p.y2) <= p.splashR) e.takeDamage(p.damage, p.elementType); });
+                    }
+                    if (['thundershock', 'thunderbolt', 'thunder', 'vine_whip', 'razor_leaf', 'solar_beam', 'water_pulse', 'ember'].includes(p.type)) spawnImpact(p.x2, p.y2, p.elementType);
+                    state.projectiles.splice(i, 1); continue;
+                }
+
+                const progress = 1 - (p.life / p.maxLife);
+                if (!p.x1 || !p.x2 && p.type !== 'splash_anim') continue;
+
+                let sx = p.x1, sy = p.y1;
+                if (['thundershock', 'thunderbolt', 'thunder', 'vine_whip', 'solar_beam', 'water_gun', 'hydro_pump', 'flamethrower'].includes(p.type)) { const ang = Math.atan2(p.y2 - p.y1, p.x2 - p.x1); sx += Math.cos(ang) * 30; sy += Math.sin(ang) * 20; }
+                const bx = sx + (p.x2 - sx) * progress; const by = sy + (p.y2 - sy) * progress;
+
+                if (p.type.includes('thunder')) { ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = p.width || 3; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo((sx+p.x2)/2 + (Math.random()-0.5)*20, (sy+p.y2)/2 + (Math.random()-0.5)*20); ctx.lineTo(p.x2, p.y2); ctx.stroke(); } 
+                else if (p.type === 'vine_whip') { ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(sx, by, p.x2, p.y2); ctx.stroke(); } 
+                else if (p.type === 'razor_leaf') { ctx.fillStyle = '#27ae60'; ctx.beginPath(); ctx.ellipse(bx, by, 8, 4, Math.atan2(p.y2-p.y1, p.x2-p.x1), 0, Math.PI*2); ctx.fill(); } 
+                else if (p.type === 'solar_beam') { ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(p.x2, p.y2); ctx.stroke(); ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.stroke(); } 
+                else if (p.type === 'water_gun' || p.type === 'hydro_pump') { ctx.strokeStyle = p.type === 'water_gun' ? '#3498db' : '#2980b9'; ctx.lineWidth = p.type === 'water_gun' ? 3 : 6; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(p.x2, p.y2); ctx.stroke(); } 
+                else if (p.type === 'water_pulse') { ctx.fillStyle = '#2980b9'; ctx.beginPath(); ctx.ellipse(bx, by, 12, 4, Math.atan2(p.y2-p.y1, p.x2-p.x1), 0, Math.PI*2); ctx.fill(); } 
+                else if (p.type === 'ember') { ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(bx, by, 5, 0, Math.PI*2); ctx.fill(); } 
+                else if (p.type === 'flamethrower') {
+                    const d = Math.hypot(p.x2 - sx, p.y2 - sy) * progress, a = Math.atan2(p.y2 - sy, p.x2 - sx), w = 2 + d * 0.08;
+                    ctx.save(); ctx.translate(sx, sy); ctx.rotate(a); ctx.globalCompositeOperation = 'screen';
+                    const g = ctx.createLinearGradient(0, 0, d, 0);
+                    g.addColorStop(0, `rgba(255,255,200,${progress})`); g.addColorStop(0.2, `rgba(255,215,0,${progress})`); g.addColorStop(0.5, `rgba(255,100,0,${progress*0.8})`); g.addColorStop(0.8, `rgba(220,20,0,${progress*0.5})`); 
+                    g.addColorStop(1, 'transparent');
+                    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(d, -w); ctx.lineTo(d, w); ctx.lineTo(0, 1); ctx.fill(); ctx.restore();
+                } else if (p.type === 'splash_anim') { ctx.strokeStyle = `rgba(39, 174, 96, ${p.life / p.maxLife})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * Math.pow(1 - p.life / p.maxLife, 0.5), 0, Math.PI * 2); ctx.stroke(); }
+            }
+        }
+
+        function loop(timestamp) {
+            if (state.gameOver) return; 
+            if (state.isPaused) { state.lastTime = timestamp; state.animationFrameId = requestAnimationFrame(loop); return; }
+            
+            const dt = (timestamp - state.lastTime) / 1000; state.lastTime = timestamp;
+            if (state.bgImage.complete && state.bgImage.naturalHeight !== 0) ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height);
+            else ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (state.wavesActive) {
+                state.gameTime += dt;
+                if (state.currentWaveIndex < state.levelWaves.length) {
+                    const currentWave = state.levelWaves[state.currentWaveIndex];
+                    if (state.gameTime >= currentWave.delay && !state.isSpawningWave) { state.isSpawningWave = true; state.enemiesToSpawn = currentWave.count; waveDisplay.textContent = `${state.currentWaveIndex + 1}/${state.levelWaves.length}`; }
+                    if (state.isSpawningWave && state.enemiesToSpawn > 0) {
+                        state.spawnTimer += dt;
+                        if (state.spawnTimer >= currentWave.interval) { 
+                            state.enemies.push(new Enemy(currentWave.enemyType, currentWave.enemyLevel)); state.enemiesToSpawn--; state.spawnTimer = 0; 
+                            if (state.enemiesToSpawn <= 0) { state.currentWaveIndex++; state.isSpawningWave = false; state.gameTime = 0; }
+                        }
+                    }
+                }
+            }
+
+            drawPathAndRange(ctx);
+
+            for (let i = state.deadEnemies.length - 1; i >= 0; i--) {
+                const de = state.deadEnemies[i]; de.fadeTimer -= dt; de.animTime += dt;
+                if (de.fadeTimer <= 0) state.deadEnemies.splice(i, 1);
+                else { ctx.save(); ctx.filter = `opacity(${de.fadeTimer / 2.0})`; de.drawSprite(ctx, true); ctx.restore(); }
+            }
+
+            state.towers.forEach(t => t.update(dt)); state.towers.forEach(t => t.draw(ctx));
+
+            for (let i = state.enemies.length - 1; i >= 0; i--) {
+                const enemy = state.enemies[i]; const status = enemy.update(dt);
+                if (status === 'reached_end') { endGame(false); return; } 
+                else if (status === 'dead') { 
+                    updateGold(10 + (enemy.level - 1) * 5); state.enemiesKilled++; enemy.fadeTimer = 2.0; enemy.animTime = 0;
+                    state.deadEnemies.push(enemy); state.enemies.splice(i, 1); 
+                    if (state.enemiesKilled === state.totalLevelEnemies) { endGame(true); return; } 
+                } else enemy.draw(ctx);
+            }
+
+            updateAndDrawProjectiles(dt, ctx);
+            state.animationFrameId = requestAnimationFrame(loop);
+        }
+
+        async function initializeGame() {
+            await Promise.all([loadEnemyImages(), loadAnimData()]);
+            renderLevelMenu();
+            createRadialMenu();
+        }
+
+        initializeGame();
+    </script>
+</body>
+</html>
