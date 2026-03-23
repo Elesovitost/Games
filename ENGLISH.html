@@ -240,7 +240,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRecognition();
   recognition.lang = 'en-US';
-  recognition.interimResults = true; 
+  recognition.interimResults = false; // Nastaveno na false = čeká na dokončení celé fráze!
   recognition.maxAlternatives = 1;
 }
 
@@ -448,12 +448,10 @@ function startVoiceRecognition() {
 
   recognition.onresult = (event) => {
     if (resultHandled) return;
-    let transcript = '';
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      transcript += event.results[i][0].transcript;
-    }
     
-    transcript = transcript.toLowerCase().trim().replace(/\./g, '');
+    // Získání čistého textu pouze z finálního výsledku
+    let transcript = event.results[0][0].transcript;
+    transcript = transcript.toLowerCase().trim().replace(/[^a-z ]/g, ''); // Odstraní tečky a znaky
     
     if (transcript.length > 0) {
       resultHandled = true; 
@@ -516,14 +514,18 @@ function handleVoiceResult(spokenText) {
     'zee':'z', 'zed':'z', 'z':'z' 
   };
 
+  // Rozdělíme větu na slova a pokusíme se každé foneticky přeložit
   const words = spokenText.split(' ');
-  const lastWord = words[words.length - 1]; // Analyzujeme pouze poslední vyslovené slovo
-  const normalizedSpoken = letterMap[lastWord] || lastWord;
+  const mappedWords = words.map(w => letterMap[w] || w);
+  const lastWord = mappedWords[mappedWords.length - 1] || '';
+
+  // Je hledané písmeno obsažené v převedených slovech? Nebo poslední slovo aspoň začíná na toto písmeno?
+  const isCorrect = mappedWords.includes(target) || lastWord.startsWith(target);
   
   const box = document.getElementById('abc-box');
   const instr = document.getElementById('abc-instruction');
 
-  if (normalizedSpoken === target || normalizedSpoken[0] === target) {
+  if (isCorrect) {
     box.className = 'letter-box correct pop-in';
     scoreGood++; updateScoreDisplay(); playSound('sound-win');
     instr.textContent = 'Správně!';
