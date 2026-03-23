@@ -11,11 +11,12 @@ body {font-family:sans-serif;text-align:center;padding:10px;background-color:#f8
 
 /* Horní panel */
 .topbar {display:flex;flex-direction:column;align-items:center;gap:20px;margin-bottom:20px;margin-top:10px;}
-.menu {display:flex;gap:15px;justify-content:center;flex-wrap:wrap;}
+.menu {display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
 .score-container {text-align:center;}
 
-/* Tlačítka módů */
-.mode-button {font-size:22px;padding:10px 20px;border:2px solid #333;border-radius:12px;cursor:pointer;transition:all 0.3s;font-weight:bold;box-shadow:2px 2px 6px rgba(0,0,0,0.2);}
+/* Tlačítka módů - ZMENŠENO */
+.mode-button {font-size:16px;padding:8px 14px;border:2px solid #333;border-radius:10px;cursor:pointer;transition:all 0.3s;font-weight:bold;box-shadow:2px 2px 6px rgba(0,0,0,0.2);}
+.mode-button.abc {background-color:#ff99c8;color:#590d22;}
 .mode-button.writing {background-color:#ffcc70;color:#4b2e00;}
 .mode-button.reading {background-color:#a0e8af;color:#004d25;}
 .mode-button.sentences {background-color:#c8b6ff;color:#3a0ca3;}
@@ -52,25 +53,32 @@ body {font-family:sans-serif;text-align:center;padding:10px;background-color:#f8
 #listening-cz-btn:hover:not(:disabled) {transform: scale(1.05);}
 #listening-cz-btn:disabled {opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none;}
 
+/* Písmenka */
+.letter-box {display:inline-block;width:45px;height:45px;border:2px solid #ccc;font-size:32px;line-height:45px;margin:4px;text-align:center;vertical-align:middle;background:white;border-radius:8px;transition:all 0.2s;}
+.correct {border-color:green;color:green;background:#e6ffe6;}
+.incorrect {border-color:red;color:red;background:#ffe6e6;}
+.letter-box.space {border-color:transparent !important; background:transparent !important;}
+
+/* Animace a nahrávání */
+@keyframes pop-in {0%{transform:scale(1);}40%{transform:scale(1.3);}100%{transform:scale(1);}}
+.letter-pop {animation:pop-in 0.2s ease-out;}
+.image-pop {animation:pop-in 0.2s ease-out;}
+@keyframes shake {0%,100%{transform:translateX(0);}25%{transform:translateX(-5px);}75%{transform:translateX(5px);}}
+.shake {animation:shake 0.3s ease-in-out;}
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+  70% { box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+}
+.recording { animation: pulse-red 1s infinite; border-color: red !important; color: red !important; }
+
 /* Skóre */
 .score-label {font-size:16px;font-weight:bold;margin-bottom:5px;}
 .score {font-size:24px;}
 .score .good {color:green;margin-right:15px;font-weight:bold;}
 .score .bad {color:red;font-weight:bold;}
 .score-box {display:inline-flex;align-items:center;justify-content:center;width:80px;height:45px;overflow:hidden;position:relative;}
-
-/* Písmenka */
-.letter-box {display:inline-block;width:45px;height:45px;border:2px solid #ccc;font-size:32px;line-height:45px;margin:4px;text-align:center;vertical-align:middle;background:white;border-radius:8px;}
-.correct {border-color:green;color:green;background:#e6ffe6;}
-.incorrect {border-color:red;color:red;background:#ffe6e6;}
-.letter-box.space {border-color:transparent !important; background:transparent !important;}
-
-/* Animace */
-@keyframes pop-in {0%{transform:scale(1);}40%{transform:scale(1.3);}100%{transform:scale(1);}}
-.letter-pop {animation:pop-in 0.2s ease-out;}
-.image-pop {animation:pop-in 0.2s ease-out;}
-@keyframes shake {0%,100%{transform:translateX(0);}25%{transform:translateX(-5px);}75%{transform:translateX(5px);}}
-.shake {animation:shake 0.3s ease-in-out;}
 
 /* Čtení - Volby */
 #reading-word {font-size:48px;font-weight:bold;margin:20px;color:#333;letter-spacing:2px;}
@@ -108,12 +116,18 @@ body.uppercase-text #listening-cz {text-transform: uppercase;}
 #gif-container {position:fixed;top:100px;left:50%;transform:translateX(-160px);z-index:999;display:none;}
 #wrong-robot-fixed {position:fixed;top:100px;left:50%;transform:translateX(60px);z-index:999;display:none;}
 #mobile-input {position:fixed;top:-100px;left:0;width:1px;height:1px;opacity:0;}
+
+/* ABC Mode Custom Styles */
+#abc-area {display:none; flex-direction:column; align-items:center; margin-top:50px;}
+#abc-box {width:150px; height:150px; font-size:100px; line-height:150px; border-radius:25px; border-width:5px; cursor:pointer;}
+#abc-instruction {margin-top:20px; font-size:20px; font-weight:bold; color:#555; height:30px;}
 </style>
 </head>
 <body>
 
 <div class="topbar">
   <div class="menu">
+    <button class="mode-button abc" data-mode="abc">🔤 ABC</button>
     <button class="mode-button writing" data-mode="writing">✍️ WRITING</button>
     <button class="mode-button reading" data-mode="reading">📖 READING</button>
     <button class="mode-button sentences" data-mode="sentences">🧩 SENTENCES</button>
@@ -140,6 +154,11 @@ body.uppercase-text #listening-cz {text-transform: uppercase;}
 <div id="gif-container"><img id="gif-animation" src="dance1.gif" style="height:120px;" alt="dance"/></div>
 
 <input id="mobile-input" type="text" autocomplete="off" />
+
+<div id="abc-area">
+  <div id="abc-box" class="letter-box">?</div>
+  <div id="abc-instruction"></div>
+</div>
 
 <div id="words-area">
   <img id="image" src="" alt="word image" hidden />
@@ -207,10 +226,23 @@ body.uppercase-text #listening-cz {text-transform: uppercase;}
 const GIF_COUNT = 16, MUSIC_COUNT = 10;
 let englishData = [], sentencesData = [], pool = [], recentWords = [], sentencesPool = [];
 let currentItem = null, currentSentenceItem = null, currentWord = '', currentMode = null;
+let currentAbcLetter = '';
+let abcSubMode = 'listen'; // 'listen' (poslech) nebo 'speak' (mluvení)
 let userInput = [];
 let scoreGood = 0, scoreBad = 0;
 let isLocked = false;
 let medals = JSON.parse(localStorage.getItem('englishMedals')) || { gold: 0, silver: 0, bronze: 0, trophy: 0, crown: 0 };
+
+// --- WEB SPEECH API ---
+let recognition;
+let recognitionTimeout;
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+}
 
 function saveMedals() {
   localStorage.setItem('englishMedals', JSON.stringify(medals));
@@ -221,15 +253,14 @@ let groups = ["vše"], selectedGroups = ["vše"], holdTimer;
 let sentenceGroups = ["vše"], selectedSentenceGroups = ["vše"];
 let wordWeights = JSON.parse(localStorage.getItem('englishWeights')) || {};
 let sentenceWeights = JSON.parse(localStorage.getItem('englishSentenceWeights')) || {};
-let recentSentences = []; // Buffer proti okamžitému opakování vět
+let recentSentences = [];
 
-// Proměnné pro Sentences
 let sentenceCorrectCount = 0;
 let totalSentenceWords = 0;
 let selectedSentenceWord = null; 
 let currentSentenceIsEnToCz = true;
 
-// --- INICIALIZACE A NAČÍTÁNÍ DAT ---
+// --- INICIALIZACE ---
 (async () => {
   try {
     const resp = await fetch('English/words.txt');
@@ -258,30 +289,22 @@ let currentSentenceIsEnToCz = true;
       } else if (trimmed.includes('/')) {
         const [en, cz] = trimmed.split('/').map(s => s.trim());
         const existingSentence = sentencesData.find(s => s.en === en);
-        
         if (existingSentence) {
-          if (!existingSentence.groups.includes(currentSentenceGroup)) {
-            existingSentence.groups.push(currentSentenceGroup);
-          }
+          if (!existingSentence.groups.includes(currentSentenceGroup)) existingSentence.groups.push(currentSentenceGroup);
         } else {
           sentencesData.push({ en, cz, groups: [currentSentenceGroup] });
         }
       } else if (trimmed.includes('-')) {
         const [en, cz] = trimmed.split('-').map(s => s.trim());
         const existingWord = englishData.find(w => w.en === en);
-        
         if (existingWord) {
-          if (!existingWord.group.includes(currentWordGroup)) {
-            existingWord.group += `, ${currentWordGroup}`;
-          }
+          if (!existingWord.group.includes(currentWordGroup)) existingWord.group += `, ${currentWordGroup}`;
         } else {
           englishData.push({ en, cz, img: `English/${en}.jpg`, audio: `English/${en}.mp3`, group: currentWordGroup });
         }
       }
     });
-  } catch (e) {
-    alert("Chyba při načítání English/words.txt");
-  }
+  } catch (e) { console.warn("Mód ABC poběží i bez txt dat."); }
 })();
 
 function loadSettings() {
@@ -293,78 +316,50 @@ function loadSettings() {
         settings.uppercase = !settings.uppercase; 
         document.getElementById('toggle-uppercase').textContent = settings.uppercase ? '🔠' : '🔡'; 
         document.body.classList.toggle('uppercase-text', settings.uppercase); 
-        saveSettings(); 
-        updateDisplay(); 
+        saveSettings(); updateDisplay(); 
       };
       document.getElementById('toggle-sound').textContent = settings.sound ? '🔊' : '🔇';
       document.getElementById('toggle-kid-mode').textContent = settings.kidMode ? '👶' : '🧒';
     } catch (e) {}
   }
 }
-
-function saveSettings() {
-  document.cookie = `englishSettings=${JSON.stringify(settings)};path=/;max-age=31536000`;
-}
-
-// --- LOGIKA VÁŽENÉ PRAVDĚPODOBNOSTI ---
+function saveSettings() { document.cookie = `englishSettings=${JSON.stringify(settings)};path=/;max-age=31536000`; }
 function saveWeights() { localStorage.setItem('englishWeights', JSON.stringify(wordWeights)); }
 function updateWordWeight(word, hadError) {
   let w = wordWeights[word] || 100;
   wordWeights[word] = hadError ? Math.min(300, w + 50) : Math.max(25, w - 25);
   saveWeights();
 }
-
 function saveSentenceWeights() { localStorage.setItem('englishSentenceWeights', JSON.stringify(sentenceWeights)); }
 function updateSentenceWeight(sentence, hadError) {
   let w = sentenceWeights[sentence] || 100;
   sentenceWeights[sentence] = hadError ? Math.min(300, w + 50) : Math.max(25, w - 25);
   saveSentenceWeights();
 }
-
 function getNextWord() {
   let filtered = selectedGroups.includes("vše") ? englishData : englishData.filter(item => selectedGroups.some(g => item.group.split(',').map(s=>s.trim()).includes(g)));
   if (filtered.length === 0) filtered = englishData;
   let bufferSize = Math.max(0, Math.min(5, Math.floor(filtered.length * 0.4)));
   let candidates = filtered.filter(item => !recentWords.includes(item.en));
   if (candidates.length === 0) { candidates = [...filtered]; recentWords = []; }
-
   let totalWeight = candidates.reduce((sum, item) => sum + (wordWeights[item.en] || 100), 0);
   let random = Math.random() * totalWeight, cursor = 0, selectedItem = candidates[0];
-
-  for (let item of candidates) {
-    cursor += (wordWeights[item.en] || 100);
-    if (random <= cursor) { selectedItem = item; break; }
-  }
-
-  recentWords.push(selectedItem.en);
-  if (recentWords.length > bufferSize) recentWords.shift();
+  for (let item of candidates) { cursor += (wordWeights[item.en] || 100); if (random <= cursor) { selectedItem = item; break; } }
+  recentWords.push(selectedItem.en); if (recentWords.length > bufferSize) recentWords.shift();
   return selectedItem;
 }
-
 function getNextSentence() {
-  let filtered = selectedSentenceGroups.includes("vše") 
-    ? sentencesData 
-    : sentencesData.filter(item => selectedSentenceGroups.some(g => item.groups.includes(g)));
+  let filtered = selectedSentenceGroups.includes("vše") ? sentencesData : sentencesData.filter(item => selectedSentenceGroups.some(g => item.groups.includes(g)));
   if (filtered.length === 0) filtered = sentencesData;
-  
-  // Buffer na 40 % aktuální sady, max 5 vět
   let bufferSize = Math.max(0, Math.min(5, Math.floor(filtered.length * 0.4)));
   let candidates = filtered.filter(item => !recentSentences.includes(item.en));
   if (candidates.length === 0) { candidates = [...filtered]; recentSentences = []; }
-
   let totalWeight = candidates.reduce((sum, item) => sum + (sentenceWeights[item.en] || 100), 0);
   let random = Math.random() * totalWeight, cursor = 0, selectedItem = candidates[0];
-
-  for (let item of candidates) {
-    cursor += (sentenceWeights[item.en] || 100);
-    if (random <= cursor) { selectedItem = item; break; }
-  }
-
-  recentSentences.push(selectedItem.en);
-  if (recentSentences.length > bufferSize) recentSentences.shift();
+  for (let item of candidates) { cursor += (sentenceWeights[item.en] || 100); if (random <= cursor) { selectedItem = item; break; } }
+  recentSentences.push(selectedItem.en); if (recentSentences.length > bufferSize) recentSentences.shift();
   return selectedItem;
 }
-
 function getWeightColor(w) {
   if (w <= 25) return "rgb(0, 128, 0)";
   if (w >= 300) return "rgb(255, 0, 0)";
@@ -373,166 +368,183 @@ function getWeightColor(w) {
   else { let factor = (w - 200) / 100; return `rgb(255, ${Math.round(165 * (1 - factor))}, 0)`; }
 }
 
-// --- HERNÍ LOGIKA ---
 function startGame(mode) {
-  if (englishData.length === 0 && sentencesData.length === 0) return;
-  currentMode = mode;
-  isLocked = false;
+  if (mode !== 'abc' && englishData.length === 0 && sentencesData.length === 0) return;
+  currentMode = mode; isLocked = false;
   
-  const wordsArea = document.getElementById('words-area');
-  const sentencesArea = document.getElementById('sentences-area');
-  const listeningArea = document.getElementById('listening-area');
-  
+  document.getElementById('words-area').style.display = 'none';
+  document.getElementById('sentences-area').style.display = 'none';
+  document.getElementById('listening-area').style.display = 'none';
+  document.getElementById('abc-area').style.display = 'none';
   document.removeEventListener('keydown', handleKey);
   
-  // Resetování viditelnosti
-  wordsArea.style.display = 'none';
-  sentencesArea.style.display = 'none';
-  listeningArea.style.display = 'none';
-  
-  if (mode === 'sentences') {
-    sentencesArea.style.display = 'flex';
-    loadSentencesTask();
-  } else if (mode === 'listening') {
-    listeningArea.style.display = 'flex';
-    loadListeningTask();
-  } else {
-    wordsArea.style.display = 'block';
-    
-    document.getElementById('image').hidden = true;
-    document.getElementById('translation-hint').textContent = '';
-    document.getElementById('letters').innerHTML = '';
-    document.getElementById('reading-word').textContent = '';
-    document.getElementById('reading-options').innerHTML = '';
-    userInput = [];
-    
-    if (mode === 'writing') {
-      loadWritingTask();
-      document.addEventListener('keydown', handleKey);
-    } else if (mode === 'reading') {
-      loadReadingTask();
-    }
+  if (mode === 'sentences') { document.getElementById('sentences-area').style.display = 'flex'; loadSentencesTask(); } 
+  else if (mode === 'listening') { document.getElementById('listening-area').style.display = 'flex'; loadListeningTask(); } 
+  else if (mode === 'abc') { document.getElementById('abc-area').style.display = 'flex'; document.addEventListener('keydown', handleKey); loadAbcTask(); } 
+  else {
+    document.getElementById('words-area').style.display = 'block';
+    document.getElementById('image').hidden = true; document.getElementById('translation-hint').textContent = '';
+    document.getElementById('letters').innerHTML = ''; document.getElementById('reading-word').textContent = '';
+    document.getElementById('reading-options').innerHTML = ''; userInput = [];
+    if (mode === 'writing') { loadWritingTask(); document.addEventListener('keydown', handleKey); } 
+    else if (mode === 'reading') { loadReadingTask(); }
   }
   const mobileInput = document.getElementById('mobile-input');
   if (mobileInput && mode !== 'sentences' && mode !== 'listening') mobileInput.focus();
 }
 
-// --- LOGIKA POSLECHU (LISTENING) ---
+// --- LOGIKA ABC ---
+function loadAbcTask() {
+  isLocked = false;
+  stopMicUI();
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  currentAbcLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
+  
+  const box = document.getElementById('abc-box');
+  const instr = document.getElementById('abc-instruction');
+  box.className = 'letter-box';
+  
+  if (abcSubMode === 'listen') {
+    box.textContent = '?';
+    instr.textContent = '';
+    box.onclick = () => { if(!isLocked) playAudio('English/ABC/' + currentAbcLetter + '.mp3'); };
+    playAudio(`English/ABC/${currentAbcLetter}.mp3`);
+  } else if (abcSubMode === 'speak') {
+    box.textContent = currentAbcLetter;
+    instr.textContent = 'Stiskni písmeno pro mluvení';
+    box.onclick = () => { if(!isLocked) startVoiceRecognition(); };
+  }
+}
+
+function startVoiceRecognition() {
+  if (!recognition) { alert("Tento prohlížeč nepodporuje Web Speech API. Použijte Chrome nebo Edge."); return; }
+  if (isLocked) return;
+  isLocked = true;
+
+  const box = document.getElementById('abc-box');
+  const instr = document.getElementById('abc-instruction');
+  box.classList.add('recording');
+  instr.textContent = 'Poslouchám...';
+
+  let resultHandled = false;
+
+  recognition.onresult = (event) => {
+    resultHandled = true; clearTimeout(recognitionTimeout);
+    const transcript = event.results[0][0].transcript.toLowerCase().trim().replace(/\./g, '');
+    handleVoiceResult(transcript);
+  };
+
+  recognition.onerror = (event) => {
+    if(!resultHandled) {
+      resultHandled = true; clearTimeout(recognitionTimeout); stopMicUI(); isLocked = false;
+      instr.textContent = 'Chyba mikrofonu, zkus to znovu';
+    }
+  };
+
+  recognition.onend = () => {
+    if (!resultHandled) {
+       clearTimeout(recognitionTimeout); stopMicUI(); isLocked = false;
+       instr.textContent = 'Nic jsem neslyšel, stiskni znovu';
+    }
+  };
+
+  try { recognition.start(); } catch(e){}
+
+  recognitionTimeout = setTimeout(() => {
+    if (!resultHandled) {
+      resultHandled = true; recognition.stop(); stopMicUI(); isLocked = false;
+      instr.textContent = 'Čas vypršel, stiskni znovu';
+    }
+  }, 3000);
+}
+
+function stopMicUI() {
+  const box = document.getElementById('abc-box');
+  if (box) box.classList.remove('recording');
+}
+
+function handleVoiceResult(spokenText) {
+  stopMicUI();
+  const target = currentAbcLetter.toLowerCase();
+  const letterMap = { 'ay':'a', 'a':'a', 'be':'b', 'bee':'b', 'see':'c', 'sea':'c', 'dee':'d', 'tea':'t', 'eye':'i', 'i':'i', 'jay':'j', 'j':'j', 'kay':'k', 'k':'k', 'el':'l', 'l':'l', 'em':'m', 'm':'m', 'en':'n', 'n':'n', 'oh':'o', 'o':'o', 'pea':'p', 'p':'p', 'cue':'q', 'q':'q', 'are':'r', 'r':'r', 'ess':'s', 's':'s', 'you':'u', 'u':'u', 'why':'y', 'y':'y', 'zee':'z', 'zed':'z', 'z':'z', 'hey': 'a' };
+
+  const firstWord = spokenText.split(' ')[0];
+  const normalizedSpoken = letterMap[firstWord] || firstWord;
+  const box = document.getElementById('abc-box');
+  const instr = document.getElementById('abc-instruction');
+
+  if (normalizedSpoken === target || normalizedSpoken[0] === target) {
+    box.className = 'letter-box correct pop-in';
+    scoreGood++; updateScoreDisplay(); playSound('sound-win');
+    instr.textContent = 'Správně!';
+    const isCelebrating = addProgress(1);
+    setTimeout(() => { if (!isCelebrating) loadAbcTask(); }, 1500);
+  } else {
+    box.className = 'letter-box incorrect shake';
+    scoreBad++; updateScoreDisplay();
+    if (!settings.kidMode) resetProgressBar();
+    playSound('sound-wrong'); showWrongRobot();
+    instr.textContent = `Slyšel jsem: "${spokenText}"`;
+    setTimeout(() => { isLocked = false; loadAbcTask(); }, 2000);
+  }
+}
+
+// --- OSTATNÍ MÓDY (ZKRÁCENĚ) ---
 function loadListeningTask() {
   if (sentencesData.length === 0) return;
-  isLocked = false;
-  
-  currentSentenceItem = getNextSentence();
-  
+  isLocked = false; currentSentenceItem = getNextSentence();
   document.getElementById('listening-en').textContent = currentSentenceItem.en.replace(/_/g, ' ');
   document.getElementById('listening-cz').textContent = '';
   document.getElementById('listening-feedback').style.display = 'none';
-  
-  const btn = document.getElementById('listening-cz-btn');
-  btn.disabled = false;
-  
-  let audioPath = getSentenceAudioPath(currentSentenceItem.en, true);
-  playAudio(audioPath);
+  document.getElementById('listening-cz-btn').disabled = false;
+  playAudio(getSentenceAudioPath(currentSentenceItem.en, true));
 }
-
 function handleListeningCzClick() {
   if (isLocked || currentMode !== 'listening') return;
-  isLocked = true;
-  
-  const btn = document.getElementById('listening-cz-btn');
-  btn.disabled = true;
-  
+  isLocked = true; document.getElementById('listening-cz-btn').disabled = true;
   document.getElementById('listening-cz').textContent = currentSentenceItem.cz.replace(/_/g, ' ');
-  let czAudio = getSentenceAudioPath(currentSentenceItem.cz, false);
-  
-  playAudioSequence([czAudio], () => {
-    if (currentMode === 'listening') {
-      document.getElementById('listening-feedback').style.display = 'flex';
-      isLocked = false; // Odemkne rozhraní pro kliknutí na palce
-    }
+  playAudioSequence([getSentenceAudioPath(currentSentenceItem.cz, false)], () => {
+    if (currentMode === 'listening') { document.getElementById('listening-feedback').style.display = 'flex'; isLocked = false; }
   });
 }
-
 function handleListeningFeedback(isCorrect) {
   if (isLocked || currentMode !== 'listening') return;
-  isLocked = true; // Zabrání vícenásobnému kliknutí
-  
-  document.getElementById('listening-feedback').style.display = 'none';
-
+  isLocked = true; document.getElementById('listening-feedback').style.display = 'none';
   if (isCorrect) {
-    playSound('sound-correct');
-    scoreGood++; 
-    updateScoreDisplay();
-    updateSentenceWeight(currentSentenceItem.en, false);
-    const isCelebrating = addProgress(3); 
-    if (!isCelebrating) setTimeout(loadListeningTask, 1000);
+    playSound('sound-correct'); scoreGood++; updateScoreDisplay(); updateSentenceWeight(currentSentenceItem.en, false);
+    const isCelebrating = addProgress(3); if (!isCelebrating) setTimeout(loadListeningTask, 1000);
   } else {
-    playSound('sound-wrong');
-    showWrongRobot();
-    scoreBad++; 
-    updateScoreDisplay();
-    if (!settings.kidMode) resetProgressBar();
-    updateSentenceWeight(currentSentenceItem.en, true);
+    playSound('sound-wrong'); showWrongRobot(); scoreBad++; updateScoreDisplay();
+    if (!settings.kidMode) resetProgressBar(); updateSentenceWeight(currentSentenceItem.en, true);
     setTimeout(loadListeningTask, 1500);
   }
 }
 
 function loadWritingTask() {
-  currentItem = getNextWord();
-  currentWord = currentItem.en;
-  currentItem.firstTryError = false; 
-  userInput = []; isLocked = false;
-  
-  document.getElementById('image').src = currentItem.img;
-  document.getElementById('image').hidden = false;
+  currentItem = getNextWord(); currentWord = currentItem.en; currentItem.firstTryError = false; userInput = []; isLocked = false;
+  document.getElementById('image').src = currentItem.img; document.getElementById('image').hidden = false;
   document.getElementById('translation-hint').textContent = currentItem.cz.replace(/_/g, ' ');
   playAudio(currentItem.audio);
-  
-  const lettersDiv = document.getElementById('letters');
-  lettersDiv.innerHTML = '';
-  for (let char of currentWord) {
-    const span = document.createElement('span');
-    span.className = 'letter-box' + (char === '_' ? ' space' : '');
-    lettersDiv.appendChild(span);
-  }
+  const lettersDiv = document.getElementById('letters'); lettersDiv.innerHTML = '';
+  for (let char of currentWord) { const span = document.createElement('span'); span.className = 'letter-box' + (char === '_' ? ' space' : ''); lettersDiv.appendChild(span); }
   while (userInput.length < currentWord.length && currentWord[userInput.length] === '_') userInput.push('_');
 }
 
 function loadReadingTask() {
-  currentItem = getNextWord();
-  currentWord = currentItem.en;
-  currentItem.firstTryError = false;
-  isLocked = false;
-  
-  const wordEl = document.getElementById('reading-word');
-  wordEl.textContent = currentWord.replace(/_/g, ' ');
+  currentItem = getNextWord(); currentWord = currentItem.en; currentItem.firstTryError = false; isLocked = false;
+  const wordEl = document.getElementById('reading-word'); wordEl.textContent = currentWord.replace(/_/g, ' ');
   wordEl.style.color = getWeightColor(wordWeights[currentItem.en] || 100);
-  document.getElementById('translation-hint').textContent = "";
-  playAudio(currentItem.audio);
-  
-  const container = document.getElementById('reading-options');
-  container.innerHTML = '';
-
+  document.getElementById('translation-hint').textContent = ""; playAudio(currentItem.audio);
+  const container = document.getElementById('reading-options'); container.innerHTML = '';
   let filteredPool = selectedGroups.includes("vše") ? englishData : englishData.filter(item => selectedGroups.some(g => item.group.split(',').map(s=>s.trim()).includes(g)));
   if (filteredPool.length === 0) filteredPool = englishData;
-
   const options = [...filteredPool.filter(i => i.en !== currentWord).sort(() => 0.5 - Math.random()).slice(0, 4), currentItem].sort(() => 0.5 - Math.random());
-
   options.forEach(item => {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'reading-option';
-    const img = document.createElement('img');
-    img.src = item.img;
-    img.onclick = () => {
-      if (isLocked) return;
-      item.en === currentWord ? handleSuccess(img, item) : handleError(img, item);
-    };
-    const label = document.createElement('div');
-    label.className = 'reading-label';
-    label.textContent = item.cz.replace(/_/g, ' ');
-
-    wrapper.append(img, label);
-    container.appendChild(wrapper);
+    const wrapper = document.createElement('div'); wrapper.className = 'reading-option';
+    const img = document.createElement('img'); img.src = item.img;
+    img.onclick = () => { if (isLocked) return; item.en === currentWord ? handleSuccess(img, item) : handleError(img, item); };
+    const label = document.createElement('div'); label.className = 'reading-label'; label.textContent = item.cz.replace(/_/g, ' ');
+    wrapper.append(img, label); container.appendChild(wrapper);
   });
 }
 
@@ -540,402 +552,196 @@ function handleKey(e) {
   if (isLocked || e.repeat) return;
   const key = e.key;
 
-  if (key === 'Backspace') {
+  if (key === 'Backspace' && currentMode === 'writing') {
     do { userInput.pop(); } while (userInput.length > 0 && currentWord[userInput.length - 1] === '_');
     updateDisplay(); return;
   }
   if (key === ' ') { if (e.preventDefault) e.preventDefault(); return; }
+  
+  // LOGIKA PRO MÓD ABC (POUZE POKUD JE POSLECH)
+  if (currentMode === 'abc') {
+    if (abcSubMode !== 'listen') return; // V mluvení klávesnice nereaguje
+    if (!key || key.length !== 1 || !/[a-zA-Z]/.test(key)) return;
+    if (e.preventDefault) e.preventDefault();
+    
+    const pressed = key.toUpperCase();
+    const box = document.getElementById('abc-box');
+
+    if (pressed === currentAbcLetter) {
+      isLocked = true; box.textContent = pressed; box.className = 'letter-box correct pop-in';
+      scoreGood++; updateScoreDisplay(); playSound('sound-win');
+      const isCelebrating = addProgress(1);
+      playAudioSequence([`English/ABC/${currentAbcLetter}.mp3`], () => { if (!isCelebrating) setTimeout(loadAbcTask, 1000); });
+    } else {
+      isLocked = true; box.textContent = pressed; box.className = 'letter-box incorrect shake';
+      scoreBad++; updateScoreDisplay(); if (!settings.kidMode) resetProgressBar();
+      playSound('sound-wrong'); showWrongRobot();
+      playAudioSequence([`English/ABC/sentence-No_this_is.mp3`, `English/ABC/${pressed}.mp3`], () => {
+        setTimeout(() => {
+          box.textContent = '?'; box.className = 'letter-box';
+          playAudioSequence([`English/ABC/sentence-But_I_want.mp3`, `English/ABC/${currentAbcLetter}.mp3`], () => { isLocked = false; });
+        }, 1000);
+      });
+    }
+    return;
+  }
+
+  // LOGIKA PRO MÓD WRITING
   if (!key || key.length !== 1 || !/[a-zA-Z]/.test(key)) return;
   if (e.preventDefault) e.preventDefault();
-
   while (userInput.length < currentWord.length && currentWord[userInput.length] === '_') userInput.push('_');
-
   const idx = userInput.length;
   if (idx < currentWord.length) {
     if (key.toLowerCase() === currentWord[idx].toLowerCase()) {
-      userInput.push(key);
-      scoreGood++; 
-      const isCelebrating = addProgress(1); 
-      playSound('sound-correct');
-      
+      userInput.push(key); scoreGood++; const isCelebrating = addProgress(1); playSound('sound-correct');
       while (userInput.length < currentWord.length && currentWord[userInput.length] === '_') userInput.push('_');
       updateDisplay();
-      
       if (userInput.length === currentWord.length) {
-        isLocked = true;
-        document.getElementById('translation-hint').textContent = currentItem.cz.replace(/_/g, ' ');
-        playSound('sound-win');
-        updateWordWeight(currentItem.en, currentItem.firstTryError);
-        
+        isLocked = true; document.getElementById('translation-hint').textContent = currentItem.cz.replace(/_/g, ' ');
+        playSound('sound-win'); updateWordWeight(currentItem.en, currentItem.firstTryError);
         if (!isCelebrating) setTimeout(loadWritingTask, 2000);
       }
     } else {
       if (currentItem) currentItem.firstTryError = true;
-      scoreBad++;
-      if (!settings.kidMode) resetProgressBar();
-      playSound('sound-wrong');
-      showWrongRobot();
-      updateScoreDisplay();
-      
+      scoreBad++; if (!settings.kidMode) resetProgressBar(); playSound('sound-wrong'); showWrongRobot(); updateScoreDisplay();
       const boxes = document.getElementById('letters').children;
       if (boxes[idx]) {
-        boxes[idx].textContent = key;
-        boxes[idx].classList.add('incorrect');
-        isLocked = true;
+        boxes[idx].textContent = key; boxes[idx].classList.add('incorrect'); isLocked = true;
         setTimeout(() => { boxes[idx].textContent = ''; boxes[idx].classList.remove('incorrect'); isLocked = false; }, 500);
       }
     }
   }
 }
 
-// --- LOGIKA VĚT (SENTENCES) ---
 function loadSentencesTask() {
   if (sentencesData.length === 0) return;
-  isLocked = false;
-  sentenceCorrectCount = 0;
-  selectedSentenceWord = null;
-
-  // Získání věty pomocí vážené pravděpodobnosti
-  currentSentenceItem = getNextSentence();
-  currentSentenceItem.firstTryError = false;
-
+  isLocked = false; sentenceCorrectCount = 0; selectedSentenceWord = null;
+  currentSentenceItem = getNextSentence(); currentSentenceItem.firstTryError = false;
   currentSentenceIsEnToCz = Math.random() > 0.5;
-
   let sourceText = currentSentenceIsEnToCz ? currentSentenceItem.en : currentSentenceItem.cz;
   let targetText = currentSentenceIsEnToCz ? currentSentenceItem.cz : currentSentenceItem.en;
-
   document.getElementById('sentence-source').textContent = sourceText.replace(/_/g, ' ');
-  
-  let sourceAudioPath = getSentenceAudioPath(sourceText, currentSentenceIsEnToCz);
-  playAudio(sourceAudioPath);
-
-  let punctuation = "";
-  if (/[.?!]$/.test(targetText)) {
-    punctuation = targetText.slice(-1); 
-    targetText = targetText.slice(0, -1); 
-  }
-
-  let targetWordsArray = targetText.split(' ').map((w, i) => ({
-    text: w.replace(/_/g, ' '),
-    orig: w,
-    index: i
-  }));
+  playAudio(getSentenceAudioPath(sourceText, currentSentenceIsEnToCz));
+  let punctuation = ""; if (/[.?!]$/.test(targetText)) { punctuation = targetText.slice(-1); targetText = targetText.slice(0, -1); }
+  let targetWordsArray = targetText.split(' ').map((w, i) => ({ text: w.replace(/_/g, ' '), orig: w, index: i }));
   totalSentenceWords = targetWordsArray.length;
-
   let shuffledWords = [...targetWordsArray].sort(() => Math.random() - 0.5);
-
-  const container = document.getElementById('sentence-target-container');
-  container.innerHTML = '';
+  const container = document.getElementById('sentence-target-container'); container.innerHTML = '';
   targetWordsArray.forEach(w => {
-    let slot = document.createElement('div');
-    slot.className = 'sentence-slot';
-    slot.dataset.index = w.index;
+    let slot = document.createElement('div'); slot.className = 'sentence-slot'; slot.dataset.index = w.index;
     slot.onclick = () => handleSlotClick(slot);
-    
     slot.addEventListener('dragover', (e) => { e.preventDefault(); slot.classList.add('drag-over'); });
     slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
-    slot.addEventListener('drop', (e) => {
-      e.preventDefault();
-      slot.classList.remove('drag-over');
-      const wordIndex = e.dataTransfer.getData('text/plain');
-      const wordEl = document.querySelector(`.sentence-word[data-index="${wordIndex}"]`);
-      processWordDrop(wordEl, slot);
-    });
-    
+    slot.addEventListener('drop', (e) => { e.preventDefault(); slot.classList.remove('drag-over'); processWordDrop(document.querySelector(`.sentence-word[data-index="${e.dataTransfer.getData('text/plain')}"]`), slot); });
     container.appendChild(slot);
   });
-
   if (punctuation) {
-    let punctEl = document.createElement('div');
-    punctEl.textContent = punctuation;
-    punctEl.style.fontSize = '40px';
-    punctEl.style.fontWeight = 'bold';
-    punctEl.style.color = '#d39e00'; 
-    punctEl.style.display = 'flex';
-    punctEl.style.alignItems = 'flex-end'; 
-    punctEl.style.paddingBottom = '5px';
+    let punctEl = document.createElement('div'); punctEl.textContent = punctuation;
+    punctEl.style.fontSize = '40px'; punctEl.style.fontWeight = 'bold'; punctEl.style.color = '#d39e00'; 
+    punctEl.style.display = 'flex'; punctEl.style.alignItems = 'flex-end'; punctEl.style.paddingBottom = '5px';
     container.appendChild(punctEl);
   }
-
-  const bank = document.getElementById('sentence-bank');
-  bank.innerHTML = '';
+  const bank = document.getElementById('sentence-bank'); bank.innerHTML = '';
   shuffledWords.forEach(w => {
-    let wordEl = document.createElement('div');
-    wordEl.className = 'sentence-word';
-    wordEl.textContent = w.text;
-    wordEl.dataset.index = w.index;
-    wordEl.draggable = true;
+    let wordEl = document.createElement('div'); wordEl.className = 'sentence-word'; wordEl.textContent = w.text; wordEl.dataset.index = w.index; wordEl.draggable = true;
     wordEl.onclick = () => handleWordSelect(wordEl);
-    
-    wordEl.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('text/plain', w.index);
-      wordEl.classList.add('dragging');
-      if (selectedSentenceWord) { selectedSentenceWord.classList.remove('selected'); selectedSentenceWord = null; }
-    });
+    wordEl.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', w.index); wordEl.classList.add('dragging'); if (selectedSentenceWord) { selectedSentenceWord.classList.remove('selected'); selectedSentenceWord = null; } });
     wordEl.addEventListener('dragend', () => wordEl.classList.remove('dragging'));
-    
     bank.appendChild(wordEl);
   });
 }
-
 function handleWordSelect(wordEl) {
   if (isLocked || !wordEl.parentElement.id.includes('bank')) return;
-  
-  if (selectedSentenceWord === wordEl) {
-    selectedSentenceWord.classList.remove('selected');
-    selectedSentenceWord = null;
-  } else {
-    if (selectedSentenceWord) selectedSentenceWord.classList.remove('selected');
-    selectedSentenceWord = wordEl;
-    wordEl.classList.add('selected');
-  }
+  if (selectedSentenceWord === wordEl) { selectedSentenceWord.classList.remove('selected'); selectedSentenceWord = null; } 
+  else { if (selectedSentenceWord) selectedSentenceWord.classList.remove('selected'); selectedSentenceWord = wordEl; wordEl.classList.add('selected'); }
 }
-
-function handleSlotClick(slot) {
-  if (isLocked || !selectedSentenceWord) return;
-  processWordDrop(selectedSentenceWord, slot);
-}
-
+function handleSlotClick(slot) { if (isLocked || !selectedSentenceWord) return; processWordDrop(selectedSentenceWord, slot); }
 function processWordDrop(wordEl, slot) {
   if (!wordEl || isLocked || slot.children.length > 0) return;
-
-  if (selectedSentenceWord) {
-    selectedSentenceWord.classList.remove('selected');
-    selectedSentenceWord = null;
-  }
-
+  if (selectedSentenceWord) { selectedSentenceWord.classList.remove('selected'); selectedSentenceWord = null; }
   if (wordEl.dataset.index === slot.dataset.index) {
-    slot.appendChild(wordEl);
-    wordEl.draggable = false;
-    wordEl.style.cursor = 'default';
-    wordEl.style.boxShadow = 'none';
-    wordEl.onclick = null;
-    wordEl.classList.add('correct');
-    
-    playSound('sound-correct');
-    scoreGood++; updateScoreDisplay();
-    sentenceCorrectCount++;
-
-    if (sentenceCorrectCount === totalSentenceWords) {
-      finishSentenceTask();
-    }
+    slot.appendChild(wordEl); wordEl.draggable = false; wordEl.style.cursor = 'default'; wordEl.style.boxShadow = 'none'; wordEl.onclick = null; wordEl.classList.add('correct');
+    playSound('sound-correct'); scoreGood++; updateScoreDisplay(); sentenceCorrectCount++;
+    if (sentenceCorrectCount === totalSentenceWords) finishSentenceTask();
   } else {
-    playSound('sound-wrong');
-    showWrongRobot();
-    scoreBad++; updateScoreDisplay();
-    if (!settings.kidMode) resetProgressBar();
-    
-    // Zaznamenání chyby pro úpravu pravděpodobnosti
-    currentSentenceItem.firstTryError = true;
-    
-    wordEl.classList.add('incorrect', 'shake');
+    playSound('sound-wrong'); showWrongRobot(); scoreBad++; updateScoreDisplay(); if (!settings.kidMode) resetProgressBar();
+    currentSentenceItem.firstTryError = true; wordEl.classList.add('incorrect', 'shake');
     setTimeout(() => wordEl.classList.remove('incorrect', 'shake'), 400);
   }
 }
-
 function finishSentenceTask() {
-  isLocked = true;
-  
-  // Aplikování nové váhy do paměti
-  updateSentenceWeight(currentSentenceItem.en, currentSentenceItem.firstTryError);
-  
+  isLocked = true; updateSentenceWeight(currentSentenceItem.en, currentSentenceItem.firstTryError);
   let sourceText = currentSentenceIsEnToCz ? currentSentenceItem.en : currentSentenceItem.cz;
   let targetText = currentSentenceIsEnToCz ? currentSentenceItem.cz : currentSentenceItem.en;
-
-  let sourceAudioPath = getSentenceAudioPath(sourceText, currentSentenceIsEnToCz);
-  let targetAudioPath = getSentenceAudioPath(targetText, !currentSentenceIsEnToCz);
-
-  // Sestavení pole zvuků podle jazyka horní věty
-  let audioSequence = currentSentenceIsEnToCz 
-    ? [targetAudioPath, sourceAudioPath] // Horní anglicky: přehraje česky (cíl) a pak anglicky (zdroj)
-    : [targetAudioPath];                 // Horní česky: přehraje jen anglicky (cíl)
-
-  playSound('sound-win');
-  
-  const isCelebrating = addProgress(2); 
-  
-  setTimeout(() => {
-    playAudioSequence(audioSequence, () => {
-      if (!isCelebrating) {
-        setTimeout(() => { loadSentencesTask(); }, 1000);
-      }
-    });
-  }, 500);
+  let audioSequence = currentSentenceIsEnToCz ? [getSentenceAudioPath(targetText, false), getSentenceAudioPath(sourceText, true)] : [getSentenceAudioPath(targetText, true)];
+  playSound('sound-win'); const isCelebrating = addProgress(2); 
+  setTimeout(() => { playAudioSequence(audioSequence, () => { if (!isCelebrating) setTimeout(() => { loadSentencesTask(); }, 1000); }); }, 500);
 }
 
 function handleSuccess(img, item) {
-  isLocked = true; img.classList.add('image-pop'); 
-  playAudioSequence([item.audio, `English/${item.cz}.mp3`]);
-  scoreGood++; updateWordWeight(currentItem.en, currentItem.firstTryError);
-  const isCelebrating = addProgress(1.5); updateScoreDisplay();
+  isLocked = true; img.classList.add('image-pop'); playAudioSequence([item.audio, `English/${item.cz}.mp3`]);
+  scoreGood++; updateWordWeight(currentItem.en, currentItem.firstTryError); const isCelebrating = addProgress(1.5); updateScoreDisplay();
   if (!isCelebrating) setTimeout(loadReadingTask, 3500);
 }
-
 function handleError(img, item) {
-  isLocked = true; img.style.filter = 'grayscale(1) opacity(0.5)';
-  scoreBad++; if (currentItem) currentItem.firstTryError = true;
-  if (!settings.kidMode) resetProgressBar();
-  playAudioSequence([item.audio, `English/${item.cz}.mp3`]);
-  playSound('sound-wrong'); showWrongRobot(); updateScoreDisplay();
+  isLocked = true; img.style.filter = 'grayscale(1) opacity(0.5)'; scoreBad++; if (currentItem) currentItem.firstTryError = true;
+  if (!settings.kidMode) resetProgressBar(); playAudioSequence([item.audio, `English/${item.cz}.mp3`]); playSound('sound-wrong'); showWrongRobot(); updateScoreDisplay();
   setTimeout(() => { isLocked = false; }, 3500);
 }
-
 function updateDisplay() {
-  const boxes = document.getElementById('letters').children;
+  const boxes = document.getElementById('letters').children; if (!boxes.length) return;
   for (let i = 0; i < boxes.length; i++) {
     const char = userInput[i];
-    if (currentWord[i] === '_') { 
-      boxes[i].textContent = ''; 
-      boxes[i].className = 'letter-box space'; 
-    } else {
-      boxes[i].textContent = char || '';
-      boxes[i].className = 'letter-box' + (char ? ' correct' : '');
-    }
+    if (currentWord[i] === '_') { boxes[i].textContent = ''; boxes[i].className = 'letter-box space'; } 
+    else { boxes[i].textContent = char || ''; boxes[i].className = 'letter-box' + (char ? ' correct' : ''); }
   }
   updateScoreDisplay();
 }
 
-// --- POMOCNÉ FUNKCE A PROGRESS ---
-function playSound(id) {
-  if (!settings.sound || (settings.kidMode && id === 'sound-wrong')) return;
-  const s = document.getElementById(id); if (s) { s.currentTime = 0; s.play().catch(()=>{}); }
-}
+function playSound(id) { if (!settings.sound || (settings.kidMode && id === 'sound-wrong')) return; const s = document.getElementById(id); if (s) { s.currentTime = 0; s.play().catch(()=>{}); } }
 function playAudio(path) { if (settings.sound) new Audio(path).play().catch(()=>{}); }
-
 function playAudioSequence(paths, onComplete) {
-  if (!settings.sound || paths.length === 0) {
-    if (onComplete) onComplete();
-    return;
-  }
-  const playNext = (index) => {
-    if (index >= paths.length) {
-      if (onComplete) onComplete();
-      return;
-    }
-    const audio = new Audio(paths[index]);
-    audio.onended = () => playNext(index + 1);
-    audio.play().catch(() => playNext(index + 1));
-  };
+  if (!settings.sound || paths.length === 0) { if (onComplete) onComplete(); return; }
+  const playNext = (index) => { if (index >= paths.length) { if (onComplete) onComplete(); return; } const audio = new Audio(paths[index]); audio.onended = () => playNext(index + 1); audio.play().catch(() => playNext(index + 1)); };
   playNext(0);
 }
-
-function getSentenceAudioPath(text, isEnglish) {
-  let cleanText = text.replace(/[.?!]/g, '').trim();
-  let prefix = isEnglish ? 'sentence-' : 'věta-';
-  return 'English/' + prefix + cleanText.replace(/ /g, '_') + '.mp3';
-}
-
+function getSentenceAudioPath(text, isEnglish) { let cleanText = text.replace(/[.?!]/g, '').trim(); return 'English/' + (isEnglish ? 'sentence-' : 'věta-') + cleanText.replace(/ /g, '_') + '.mp3'; }
 function updateScoreDisplay() { document.getElementById('score-good').textContent = scoreGood; document.getElementById('score-bad').textContent = scoreBad; }
-function showWrongRobot() {
-  if (settings.kidMode) return;
-  const r = document.getElementById('wrong-robot-fixed');
-  if (r) { r.style.display = 'block'; setTimeout(() => r.style.display = 'none', 1200); }
-}
+function showWrongRobot() { if (settings.kidMode) return; const r = document.getElementById('wrong-robot-fixed'); if (r) { r.style.display = 'block'; setTimeout(() => r.style.display = 'none', 1200); } }
 
 let progressPoints = 0, progressLayer = 0;
 function addProgress(p) {
-  let isCelebrating = false;
-  progressPoints += p;
+  let isCelebrating = false; progressPoints += p;
   if (progressPoints >= 15) {
     if (progressLayer === 8 && typeof showWinBanner === "function") showWinBanner();
-    progressPoints = 0; progressLayer = (progressLayer + 1) % 9;
-    addMedal('bronze'); showCelebration(); isCelebrating = true;
+    progressPoints = 0; progressLayer = (progressLayer + 1) % 9; addMedal('bronze'); showCelebration(); isCelebrating = true;
   }
   updateProgressBar(); return isCelebrating;
 }
-
-function updateProgressBar() {
-  const pct = (progressPoints / 15) * 100;
-  const ids = ["green", "teal", "cyan", "blue", "purple", "pink", "red", "orange", "gold"];
-  ids.forEach((color, index) => {
-    const el = document.getElementById(`progress-fill-${color}`);
-    if (el) el.style.width = index < progressLayer ? "100%" : (index === progressLayer ? pct + "%" : "0%");
-  });
-}
-
+function updateProgressBar() { const pct = (progressPoints / 15) * 100; ["green", "teal", "cyan", "blue", "purple", "pink", "red", "orange", "gold"].forEach((color, index) => { const el = document.getElementById(`progress-fill-${color}`); if (el) el.style.width = index < progressLayer ? "100%" : (index === progressLayer ? pct + "%" : "0%"); }); }
 function resetProgressBar() { progressPoints = 0; progressLayer = 0; updateProgressBar(); }
-
-function addMedal(type) {
-  medals[type]++; updateMedalsUI(); saveMedals(); playSound('sound-metal-fall');
-  if (medals[type] >= 3 && type !== 'crown') setTimeout(() => mergeMedals(type), 1000);
-}
-function mergeMedals(type) {
-  const next = {bronze:'silver', silver:'gold', gold:'trophy', trophy:'crown'}[type];
-  medals[type] -= 3; medals[next]++;
-  playSound('sound-metal-fuse'); updateMedalsUI(); saveMedals();
-  if (medals[next] >= 3 && next !== 'crown') mergeMedals(next);
-}
+function addMedal(type) { medals[type]++; updateMedalsUI(); saveMedals(); playSound('sound-metal-fall'); if (medals[type] >= 3 && type !== 'crown') setTimeout(() => mergeMedals(type), 1000); }
+function mergeMedals(type) { const next = {bronze:'silver', silver:'gold', gold:'trophy', trophy:'crown'}[type]; medals[type] -= 3; medals[next]++; playSound('sound-metal-fuse'); updateMedalsUI(); saveMedals(); if (medals[next] >= 3 && next !== 'crown') mergeMedals(next); }
 function updateMedalsUI() {
-  const container = document.getElementById('medals-container'); container.innerHTML = '';
-  const map = {crown:'👑', trophy:'🏆', gold:'🥇', silver:'🥈', bronze:'🥉'};
-  let total = 0;
-  for (let [k, v] of Object.entries(map)) {
-    for (let i = 0; i < medals[k]; i++) {
-      const s = document.createElement('span'); s.textContent = v; s.className='medal';
-      container.appendChild(s); total++;
-    }
-  }
+  const container = document.getElementById('medals-container'); container.innerHTML = ''; let total = 0;
+  for (let [k, v] of Object.entries({crown:'👑', trophy:'🏆', gold:'🥇', silver:'🥈', bronze:'🥉'})) { for (let i = 0; i < medals[k]; i++) { const s = document.createElement('span'); s.textContent = v; s.className='medal'; container.appendChild(s); total++; } }
   document.getElementById('medals-today-title').style.display = total > 0 ? 'block' : 'none';
 }
-
 function showCelebration() {
-  const container = document.getElementById('gif-container');
-  document.getElementById('gif-animation').src = `dance${Math.floor(Math.random()*GIF_COUNT)+1}.gif`;
-  container.style.display = 'block';
-  
-  const finish = () => { 
-    container.style.display = 'none'; 
-    if(currentMode === 'writing') loadWritingTask(); 
-    else if(currentMode === 'reading') loadReadingTask(); 
-    else if(currentMode === 'sentences') loadSentencesTask();
-    else if(currentMode === 'listening') loadListeningTask();
-  };
+  const container = document.getElementById('gif-container'); document.getElementById('gif-animation').src = `dance${Math.floor(Math.random()*GIF_COUNT)+1}.gif`; container.style.display = 'block';
+  const finish = () => { container.style.display = 'none'; if(currentMode === 'writing') loadWritingTask(); else if(currentMode === 'reading') loadReadingTask(); else if(currentMode === 'sentences') loadSentencesTask(); else if(currentMode === 'listening') loadListeningTask(); else if(currentMode === 'abc') loadAbcTask(); };
   if (!settings.sound) { setTimeout(finish, 4000); return; }
-  const audio = new Audio(`music${Math.floor(Math.random()*MUSIC_COUNT)+1}.mp3`);
-  audio.play().catch(() => setTimeout(finish, 4000));
-  audio.onended = finish;
+  const audio = new Audio(`music${Math.floor(Math.random()*MUSIC_COUNT)+1}.mp3`); audio.play().catch(() => setTimeout(finish, 4000)); audio.onended = finish;
 }
-
-// --- STATISTIKY ---
-function toggleStatsPopup() {
-  const popup = document.getElementById('stats-popup'), overlay = document.getElementById('stats-overlay');
-  if (popup.style.display === 'none') { renderStatsTable(); popup.style.display = 'block'; overlay.style.display = 'block'; } 
-  else { popup.style.display = 'none'; overlay.style.display = 'none'; }
-}
-
+function toggleStatsPopup() { const popup = document.getElementById('stats-popup'), overlay = document.getElementById('stats-overlay'); if (popup.style.display === 'none') { renderStatsTable(); popup.style.display = 'block'; overlay.style.display = 'block'; } else { popup.style.display = 'none'; overlay.style.display = 'none'; } }
 function renderStatsTable() {
-  const tbody = document.getElementById('stats-body'), emptyMsg = document.getElementById('stats-empty');
-  tbody.innerHTML = '';
-  
-  // Zmapování slov a vět do jednotného formátu
-  const wordsStats = englishData.map(item => ({ en: item.en, cz: item.cz.replace(/_/g, ' '), weight: wordWeights[item.en] || 100 }));
-  const sentencesStats = sentencesData.map(item => ({ en: item.en, cz: item.cz.replace(/_/g, ' '), weight: sentenceWeights[item.en] || 100 }));
-  
-  // Spojení, filtrace základní váhy a seřazení (nejvyšší váha/chybovost nahoře)
-  const statsData = [...wordsStats, ...sentencesStats]
-    .filter(item => item.weight !== 100)
-    .sort((a, b) => b.weight - a.weight);
-
+  const tbody = document.getElementById('stats-body'), emptyMsg = document.getElementById('stats-empty'); tbody.innerHTML = '';
+  const statsData = [...englishData.map(i => ({ en: i.en, cz: i.cz.replace(/_/g, ' '), weight: wordWeights[i.en] || 100 })), ...sentencesData.map(i => ({ en: i.en, cz: i.cz.replace(/_/g, ' '), weight: sentenceWeights[i.en] || 100 }))].filter(i => i.weight !== 100).sort((a, b) => b.weight - a.weight);
   if (statsData.length === 0) { emptyMsg.style.display = 'block'; return; }
-  emptyMsg.style.display = 'none';
-  
-  statsData.forEach(item => {
-    const color = getWeightColor(item.weight); // Použití dynamické barvy z existující funkce
-    const row = document.createElement('tr'); row.style.borderBottom = "1px solid #eee";
-    row.innerHTML = `<td style="padding:10px;"><strong>${item.en}</strong><br><small>${item.cz}</small></td><td style="padding:10px; color:${color}; font-weight:bold;">${item.weight}%</td>`;
-    tbody.appendChild(row);
-  });
+  emptyMsg.style.display = 'none'; statsData.forEach(item => { const row = document.createElement('tr'); row.style.borderBottom = "1px solid #eee"; row.innerHTML = `<td style="padding:10px;"><strong>${item.en}</strong><br><small>${item.cz}</small></td><td style="padding:10px; color:${getWeightColor(item.weight)}; font-weight:bold;">${item.weight}%</td>`; tbody.appendChild(row); });
 }
+function resetAllWeights() { if (confirm("Opravdu chcete vymazat veškerý naučený pokrok a vrátit všechna slova i věty na 100 %?")) { wordWeights = {}; saveWeights(); sentenceWeights = {}; saveSentenceWeights(); renderStatsTable(); } }
 
-function resetAllWeights() {
-  if (confirm("Opravdu chcete vymazat veškerý naučený pokrok a vrátit všechna slova i věty na 100 %?")) { 
-    wordWeights = {}; saveWeights(); 
-    sentenceWeights = {}; saveSentenceWeights();
-    renderStatsTable(); 
-  }
-}
-
-// --- OVLÁDÁNÍ ---
 document.getElementById('settings-toggle').onclick = () => { const s = document.getElementById('settings'); s.style.display = s.style.display === 'none' ? 'block' : 'none'; };
 document.getElementById('toggle-uppercase').onclick = () => { settings.uppercase = !settings.uppercase; document.getElementById('toggle-uppercase').textContent = settings.uppercase ? '🔠' : '🔡'; saveSettings(); updateDisplay(); };
 document.getElementById('toggle-sound').onclick = () => { settings.sound = !settings.sound; document.getElementById('toggle-sound').textContent = settings.sound ? '🔊' : '🔇'; saveSettings(); };
@@ -945,46 +751,45 @@ document.getElementById('mobile-input').oninput = (e) => { const val = e.target.
 function showGroupMenu(x, y, mode = 'reading') {
   const menu = document.getElementById('group-menu'); if (!menu) return; menu.innerHTML = '';
   
-  // Poslech bere data i z kategorií pro věty
-  const isSentences = (mode === 'sentences' || mode === 'listening');
-  const currentGroupsList = isSentences ? sentenceGroups : groups;
-  let currentSelectedList = isSentences ? selectedSentenceGroups : selectedGroups;
-  const currentDataList = isSentences ? sentencesData : englishData;
+  if (mode === 'abc') {
+    const opts = [{ label: '🎧 Poslech', val: 'listen' }, { label: '🎤 Mluvení', val: 'speak' }];
+    opts.forEach(opt => {
+      const btn = document.createElement('button');
+      const isActive = abcSubMode === opt.val;
+      btn.innerHTML = `<span>${opt.label}</span><span style="visibility: ${isActive ? 'visible' : 'hidden'}; font-weight: bold;">✓</span>`;
+      if (isActive) btn.className = 'active-group';
+      btn.onclick = (e) => { e.stopPropagation(); abcSubMode = opt.val; menu.style.display = 'none'; startGame('abc'); };
+      menu.appendChild(btn);
+    });
+    menu.style.left = x + 'px'; menu.style.top = y + 'px'; menu.style.display = 'flex';
+    return;
+  }
 
-  let sortedGroups = ["vše", ...currentGroupsList.filter(g => g !== "vše").sort((a, b) => a.localeCompare(b, 'cs'))];
+  const isSentences = (mode === 'sentences' || mode === 'listening');
+  const currentSelectedList = isSentences ? selectedSentenceGroups : selectedGroups;
+  const currentDataList = isSentences ? sentencesData : englishData;
+  let sortedGroups = ["vše", ...(isSentences ? sentenceGroups : groups).filter(g => g !== "vše").sort((a, b) => a.localeCompare(b, 'cs'))];
   
   sortedGroups.forEach(group => {
-    const btn = document.createElement('button'); 
-    const isActive = currentSelectedList.includes(group);
-    
-    let itemCount = group === "vše" 
-      ? currentDataList.length 
-      : currentDataList.filter(item => isSentences ? item.groups.includes(group) : item.group.split(',').map(s=>s.trim()).includes(group)).length;
-    
+    const btn = document.createElement('button'); const isActive = currentSelectedList.includes(group);
+    let itemCount = group === "vše" ? currentDataList.length : currentDataList.filter(item => isSentences ? item.groups.includes(group) : item.group.split(',').map(s=>s.trim()).includes(group)).length;
     btn.innerHTML = `<span>${group} (${itemCount})</span><span style="visibility: ${isActive ? 'visible' : 'hidden'}; font-weight: bold;">✓</span>`;
     if (isActive) btn.className = 'active-group';
-    
     btn.onclick = (e) => { 
       e.stopPropagation(); 
-      if (group === "vše") { 
-        if (isSentences) selectedSentenceGroups = ["vše"]; else selectedGroups = ["vše"];
-      } else {
+      if (group === "vše") { if (isSentences) selectedSentenceGroups = ["vše"]; else selectedGroups = ["vše"]; } 
+      else {
         if (isSentences) {
           selectedSentenceGroups = selectedSentenceGroups.filter(g => g !== "vše");
-          if (selectedSentenceGroups.includes(group)) { 
-            selectedSentenceGroups = selectedSentenceGroups.filter(g => g !== group); 
-            if (selectedSentenceGroups.length === 0) selectedSentenceGroups = ["vše"]; 
-          } else { selectedSentenceGroups.push(group); }
+          if (selectedSentenceGroups.includes(group)) { selectedSentenceGroups = selectedSentenceGroups.filter(g => g !== group); if (selectedSentenceGroups.length === 0) selectedSentenceGroups = ["vše"]; } 
+          else { selectedSentenceGroups.push(group); }
         } else {
           selectedGroups = selectedGroups.filter(g => g !== "vše");
-          if (selectedGroups.includes(group)) { 
-            selectedGroups = selectedGroups.filter(g => g !== group); 
-            if (selectedGroups.length === 0) selectedGroups = ["vše"]; 
-          } else { selectedGroups.push(group); }
+          if (selectedGroups.includes(group)) { selectedGroups = selectedGroups.filter(g => g !== group); if (selectedGroups.length === 0) selectedGroups = ["vše"]; } 
+          else { selectedGroups.push(group); }
         }
       }
-      recentWords = []; 
-      showGroupMenu(x, y, mode); 
+      recentWords = []; showGroupMenu(x, y, mode); 
     };
     menu.appendChild(btn);
   });
@@ -994,41 +799,22 @@ function showGroupMenu(x, y, mode = 'reading') {
 function setupModeButtons() {
   const buttons = document.querySelectorAll('.mode-button');
   buttons.forEach(btn => {
-    let longPressTriggered = false;
-    const modeName = btn.dataset.mode;
-
+    let longPressTriggered = false; const modeName = btn.dataset.mode;
     const onStart = (e) => {
-      longPressTriggered = false;
-      const x = e.touches ? e.touches[0].pageX : e.pageX; const y = e.touches ? e.touches[0].pageY : e.pageY;
-      if (modeName === 'reading' || modeName === 'sentences' || modeName === 'listening') { 
-        holdTimer = setTimeout(() => { longPressTriggered = true; showGroupMenu(x, y, modeName); }, 1000); 
-      }
+      longPressTriggered = false; const x = e.touches ? e.touches[0].pageX : e.pageX; const y = e.touches ? e.touches[0].pageY : e.pageY;
+      if (modeName !== 'writing') { holdTimer = setTimeout(() => { longPressTriggered = true; showGroupMenu(x, y, modeName); }, 1000); }
     };
-    const onEnd = (e) => {
-      clearTimeout(holdTimer);
-      if (!longPressTriggered) { if (e.type === 'touchend') e.preventDefault(); startGame(modeName); }
-    };
-
+    const onEnd = (e) => { clearTimeout(holdTimer); if (!longPressTriggered) { if (e.type === 'touchend') e.preventDefault(); startGame(modeName); } };
     btn.onclick = (e) => { if (longPressTriggered) { e.stopPropagation(); longPressTriggered = false; } };
     btn.onmousedown = onStart; btn.onmouseup = onEnd; btn.onmouseleave = () => clearTimeout(holdTimer);
     btn.ontouchstart = onStart; btn.ontouchend = onEnd;
   });
 }
+document.addEventListener('click', (e) => { const menu = document.getElementById('group-menu'), isModeBtn = e.target.closest('.mode-button'); if (menu && menu.style.display === 'flex' && !menu.contains(e.target) && !isModeBtn) { menu.style.display = 'none'; if(currentMode) startGame(currentMode); } });
 
-document.addEventListener('click', (e) => {
-  const menu = document.getElementById('group-menu'), isModeBtn = e.target.closest('.mode-button');
-  if (menu && menu.style.display === 'flex' && !menu.contains(e.target) && !isModeBtn) {
-    menu.style.display = 'none';
-    if(currentMode) startGame(currentMode); 
-  }
-});
-
-// --- INIT ---
 setupModeButtons();
 const statsBtn = document.getElementById('toggle-stats'); if (statsBtn) statsBtn.onclick = toggleStatsPopup;
-loadSettings();
-updateMedalsUI(); // Zobrazí uložené medaile hned po startu
-document.body.classList.toggle('uppercase-text', settings.uppercase);
+loadSettings(); updateMedalsUI(); document.body.classList.toggle('uppercase-text', settings.uppercase);
 </script>
 </body>
 </html>
