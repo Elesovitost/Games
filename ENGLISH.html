@@ -240,7 +240,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRecognition();
   recognition.lang = 'en-US';
-  recognition.interimResults = false;
+  recognition.interimResults = true; // Změna: Chytáme průběžné výsledky
   recognition.maxAlternatives = 1;
 }
 
@@ -424,38 +424,57 @@ function startVoiceRecognition() {
   const box = document.getElementById('abc-box');
   const instr = document.getElementById('abc-instruction');
   box.classList.add('recording');
-  instr.textContent = 'Poslouchám...';
+  instr.textContent = 'Připravuji mikrofon...';
 
   let resultHandled = false;
 
+  recognition.onstart = () => {
+    instr.textContent = 'Poslouchám...';
+    clearTimeout(recognitionTimeout);
+    recognitionTimeout = setTimeout(() => {
+      if (!resultHandled) {
+        resultHandled = true; recognition.stop(); stopMicUI(); isLocked = false;
+        instr.textContent = 'Čas vypršel, zkus to znovu';
+      }
+    }, 5000); 
+  };
+
   recognition.onresult = (event) => {
-    resultHandled = true; clearTimeout(recognitionTimeout);
-    const transcript = event.results[0][0].transcript.toLowerCase().trim().replace(/\./g, '');
-    handleVoiceResult(transcript);
+    if (resultHandled) return;
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      transcript += event.results[i][0].transcript;
+    }
+    
+    transcript = transcript.toLowerCase().trim().replace(/\./g, '');
+    
+    if (transcript.length > 0) {
+      resultHandled = true; 
+      clearTimeout(recognitionTimeout);
+      recognition.stop();
+      handleVoiceResult(transcript);
+    }
   };
 
   recognition.onerror = (event) => {
     if(!resultHandled) {
       resultHandled = true; clearTimeout(recognitionTimeout); stopMicUI(); isLocked = false;
-      instr.textContent = 'Chyba mikrofonu, zkus to znovu';
+      if (event.error === 'no-speech') {
+        instr.textContent = 'Nic jsem neslyšel, zkus to znovu';
+      } else {
+        instr.textContent = 'Chyba: ' + event.error;
+      }
     }
   };
 
   recognition.onend = () => {
     if (!resultHandled) {
        clearTimeout(recognitionTimeout); stopMicUI(); isLocked = false;
-       instr.textContent = 'Nic jsem neslyšel, stiskni znovu';
+       instr.textContent = 'Bylo to moc krátké, zkus to protáhnout';
     }
   };
 
   try { recognition.start(); } catch(e){}
-
-  recognitionTimeout = setTimeout(() => {
-    if (!resultHandled) {
-      resultHandled = true; recognition.stop(); stopMicUI(); isLocked = false;
-      instr.textContent = 'Čas vypršel, stiskni znovu';
-    }
-  }, 3000);
 }
 
 function stopMicUI() {
@@ -466,7 +485,34 @@ function stopMicUI() {
 function handleVoiceResult(spokenText) {
   stopMicUI();
   const target = currentAbcLetter.toLowerCase();
-  const letterMap = { 'ay':'a', 'a':'a', 'be':'b', 'bee':'b', 'see':'c', 'sea':'c', 'dee':'d', 'tea':'t', 'eye':'i', 'i':'i', 'jay':'j', 'j':'j', 'kay':'k', 'k':'k', 'el':'l', 'l':'l', 'em':'m', 'm':'m', 'en':'n', 'n':'n', 'oh':'o', 'o':'o', 'pea':'p', 'p':'p', 'cue':'q', 'q':'q', 'are':'r', 'r':'r', 'ess':'s', 's':'s', 'you':'u', 'u':'u', 'why':'y', 'y':'y', 'zee':'z', 'zed':'z', 'z':'z', 'hey': 'a' };
+  
+  const letterMap = { 
+    'ay':'a', 'a':'a', 'hey':'a', 'eight':'h', 'aitch':'h', 'h':'h',
+    'be':'b', 'bee':'b', 'b':'b', 
+    'see':'c', 'sea':'c', 'c':'c', 
+    'dee':'d', 'tea':'t', 'd':'d', 
+    'ee':'e', 'e':'e',
+    'ef':'f', 'f':'f',
+    'jee':'g', 'gee':'g', 'g':'g',
+    'eye':'i', 'i':'i', 
+    'jay':'j', 'j':'j', 
+    'kay':'k', 'k':'k', 
+    'el':'l', 'l':'l', 
+    'em':'m', 'm':'m', 
+    'en':'n', 'n':'n', 
+    'oh':'o', 'o':'o', 'owe':'o',
+    'pea':'p', 'p':'p', 
+    'cue':'q', 'q':'q', 
+    'are':'r', 'r':'r', 'our':'r',
+    'ess':'s', 's':'s', 'yes':'s',
+    'tea':'t', 'tee':'t', 't':'t',
+    'you':'u', 'u':'u', 
+    'vee':'v', 'we':'v', 'v':'v',
+    'double':'w', 'w':'w',
+    'ex':'x', 'x':'x',
+    'why':'y', 'y':'y', 
+    'zee':'z', 'zed':'z', 'z':'z' 
+  };
 
   const firstWord = spokenText.split(' ')[0];
   const normalizedSpoken = letterMap[firstWord] || firstWord;
