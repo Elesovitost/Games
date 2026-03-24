@@ -5,157 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tower Defense - All Branching Upgrades</title>
     <style>
-        :root {
-            --bg-dark: #2c3e50;
-            --panel-bg: #34495e;
-            --text-light: #ecf0f1;
-            --accent: #e74c3c;
-            --canvas-bg: #1a252f;
-            --win-color: #2ecc71;
-            --upgrade-color: #f39c12;
-            --level-menu-bg: #2c3e50;
-            --btn-size: 40px;
-        }
-
-        body {
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background-color: var(--bg-dark);
-            font-family: system-ui, -apple-system, sans-serif;
-            color: var(--text-light);
-        }
-
-        .main-container {
-            display: flex;
-            gap: 20px;
-        }
-
-        .level-sidebar {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: row; /* Změna na horizontální rozložení */
-            gap: 10px;
-            background: rgba(52, 73, 94, 0.2); /* Průhledné pozadí */
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            z-index: 20; /* Zajišťuje, že panel bude nad plátnem */
-            visibility: visible;
-        }
-        
-        /* Skrytí panelu levelů, pokud je aktivní herní hlavička */
-        .game-ui.active ~ .level-sidebar,
-        .level-sidebar.hidden {
-             display: none;
-        }
-
-        .level-btn {
-            width: 50px;
-            height: 50px;
-            border: 2px solid transparent;
-            border-radius: 8px;
-            color: white;
-            font-size: 1.2rem;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: all 0.2s ease;
-        }
-
-        .level-btn.completed { background: #27ae60; border-color: #2ecc71; }
-        .level-btn.completed:hover { transform: scale(1.05); filter: brightness(1.2); }
-        
-        .level-btn.unlocked { background: #f1c40f; border-color: #f39c12; color: #2c3e50; }
-        .level-btn.unlocked:hover { transform: scale(1.05); filter: brightness(1.1); }
-        
-        .level-btn:disabled { cursor: not-allowed; background: #c0392b; border-color: #e74c3c; opacity: 0.8; }
-
-        .game-wrapper { display: flex; flex-direction: column; gap: 1rem; }
-        .game-ui { position: absolute; top: 0; left: 0; width: 100%; box-sizing: border-box; z-index: 10; display: flex; justify-content: space-between; align-items: center; background: rgba(52, 73, 94, 0.2); padding: 5px 15px; font-size: 1rem; visibility: hidden; }
-        .game-ui.active { visibility: visible; }
-        .stats { display: flex; gap: 1.5rem; text-shadow: 1px 1px 2px #000; }
-        .controls-group { display: flex; gap: 10px; }
-
-        .icon-btn { width: 30px; height: 30px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: filter 0.2s ease, transform 0.1s ease; }
-        .icon-btn:hover:not(:disabled) { filter: brightness(1.1); transform: scale(1.05); }
-        .icon-btn:active:not(:disabled) { transform: scale(0.95); }
-        .icon-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #7f8c8d; }
-        .icon-btn svg { width: 16px; height: 16px; fill: currentColor; }.btn-end { background: #c0392b; }
-        .btn-play-pause { background: #27ae60; }
-        
-        .btn-primary { background: var(--accent); color: white; border: none; padding: 0.5rem 1rem; font-size: 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: filter 0.2s ease; }
-        .btn-primary:hover { filter: brightness(1.1); }
-
-        .canvas-container { position: relative; border: 4px solid var(--panel-bg); border-radius: 8px; overflow: hidden; background: #000; width: 800px; height: 800px; }
-        #game-canvas { display: block; image-rendering: pixelated; }
-
-        #tower-menu, #upgrade-menu { position: absolute; pointer-events: none; z-index: 5; }
-        .hidden { display: none !important; }
-
-        .radial-btn { position: absolute; background: rgba(52, 73, 94, 0.9); border: 2px solid transparent; cursor: pointer; border-radius: 50%; width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform 0.2s ease, border-color 0.2s ease; color: white; pointer-events: auto; transform: translate(-50%, -50%); box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
-        .radial-btn:hover:not(:disabled) { border-color: var(--text-light); transform: translate(-50%, -50%) scale(1.1); }
-        .radial-btn.upgrade { background: rgba(243, 156, 18, 0.9); border-color: #e67e22; }
-        .radial-btn:disabled { background: rgba(127, 140, 141, 0.9); border-color: #95a5a6; cursor: not-allowed; }
-        
-        .price-tag { font-size: 0.7rem; font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 4px; border-radius: 4px; position: absolute; bottom: -10px; }
-
-        .modal { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 3rem; font-weight: bold; z-index: 10; }
-        #modal-text.win { color: var(--win-color); }
-        #modal-text.lose { color: var(--accent); }
-
-        .pokemon-menu-icon { width: 48px; height: 48px; background-size: 200% auto; background-repeat: no-repeat; background-position: 0% center; image-rendering: pixelated; animation: sleepAnim 1s steps(1) infinite; }
-        @keyframes sleepAnim { 0% { background-position: 0% center; } 50% { background-position: 100% center; } }
-
-        /* TOOLTIP STYLES */
-        #info-tooltip {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.8);
-            border: 1px solid #000;
-            border-radius: 6px;
-            color: #000;
-            padding: 12px;
-            font-size: 0.9rem;
-            pointer-events: none;
-            z-index: 20;
-            width: 240px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            transition: opacity 0.2s ease, visibility 0.2s ease;
-        }
-        #info-tooltip.hidden {
-            opacity: 0;
-            visibility: hidden;
-        }
-        .tooltip-header {
-            font-weight: bold;
-            text-align: center;
-            border-bottom: 1px solid #000;
-            padding-bottom: 6px;
-            margin-bottom: 2px;
-            font-size: 1rem;
-        }
-        .tooltip-row {
-            display: flex;
-            justify-content: space-between;
-        }
-        .tooltip-effects {
-            margin-top: 6px;
-            font-size: 0.8rem;
-            font-style: italic;
-            border-top: 1px dotted #666;
-            padding-top: 6px;
-        }
-    </style>
+    :root { --bg-dark: #2c3e50; --panel-bg: #34495e; --text-light: #ecf0f1; --accent: #e74c3c; --canvas-bg: #1a252f; --win-color: #2ecc71; --upgrade-color: #f39c12; --level-menu-bg: #2c3e50; --btn-size: 40px; }
+    body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: var(--bg-dark); font-family: system-ui, -apple-system, sans-serif; color: var(--text-light); }
+    .main-container { display: flex; gap: 20px; }
+    .level-sidebar { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: row; gap: 10px; background: rgba(52, 73, 94, 0.2); padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 20; visibility: visible; }
+    .game-ui.active ~ .level-sidebar, .level-sidebar.hidden { display: none; }
+    .level-btn { width: 50px; height: 50px; border: 2px solid transparent; border-radius: 8px; color: white; font-size: 1.2rem; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s ease; }
+    .level-btn.completed { background: #27ae60; border-color: #2ecc71; }
+    .level-btn.completed:hover { transform: scale(1.05); filter: brightness(1.2); }
+    .level-btn.unlocked { background: #f1c40f; border-color: #f39c12; color: #2c3e50; }
+    .level-btn.unlocked:hover { transform: scale(1.05); filter: brightness(1.1); }
+    .level-btn:disabled { cursor: not-allowed; background: #c0392b; border-color: #e74c3c; opacity: 0.8; }
+    .game-wrapper { display: flex; flex-direction: column; gap: 1rem; }
+    .game-ui { position: absolute; top: 0; left: 0; width: 100%; box-sizing: border-box; z-index: 10; display: flex; justify-content: space-between; align-items: center; background: rgba(52, 73, 94, 0.2); padding: 5px 15px; font-size: 1rem; visibility: hidden; }
+    .game-ui.active { visibility: visible; }
+    .stats { display: flex; gap: 1.5rem; text-shadow: 1px 1px 2px #000; }
+    .controls-group { display: flex; gap: 10px; }
+    .icon-btn { width: 30px; height: 30px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: filter 0.2s ease, transform 0.1s ease; }
+    .icon-btn:hover:not(:disabled) { filter: brightness(1.1); transform: scale(1.05); }
+    .icon-btn:active:not(:disabled) { transform: scale(0.95); }
+    .icon-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #7f8c8d; }
+    .icon-btn svg { width: 16px; height: 16px; fill: currentColor; }
+    .btn-end { background: #c0392b; }
+    .btn-play-pause { background: #27ae60; }
+    .btn-primary { background: var(--accent); color: white; border: none; padding: 0.5rem 1rem; font-size: 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: filter 0.2s ease; }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .canvas-container { position: relative; border: 4px solid var(--panel-bg); border-radius: 8px; overflow: hidden; background: #000; width: 800px; height: 800px; }
+    #game-canvas { display: block; image-rendering: pixelated; }
+    #tower-menu, #upgrade-menu { position: absolute; pointer-events: none; z-index: 5; }
+    .hidden { display: none !important; }
+    .radial-btn { position: absolute; background: rgba(52, 73, 94, 0.9); border: 2px solid transparent; cursor: pointer; border-radius: 50%; width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform 0.2s ease, border-color 0.2s ease; color: white; pointer-events: auto; transform: translate(-50%, -50%); box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
+    .radial-btn:hover:not(:disabled) { border-color: var(--text-light); transform: translate(-50%, -50%) scale(1.1); }
+    .radial-btn.upgrade { background: rgba(243, 156, 18, 0.9); border-color: #e67e22; }
+    .radial-btn:disabled { background: rgba(127, 140, 141, 0.9); border-color: #95a5a6; cursor: not-allowed; }
+    .price-tag { font-size: 0.7rem; font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 4px; border-radius: 4px; position: absolute; bottom: -10px; }
+    .modal { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 3rem; font-weight: bold; z-index: 10; }
+    #modal-text.win { color: var(--win-color); }
+    #modal-text.lose { color: var(--accent); }
+    .pokemon-menu-icon { width: 48px; height: 48px; background-size: 200% auto; background-repeat: no-repeat; background-position: 0% center; image-rendering: pixelated; animation: sleepAnim 1s steps(1) infinite; }
+    @keyframes sleepAnim { 0% { background-position: 0% center; } 50% { background-position: 100% center; } }
+    #info-tooltip { position: absolute; background: rgba(255, 255, 255, 0.8); border: 1px solid #000; border-radius: 6px; color: #000; padding: 12px; font-size: 0.9rem; pointer-events: none; z-index: 20; width: 240px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 6px; transition: opacity 0.2s ease, visibility 0.2s ease; }
+    #info-tooltip.hidden { opacity: 0; visibility: hidden; }
+    .tooltip-header { font-weight: bold; text-align: center; border-bottom: 1px solid #000; padding-bottom: 6px; margin-bottom: 2px; font-size: 1rem; }
+    .tooltip-row { display: flex; justify-content: space-between; }
+    .tooltip-effects { margin-top: 6px; font-size: 0.8rem; font-style: italic; border-top: 1px dotted #666; padding-top: 6px; }
+</style>
 </head>
 <body>
     <div class="main-container">
@@ -384,15 +278,21 @@
         const ANIM_DATA = {};
         POKEMONS.forEach(p => ANIM_DATA[p.toLowerCase()] = {});
         const loadedImages = {};
-        const loadedSounds = {}; 
+        const loadedAudioBuffers = {}; 
         let otherAssetsLoaded = false;
         
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
         function playSound(spriteName) {
-            const sound = loadedSounds[spriteName.toLowerCase()];
-            if (sound) {
-                const soundClone = sound.cloneNode();
-                soundClone.volume = 0.5;
-                soundClone.play().catch(e => {});
+            const buffer = loadedAudioBuffers[spriteName.toLowerCase()];
+            if (buffer && audioCtx.state === 'running') {
+                const source = audioCtx.createBufferSource();
+                source.buffer = buffer;
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.value = 0.5;
+                source.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                source.start(0);
             }
         }
 
@@ -401,9 +301,13 @@
             img.src = `Pokemon/SPRITES/${poke}/Sleep-Anim.png`;
             loadedImages[`${poke.toLowerCase()}_sleep`] = img;
             
-            const audio = new Audio();
-            audio.src = `Pokemon/Sounds/${poke}-attack.mp3`;
-            loadedSounds[poke.toLowerCase()] = audio;
+            fetch(`Pokemon/Sounds/${poke}-attack.mp3`)
+                .then(response => response.arrayBuffer())
+                .then(data => audioCtx.decodeAudioData(data))
+                .then(buffer => {
+                    loadedAudioBuffers[poke.toLowerCase()] = buffer;
+                })
+                .catch(e => console.warn(`Nepodařilo se načíst zvuk pro ${poke}:`, e));
         });
 
         function getAnimImage(spriteName, animName) {
@@ -559,7 +463,7 @@
                 const btn = document.createElement('button');
                 btn.className = 'level-btn';
                 
-                btn.textContent = i; // Vždy zobrazí číslo
+                btn.textContent = i; 
 
                 if (i < maxUnlockedLevel) {
                     btn.classList.add('completed'); btn.title = `Level ${i} (Dokončeno)`;
@@ -586,7 +490,7 @@
 
         function muteAllTowers() {
             state.towers.forEach(t => {
-                if (t.currentSound) { t.currentSound.pause(); t.currentSound.currentTime = 0; t.currentSound = null; }
+                if (t.currentSound) { try { t.currentSound.stop(); } catch(e){} t.currentSound = null; }
             });
         }
 
@@ -656,8 +560,8 @@
                 state.animationFrameId = null;
             }
             
-            gameMusic.pause(); // PŘIDÁNO
-            gameMusic.currentTime = 0; // PŘIDÁNO
+            gameMusic.pause(); 
+            gameMusic.currentTime = 0; 
             muteAllTowers();
             state.gameOver = true;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -926,7 +830,7 @@
                     if (stats.continuous) this.handleContinuousAttack(dt, validTarget, stats, hitX, hitY);
                     else if (this.timeSinceLastShot >= stats.cooldown) this.handleBurstAttack(validTarget, stats, hitX, hitY);
                 } else {
-                    if (this.currentSound) { this.currentSound.pause(); this.currentSound.currentTime = 0; this.currentSound = null; }
+                    if (this.currentSound) { try { this.currentSound.stop(); } catch(e){} this.currentSound = null; }
                 }
             }
             
@@ -934,8 +838,18 @@
                 this.lungeTimer = 0.1; const dmg = stats.damage * dt; target.takeDamage(dmg, this.elementType);
                 if (!this.currentSound) {
                     const soundName = (stats.spriteName || stats.name).toLowerCase();
-                    const sound = loadedSounds[soundName];
-                    if (sound) { this.currentSound = sound.cloneNode(); this.currentSound.volume = 0.5; this.currentSound.loop = true; this.currentSound.play().catch(() => {}); }
+                    const buffer = loadedAudioBuffers[soundName];
+                    if (buffer && audioCtx.state === 'running') {
+                        const source = audioCtx.createBufferSource();
+                        source.buffer = buffer;
+                        source.loop = true;
+                        const gainNode = audioCtx.createGain();
+                        gainNode.gain.value = 0.5;
+                        source.connect(gainNode);
+                        gainNode.connect(audioCtx.destination);
+                        source.start(0);
+                        this.currentSound = source;
+                    }
                 }
                 if (this.elementType === 'water' && stats.splash > 0) {
                     if (Math.random() < 0.2) spawnImpact(hitX + (Math.random()-0.5)*20, hitY + (Math.random()-0.5)*20, 'water');
@@ -949,7 +863,7 @@
             
             handleBurstAttack(target, stats, hitX, hitY) {
                 this.timeSinceLastShot = 0; this.lungeTimer = this.lungeDuration; this.attackCount++;
-                if (this.currentSound) { this.currentSound.pause(); this.currentSound.currentTime = 0; this.currentSound = null; }
+                if (this.currentSound) { try { this.currentSound.stop(); } catch(e){} this.currentSound = null; }
                 playSound(stats.spriteName || stats.name);
                 
                 if (this.elementType === 'electric') {
@@ -1059,13 +973,18 @@
 
         function endGame(isWin) {
             state.gameOver = true; state.gameWon = isWin; muteAllTowers(); hideTooltip();
-            gameMusic.pause(); // PŘIDÁNO
-            gameMusic.currentTime = 0; // PŘIDÁNO
+            gameMusic.pause(); 
+            gameMusic.currentTime = 0; 
             modal.classList.remove('hidden'); modalText.textContent = isWin ? 'VÍTĚZSTVÍ!' : 'GAME OVER'; modalText.className = isWin ? 'win' : 'lose';
         }
 
         btnPlayPause.addEventListener('click', () => {
             if (state.gameOver) return;
+            
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
             if (gameMusic.paused) {
                 gameMusic.play().catch(e => console.warn("Audio play failed:", e));
             }
@@ -1076,7 +995,13 @@
                 if (state.isPaused) { iconPause.classList.add('hidden'); iconPlay.classList.remove('hidden'); btnPlayPause.title = "Pokračovat"; muteAllTowers(); } 
                 else {
                     iconPlay.classList.add('hidden'); iconPause.classList.remove('hidden'); btnPlayPause.title = "Pozastavit hru"; state.lastTime = performance.now();
-                    state.towers.forEach(t => { if (t.currentSound && t.hasTarget) t.currentSound.play().catch(() => {}); });
+                    state.towers.forEach(t => { 
+                        if (t.currentSound && t.hasTarget) {
+                            // Tohle už u Web Audio není potřeba spouštět z pauzy přímo tímto způsobem, 
+                            // protože u kontinuálních zvuků se vytvoří nový zdroj v update cyklu. 
+                            // Staré pause/play se na BufferSource nedá aplikovat. Můžeme to bezpečně ignorovat, update si to chytí.
+                        } 
+                    });
                 }
             }
         });
@@ -1087,8 +1012,8 @@
                 state.animationFrameId = null;
             }
 
-            gameMusic.pause(); // PŘIDÁNO
-            gameMusic.currentTime = 0; // PŘIDÁNO
+            gameMusic.pause(); 
+            gameMusic.currentTime = 0; 
             muteAllTowers();
             state.gameOver = true;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1182,7 +1107,6 @@
             for (let i = state.projectiles.length - 1; i >= 0; i--) {
                 const p = state.projectiles[i]; p.life -= dt;
                 
-                // ČÁSTICE a EFEKTY PŘI DOPADU
                 if (p.type === 'particle') {
                     p.x += p.vx * dt; p.y += p.vy * dt; ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
                     ctx.beginPath();
@@ -1197,7 +1121,6 @@
                     if (p.life <= 0) state.projectiles.splice(i, 1); continue;
                 }
 
-                // SPECIALITY ÚROVNĚ 4
                 if (p.type === 'static_field') {
                     const intensity = p.life / p.maxLife;
                     ctx.fillStyle = `rgba(241, 196, 15, ${intensity * 0.4})`;
@@ -1251,7 +1174,6 @@
                     if (p.life <= 0) state.projectiles.splice(i, 1); continue;
                 }
 
-                // DOPAD A ODSTRANĚNÍ NORMÁLNÍCH STŘEL
                 if (p.life <= 0) {
                     if (p.target) {
                         p.target.takeDamage(p.damage || 0, p.elementType);
@@ -1267,7 +1189,6 @@
                     state.projectiles.splice(i, 1); continue;
                 }
 
-                // VYKRESLENÍ LETÍCÍCH STŘEL A EFEKTŮ
                 const progress = 1 - (p.life / p.maxLife);
                 if (!p.x1 || !p.x2 && p.type !== 'splash_anim') continue;
 
