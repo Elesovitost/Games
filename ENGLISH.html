@@ -55,8 +55,8 @@ body {font-family:sans-serif;text-align:center;padding:10px;background-color:#f8
 
 /* Písmenka */
 .letter-box {display:inline-block;width:45px;height:45px;border:2px solid #ccc;font-size:32px;line-height:45px;margin:4px;text-align:center;vertical-align:middle;background:white;border-radius:8px;}
-.correct {border-color:green;color:green;background:#e6ffe6;}
-.incorrect {border-color:red;color:red;background:#ffe6e6;}
+.correct {border-color:green !important;color:green !important;background:#e6ffe6 !important;}
+.incorrect {border-color:red !important;color:red !important;background:#ffe6e6 !important;}
 .letter-box.space {border-color:transparent !important; background:transparent !important;}
 
 /* Animace */
@@ -82,7 +82,8 @@ body.uppercase-text .reading-label,
 body.uppercase-text #sentence-source,
 body.uppercase-text .sentence-word,
 body.uppercase-text #listening-en,
-body.uppercase-text #listening-cz {text-transform: uppercase;}
+body.uppercase-text #listening-cz,
+body.uppercase-text .abc-key {text-transform: uppercase;}
 
 #reading-options {display:flex;justify-content:center;gap:20px;flex-wrap:wrap;align-items:flex-start;}
 .reading-option {display: flex;flex-direction: column;align-items: center;gap: 5px;}
@@ -111,8 +112,18 @@ body.uppercase-text #listening-cz {text-transform: uppercase;}
 #mobile-input {position:fixed;top:-100px;left:0;width:1px;height:1px;opacity:0;}
 
 /* ABC Mode Custom Styles */
-#abc-area {display:none; flex-direction:column; align-items:center; margin-top:50px;}
+#abc-area {display:none; flex-direction:column; align-items:center; margin-top:20px;}
 #abc-box {width:150px; height:150px; font-size:100px; line-height:150px; border-radius:25px; border-width:5px; cursor:pointer;}
+#abc-keyboard {display:flex; flex-wrap:wrap; justify-content:center; gap:12px; max-width:700px; margin-top:40px;}
+.abc-key {width:55px; height:55px; font-size:30px; font-weight:bold; border:3px solid #333; border-radius:12px; background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform 0.1s, background-color 0.2s, box-shadow 0.1s; box-shadow:3px 3px 0 #333; user-select:none; color:#333;}
+.abc-key:active {transform:translateY(3px); box-shadow:0 0 0 #333;}
+.abc-key.correct {box-shadow:3px 3px 0 green;}
+.abc-key.incorrect {box-shadow:3px 3px 0 red;}
+.abc-key.auto-active {box-shadow:3px 3px 0 #007bff; border-color:#007bff; background-color:#e6f2ff; color:#007bff;}
+
+.abc-play-btn {width:55px; height:55px; font-size:24px; border:3px solid #0056b3; border-radius:12px; background:#007bff; color:white; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:3px 3px 0 #004085; transition:transform 0.1s, box-shadow 0.1s; user-select:none;}
+.abc-play-btn:active {transform:translateY(3px); box-shadow:0 0 0 #004085;}
+
 </style>
 </head>
 <body>
@@ -149,6 +160,7 @@ body.uppercase-text #listening-cz {text-transform: uppercase;}
 
 <div id="abc-area">
   <div id="abc-box" class="letter-box" onclick="if(!isLocked) playAudio('English/ABC/' + currentAbcLetter + '.mp3')">?</div>
+  <div id="abc-keyboard"></div>
 </div>
 
 <div id="words-area">
@@ -232,9 +244,8 @@ let groups = ["vše"], selectedGroups = ["vše"], holdTimer;
 let sentenceGroups = ["vše"], selectedSentenceGroups = ["vše"];
 let wordWeights = JSON.parse(localStorage.getItem('englishWeights')) || {};
 let sentenceWeights = JSON.parse(localStorage.getItem('englishSentenceWeights')) || {};
-let recentSentences = []; // Buffer proti okamžitému opakování vět
+let recentSentences = [];
 
-// Proměnné pro Sentences
 let sentenceCorrectCount = 0;
 let totalSentenceWords = 0;
 let selectedSentenceWord = null; 
@@ -271,9 +282,7 @@ let currentSentenceIsEnToCz = true;
         const existingSentence = sentencesData.find(s => s.en === en);
         
         if (existingSentence) {
-          if (!existingSentence.groups.includes(currentSentenceGroup)) {
-            existingSentence.groups.push(currentSentenceGroup);
-          }
+          if (!existingSentence.groups.includes(currentSentenceGroup)) existingSentence.groups.push(currentSentenceGroup);
         } else {
           sentencesData.push({ en, cz, groups: [currentSentenceGroup] });
         }
@@ -282,9 +291,7 @@ let currentSentenceIsEnToCz = true;
         const existingWord = englishData.find(w => w.en === en);
         
         if (existingWord) {
-          if (!existingWord.group.includes(currentWordGroup)) {
-            existingWord.group += `, ${currentWordGroup}`;
-          }
+          if (!existingWord.group.includes(currentWordGroup)) existingWord.group += `, ${currentWordGroup}`;
         } else {
           englishData.push({ en, cz, img: `English/${en}.jpg`, audio: `English/${en}.mp3`, group: currentWordGroup });
         }
@@ -313,18 +320,13 @@ function loadSettings() {
   }
 }
 
-function saveSettings() {
-  document.cookie = `englishSettings=${JSON.stringify(settings)};path=/;max-age=31536000`;
-}
-
-// --- LOGIKA VÁŽENÉ PRAVDĚPODOBNOSTI ---
+function saveSettings() { document.cookie = `englishSettings=${JSON.stringify(settings)};path=/;max-age=31536000`; }
 function saveWeights() { localStorage.setItem('englishWeights', JSON.stringify(wordWeights)); }
 function updateWordWeight(word, hadError) {
   let w = wordWeights[word] || 100;
   wordWeights[word] = hadError ? Math.min(300, w + 50) : Math.max(25, w - 25);
   saveWeights();
 }
-
 function saveSentenceWeights() { localStorage.setItem('englishSentenceWeights', JSON.stringify(sentenceWeights)); }
 function updateSentenceWeight(sentence, hadError) {
   let w = sentenceWeights[sentence] || 100;
@@ -346,7 +348,6 @@ function getNextWord() {
     cursor += (wordWeights[item.en] || 100);
     if (random <= cursor) { selectedItem = item; break; }
   }
-
   recentWords.push(selectedItem.en);
   if (recentWords.length > bufferSize) recentWords.shift();
   return selectedItem;
@@ -369,7 +370,6 @@ function getNextSentence() {
     cursor += (sentenceWeights[item.en] || 100);
     if (random <= cursor) { selectedItem = item; break; }
   }
-
   recentSentences.push(selectedItem.en);
   if (recentSentences.length > bufferSize) recentSentences.shift();
   return selectedItem;
@@ -402,18 +402,13 @@ function startGame(mode) {
   abcArea.style.display = 'none';
   
   if (mode === 'sentences') {
-    sentencesArea.style.display = 'flex';
-    loadSentencesTask();
+    sentencesArea.style.display = 'flex'; loadSentencesTask();
   } else if (mode === 'listening') {
-    listeningArea.style.display = 'flex';
-    loadListeningTask();
+    listeningArea.style.display = 'flex'; loadListeningTask();
   } else if (mode === 'abc') {
-    abcArea.style.display = 'flex';
-    document.addEventListener('keydown', handleKey);
-    loadAbcTask();
+    abcArea.style.display = 'flex'; document.addEventListener('keydown', handleKey); loadAbcTask();
   } else {
     wordsArea.style.display = 'block';
-    
     document.getElementById('image').hidden = true;
     document.getElementById('translation-hint').textContent = '';
     document.getElementById('letters').innerHTML = '';
@@ -421,18 +416,37 @@ function startGame(mode) {
     document.getElementById('reading-options').innerHTML = '';
     userInput = [];
     
-    if (mode === 'writing') {
-      loadWritingTask();
-      document.addEventListener('keydown', handleKey);
-    } else if (mode === 'reading') {
-      loadReadingTask();
-    }
+    if (mode === 'writing') { loadWritingTask(); document.addEventListener('keydown', handleKey); } 
+    else if (mode === 'reading') { loadReadingTask(); }
   }
   const mobileInput = document.getElementById('mobile-input');
   if (mobileInput && mode !== 'sentences' && mode !== 'listening') mobileInput.focus();
 }
 
 // --- LOGIKA ABC ---
+function initAbcKeyboard() {
+  const kb = document.getElementById('abc-keyboard');
+  if (!kb) return;
+  kb.innerHTML = '';
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  for (let char of alphabet) {
+      let btn = document.createElement('div');
+      btn.className = 'abc-key';
+      btn.id = 'abc-key-' + char;
+      btn.textContent = char;
+      btn.onclick = () => { if (!isLocked) processAbcInput(char); };
+      kb.appendChild(btn);
+  }
+  
+  // Tlačítko Přehrát celou abecedu
+  let playBtn = document.createElement('div');
+  playBtn.className = 'abc-play-btn';
+  playBtn.innerHTML = '▶';
+  playBtn.title = 'Play Alphabet';
+  playBtn.onclick = playAlphabetSequence;
+  kb.appendChild(playBtn);
+}
+
 function loadAbcTask() {
   isLocked = false;
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -442,7 +456,89 @@ function loadAbcTask() {
   box.textContent = '?';
   box.className = 'letter-box';
   
+  document.querySelectorAll('.abc-key').forEach(el => { el.classList.remove('correct', 'incorrect', 'auto-active'); });
   playAudio(`English/ABC/${currentAbcLetter}.mp3`);
+}
+
+function processAbcInput(pressed) {
+  if (isLocked) return;
+  const box = document.getElementById('abc-box');
+  const keyEl = document.getElementById('abc-key-' + pressed);
+
+  if (pressed === currentAbcLetter) {
+    isLocked = true;
+    box.textContent = pressed;
+    box.className = 'letter-box correct pop-in';
+    if (keyEl) keyEl.classList.add('correct');
+
+    scoreGood++; updateScoreDisplay();
+    //playSound('sound-win');
+    const isCelebrating = addProgress(1);
+    
+    playAudioSequence([`English/ABC/${currentAbcLetter}.mp3`], () => {
+       if (!isCelebrating) setTimeout(loadAbcTask, 1000);
+    });
+  } else {
+    isLocked = true;
+    box.textContent = pressed;
+    box.className = 'letter-box incorrect shake';
+    if (keyEl) keyEl.classList.add('incorrect');
+
+    scoreBad++; updateScoreDisplay();
+    if (!settings.kidMode) resetProgressBar();
+    playSound('sound-wrong'); showWrongRobot();
+
+    playAudioSequence([
+      `English/ABC/sentence-No_this_is.mp3`,
+      `English/ABC/${pressed}.mp3`
+    ], () => {
+      setTimeout(() => {
+        box.textContent = '?';
+        box.className = 'letter-box';
+        if (keyEl) keyEl.classList.remove('incorrect');
+
+        playAudioSequence([
+          `English/ABC/sentence-But_I_want.mp3`,
+          `English/ABC/${currentAbcLetter}.mp3`
+        ], () => {
+           isLocked = false;
+        });
+      }, 1000);
+    });
+  }
+}
+
+function playAlphabetSequence() {
+  if (isLocked) return;
+  isLocked = true;
+  
+  const box = document.getElementById('abc-box');
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let i = 0;
+
+  function step() {
+    if (i >= alphabet.length) {
+      const isCelebrating = addProgress(5);
+      if (!isCelebrating) loadAbcTask(); 
+      return;
+    }
+    
+    let char = alphabet[i];
+    box.textContent = char;
+    box.className = 'letter-box pop-in';
+    
+    document.querySelectorAll('.abc-key').forEach(el => el.classList.remove('auto-active', 'correct', 'incorrect'));
+    const keyEl = document.getElementById('abc-key-' + char);
+    if (keyEl) keyEl.classList.add('auto-active');
+
+    playAudioSequence([`English/ABC/${char}.mp3`], () => {
+      setTimeout(step, settings.sound ? 150 : 600); // Rychlejší přechod pokud běží mp3, fallback bez audia
+    });
+    
+    i++;
+  }
+  
+  step();
 }
 
 // --- LOGIKA POSLECHU (LISTENING) ---
@@ -465,10 +561,7 @@ function handleListeningCzClick() {
   btn.disabled = true;
   document.getElementById('listening-cz').textContent = currentSentenceItem.cz.replace(/_/g, ' ');
   playAudioSequence([getSentenceAudioPath(currentSentenceItem.cz, false)], () => {
-    if (currentMode === 'listening') {
-      document.getElementById('listening-feedback').style.display = 'flex';
-      isLocked = false;
-    }
+    if (currentMode === 'listening') { document.getElementById('listening-feedback').style.display = 'flex'; isLocked = false; }
   });
 }
 
@@ -478,14 +571,10 @@ function handleListeningFeedback(isCorrect) {
   document.getElementById('listening-feedback').style.display = 'none';
 
   if (isCorrect) {
-    playSound('sound-correct');
-    scoreGood++; updateScoreDisplay();
-    updateSentenceWeight(currentSentenceItem.en, false);
-    const isCelebrating = addProgress(3); 
-    if (!isCelebrating) setTimeout(loadListeningTask, 1000);
+    playSound('sound-correct'); scoreGood++; updateScoreDisplay(); updateSentenceWeight(currentSentenceItem.en, false);
+    const isCelebrating = addProgress(3); if (!isCelebrating) setTimeout(loadListeningTask, 1000);
   } else {
-    playSound('sound-wrong'); showWrongRobot();
-    scoreBad++; updateScoreDisplay();
+    playSound('sound-wrong'); showWrongRobot(); scoreBad++; updateScoreDisplay();
     if (!settings.kidMode) resetProgressBar();
     updateSentenceWeight(currentSentenceItem.en, true);
     setTimeout(loadListeningTask, 1500);
@@ -493,61 +582,39 @@ function handleListeningFeedback(isCorrect) {
 }
 
 function loadWritingTask() {
-  currentItem = getNextWord();
-  currentWord = currentItem.en;
-  currentItem.firstTryError = false; 
+  currentItem = getNextWord(); currentWord = currentItem.en; currentItem.firstTryError = false; 
   userInput = []; isLocked = false;
-  
-  document.getElementById('image').src = currentItem.img;
-  document.getElementById('image').hidden = false;
+  document.getElementById('image').src = currentItem.img; document.getElementById('image').hidden = false;
   document.getElementById('translation-hint').textContent = currentItem.cz.replace(/_/g, ' ');
   playAudio(currentItem.audio);
   
-  const lettersDiv = document.getElementById('letters');
-  lettersDiv.innerHTML = '';
+  const lettersDiv = document.getElementById('letters'); lettersDiv.innerHTML = '';
   for (let char of currentWord) {
-    const span = document.createElement('span');
-    span.className = 'letter-box' + (char === '_' ? ' space' : '');
+    const span = document.createElement('span'); span.className = 'letter-box' + (char === '_' ? ' space' : '');
     lettersDiv.appendChild(span);
   }
   while (userInput.length < currentWord.length && currentWord[userInput.length] === '_') userInput.push('_');
 }
 
 function loadReadingTask() {
-  currentItem = getNextWord();
-  currentWord = currentItem.en;
-  currentItem.firstTryError = false;
-  isLocked = false;
-  
+  currentItem = getNextWord(); currentWord = currentItem.en; currentItem.firstTryError = false; isLocked = false;
   const wordEl = document.getElementById('reading-word');
   wordEl.textContent = currentWord.replace(/_/g, ' ');
   wordEl.style.color = getWeightColor(wordWeights[currentItem.en] || 100);
   document.getElementById('translation-hint').textContent = "";
   playAudio(currentItem.audio);
   
-  const container = document.getElementById('reading-options');
-  container.innerHTML = '';
-
+  const container = document.getElementById('reading-options'); container.innerHTML = '';
   let filteredPool = selectedGroups.includes("vše") ? englishData : englishData.filter(item => selectedGroups.some(g => item.group.split(',').map(s=>s.trim()).includes(g)));
   if (filteredPool.length === 0) filteredPool = englishData;
-
   const options = [...filteredPool.filter(i => i.en !== currentWord).sort(() => 0.5 - Math.random()).slice(0, 4), currentItem].sort(() => 0.5 - Math.random());
 
   options.forEach(item => {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'reading-option';
-    const img = document.createElement('img');
-    img.src = item.img;
-    img.onclick = () => {
-      if (isLocked) return;
-      item.en === currentWord ? handleSuccess(img, item) : handleError(img, item);
-    };
-    const label = document.createElement('div');
-    label.className = 'reading-label';
-    label.textContent = item.cz.replace(/_/g, ' ');
-
-    wrapper.append(img, label);
-    container.appendChild(wrapper);
+    const wrapper = document.createElement('div'); wrapper.className = 'reading-option';
+    const img = document.createElement('img'); img.src = item.img;
+    img.onclick = () => { if (isLocked) return; item.en === currentWord ? handleSuccess(img, item) : handleError(img, item); };
+    const label = document.createElement('div'); label.className = 'reading-label'; label.textContent = item.cz.replace(/_/g, ' ');
+    wrapper.append(img, label); container.appendChild(wrapper);
   });
 }
 
@@ -556,60 +623,15 @@ function handleKey(e) {
   const key = e.key;
 
   if (key === 'Backspace') {
-    if (currentMode === 'writing') {
-      do { userInput.pop(); } while (userInput.length > 0 && currentWord[userInput.length - 1] === '_');
-      updateDisplay();
-    }
+    if (currentMode === 'writing') { do { userInput.pop(); } while (userInput.length > 0 && currentWord[userInput.length - 1] === '_'); updateDisplay(); }
     return;
   }
   if (key === ' ') { if (e.preventDefault) e.preventDefault(); return; }
   
-  // LOGIKA PRO MÓD ABC
   if (currentMode === 'abc') {
     if (!key || key.length !== 1 || !/[a-zA-Z]/.test(key)) return;
     if (e.preventDefault) e.preventDefault();
-    
-    const pressed = key.toUpperCase();
-    const box = document.getElementById('abc-box');
-
-    if (pressed === currentAbcLetter) {
-      isLocked = true;
-      box.textContent = pressed;
-      box.className = 'letter-box correct pop-in';
-      scoreGood++; updateScoreDisplay();
-      playSound('sound-win');
-      const isCelebrating = addProgress(1);
-      
-      playAudioSequence([`English/ABC/${currentAbcLetter}.mp3`], () => {
-         if (!isCelebrating) setTimeout(loadAbcTask, 1000);
-      });
-    } else {
-      isLocked = true;
-      box.textContent = pressed;
-      box.className = 'letter-box incorrect shake';
-      scoreBad++; updateScoreDisplay();
-      if (!settings.kidMode) resetProgressBar();
-      playSound('sound-wrong'); showWrongRobot();
-
-      // Sekvence špatné odpovědi u ABC
-      playAudioSequence([
-        `English/ABC/sentence-No_this_is.mp3`,
-        `English/ABC/${pressed}.mp3`
-      ], () => {
-        setTimeout(() => {
-          // Změna zpět na otazník proběhne hned po vteřině, kdy začne "But I want"
-          box.textContent = '?';
-          box.className = 'letter-box';
-
-          playAudioSequence([
-            `English/ABC/sentence-But_I_want.mp3`,
-            `English/ABC/${currentAbcLetter}.mp3`
-          ], () => {
-             isLocked = false;
-          });
-        }, 1000);
-      });
-    }
+    processAbcInput(key.toUpperCase());
     return;
   }
 
@@ -622,33 +644,23 @@ function handleKey(e) {
   const idx = userInput.length;
   if (idx < currentWord.length) {
     if (key.toLowerCase() === currentWord[idx].toLowerCase()) {
-      userInput.push(key);
-      scoreGood++; 
-      const isCelebrating = addProgress(1); 
-      playSound('sound-correct');
-      
+      userInput.push(key); scoreGood++; const isCelebrating = addProgress(1); playSound('sound-correct');
       while (userInput.length < currentWord.length && currentWord[userInput.length] === '_') userInput.push('_');
       updateDisplay();
       
       if (userInput.length === currentWord.length) {
-        isLocked = true;
-        document.getElementById('translation-hint').textContent = currentItem.cz.replace(/_/g, ' ');
-        playSound('sound-win');
-        updateWordWeight(currentItem.en, currentItem.firstTryError);
-        
+        isLocked = true; document.getElementById('translation-hint').textContent = currentItem.cz.replace(/_/g, ' ');
+        playSound('sound-win'); updateWordWeight(currentItem.en, currentItem.firstTryError);
         if (!isCelebrating) setTimeout(loadWritingTask, 2000);
       }
     } else {
       if (currentItem) currentItem.firstTryError = true;
-      scoreBad++;
-      if (!settings.kidMode) resetProgressBar();
+      scoreBad++; if (!settings.kidMode) resetProgressBar();
       playSound('sound-wrong'); showWrongRobot(); updateScoreDisplay();
       
       const boxes = document.getElementById('letters').children;
       if (boxes[idx]) {
-        boxes[idx].textContent = key;
-        boxes[idx].classList.add('incorrect');
-        isLocked = true;
+        boxes[idx].textContent = key; boxes[idx].classList.add('incorrect'); isLocked = true;
         setTimeout(() => { boxes[idx].textContent = ''; boxes[idx].classList.remove('incorrect'); isLocked = false; }, 500);
       }
     }
@@ -658,13 +670,8 @@ function handleKey(e) {
 // --- LOGIKA VĚT (SENTENCES) ---
 function loadSentencesTask() {
   if (sentencesData.length === 0) return;
-  isLocked = false;
-  sentenceCorrectCount = 0;
-  selectedSentenceWord = null;
-
-  currentSentenceItem = getNextSentence();
-  currentSentenceItem.firstTryError = false;
-
+  isLocked = false; sentenceCorrectCount = 0; selectedSentenceWord = null;
+  currentSentenceItem = getNextSentence(); currentSentenceItem.firstTryError = false;
   currentSentenceIsEnToCz = Math.random() > 0.5;
 
   let sourceText = currentSentenceIsEnToCz ? currentSentenceItem.en : currentSentenceItem.cz;
@@ -674,66 +681,42 @@ function loadSentencesTask() {
   playAudio(getSentenceAudioPath(sourceText, currentSentenceIsEnToCz));
 
   let punctuation = "";
-  if (/[.?!]$/.test(targetText)) {
-    punctuation = targetText.slice(-1); 
-    targetText = targetText.slice(0, -1); 
-  }
+  if (/[.?!]$/.test(targetText)) { punctuation = targetText.slice(-1); targetText = targetText.slice(0, -1); }
 
-  let targetWordsArray = targetText.split(' ').map((w, i) => ({
-    text: w.replace(/_/g, ' '),
-    orig: w,
-    index: i
-  }));
+  let targetWordsArray = targetText.split(' ').map((w, i) => ({ text: w.replace(/_/g, ' '), orig: w, index: i }));
   totalSentenceWords = targetWordsArray.length;
-
   let shuffledWords = [...targetWordsArray].sort(() => Math.random() - 0.5);
 
-  const container = document.getElementById('sentence-target-container');
-  container.innerHTML = '';
+  const container = document.getElementById('sentence-target-container'); container.innerHTML = '';
   targetWordsArray.forEach(w => {
-    let slot = document.createElement('div');
-    slot.className = 'sentence-slot';
-    slot.dataset.index = w.index;
+    let slot = document.createElement('div'); slot.className = 'sentence-slot'; slot.dataset.index = w.index;
     slot.onclick = () => handleSlotClick(slot);
-    
     slot.addEventListener('dragover', (e) => { e.preventDefault(); slot.classList.add('drag-over'); });
     slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
     slot.addEventListener('drop', (e) => {
-      e.preventDefault();
-      slot.classList.remove('drag-over');
-      const wordIndex = e.dataTransfer.getData('text/plain');
-      const wordEl = document.querySelector(`.sentence-word[data-index="${wordIndex}"]`);
+      e.preventDefault(); slot.classList.remove('drag-over');
+      const wordIndex = e.dataTransfer.getData('text/plain'); const wordEl = document.querySelector(`.sentence-word[data-index="${wordIndex}"]`);
       processWordDrop(wordEl, slot);
     });
-    
     container.appendChild(slot);
   });
 
   if (punctuation) {
-    let punctEl = document.createElement('div');
-    punctEl.textContent = punctuation;
+    let punctEl = document.createElement('div'); punctEl.textContent = punctuation;
     punctEl.style.fontSize = '40px'; punctEl.style.fontWeight = 'bold'; punctEl.style.color = '#d39e00'; 
     punctEl.style.display = 'flex'; punctEl.style.alignItems = 'flex-end'; punctEl.style.paddingBottom = '5px';
     container.appendChild(punctEl);
   }
 
-  const bank = document.getElementById('sentence-bank');
-  bank.innerHTML = '';
+  const bank = document.getElementById('sentence-bank'); bank.innerHTML = '';
   shuffledWords.forEach(w => {
-    let wordEl = document.createElement('div');
-    wordEl.className = 'sentence-word';
-    wordEl.textContent = w.text;
-    wordEl.dataset.index = w.index;
-    wordEl.draggable = true;
-    wordEl.onclick = () => handleWordSelect(wordEl);
-    
+    let wordEl = document.createElement('div'); wordEl.className = 'sentence-word'; wordEl.textContent = w.text;
+    wordEl.dataset.index = w.index; wordEl.draggable = true; wordEl.onclick = () => handleWordSelect(wordEl);
     wordEl.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('text/plain', w.index);
-      wordEl.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', w.index); wordEl.classList.add('dragging');
       if (selectedSentenceWord) { selectedSentenceWord.classList.remove('selected'); selectedSentenceWord = null; }
     });
     wordEl.addEventListener('dragend', () => wordEl.classList.remove('dragging'));
-    
     bank.appendChild(wordEl);
   });
 }
@@ -757,42 +740,30 @@ function processWordDrop(wordEl, slot) {
     slot.appendChild(wordEl);
     wordEl.draggable = false; wordEl.style.cursor = 'default'; wordEl.style.boxShadow = 'none'; wordEl.onclick = null;
     wordEl.classList.add('correct');
-    
     playSound('sound-correct'); scoreGood++; updateScoreDisplay(); sentenceCorrectCount++;
     if (sentenceCorrectCount === totalSentenceWords) finishSentenceTask();
   } else {
-    playSound('sound-wrong'); showWrongRobot();
-    scoreBad++; updateScoreDisplay();
+    playSound('sound-wrong'); showWrongRobot(); scoreBad++; updateScoreDisplay();
     if (!settings.kidMode) resetProgressBar();
-    currentSentenceItem.firstTryError = true;
-    wordEl.classList.add('incorrect', 'shake');
+    currentSentenceItem.firstTryError = true; wordEl.classList.add('incorrect', 'shake');
     setTimeout(() => wordEl.classList.remove('incorrect', 'shake'), 400);
   }
 }
 
 function finishSentenceTask() {
-  isLocked = true;
-  updateSentenceWeight(currentSentenceItem.en, currentSentenceItem.firstTryError);
+  isLocked = true; updateSentenceWeight(currentSentenceItem.en, currentSentenceItem.firstTryError);
   let sourceText = currentSentenceIsEnToCz ? currentSentenceItem.en : currentSentenceItem.cz;
   let targetText = currentSentenceIsEnToCz ? currentSentenceItem.cz : currentSentenceItem.en;
-
   let sourceAudioPath = getSentenceAudioPath(sourceText, currentSentenceIsEnToCz);
   let targetAudioPath = getSentenceAudioPath(targetText, !currentSentenceIsEnToCz);
   let audioSequence = currentSentenceIsEnToCz ? [targetAudioPath, sourceAudioPath] : [targetAudioPath];
 
-  playSound('sound-win');
-  const isCelebrating = addProgress(2); 
-  
-  setTimeout(() => {
-    playAudioSequence(audioSequence, () => {
-      if (!isCelebrating) setTimeout(() => { loadSentencesTask(); }, 1000);
-    });
-  }, 500);
+  playSound('sound-win'); const isCelebrating = addProgress(2); 
+  setTimeout(() => { playAudioSequence(audioSequence, () => { if (!isCelebrating) setTimeout(() => { loadSentencesTask(); }, 1000); }); }, 500);
 }
 
 function handleSuccess(img, item) {
-  isLocked = true; img.classList.add('image-pop'); 
-  playAudioSequence([item.audio, `English/${item.cz}.mp3`]);
+  isLocked = true; img.classList.add('image-pop'); playAudioSequence([item.audio, `English/${item.cz}.mp3`]);
   scoreGood++; updateWordWeight(currentItem.en, currentItem.firstTryError);
   const isCelebrating = addProgress(1.5); updateScoreDisplay();
   if (!isCelebrating) setTimeout(loadReadingTask, 3500);
@@ -812,57 +783,35 @@ function updateDisplay() {
   if (!boxes.length) return;
   for (let i = 0; i < boxes.length; i++) {
     const char = userInput[i];
-    if (currentWord[i] === '_') { 
-      boxes[i].textContent = ''; boxes[i].className = 'letter-box space'; 
-    } else {
-      boxes[i].textContent = char || '';
-      boxes[i].className = 'letter-box' + (char ? ' correct' : '');
-    }
+    if (currentWord[i] === '_') { boxes[i].textContent = ''; boxes[i].className = 'letter-box space'; } 
+    else { boxes[i].textContent = char || ''; boxes[i].className = 'letter-box' + (char ? ' correct' : ''); }
   }
   updateScoreDisplay();
 }
 
 // --- POMOCNÉ FUNKCE A PROGRESS ---
-function playSound(id) {
-  if (!settings.sound || (settings.kidMode && id === 'sound-wrong')) return;
-  const s = document.getElementById(id); if (s) { s.currentTime = 0; s.play().catch(()=>{}); }
-}
+function playSound(id) { if (!settings.sound || (settings.kidMode && id === 'sound-wrong')) return; const s = document.getElementById(id); if (s) { s.currentTime = 0; s.play().catch(()=>{}); } }
 function playAudio(path) { if (settings.sound) new Audio(path).play().catch(()=>{}); }
-
 function playAudioSequence(paths, onComplete) {
-  if (!settings.sound || paths.length === 0) {
-    if (onComplete) onComplete();
-    return;
-  }
+  if (!settings.sound || paths.length === 0) { if (onComplete) onComplete(); return; }
   const playNext = (index) => {
-    if (index >= paths.length) {
-      if (onComplete) onComplete();
-      return;
-    }
-    const audio = new Audio(paths[index]);
-    audio.onended = () => playNext(index + 1);
-    audio.play().catch(() => playNext(index + 1));
+    if (index >= paths.length) { if (onComplete) onComplete(); return; }
+    const audio = new Audio(paths[index]); audio.onended = () => playNext(index + 1); audio.play().catch(() => playNext(index + 1));
   };
   playNext(0);
 }
 
 function getSentenceAudioPath(text, isEnglish) {
-  let cleanText = text.replace(/[.?!]/g, '').trim();
-  let prefix = isEnglish ? 'sentence-' : 'věta-';
+  let cleanText = text.replace(/[.?!]/g, '').trim(); let prefix = isEnglish ? 'sentence-' : 'věta-';
   return 'English/' + prefix + cleanText.replace(/ /g, '_') + '.mp3';
 }
 
 function updateScoreDisplay() { document.getElementById('score-good').textContent = scoreGood; document.getElementById('score-bad').textContent = scoreBad; }
-function showWrongRobot() {
-  if (settings.kidMode) return;
-  const r = document.getElementById('wrong-robot-fixed');
-  if (r) { r.style.display = 'block'; setTimeout(() => r.style.display = 'none', 1200); }
-}
+function showWrongRobot() { if (settings.kidMode) return; const r = document.getElementById('wrong-robot-fixed'); if (r) { r.style.display = 'block'; setTimeout(() => r.style.display = 'none', 1200); } }
 
 let progressPoints = 0, progressLayer = 0;
 function addProgress(p) {
-  let isCelebrating = false;
-  progressPoints += p;
+  let isCelebrating = false; progressPoints += p;
   if (progressPoints >= 15) {
     if (progressLayer === 8 && typeof showWinBanner === "function") showWinBanner();
     progressPoints = 0; progressLayer = (progressLayer + 1) % 9;
@@ -874,54 +823,30 @@ function addProgress(p) {
 function updateProgressBar() {
   const pct = (progressPoints / 15) * 100;
   const ids = ["green", "teal", "cyan", "blue", "purple", "pink", "red", "orange", "gold"];
-  ids.forEach((color, index) => {
-    const el = document.getElementById(`progress-fill-${color}`);
-    if (el) el.style.width = index < progressLayer ? "100%" : (index === progressLayer ? pct + "%" : "0%");
-  });
+  ids.forEach((color, index) => { const el = document.getElementById(`progress-fill-${color}`); if (el) el.style.width = index < progressLayer ? "100%" : (index === progressLayer ? pct + "%" : "0%"); });
 }
 
 function resetProgressBar() { progressPoints = 0; progressLayer = 0; updateProgressBar(); }
-
-function addMedal(type) {
-  medals[type]++; updateMedalsUI(); saveMedals(); playSound('sound-metal-fall');
-  if (medals[type] >= 3 && type !== 'crown') setTimeout(() => mergeMedals(type), 1000);
-}
-function mergeMedals(type) {
-  const next = {bronze:'silver', silver:'gold', gold:'trophy', trophy:'crown'}[type];
-  medals[type] -= 3; medals[next]++;
-  playSound('sound-metal-fuse'); updateMedalsUI(); saveMedals();
-  if (medals[next] >= 3 && next !== 'crown') mergeMedals(next);
-}
+function addMedal(type) { medals[type]++; updateMedalsUI(); saveMedals(); playSound('sound-metal-fall'); if (medals[type] >= 3 && type !== 'crown') setTimeout(() => mergeMedals(type), 1000); }
+function mergeMedals(type) { const next = {bronze:'silver', silver:'gold', gold:'trophy', trophy:'crown'}[type]; medals[type] -= 3; medals[next]++; playSound('sound-metal-fuse'); updateMedalsUI(); saveMedals(); if (medals[next] >= 3 && next !== 'crown') mergeMedals(next); }
 function updateMedalsUI() {
   const container = document.getElementById('medals-container'); container.innerHTML = '';
   const map = {crown:'👑', trophy:'🏆', gold:'🥇', silver:'🥈', bronze:'🥉'};
   let total = 0;
   for (let [k, v] of Object.entries(map)) {
-    for (let i = 0; i < medals[k]; i++) {
-      const s = document.createElement('span'); s.textContent = v; s.className='medal';
-      container.appendChild(s); total++;
-    }
+    for (let i = 0; i < medals[k]; i++) { const s = document.createElement('span'); s.textContent = v; s.className='medal'; container.appendChild(s); total++; }
   }
   document.getElementById('medals-today-title').style.display = total > 0 ? 'block' : 'none';
 }
 
 function showCelebration() {
-  const container = document.getElementById('gif-container');
-  document.getElementById('gif-animation').src = `dance${Math.floor(Math.random()*GIF_COUNT)+1}.gif`;
-  container.style.display = 'block';
-  
+  const container = document.getElementById('gif-container'); document.getElementById('gif-animation').src = `dance${Math.floor(Math.random()*GIF_COUNT)+1}.gif`; container.style.display = 'block';
   const finish = () => { 
     container.style.display = 'none'; 
-    if(currentMode === 'writing') loadWritingTask(); 
-    else if(currentMode === 'reading') loadReadingTask(); 
-    else if(currentMode === 'sentences') loadSentencesTask();
-    else if(currentMode === 'listening') loadListeningTask();
-    else if(currentMode === 'abc') loadAbcTask();
+    if(currentMode === 'writing') loadWritingTask(); else if(currentMode === 'reading') loadReadingTask(); else if(currentMode === 'sentences') loadSentencesTask(); else if(currentMode === 'listening') loadListeningTask(); else if(currentMode === 'abc') loadAbcTask();
   };
   if (!settings.sound) { setTimeout(finish, 4000); return; }
-  const audio = new Audio(`music${Math.floor(Math.random()*MUSIC_COUNT)+1}.mp3`);
-  audio.play().catch(() => setTimeout(finish, 4000));
-  audio.onended = finish;
+  const audio = new Audio(`music${Math.floor(Math.random()*MUSIC_COUNT)+1}.mp3`); audio.play().catch(() => setTimeout(finish, 4000)); audio.onended = finish;
 }
 
 // --- STATISTIKY ---
@@ -932,28 +857,21 @@ function toggleStatsPopup() {
 }
 
 function renderStatsTable() {
-  const tbody = document.getElementById('stats-body'), emptyMsg = document.getElementById('stats-empty');
-  tbody.innerHTML = '';
+  const tbody = document.getElementById('stats-body'), emptyMsg = document.getElementById('stats-empty'); tbody.innerHTML = '';
   const wordsStats = englishData.map(item => ({ en: item.en, cz: item.cz.replace(/_/g, ' '), weight: wordWeights[item.en] || 100 }));
   const sentencesStats = sentencesData.map(item => ({ en: item.en, cz: item.cz.replace(/_/g, ' '), weight: sentenceWeights[item.en] || 100 }));
   const statsData = [...wordsStats, ...sentencesStats].filter(item => item.weight !== 100).sort((a, b) => b.weight - a.weight);
 
   if (statsData.length === 0) { emptyMsg.style.display = 'block'; return; }
   emptyMsg.style.display = 'none';
-  
   statsData.forEach(item => {
-    const color = getWeightColor(item.weight);
-    const row = document.createElement('tr'); row.style.borderBottom = "1px solid #eee";
+    const color = getWeightColor(item.weight); const row = document.createElement('tr'); row.style.borderBottom = "1px solid #eee";
     row.innerHTML = `<td style="padding:10px;"><strong>${item.en}</strong><br><small>${item.cz}</small></td><td style="padding:10px; color:${color}; font-weight:bold;">${item.weight}%</td>`;
     tbody.appendChild(row);
   });
 }
 
-function resetAllWeights() {
-  if (confirm("Opravdu chcete vymazat veškerý naučený pokrok a vrátit všechna slova i věty na 100 %?")) { 
-    wordWeights = {}; saveWeights(); sentenceWeights = {}; saveSentenceWeights(); renderStatsTable(); 
-  }
-}
+function resetAllWeights() { if (confirm("Opravdu chcete vymazat veškerý naučený pokrok a vrátit všechna slova i věty na 100 %?")) { wordWeights = {}; saveWeights(); sentenceWeights = {}; saveSentenceWeights(); renderStatsTable(); } }
 
 // --- OVLÁDÁNÍ ---
 document.getElementById('settings-toggle').onclick = () => { const s = document.getElementById('settings'); s.style.display = s.style.display === 'none' ? 'block' : 'none'; };
@@ -963,43 +881,33 @@ document.getElementById('toggle-kid-mode').onclick = () => { settings.kidMode = 
 document.getElementById('mobile-input').oninput = (e) => { const val = e.target.value; if (val) { handleKey({key: val.slice(-1)}); e.target.value = ''; } };
 
 function showGroupMenu(x, y, mode = 'reading') {
-  if (mode === 'abc') return; // ABC mode nemá skupiny
+  if (mode === 'abc') return;
   const menu = document.getElementById('group-menu'); if (!menu) return; menu.innerHTML = '';
   
   const isSentences = (mode === 'sentences' || mode === 'listening');
   const currentGroupsList = isSentences ? sentenceGroups : groups;
   let currentSelectedList = isSentences ? selectedSentenceGroups : selectedGroups;
   const currentDataList = isSentences ? sentencesData : englishData;
-
   let sortedGroups = ["vše", ...currentGroupsList.filter(g => g !== "vše").sort((a, b) => a.localeCompare(b, 'cs'))];
   
   sortedGroups.forEach(group => {
-    const btn = document.createElement('button'); 
-    const isActive = currentSelectedList.includes(group);
-    let itemCount = group === "vše" 
-      ? currentDataList.length 
-      : currentDataList.filter(item => isSentences ? item.groups.includes(group) : item.group.split(',').map(s=>s.trim()).includes(group)).length;
-    
+    const btn = document.createElement('button'); const isActive = currentSelectedList.includes(group);
+    let itemCount = group === "vše" ? currentDataList.length : currentDataList.filter(item => isSentences ? item.groups.includes(group) : item.group.split(',').map(s=>s.trim()).includes(group)).length;
     btn.innerHTML = `<span>${group} (${itemCount})</span><span style="visibility: ${isActive ? 'visible' : 'hidden'}; font-weight: bold;">✓</span>`;
     if (isActive) btn.className = 'active-group';
     
     btn.onclick = (e) => { 
       e.stopPropagation(); 
-      if (group === "vše") { 
-        if (isSentences) selectedSentenceGroups = ["vše"]; else selectedGroups = ["vše"];
-      } else {
+      if (group === "vše") { if (isSentences) selectedSentenceGroups = ["vše"]; else selectedGroups = ["vše"]; } 
+      else {
         if (isSentences) {
           selectedSentenceGroups = selectedSentenceGroups.filter(g => g !== "vše");
-          if (selectedSentenceGroups.includes(group)) { 
-            selectedSentenceGroups = selectedSentenceGroups.filter(g => g !== group); 
-            if (selectedSentenceGroups.length === 0) selectedSentenceGroups = ["vše"]; 
-          } else { selectedSentenceGroups.push(group); }
+          if (selectedSentenceGroups.includes(group)) { selectedSentenceGroups = selectedSentenceGroups.filter(g => g !== group); if (selectedSentenceGroups.length === 0) selectedSentenceGroups = ["vše"]; } 
+          else { selectedSentenceGroups.push(group); }
         } else {
           selectedGroups = selectedGroups.filter(g => g !== "vše");
-          if (selectedGroups.includes(group)) { 
-            selectedGroups = selectedGroups.filter(g => g !== group); 
-            if (selectedGroups.length === 0) selectedGroups = ["vše"]; 
-          } else { selectedGroups.push(group); }
+          if (selectedGroups.includes(group)) { selectedGroups = selectedGroups.filter(g => g !== group); if (selectedGroups.length === 0) selectedGroups = ["vše"]; } 
+          else { selectedGroups.push(group); }
         }
       }
       recentWords = []; showGroupMenu(x, y, mode); 
@@ -1012,21 +920,12 @@ function showGroupMenu(x, y, mode = 'reading') {
 function setupModeButtons() {
   const buttons = document.querySelectorAll('.mode-button');
   buttons.forEach(btn => {
-    let longPressTriggered = false;
-    const modeName = btn.dataset.mode;
-
+    let longPressTriggered = false; const modeName = btn.dataset.mode;
     const onStart = (e) => {
-      longPressTriggered = false;
-      const x = e.touches ? e.touches[0].pageX : e.pageX; const y = e.touches ? e.touches[0].pageY : e.pageY;
-      if (modeName !== 'abc' && modeName !== 'writing') { 
-        holdTimer = setTimeout(() => { longPressTriggered = true; showGroupMenu(x, y, modeName); }, 1000); 
-      }
+      longPressTriggered = false; const x = e.touches ? e.touches[0].pageX : e.pageX; const y = e.touches ? e.touches[0].pageY : e.pageY;
+      if (modeName !== 'abc' && modeName !== 'writing') { holdTimer = setTimeout(() => { longPressTriggered = true; showGroupMenu(x, y, modeName); }, 1000); }
     };
-    const onEnd = (e) => {
-      clearTimeout(holdTimer);
-      if (!longPressTriggered) { if (e.type === 'touchend') e.preventDefault(); startGame(modeName); }
-    };
-
+    const onEnd = (e) => { clearTimeout(holdTimer); if (!longPressTriggered) { if (e.type === 'touchend') e.preventDefault(); startGame(modeName); } };
     btn.onclick = (e) => { if (longPressTriggered) { e.stopPropagation(); longPressTriggered = false; } };
     btn.onmousedown = onStart; btn.onmouseup = onEnd; btn.onmouseleave = () => clearTimeout(holdTimer);
     btn.ontouchstart = onStart; btn.ontouchend = onEnd;
@@ -1035,17 +934,13 @@ function setupModeButtons() {
 
 document.addEventListener('click', (e) => {
   const menu = document.getElementById('group-menu'), isModeBtn = e.target.closest('.mode-button');
-  if (menu && menu.style.display === 'flex' && !menu.contains(e.target) && !isModeBtn) {
-    menu.style.display = 'none';
-    if(currentMode) startGame(currentMode); 
-  }
+  if (menu && menu.style.display === 'flex' && !menu.contains(e.target) && !isModeBtn) { menu.style.display = 'none'; if(currentMode) startGame(currentMode); }
 });
 
 // --- INIT ---
 setupModeButtons();
 const statsBtn = document.getElementById('toggle-stats'); if (statsBtn) statsBtn.onclick = toggleStatsPopup;
-loadSettings();
-updateMedalsUI(); 
+loadSettings(); updateMedalsUI(); initAbcKeyboard();
 document.body.classList.toggle('uppercase-text', settings.uppercase);
 </script>
 </body>
