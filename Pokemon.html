@@ -34,27 +34,34 @@
         }
 
         .level-sidebar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
-            flex-direction: column;
+            flex-direction: row; /* Změna na horizontální rozložení */
             gap: 10px;
-            background: var(--panel-bg);
-            padding: 15px;
+            background: rgba(52, 73, 94, 0.2); /* Průhledné pozadí */
+            padding: 10px;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            height: 800px; 
-            box-sizing: border-box;
-            overflow-y: auto;
-            margin-top: 85px;
+            z-index: 20; /* Zajišťuje, že panel bude nad plátnem */
+            visibility: visible;
+        }
+        
+        /* Skrytí panelu levelů, pokud je aktivní herní hlavička */
+        .game-ui.active ~ .level-sidebar,
+        .level-sidebar.hidden {
+             display: none;
         }
 
         .level-btn {
-            width: 60px;
-            height: 60px;
-            background: var(--level-menu-bg);
-            border: 2px solid #7f8c8d;
+            width: 50px;
+            height: 50px;
+            border: 2px solid transparent;
             border-radius: 8px;
-            color: var(--text-light);
-            font-size: 1.5rem;
+            color: white;
+            font-size: 1.2rem;
             font-weight: bold;
             cursor: pointer;
             display: flex;
@@ -63,23 +70,25 @@
             transition: all 0.2s ease;
         }
 
-        .level-btn.unlocked { border-color: var(--win-color); background: #27ae60; color: white; }
-        .level-btn.unlocked:hover { transform: scale(1.05); filter: brightness(1.2); }
-        .level-btn.completed { background: #f1c40f; border-color: #f39c12; color: #2c3e50; }
-        .level-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #34495e; border-color: #2c3e50; color: #7f8c8d; }
+        .level-btn.completed { background: #27ae60; border-color: #2ecc71; }
+        .level-btn.completed:hover { transform: scale(1.05); filter: brightness(1.2); }
+        
+        .level-btn.unlocked { background: #f1c40f; border-color: #f39c12; color: #2c3e50; }
+        .level-btn.unlocked:hover { transform: scale(1.05); filter: brightness(1.1); }
+        
+        .level-btn:disabled { cursor: not-allowed; background: #c0392b; border-color: #e74c3c; opacity: 0.8; }
 
         .game-wrapper { display: flex; flex-direction: column; gap: 1rem; }
-        .game-ui { display: flex; justify-content: space-between; align-items: center; background: var(--panel-bg); padding: 1rem 2rem; border-radius: 8px; font-size: clamp(1rem, 2vw, 1.2rem); visibility: hidden; }
+        .game-ui { position: absolute; top: 0; left: 0; width: 100%; box-sizing: border-box; z-index: 10; display: flex; justify-content: space-between; align-items: center; background: rgba(52, 73, 94, 0.2); padding: 5px 15px; font-size: 1rem; visibility: hidden; }
         .game-ui.active { visibility: visible; }
-        .stats { display: flex; gap: 1.5rem; }
+        .stats { display: flex; gap: 1.5rem; text-shadow: 1px 1px 2px #000; }
         .controls-group { display: flex; gap: 10px; }
 
-        .icon-btn { width: var(--btn-size); height: var(--btn-size); background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: filter 0.2s ease, transform 0.1s ease; }
+        .icon-btn { width: 30px; height: 30px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: filter 0.2s ease, transform 0.1s ease; }
         .icon-btn:hover:not(:disabled) { filter: brightness(1.1); transform: scale(1.05); }
         .icon-btn:active:not(:disabled) { transform: scale(0.95); }
         .icon-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #7f8c8d; }
-        .icon-btn svg { width: 20px; height: 20px; fill: currentColor; }
-        .btn-end { background: #c0392b; }
+        .icon-btn svg { width: 16px; height: 16px; fill: currentColor; }.btn-end { background: #c0392b; }
         .btn-play-pause { background: #27ae60; }
         
         .btn-primary { background: var(--accent); color: white; border: none; padding: 0.5rem 1rem; font-size: 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: filter 0.2s ease; }
@@ -150,26 +159,25 @@
 </head>
 <body>
     <div class="main-container">
-        <nav class="level-sidebar" id="level-sidebar"></nav>
-
         <main class="game-wrapper">
-            <header class="game-ui" id="game-ui-header">
-                <div class="stats">
-                    <span>Zlato: <strong id="gold-display">500</strong></span>
-                    <span>Vlna: <strong id="wave-display">0/10</strong></span>
-                </div>
-                <div class="controls-group">
-                    <button id="btn-end-game" class="icon-btn btn-end" title="Ukončit hru" disabled>
-                        <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
-                    </button>
-                    <button id="btn-play-pause" class="icon-btn btn-play-pause" title="Spustit hru" disabled>
-                        <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                        <svg class="icon-pause hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                    </button>
-                </div>
-            </header>
-
             <section class="canvas-container" id="main-canvas-container">
+                <nav class="level-sidebar" id="level-sidebar"></nav>
+                <header class="game-ui" id="game-ui-header">
+                    <div class="stats">
+                        <span>Zlato: <strong id="gold-display">500</strong></span>
+                        <span>Vlna: <strong id="wave-display">0/10</strong></span>
+                    </div>
+                    <div class="controls-group">
+                        <button id="btn-end-game" class="icon-btn btn-end" title="Ukončit hru" disabled>
+                            <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                        </button>
+                        <button id="btn-play-pause" class="icon-btn btn-play-pause" title="Spustit hru" disabled>
+                            <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            <svg class="icon-pause hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        </button>
+                    </div>
+                </header>
+
                 <canvas id="game-canvas" width="800" height="800"></canvas>
                 <div id="tower-menu" class="hidden" aria-label="Výběr věže"></div>
                 <div id="upgrade-menu" class="hidden" aria-label="Vylepšení věže"></div>
@@ -266,6 +274,9 @@
         ];
 
         let maxUnlockedLevel = parseInt(localStorage.getItem('pokemonTD_maxLevel')) || 1;
+        const gameMusic = new Audio('Pokemon/Sounds/GAME_MUSIC.mp3'); 
+        gameMusic.loop = true; 
+        gameMusic.volume = 0.7; 
 
         // TOWER_STATS kompletně aktualizováno o větvení levelu 4 pro všechny Pokémony
         const TOWER_STATS = {
@@ -548,12 +559,14 @@
                 const btn = document.createElement('button');
                 btn.className = 'level-btn';
                 
+                btn.textContent = i; // Vždy zobrazí číslo
+
                 if (i < maxUnlockedLevel) {
-                    btn.classList.add('completed'); btn.textContent = '🏆'; btn.title = `Level ${i} (Dokončeno)`;
+                    btn.classList.add('completed'); btn.title = `Level ${i} (Dokončeno)`;
                 } else if (i === maxUnlockedLevel) {
-                    btn.classList.add('unlocked'); btn.textContent = i; btn.title = `Hrát Level ${i}`;
+                    btn.classList.add('unlocked'); btn.title = `Hrát Level ${i}`;
                 } else {
-                    btn.disabled = true; btn.textContent = '❓'; btn.title = `Level ${i} (Uzamčeno)`;
+                    btn.disabled = true; btn.title = `Level ${i} (Uzamčeno)`;
                 }
                 if (i <= maxUnlockedLevel) btn.onclick = () => initLevel(i);
                 levelSidebar.appendChild(btn);
@@ -630,6 +643,7 @@
                     if (!state.animationFrameId) state.animationFrameId = requestAnimationFrame(loop);
                 };
             }
+            levelSidebar.classList.add('hidden');
         }
 
         document.getElementById('restart-btn').addEventListener('click', () => {
@@ -641,11 +655,14 @@
                 cancelAnimationFrame(state.animationFrameId);
                 state.animationFrameId = null;
             }
-
+            
+            gameMusic.pause(); // PŘIDÁNO
+            gameMusic.currentTime = 0; // PŘIDÁNO
             muteAllTowers();
             state.gameOver = true;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             gameUiHeader.classList.remove('active');
+            levelSidebar.classList.remove('hidden');
             modal.classList.add('hidden'); towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden');
             renderLevelMenu(); 
         });
@@ -1042,11 +1059,16 @@
 
         function endGame(isWin) {
             state.gameOver = true; state.gameWon = isWin; muteAllTowers(); hideTooltip();
+            gameMusic.pause(); // PŘIDÁNO
+            gameMusic.currentTime = 0; // PŘIDÁNO
             modal.classList.remove('hidden'); modalText.textContent = isWin ? 'VÍTĚZSTVÍ!' : 'GAME OVER'; modalText.className = isWin ? 'win' : 'lose';
         }
 
         btnPlayPause.addEventListener('click', () => {
             if (state.gameOver) return;
+            if (gameMusic.paused) {
+                gameMusic.play().catch(e => console.warn("Audio play failed:", e));
+            }
             if (!state.wavesActive) {
                 state.wavesActive = true; iconPlay.classList.add('hidden'); iconPause.classList.remove('hidden'); btnPlayPause.title = "Pozastavit hru"; state.lastTime = performance.now();
             } else {
@@ -1065,10 +1087,13 @@
                 state.animationFrameId = null;
             }
 
+            gameMusic.pause(); // PŘIDÁNO
+            gameMusic.currentTime = 0; // PŘIDÁNO
             muteAllTowers();
             state.gameOver = true;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             gameUiHeader.classList.remove('active');
+            levelSidebar.classList.remove('hidden');
             towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden'); hideTooltip();
             renderLevelMenu(); 
         });
