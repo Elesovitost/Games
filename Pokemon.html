@@ -104,7 +104,7 @@
                 2: { hp: 75, speed: 42, size: 1.25, gold: 20, res: { grass: 0, water: 0, fire: 0, electric: 0 },
                     walkSrc: 'Pokemon/SPRITES/Orc2/orc2_walk_with_shadow.png', walkFrames: 6,
                     dieSrc: 'Pokemon/SPRITES/Orc2/orc2_death_with_shadow.png', dieFrames: 8 },
-                3: { hp: 100, speed: 45, size: 1.5, gold: 30, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                3: { hp: 150, speed: 45, size: 1.5, gold: 30, res: { grass: 0, water: 0, fire: 0, electric: 0 },
                     walkSrc: 'Pokemon/SPRITES/Orc3/orc3_walk_with_shadow.png', walkFrames: 6,
                     dieSrc: 'Pokemon/SPRITES/Orc3/orc3_death_with_shadow.png', dieFrames: 8 }
             },
@@ -127,15 +127,15 @@
                 path: [{ x: 600, y: 10 }, { x: 560, y: 60 }, { x: 430, y: 160 }, { x: 320, y: 240 }, { x: 210, y: 340 }, { x: 130, y: 470 }, { x: 180, y: 560 }, { x: 270, y: 600 }, { x: 430, y: 600 }, { x: 570, y: 530 }, { x: 680, y: 470 }, { x: 790, y: 460 }],
                 slots: [{ x: 250, y: 470 }, { x: 310, y: 520 }, { x: 120, y: 320 }, { x: 150, y: 640 }, { x: 670, y: 580 }, { x: 590, y: 150 }, { x: 420, y: 280 }],
                 waves: [
-                    { enemyType: 'slime', enemyLevel: 1, count: 6, interval: 1.2, delay: 0 },
-                    { enemyType: 'orc', enemyLevel: 1, count: 5, interval: 1.8, delay: 8 },
+                    { enemyType: 'slime', enemyLevel: 1, count: 8, interval: 0.8, delay: 0 },
+                    { enemyType: 'orc', enemyLevel: 1, count: 5, interval: 1.0, delay: 8 },
                     { enemyType: 'slime', enemyLevel: 1, count: 8, interval: 1.0, delay: 8 },
-                    { enemyType: 'vampire', enemyLevel: 1, count: 5, interval: 1.5, delay: 8 },
-                    { enemyType: 'orc', enemyLevel: 1, count: 8, interval: 1.5, delay: 10 },
-                    { enemyType: 'slime', enemyLevel: 2, count: 5, interval: 1.0, delay: 10 },
+                    { enemyType: 'vampire', enemyLevel: 1, count: 5, interval: 1.0, delay: 8 },
+                    { enemyType: 'orc', enemyLevel: 1, count: 8, interval: 0.5, delay: 5 },
+                    { enemyType: 'slime', enemyLevel: 2, count: 5, interval: 0.8, delay: 10 },
                     { enemyType: 'vampire', enemyLevel: 1, count: 8, interval: 1.2, delay: 8 },
-                    { enemyType: 'orc', enemyLevel: 2, count: 4, interval: 2.0, delay: 10 },
-                    { enemyType: 'slime', enemyLevel: 2, count: 10, interval: 0.8, delay: 8 },
+                    { enemyType: 'orc', enemyLevel: 2, count: 4, interval: 1.0, delay: 10 },
+                    { enemyType: 'slime', enemyLevel: 2, count: 10, interval: 0.5, delay: 8 },
                     { enemyType: 'vampire', enemyLevel: 2, count: 2, interval: 2.0, delay: 12 }
                 ]
             },
@@ -157,20 +157,14 @@
                 ]
             },
             {
-                id: 3, background: 'Pokemon/Backgrounds/water.png', startingGold: 400,
+                id: 3, background: 'Pokemon/Backgrounds/grass.png', startingGold: 1400,
                 path: [{ x: 180, y: 0 }, { x: 180, y: 100 }, { x: 250, y: 160 }, { x: 400, y: 200 }, { x: 550, y: 200 }, { x: 660, y: 230 }, { x: 680, y: 300 }, { x: 590, y: 370 }, { x: 470, y: 370 }, { x: 330, y: 380 }, { x: 230, y: 380 }, { x: 150, y: 420 }, { x: 130, y: 510 }, { x: 200, y: 560 }, { x: 400, y: 590 }, { x: 550, y: 570 }, { x: 620, y: 620 }, { x: 620, y: 710 }, { x: 620, y: 790 }],
                 slots: [{ x: 560, y: 280 }, { x: 220, y: 480 }, { x: 520, y: 650 }, { x: 430, y: 280 }, { x: 260, y: 90 }, { x: 490, y: 500 }, { x: 280, y: 650 }],
                 waves: [
-                    { enemyType: 'slime', enemyLevel: 2, count: 10, interval: 1.0, delay: 0 },
-                    { enemyType: 'orc', enemyLevel: 2, count: 8, interval: 1.5, delay: 8 },
-                    { enemyType: 'vampire', enemyLevel: 2, count: 6, interval: 1.2, delay: 8 },
-                    { enemyType: 'slime', enemyLevel: 3, count: 8, interval: 0.8, delay: 10 },
-                    { enemyType: 'orc', enemyLevel: 3, count: 5, interval: 1.8, delay: 10 },
-                    { enemyType: 'vampire', enemyLevel: 2, count: 10, interval: 1.0, delay: 8 },
-                    { enemyType: 'slime', enemyLevel: 3, count: 15, interval: 0.6, delay: 10 },
-                    { enemyType: 'orc', enemyLevel: 3, count: 8, interval: 1.5, delay: 10 },
+                    { enemyType: 'slime', enemyLevel: 2, count: 30, interval: 1.0, delay: 0 },
+                    { enemyType: 'orc', enemyLevel: 2, count: 30, interval: 1.2, delay: 1 },
                     { enemyType: 'vampire', enemyLevel: 3, count: 1, interval: 1.0, delay: 12 }, // BOSS
-                    { enemyType: 'slime', enemyLevel: 3, count: 20, interval: 0.5, delay: 8 }  // Final Rush
+                    { enemyType: 'slime', enemyLevel: 3, count: 20, interval: 0.1, delay: 8 }  // Final Rush
                 ]
             },
             // Zbytek pole (generované levely 4-10) nech beze změny
@@ -189,6 +183,8 @@
         const gameMusic = new Audio('Pokemon/Sounds/GAME_MUSIC.mp3'); 
         gameMusic.loop = true; 
         gameMusic.volume = 0.7; 
+        const soundStart = new Audio('Pokemon/Sounds/Misc_start.mp3');
+        const soundEnd = new Audio('Pokemon/Sounds/Misc_end.mp3');
 
         const TOWER_STATS = {
             electric: {
@@ -300,8 +296,9 @@
         
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        function playSound(spriteName) {
-            const buffer = loadedAudioBuffers[spriteName.toLowerCase()];
+        function playSound(spriteName, suffix = '') {
+            const key = spriteName.toLowerCase() + suffix;
+            const buffer = loadedAudioBuffers[key];
             if (buffer && audioCtx.state === 'running') {
                 const source = audioCtx.createBufferSource();
                 source.buffer = buffer;
@@ -325,6 +322,14 @@
                     loadedAudioBuffers[poke.toLowerCase()] = buffer;
                 })
                 .catch(e => console.warn(`Nepodařilo se načíst zvuk pro ${poke}:`, e));
+
+            fetch(`Pokemon/Sounds/${poke}-start.mp3`)
+                .then(response => response.arrayBuffer())
+                .then(data => audioCtx.decodeAudioData(data))
+                .then(buffer => {
+                    loadedAudioBuffers[`${poke.toLowerCase()}_start`] = buffer;
+                })
+                .catch(e => console.warn(`Nepodařilo se načíst startovní zvuk pro ${poke}:`, e));
         });
 
         function getAnimImage(spriteName, animName) {
@@ -492,13 +497,51 @@
         }
 
         function createUpgradeButton(tower, nextLevel, offsetX) {
-            const stats = TOWER_STATS[tower.elementType].levels[nextLevel]; const cost = nextLevel === 2 ? 150 : (nextLevel === 3 ? 300 : 200);
-            const btn = document.createElement('button'); btn.className = 'radial-btn upgrade'; if (offsetX !== 0) btn.style.left = `${offsetX}px`;
-            const icon = document.createElement('div'); icon.className = 'pokemon-menu-icon';
-            const spriteName = stats.spriteName || stats.name; icon.style.backgroundImage = `url('Pokemon/SPRITES/${spriteName}/Sleep-Anim.png')`;
-            const price = document.createElement('span'); price.className = 'price-tag'; price.textContent = `${cost} 🪙`;
-            btn.appendChild(icon); btn.appendChild(price); btn.disabled = state.gold < cost;
-            btn.onclick = (e) => { e.stopPropagation(); if (state.gold >= cost) { updateGold(-cost); tower.level = nextLevel; upgradeMenu.classList.add('hidden'); state.hoveredUpgrade = false; hideTooltip(); } };
+            const stats = TOWER_STATS[tower.elementType].levels[nextLevel]; 
+            const cost = nextLevel === 2 ? 150 : (nextLevel === 3 ? 300 : 200);
+            const btn = document.createElement('button'); 
+            btn.className = 'radial-btn upgrade'; 
+            if (offsetX !== 0) btn.style.left = `${offsetX}px`;
+            
+            const icon = document.createElement('div'); 
+            icon.className = 'pokemon-menu-icon';
+            const spriteName = stats.spriteName || stats.name; 
+            icon.style.backgroundImage = `url('Pokemon/SPRITES/${spriteName}/Sleep-Anim.png')`;
+            
+            const price = document.createElement('span'); 
+            price.className = 'price-tag'; 
+            price.textContent = `${cost} 🪙`;
+            
+            btn.appendChild(icon); 
+            btn.appendChild(price); 
+            btn.disabled = state.gold < cost;
+            
+            btn.onclick = (e) => { 
+                e.stopPropagation(); 
+                if (state.gold >= cost) { 
+                    updateGold(-cost); 
+                    tower.level = nextLevel; 
+                    upgradeMenu.classList.add('hidden'); 
+                    state.hoveredUpgrade = false; 
+                    hideTooltip(); 
+
+                    // Přehrání zvuků při upgradu
+                    if (nextLevel === '4a' || nextLevel === '4b') {
+                        // Finální upgrade: všechny 3 fáze evoluce s 400ms odstupem pro dramatický efekt
+                        const lvl1 = TOWER_STATS[tower.elementType].levels[1];
+                        const lvl2 = TOWER_STATS[tower.elementType].levels[2];
+                        const lvl3 = TOWER_STATS[tower.elementType].levels[3];
+                        
+                        playSound(lvl1.spriteName || lvl1.name, '_start');
+                        setTimeout(() => playSound(lvl2.spriteName || lvl2.name, '_start'), 400);
+                        setTimeout(() => playSound(lvl3.spriteName || lvl3.name, '_start'), 800);
+                    } else {
+                        // Běžný upgrade: zvuk dané úrovně
+                        playSound(stats.spriteName || stats.name, '_start');
+                    }
+                } 
+            };
+            
             btn.onmouseenter = () => { state.hoveredUpgrade = true; state.hoveredUpgradeLevel = nextLevel; handleBtnMouseEnter(btn, tower.elementType, nextLevel); };
             btn.onmouseleave = () => { state.hoveredUpgrade = false; hideTooltip(); };
             return btn;
@@ -869,6 +912,7 @@
             if (gameMusic.paused) gameMusic.play().catch(e => console.warn("Audio play failed:", e));
             
             if (!state.wavesActive) {
+                soundStart.play().catch(e => console.warn("Start sound failed:", e));
                 state.wavesActive = true; iconPlay.classList.add('hidden'); iconPause.classList.remove('hidden'); btnPlayPause.title = "Pozastavit hru"; state.lastTime = performance.now();
             } else {
                 state.isPaused = !state.isPaused;
@@ -914,6 +958,8 @@
             if (state.selectedSlot && state.gold >= TOWER_COST) {
                 updateGold(-TOWER_COST); state.selectedSlot.tower = new Tower(state.selectedSlot.x, state.selectedSlot.y, type);
                 state.towers.push(state.selectedSlot.tower); towerMenu.classList.add('hidden'); hideTooltip();
+                const stats = TOWER_STATS[type].levels[1];
+                playSound(stats.spriteName || stats.name, '_start');
             }
         }
 
@@ -969,10 +1015,24 @@
                     if (p.life <= 0) state.projectiles.splice(i, 1); continue;
                 }
 
-                if (p.type === 'earthquake') {
-                    state.enemies.forEach(e => { if (Math.hypot((e.x+e.offsetX) - p.x, (e.y+e.offsetY) - p.y) <= p.radius) e.takeDamage(p.dps * dt, p.elementType); });
-                    ctx.save(); ctx.strokeStyle = `rgba(139, 69, 19, ${0.2 + 0.1 * Math.sin(p.life * 20)})`; ctx.lineWidth = 4 + 2 * Math.sin(p.life * 15); ctx.beginPath(); ctx.arc(p.x, p.y, p.radius * (0.8 + 0.2 * Math.sin(p.life * 10)), 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(p.x, p.y, p.radius * (0.5 + 0.2 * Math.cos(p.life * 12)), 0, Math.PI*2); ctx.stroke(); ctx.restore();
-                    if (p.life <= 0) state.projectiles.splice(i, 1); continue;
+                if(p.type==='earthquake'){
+                    state.enemies.forEach(e=>{if(Math.hypot((e.x+e.offsetX)-p.x,(e.y+e.offsetY)-p.y)<=p.radius)e.takeDamage(p.dps*dt,p.elementType);});
+                    ctx.save();
+                    const pr=p.life/p.maxLife,t=p.life*15,drawW=(baseR,waves,amp,offset,color,width,fill=false)=>{
+                        ctx.beginPath();
+                        for(let k=0;k<=40;k++){
+                            const a=(k/40)*Math.PI*2,r=Math.max(0,baseR+Math.sin(a*waves+offset)*amp),px=p.x+Math.cos(a)*r,py=p.y+Math.sin(a)*r;
+                            k===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+                        }
+                        ctx.closePath();
+                        fill?(ctx.fillStyle=color,ctx.fill()):(ctx.strokeStyle=color,ctx.lineWidth=width,ctx.stroke());
+                    };
+                    drawW(p.radius*(1-pr),6,8*pr,-t,`rgba(144,238,144,${pr*0.5})`,8);
+                    drawW(p.radius*0.85,5,12*Math.sin(t*0.5),t*0.8,`rgba(46,204,113,${0.3+0.3*pr})`,4+2*Math.sin(t));
+                    drawW(p.radius*0.55,8,15*Math.cos(t*0.8),-t*1.5,`rgba(39,174,96,${0.4+0.4*pr})`,3);
+                    drawW(p.radius*0.25,4,10*Math.sin(t),t*2.5,`rgba(22,160,133,${0.2+0.5*pr})`,0,true);
+                    ctx.restore();
+                    if(p.life<=0)state.projectiles.splice(i,1);continue;
                 }
 
                 if (p.type === 'fire_spin' || p.type === 'fire_hurricane' || p.type === 'fire_tornado') {
@@ -1054,8 +1114,16 @@
 
             for (let i = state.enemies.length - 1; i >= 0; i--) {
                 const enemy = state.enemies[i]; const status = enemy.update(dt);
-                if (status === 'reached_end') { endGame(false); return; } 
-                else if (status === 'dead') { 
+                if (status === 'reached_end') { 
+                    state.gameOver = true;
+                    gameMusic.pause();
+                    muteAllTowers();
+                    
+                    soundEnd.play().catch(e => console.warn("End sound failed:", e));
+                    soundEnd.onended = () => endGame(false);
+                    return; 
+                } 
+                else if (status === 'dead') {
                     updateGold(enemy.goldReward); state.enemiesKilled++; enemy.fadeTimer = 2.0; enemy.animTime = 0;
                     state.deadEnemies.push(enemy); state.enemies.splice(i, 1); 
                     if (state.enemiesKilled === state.totalLevelEnemies) { endGame(true); return; } 
