@@ -123,39 +123,57 @@
 
         const LEVEL_DATA = [
             {
-                id: 1, background: 'Pokemon/Backgrounds/grass.png', startingGold: 1000, 
+                id: 1, background: 'Pokemon/Backgrounds/grass.png', startingGold: 300, 
                 path: [{ x: 600, y: 10 }, { x: 560, y: 60 }, { x: 430, y: 160 }, { x: 320, y: 240 }, { x: 210, y: 340 }, { x: 130, y: 470 }, { x: 180, y: 560 }, { x: 270, y: 600 }, { x: 430, y: 600 }, { x: 570, y: 530 }, { x: 680, y: 470 }, { x: 790, y: 460 }],
                 slots: [{ x: 250, y: 470 }, { x: 310, y: 520 }, { x: 120, y: 320 }, { x: 150, y: 640 }, { x: 670, y: 580 }, { x: 590, y: 150 }, { x: 420, y: 280 }],
                 waves: [
-                    { enemyType: 'slime', enemyLevel: 1, count: 5, interval: 1.0, delay: 0 },
-                    { enemyType: 'orc', enemyLevel: 2, count: 5, interval: 1.0, delay: 10 },
-                    { enemyType: 'vampire', enemyLevel: 3, count: 5, interval: 1.0, delay: 10 },
-                    { enemyType: 'orc', enemyLevel: 3, count: 5, interval: 1.0, delay: 10 },
-                    { enemyType: 'slime', enemyLevel: 3, count: 5, interval: 1.0, delay: 10 }
+                    { enemyType: 'slime', enemyLevel: 1, count: 6, interval: 1.2, delay: 0 },
+                    { enemyType: 'orc', enemyLevel: 1, count: 5, interval: 1.8, delay: 8 },
+                    { enemyType: 'slime', enemyLevel: 1, count: 8, interval: 1.0, delay: 8 },
+                    { enemyType: 'vampire', enemyLevel: 1, count: 5, interval: 1.5, delay: 8 },
+                    { enemyType: 'orc', enemyLevel: 1, count: 8, interval: 1.5, delay: 10 },
+                    { enemyType: 'slime', enemyLevel: 2, count: 5, interval: 1.0, delay: 10 },
+                    { enemyType: 'vampire', enemyLevel: 1, count: 8, interval: 1.2, delay: 8 },
+                    { enemyType: 'orc', enemyLevel: 2, count: 4, interval: 2.0, delay: 10 },
+                    { enemyType: 'slime', enemyLevel: 2, count: 10, interval: 0.8, delay: 8 },
+                    { enemyType: 'vampire', enemyLevel: 2, count: 2, interval: 2.0, delay: 12 }
                 ]
             },
             {
-                id: 2, background: 'Pokemon/Backgrounds/sand.png', startingGold: 750,
+                id: 2, background: 'Pokemon/Backgrounds/sand.png', startingGold: 350,
                 path: [{ x: 180, y: 10 }, { x: 180, y: 100 }, { x: 290, y: 180 }, { x: 440, y: 210 }, { x: 610, y: 220 }, { x: 670, y: 310 }, { x: 640, y: 400 }, { x: 500, y: 400 }, { x: 340, y: 400 }, { x: 170, y: 430 }, { x: 130, y: 530 }, { x: 210, y: 600 }, { x: 410, y: 610 }, { x: 590, y: 640 }, { x: 630, y: 720 }, { x: 650, y: 790 }],
                 slots: [{ x: 370, y: 110 }, { x: 540, y: 310 }, { x: 260, y: 510 }, { x: 540, y: 540 }, { x: 350, y: 690 }, { x: 190, y: 330 }],
                 waves: [
-                    { enemyType: 'orc', enemyLevel: 2, count: 10, interval: 0.7, delay: 0 },
-                    { enemyType: 'slime', enemyLevel: 2, count: 12, interval: 0.6, delay: 8 },
-                    { enemyType: 'orc', enemyLevel: 3, count: 15, interval: 0.5, delay: 10 },
-                    { enemyType: 'vampire', enemyLevel: 3, count: 6, interval: 1.2, delay: 12 },
-                    { enemyType: 'slime', enemyLevel: 3, count: 4, interval: 2.0, delay: 15 }
+                    { enemyType: 'orc', enemyLevel: 1, count: 8, interval: 1.5, delay: 0 },
+                    { enemyType: 'slime', enemyLevel: 1, count: 12, interval: 0.8, delay: 8 },
+                    { enemyType: 'vampire', enemyLevel: 1, count: 6, interval: 1.5, delay: 8 },
+                    { enemyType: 'orc', enemyLevel: 2, count: 5, interval: 1.8, delay: 10 },
+                    { enemyType: 'slime', enemyLevel: 2, count: 10, interval: 1.0, delay: 8 },
+                    { enemyType: 'vampire', enemyLevel: 2, count: 4, interval: 1.5, delay: 10 },
+                    { enemyType: 'orc', enemyLevel: 2, count: 8, interval: 1.5, delay: 8 },
+                    { enemyType: 'slime', enemyLevel: 3, count: 6, interval: 1.0, delay: 10 },
+                    { enemyType: 'vampire', enemyLevel: 2, count: 8, interval: 1.2, delay: 8 },
+                    { enemyType: 'orc', enemyLevel: 3, count: 3, interval: 2.0, delay: 12 }
                 ]
             },
-             {
-                id: 3, background: 'Pokemon/Backgrounds/water.png', startingGold: 450,
+            {
+                id: 3, background: 'Pokemon/Backgrounds/water.png', startingGold: 400,
                 path: [{ x: 180, y: 0 }, { x: 180, y: 100 }, { x: 250, y: 160 }, { x: 400, y: 200 }, { x: 550, y: 200 }, { x: 660, y: 230 }, { x: 680, y: 300 }, { x: 590, y: 370 }, { x: 470, y: 370 }, { x: 330, y: 380 }, { x: 230, y: 380 }, { x: 150, y: 420 }, { x: 130, y: 510 }, { x: 200, y: 560 }, { x: 400, y: 590 }, { x: 550, y: 570 }, { x: 620, y: 620 }, { x: 620, y: 710 }, { x: 620, y: 790 }],
                 slots: [{ x: 560, y: 280 }, { x: 220, y: 480 }, { x: 520, y: 650 }, { x: 430, y: 280 }, { x: 260, y: 90 }, { x: 490, y: 500 }, { x: 280, y: 650 }],
                 waves: [
-                    { enemyType: 'vampire', enemyLevel: 3, count: 10, interval: 0.5, delay: 0 },
-                    { enemyType: 'orc', enemyLevel: 3, count: 10, interval: 0.5, delay: 10 },
-                    { enemyType: 'slime', enemyLevel: 3, count: 10, interval: 0.5, delay: 10 }
+                    { enemyType: 'slime', enemyLevel: 2, count: 10, interval: 1.0, delay: 0 },
+                    { enemyType: 'orc', enemyLevel: 2, count: 8, interval: 1.5, delay: 8 },
+                    { enemyType: 'vampire', enemyLevel: 2, count: 6, interval: 1.2, delay: 8 },
+                    { enemyType: 'slime', enemyLevel: 3, count: 8, interval: 0.8, delay: 10 },
+                    { enemyType: 'orc', enemyLevel: 3, count: 5, interval: 1.8, delay: 10 },
+                    { enemyType: 'vampire', enemyLevel: 2, count: 10, interval: 1.0, delay: 8 },
+                    { enemyType: 'slime', enemyLevel: 3, count: 15, interval: 0.6, delay: 10 },
+                    { enemyType: 'orc', enemyLevel: 3, count: 8, interval: 1.5, delay: 10 },
+                    { enemyType: 'vampire', enemyLevel: 3, count: 1, interval: 1.0, delay: 12 }, // BOSS
+                    { enemyType: 'slime', enemyLevel: 3, count: 20, interval: 0.5, delay: 8 }  // Final Rush
                 ]
             },
+            // Zbytek pole (generované levely 4-10) nech beze změny
             ...Array.from({ length: 7 }, (_, i) => ({
                 id: i + 4, background: 'Pokemon/Backgrounds/grass.png', startingGold: 500 + i * 50,
                 path: [{ x: -20, y: 100 }, { x: 820, y: 700 }], 
@@ -1038,7 +1056,7 @@
                 const enemy = state.enemies[i]; const status = enemy.update(dt);
                 if (status === 'reached_end') { endGame(false); return; } 
                 else if (status === 'dead') { 
-                    updateGold(10 + (enemy.level - 1) * 5); state.enemiesKilled++; enemy.fadeTimer = 2.0; enemy.animTime = 0;
+                    updateGold(enemy.goldReward); state.enemiesKilled++; enemy.fadeTimer = 2.0; enemy.animTime = 0;
                     state.deadEnemies.push(enemy); state.enemies.splice(i, 1); 
                     if (state.enemiesKilled === state.totalLevelEnemies) { endGame(true); return; } 
                 } else enemy.draw(ctx);
