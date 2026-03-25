@@ -1,9 +1,11 @@
 import os
 import pathlib
 import re
-import urllib.request
+import urllib.parse
 import webbrowser
 import requests
+import time
+import random
 from bs4 import BeautifulSoup
 
 try:
@@ -13,27 +15,46 @@ except ImportError:
     exit(1)
 
 # --- KONFIGURACE ---
-HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9,cs;q=0.8"
+}
 WORDS_FILE = "words.txt"
 
+# Vytvoření perzistentní session pro udržení cookies (snižuje riziko blokace)
+session = requests.Session()
+session.headers.update(HEADERS)
+
 def get_image_urls(query, limit=5):
-    """Najde URL obrázků přes Google Search."""
-    search_url = f"https://www.google.com/search?q={query}+clipart&tbm=isch"
+    """Najde URL obrázků přes Yahoo Images s využitím Session a zpoždění."""
+    query_encoded = urllib.parse.quote(f"{query} clipart")
+    search_url = f"https://images.search.yahoo.com/search/images?p={query_encoded}"
+    
     try:
-        r = requests.get(search_url, headers=HEADERS)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        img_tags = soup.find_all("img")
+        # Prevence proti Rate Limit (banu IP) - náhodná pauza
+        delay = random.uniform(1.5, 3.0)
+        time.sleep(delay)
         
+        r = session.get(search_url, timeout=10)
+        r.raise_for_status()
+        
+        soup = BeautifulSoup(r.text, 'html.parser')
         urls = []
-        for img in img_tags[1:]:
-            src = img.get("src")
-            if src and src.startswith("http"):
+        
+        # Yahoo ukládá miniatury do <img>, často do atributu data-src kvůli lazy-loadingu
+        for img in soup.find_all('img'):
+            src = img.get('data-src') or img.get('src')
+            # Filtrace: chceme jen platné http odkazy a ignorujeme drobné sledovací pixely/ikony
+            if src and src.startswith('http') and not src.endswith('.gif'):
                 urls.append(src)
-            if len(urls) >= limit:
-                break
-        return urls
+                
+        # Odstranění duplicit se zachováním pořadí
+        unique_urls = list(dict.fromkeys(urls))
+        
+        return unique_urls[:limit]
     except Exception as e:
-        print(f"Chyba při hledání obrázků: {e}")
+        print(f"X Chyba při hledání obrázků (Yahoo): {e}")
         return []
 
 def sanitize_filename(text):
@@ -54,11 +75,9 @@ def process_vocabulary():
     for line in lines:
         line = line.strip()
         
-        # Ignorování metadat a prázdných řádků
         if not line or line.startswith('"') or re.search(r'\*[^*]+\*', line):
             continue
 
-        # ZPRACOVÁNÍ VĚT (detekce pomocí lomítka)
         if '/' in line:
             parts = line.split('/')
             if len(parts) >= 2:
@@ -71,21 +90,17 @@ def process_vocabulary():
                 en_mp3_path = base_path / f"sentence-{safe_en}.mp3"
                 cs_mp3_path = base_path / f"věta-{safe_cs}.mp3"
 
-                # Odstranění podtržítek pro čisté čtení v TTS
                 en_sentence_clean = en_sentence.replace('_', ' ')
                 cs_sentence_clean = cs_sentence.replace('_', ' ')
 
-                # EN Audio
                 if not en_mp3_path.exists():
                     print(f"[VĚTA EN] Generuji MP3: {en_mp3_path.name}")
                     gTTS(en_sentence_clean, lang='en').save(en_mp3_path)
 
-                # CS Audio
                 if not cs_mp3_path.exists():
                     print(f"[VĚTA CS] Generuji MP3: {cs_mp3_path.name}")
                     gTTS(cs_sentence_clean, lang='cs').save(cs_mp3_path)
 
-        # ZPRACOVÁNÍ SLOV (detekce pomocí pomlčky)
         elif '-' in line:
             parts = line.split('-')
             if len(parts) >= 2:
@@ -99,24 +114,22 @@ def process_vocabulary():
                 cs_mp3_path = base_path / f"{cs_word_raw}.mp3"
                 img_path = base_path / f"{en_word_raw}.jpg"
 
-                # EN Audio
                 if not en_mp3_path.exists():
                     print(f"[SLOVO EN] Generuji MP3: {en_mp3_path.name}")
                     gTTS(en_word_clean, lang='en').save(en_mp3_path)
 
-                # CS Audio
                 if not cs_mp3_path.exists() and cs_word_clean:
                     print(f"[SLOVO CS] Generuji MP3: {cs_mp3_path.name}")
                     gTTS(cs_word_clean, lang='cs').save(cs_mp3_path)
 
-                # Obrázek (interaktivní stažení)
                 if not img_path.exists():
                     print(f"\n[OBRÁZEK] Chybí obrázek pro: {en_word_raw.upper()}")
                     img_urls = get_image_urls(en_word_clean)
                     
                     if img_urls:
-                        print("Otevírám náhled v prohlížeči...")
-                        webbrowser.open(f"https://www.google.com/search?q={urllib.parse.quote(en_word_clean)}+clipart&tbm=isch")
+                        # Otevře prohlížeč rovnou na Yahoo pro vizuální kontrolu a snazší kopírování vlastního URL
+                        print("Otevírám náhled v prohlížeči (Yahoo)...")
+                        webbrowser.open(f"https://images.search.yahoo.com/search/images?p={urllib.parse.quote(en_word_clean)}+clipart")
                         
                         for i, url in enumerate(img_urls):
                             print(f"[{i+1}] {url[:60]}...")
@@ -141,7 +154,7 @@ def process_vocabulary():
                         except Exception as e:
                             print(f"X Chyba při ukládání obrázku: {e}")
                     else:
-                        print("X Žádné obrázky nebyly přes Google nalezeny.")
+                        print("X Žádné obrázky nebyly nalezeny.")
 
     print("-" * 30)
     print("Zpracování dokončeno. Soubor words.txt zůstal nezměněn.")
