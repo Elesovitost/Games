@@ -58,7 +58,7 @@
                 <nav class="level-sidebar" id="level-sidebar"></nav>
                 <header class="game-ui" id="game-ui-header">
                     <div class="stats">
-                        <span>Zlato: <strong id="gold-display">500</strong></span>
+                        <span>🪙 <strong id="gold-display">500</strong></span>
                         <span>Vlna: <strong id="wave-display">0/10</strong></span>
                     </div>
                     <div class="controls-group">
@@ -172,42 +172,41 @@
         gameMusic.loop = true; 
         gameMusic.volume = 0.7; 
 
-        // TOWER_STATS kompletně aktualizováno o větvení levelu 4 pro všechny Pokémony
         const TOWER_STATS = {
             electric: {
                 levels: {
                     1: { name: 'Pichu', range: 140, attackName: 'thundershock', damage: 10, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 5, beamWidth: 2, size: 1 },
-                    2: { name: 'Pikachu', range: 160, attackName: 'thunderbolt', damage: 20, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 10, beamWidth: 5, size: 1.2 },
-                    3: { name: 'Raichu', range: 200, attackName: 'thunder', damage: 30, cooldown: 1000, paraChance: 0.30, paraDuration: 2.0, paraDps: 20, beamWidth: 9, size: 1.2 },
-                    '4a': { name: 'Raichu (Chain)', spriteName: 'Raichu', range: 220, attackName: 'chain_lightning', damage: 45, cooldown: 1200, chainCount: 2, chainRange: 50, beamWidth: 6, size: 1.2 },
-                    '4b': { name: 'Raichu (Field)', spriteName: 'Raichu', range: 200, attackName: 'static_field', damage: 20, cooldown: 2500, fieldRadius: 100, stunDuration: 1.0, size: 1.2 }
+                    2: { name: 'Pikachu', range: 160, attackName: 'thunderbolt', damage: 20, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 10, beamWidth: 5, size: 1.0 },
+                    3: { name: 'Raichu', range: 200, attackName: 'thunder', damage: 30, cooldown: 1000, paraChance: 0.30, paraDuration: 2.0, paraDps: 20, beamWidth: 9, size: 1.0 },
+                    '4a': { name: 'Raichu (Chain)', spriteName: 'Raichu', range: 220, attackName: 'chain_lightning', damage: 45, cooldown: 1200, chainCount: 2, chainRange: 80, beamWidth: 6, size: 1.0 },
+                    '4b': { name: 'Raichu (Field)', spriteName: 'Raichu', range: 200, attackName: 'static_field', damage: 20, cooldown: 2500, fieldRadius: 100, stunDuration: 1.0, size: 1.0 }
                 }
             },
             grass: {
                 levels: {
                     1: { name: 'Bulbasaur', range: 130, attackName: 'vine_whip', damage: 10, cooldown: 1000, size: 1 },
-                    2: { name: 'Ivysaur', range: 150, attackName: 'razor_leaf', damage: 20, cooldown: 1000, doubleChance: 0.5, size: 1.2 },
-                    3: { name: 'Venusaur', range: 180, attackName: 'solar_beam', damage: 25, cooldown: 1000, splash: 10, size: 1.2 },
-                    '4a': { name: 'Venusaur (Bloom)', spriteName: 'Venusaur', range: 210, attackName: 'plant_trap', damage: 0, cooldown: 3000, trapRadius: 25, trapDur: 5.0, trapDps: 20, size: 1.2 },
-                    '4b': { name: 'Venusaur (Quake)', spriteName: 'Venusaur', range: 180, attackName: 'earthquake', damage: 0, cooldown: 5000, eqDur: 3.0, eqDps: 20, size: 1.2 }
+                    2: { name: 'Ivysaur', range: 150, attackName: 'razor_leaf', damage: 20, cooldown: 1000, doubleChance: 0.5, size: 1.0 },
+                    3: { name: 'Venusaur', range: 180, attackName: 'solar_beam', damage: 25, cooldown: 1000, splash: 10, size: 1.0 },
+                    '4a': { name: 'Venusaur (Bloom)', spriteName: 'Venusaur', range: 210, attackName: 'plant_trap', damage: 0, cooldown: 3000, trapRadius: 25, trapDur: 5.0, trapDps: 20, size: 1.0 },
+                    '4b': { name: 'Venusaur (Quake)', spriteName: 'Venusaur', range: 180, attackName: 'earthquake', damage: 0, cooldown: 5000, eqDur: 3.0, eqDps: 20, size: 1.0 }
                 }
             },
             water: {
                 levels: {
                     1: { name: 'Squirtle', range: 120, attackName: 'water_gun', damage: 10, continuous: true, size: 1 },
-                    2: { name: 'Wartortle', range: 140, attackName: 'water_pulse', damage: 20, cooldown: 1000, turnChance: 0.2, turnDuration: 1.0, size: 1.2 },
-                    3: { name: 'Blastoise', range: 170, attackName: 'hydro_pump', damage: 30, continuous: true, splash: 10, size: 1.2 },
-                    '4a': { name: 'Blastoise (Cutter)', spriteName: 'Blastoise', range: 200, attackName: 'water_cutter', damage: 100, continuous: true, splash: 0, size: 1.2 },
-                    '4b': { name: 'Blastoise (Stun)', spriteName: 'Blastoise', range: 200, attackName: 'water_paralyzer', damage: 50, cooldown: 3000, stunDuration: 2.0, size: 1.2 }
+                    2: { name: 'Wartortle', range: 140, attackName: 'water_pulse', damage: 20, cooldown: 1000, turnChance: 0.2, turnDuration: 1.0, size: 1.0 },
+                    3: { name: 'Blastoise', range: 170, attackName: 'hydro_pump', damage: 30, continuous: true, splash: 10, size: 1.0 },
+                    '4a': { name: 'Blastoise (Cutter)', spriteName: 'Blastoise', range: 200, attackName: 'water_cutter', damage: 100, continuous: true, splash: 0, size: 1.0 },
+                    '4b': { name: 'Blastoise (Stun)', spriteName: 'Blastoise', range: 200, attackName: 'water_paralyzer', damage: 50, cooldown: 3000, stunDuration: 2.0, size: 1.0 }
                 }
             },
             fire: {
                 levels: {
                     1: { name: 'Charmander', range: 120, attackName: 'ember', damage: 10, cooldown: 1000, size: 1 },
-                    2: { name: 'Charmeleon', range: 140, attackName: 'flamethrower', damage: 20, continuous: true, burnChance: 0.10, burnDuration: 2.0, burnDps: 20, size: 1.2 },
-                    3: { name: 'Charizard', range: 160, attackName: 'fire_spin', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 3.0, size: 1.2 },
-                    '4a': { name: 'Charizard (Hurricane)', spriteName: 'Charizard', range: 190, attackName: 'fire_hurricane', damage: 0, cooldown: 3000, firestormDps: 40, firestormDur: 5.0, size: 1.2 },
-                    '4b': { name: 'Charizard (Tornado)', spriteName: 'Charizard', range: 190, attackName: 'fire_tornado', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 3.5, size: 1.2 }
+                    2: { name: 'Charmeleon', range: 140, attackName: 'flamethrower', damage: 20, continuous: true, burnChance: 0.10, burnDuration: 2.0, burnDps: 20, size: 1.0 },
+                    3: { name: 'Charizard', range: 160, attackName: 'fire_spin', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 3.0, size: 1.0 },
+                    '4a': { name: 'Charizard (Hurricane)', spriteName: 'Charizard', range: 190, attackName: 'fire_hurricane', damage: 0, cooldown: 3000, firestormDps: 40, firestormDur: 5.0, size: 1.0 },
+                    '4b': { name: 'Charizard (Tornado)', spriteName: 'Charizard', range: 190, attackName: 'fire_tornado', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 3.5, size: 1.0 }
                 }
             }
         };
@@ -320,96 +319,55 @@
             return img;
         }
 
-        function getDirectionRow(angle) {
+        // Pomocné funkce pro výpočet směrů (8-směr)
+        function getSector(angle) {
             let deg = angle * (180 / Math.PI);
             if (deg < 0) deg += 360;
-            const sector = Math.floor((deg + 22.5) / 45) % 8;
+            return Math.floor((deg + 22.5) / 45) % 8;
+        }
+
+        function getDirectionRowFromSector(sector) {
             const rowMap = { 0: 2, 1: 1, 2: 0, 3: 7, 4: 6, 5: 5, 6: 4, 7: 3 };
             return rowMap[sector];
         }
 
-        // TOOLTIP LOGIC
         function getTowerTooltipInfo(type, level) {
             const stats = TOWER_STATS[type].levels[level];
-            let dps = 0;
-            let effects = [];
-            let cooldownSec = stats.continuous ? 0 : (stats.cooldown / 1000);
+            let dps = 0; let effects = []; let cooldownSec = stats.continuous ? 0 : (stats.cooldown / 1000);
 
-            if (stats.continuous) {
-                dps = stats.damage;
-            } else if (cooldownSec > 0) {
-                dps = stats.damage / cooldownSec;
-            }
+            if (stats.continuous) dps = stats.damage;
+            else if (cooldownSec > 0) dps = stats.damage / cooldownSec;
 
-            if (stats.attackName === 'chain_lightning') {
-                effects.push(`Řetězový blesk (až ${stats.chainCount + 1} cílů, skok ${stats.chainRange}px)`);
-            } else if (stats.attackName === 'static_field') {
-                effects.push(`Statické pole (Zastavení na ${stats.stunDuration}s, r: ${stats.fieldRadius})`);
-            } else if (stats.attackName === 'plant_trap') {
-                effects.push(`Smrtící rostlina (DPS: ${stats.trapDps}, na ${stats.trapDur}s, r: ${stats.trapRadius})`);
-            } else if (stats.attackName === 'earthquake') {
-                effects.push(`Zemětřesení (Plošné DPS: ${stats.eqDps}, trvání ${stats.eqDur}s v celém dosahu věže)`);
-            } else if (stats.attackName === 'water_cutter') {
-                effects.push(`Vodní řezač (Soustředěný ničivý paprsek bez plošného poškození)`);
-            } else if (stats.attackName === 'water_paralyzer') {
-                effects.push(`Vodní paralyzér (Okamžitě zastaví cíl na ${stats.stunDuration}s)`);
-            } else if (stats.attackName === 'fire_hurricane') {
-                effects.push(`Ohnivý hurikán (Stacionární silná bouře, trvání ${stats.firestormDur}s)`);
-            } else if (stats.attackName === 'fire_tornado') {
-                effects.push(`Ohnivé tornádo (Cestuje s cílem, trvání ${stats.firestormDur}s)`);
-            }
+            if (stats.attackName === 'chain_lightning') effects.push(`Řetězový blesk (až ${stats.chainCount + 1} cílů, skok ${stats.chainRange}px)`);
+            else if (stats.attackName === 'static_field') effects.push(`Statické pole (Zastavení na ${stats.stunDuration}s, r: ${stats.fieldRadius})`);
+            else if (stats.attackName === 'plant_trap') effects.push(`Smrtící rostlina (DPS: ${stats.trapDps}, na ${stats.trapDur}s, r: ${stats.trapRadius})`);
+            else if (stats.attackName === 'earthquake') effects.push(`Zemětřesení (Plošné DPS: ${stats.eqDps}, trvání ${stats.eqDur}s v celém dosahu věže)`);
+            else if (stats.attackName === 'water_cutter') effects.push(`Vodní řezač (Soustředěný ničivý paprsek bez plošného poškození)`);
+            else if (stats.attackName === 'water_paralyzer') effects.push(`Vodní paralyzér (Okamžitě zastaví cíl na ${stats.stunDuration}s)`);
+            else if (stats.attackName === 'fire_hurricane') effects.push(`Ohnivý hurikán (Stacionární silná bouře, trvání ${stats.firestormDur}s)`);
+            else if (stats.attackName === 'fire_tornado') effects.push(`Ohnivé tornádo (Cestuje s cílem, trvání ${stats.firestormDur}s)`);
 
-            if (type === 'electric' && !stats.attackName.includes('chain') && !stats.attackName.includes('field')) {
-                if (stats.paraChance) {
-                    let extraDps = (stats.paraChance * stats.paraDuration * stats.paraDps) / cooldownSec;
-                    dps += extraDps;
-                    effects.push(`Paralýza (${(stats.paraChance * 100)}%, ${stats.paraDuration}s, ${stats.paraDps} DPS)`);
-                }
+            if (type === 'electric' && !stats.attackName.includes('chain') && !stats.attackName.includes('field') && stats.paraChance) {
+                dps += (stats.paraChance * stats.paraDuration * stats.paraDps) / cooldownSec; effects.push(`Paralýza (${(stats.paraChance * 100)}%, ${stats.paraDuration}s, ${stats.paraDps} DPS)`);
             } else if (type === 'grass' && stats.attackName !== 'plant_trap' && stats.attackName !== 'earthquake') {
-                if (stats.doubleChance) {
-                    dps += (stats.damage * stats.doubleChance) / cooldownSec;
-                    effects.push(`Dvojitý útok (${(stats.doubleChance * 100)}%)`);
-                }
-                if (stats.splash) {
-                    dps += (stats.damage * 0.5) / cooldownSec;
-                    effects.push(`Plošný útok (r: ${stats.splash})`);
-                }
+                if (stats.doubleChance) { dps += (stats.damage * stats.doubleChance) / cooldownSec; effects.push(`Dvojitý útok (${(stats.doubleChance * 100)}%)`); }
+                if (stats.splash) { dps += (stats.damage * 0.5) / cooldownSec; effects.push(`Plošný útok (r: ${stats.splash})`); }
             } else if (type === 'water' && stats.attackName !== 'water_cutter' && stats.attackName !== 'water_paralyzer') {
-                if (stats.turnChance) {
-                    effects.push(`Zmatení (${(stats.turnChance * 100)}%, ${stats.turnDuration}s)`);
-                }
-                if (stats.splash) {
-                    effects.push(`Plošný útok (r: ${stats.splash})`);
-                }
+                if (stats.turnChance) effects.push(`Zmatení (${(stats.turnChance * 100)}%, ${stats.turnDuration}s)`);
+                if (stats.splash) effects.push(`Plošný útok (r: ${stats.splash})`);
             } else if (type === 'fire' && stats.attackName !== 'fire_hurricane' && stats.attackName !== 'fire_tornado') {
-                if (stats.burnChance) {
-                    dps += stats.burnDps * Math.min(1, stats.burnChance * 10);
-                    effects.push(`Popálení (${(stats.burnChance * 100)}% / s, ${stats.burnDps} DPS)`);
-                }
-                if (stats.firestormDps) {
-                    dps = stats.firestormDps;
-                    effects.push(`Ohnivá bouře (${stats.firestormDur}s, r: 50)`);
-                }
+                if (stats.burnChance) { dps += stats.burnDps * Math.min(1, stats.burnChance * 10); effects.push(`Popálení (${(stats.burnChance * 100)}% / s, ${stats.burnDps} DPS)`); }
+                if (stats.firestormDps) { dps = stats.firestormDps; effects.push(`Ohnivá bouře (${stats.firestormDur}s, r: 50)`); }
             }
 
             const elementNames = { 'fire': 'Oheň', 'water': 'Voda', 'grass': 'Tráva', 'electric': 'Elektřina' };
-
-            return {
-                name: stats.name,
-                attack: stats.attackName.replace('_', ' '),
-                element: elementNames[type] || type,
-                cooldown: cooldownSec === 0 ? 'Trvalý' : `${cooldownSec}s`,
-                range: stats.range,
-                dps: dps.toFixed(1),
-                effects: effects.length > 0 ? effects.join('<br>') : 'Žádné'
-            };
+            return { name: stats.name, attack: stats.attackName.replace('_', ' '), element: elementNames[type] || type, cooldown: cooldownSec === 0 ? 'Trvalý' : `${cooldownSec}s`, range: stats.range, dps: dps.toFixed(1), effects: effects.length > 0 ? effects.join('<br>') : 'Žádné' };
         }
 
         function showTooltip(type, level, originX, originY) {
             const info = getTowerTooltipInfo(type, level);
-            let formattedLvl = level.toString().toUpperCase();
             infoTooltip.innerHTML = `
-                <div class="tooltip-header">${info.name} (Lvl ${formattedLvl})</div>
+                <div class="tooltip-header">${info.name} (Lvl ${level.toString().toUpperCase()})</div>
                 <div class="tooltip-row"><span>Element:</span> <strong>${info.element}</strong></div>
                 <div class="tooltip-row"><span>Útok:</span> <strong style="text-transform: capitalize">${info.attack}</strong></div>
                 <div class="tooltip-row"><span>Dosah:</span> <strong>${info.range}</strong></div>
@@ -418,29 +376,16 @@
                 <div class="tooltip-effects"><strong>Efekty:</strong><br>${info.effects}</div>
             `;
             infoTooltip.classList.remove('hidden');
-
-            const w = infoTooltip.offsetWidth;
-            const h = infoTooltip.offsetHeight;
-            const offset = 32; 
-
+            const w = infoTooltip.offsetWidth; const h = infoTooltip.offsetHeight; const offset = 32; 
             let tX, tY;
-            if (originX <= 400 && originY <= 400) { 
-                tX = originX + offset; tY = originY + offset;
-            } else if (originX > 400 && originY <= 400) { 
-                tX = originX - offset - w; tY = originY + offset;
-            } else if (originX <= 400 && originY > 400) { 
-                tX = originX + offset; tY = originY - offset - h;
-            } else { 
-                tX = originX - offset - w; tY = originY - offset - h;
-            }
-
-            infoTooltip.style.left = `${tX}px`;
-            infoTooltip.style.top = `${tY}px`;
+            if (originX <= 400 && originY <= 400) { tX = originX + offset; tY = originY + offset; } 
+            else if (originX > 400 && originY <= 400) { tX = originX - offset - w; tY = originY + offset; } 
+            else if (originX <= 400 && originY > 400) { tX = originX + offset; tY = originY - offset - h; } 
+            else { tX = originX - offset - w; tY = originY - offset - h; }
+            infoTooltip.style.left = `${tX}px`; infoTooltip.style.top = `${tY}px`;
         }
 
-        function hideTooltip() {
-            infoTooltip.classList.add('hidden');
-        }
+        function hideTooltip() { infoTooltip.classList.add('hidden'); }
 
         function handleBtnMouseEnter(btn, type, level) {
             const containerRect = document.getElementById('main-canvas-container').getBoundingClientRect();
@@ -451,27 +396,16 @@
         }
         
         function checkAllLoaded() {
-            if (enemyFramesLoaded >= totalEnemyFrames && otherAssetsLoaded) {
-                renderLevelMenu();
-                createRadialMenu();
-            }
+            if (enemyFramesLoaded >= totalEnemyFrames && otherAssetsLoaded) { renderLevelMenu(); createRadialMenu(); }
         }
 
         function renderLevelMenu() {
             levelSidebar.innerHTML = '';
             for (let i = 1; i <= 10; i++) {
-                const btn = document.createElement('button');
-                btn.className = 'level-btn';
-                
-                btn.textContent = i; 
-
-                if (i < maxUnlockedLevel) {
-                    btn.classList.add('completed'); btn.title = `Level ${i} (Dokončeno)`;
-                } else if (i === maxUnlockedLevel) {
-                    btn.classList.add('unlocked'); btn.title = `Hrát Level ${i}`;
-                } else {
-                    btn.disabled = true; btn.title = `Level ${i} (Uzamčeno)`;
-                }
+                const btn = document.createElement('button'); btn.className = 'level-btn'; btn.textContent = i; 
+                if (i < maxUnlockedLevel) { btn.classList.add('completed'); btn.title = `Level ${i} (Dokončeno)`; } 
+                else if (i === maxUnlockedLevel) { btn.classList.add('unlocked'); btn.title = `Hrát Level ${i}`; } 
+                else { btn.disabled = true; btn.title = `Level ${i} (Uzamčeno)`; }
                 if (i <= maxUnlockedLevel) btn.onclick = () => initLevel(i);
                 levelSidebar.appendChild(btn);
             }
@@ -479,8 +413,7 @@
 
         const state = {
             activeLevelId: null, gold: 0, wavesActive: false, isPaused: false, 
-            gameTime: 0, currentWaveIndex: 0, enemiesKilled: 0, 
-            gameOver: true, gameWon: false,
+            gameTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: true, gameWon: false,
             enemies: [], deadEnemies: [], towers: [], projectiles: [], 
             lastTime: performance.now(), spawnTimer: 0, enemiesToSpawn: 0,
             selectedSlot: null, hoveredSlot: null, hoveredTowerType: null, hoveredUpgrade: false, hoveredUpgradeLevel: null,
@@ -488,169 +421,68 @@
             levelWaves: [], totalLevelEnemies: 0, isSpawningWave: false
         };
 
-        function muteAllTowers() {
-            state.towers.forEach(t => {
-                if (t.currentSound) { try { t.currentSound.stop(); } catch(e){} t.currentSound = null; }
-            });
-        }
-
-        function resetUIButtons() {
-            btnPlayPause.disabled = false; btnEndGame.disabled = false;
-            iconPlay.classList.remove('hidden'); iconPause.classList.add('hidden');
-            btnPlayPause.title = "Spustit hru";
-        }
+        function muteAllTowers() { state.towers.forEach(t => { if (t.currentSound) { try { t.currentSound.stop(); } catch(e){} t.currentSound = null; } }); }
+        function resetUIButtons() { btnPlayPause.disabled = false; btnEndGame.disabled = false; iconPlay.classList.remove('hidden'); iconPause.classList.add('hidden'); btnPlayPause.title = "Spustit hru"; }
 
         function initLevel(levelId) {
             const levelData = LEVEL_DATA.find(l => l.id === levelId);
             if (!levelData) return;
-
-            if (state.animationFrameId) {
-                cancelAnimationFrame(state.animationFrameId);
-                state.animationFrameId = null; 
-            }
+            if (state.animationFrameId) { cancelAnimationFrame(state.animationFrameId); state.animationFrameId = null; }
             
-            muteAllTowers();
-            hideTooltip();
+            muteAllTowers(); hideTooltip();
             
-            state.activeLevelId = levelId;
-            state.gold = levelData.startingGold;
-            state.path = smoothPath(levelData.path, 2);
-            state.slots = levelData.slots.map(s => ({ ...s, radius: 25, tower: null }));
-            state.bgImage.src = levelData.background;
-            state.levelWaves = levelData.waves;
-            state.totalLevelEnemies = state.levelWaves.reduce((sum, wave) => sum + wave.count, 0);
+            state.activeLevelId = levelId; state.gold = levelData.startingGold; state.path = smoothPath(levelData.path, 2);
+            state.slots = levelData.slots.map(s => ({ ...s, radius: 25, tower: null })); state.bgImage.src = levelData.background;
+            state.levelWaves = levelData.waves; state.totalLevelEnemies = state.levelWaves.reduce((sum, wave) => sum + wave.count, 0);
             
-            Object.assign(state, {
-                wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0, 
-                enemiesKilled: 0, gameOver: false, gameWon: false,
-                enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null,
-                spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false
-            });
+            Object.assign(state, { wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: false, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null, spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false });
             
-            gameUiHeader.classList.add('active');
-            updateGold(0);
-            waveDisplay.textContent = `0/${state.levelWaves.length}`;
-            resetUIButtons();
+            gameUiHeader.classList.add('active'); updateGold(0); waveDisplay.textContent = `0/${state.levelWaves.length}`; resetUIButtons();
             document.querySelectorAll('.level-btn').forEach(btn => btn.disabled = true);
-            
             modal.classList.add('hidden'); towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden');
             state.lastTime = performance.now();
             
-            if (state.bgImage.complete) {
-                ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height);
-                drawPathAndRange(ctx);
-                state.animationFrameId = requestAnimationFrame(loop);
-            } else {
-                state.bgImage.onload = () => {
-                    ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height);
-                    drawPathAndRange(ctx);
-                    if (!state.animationFrameId) state.animationFrameId = requestAnimationFrame(loop);
-                };
-            }
+            if (state.bgImage.complete) { ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height); drawPathAndRange(ctx); state.animationFrameId = requestAnimationFrame(loop); } 
+            else { state.bgImage.onload = () => { ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height); drawPathAndRange(ctx); if (!state.animationFrameId) state.animationFrameId = requestAnimationFrame(loop); }; }
             levelSidebar.classList.add('hidden');
         }
 
         document.getElementById('restart-btn').addEventListener('click', () => {
-            if (state.gameWon && state.activeLevelId === maxUnlockedLevel && maxUnlockedLevel < 10) {
-                maxUnlockedLevel++;
-                localStorage.setItem('pokemonTD_maxLevel', maxUnlockedLevel);
-            }
-            if (state.animationFrameId) {
-                cancelAnimationFrame(state.animationFrameId);
-                state.animationFrameId = null;
-            }
-            
-            gameMusic.pause(); 
-            gameMusic.currentTime = 0; 
-            muteAllTowers();
-            state.gameOver = true;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            gameUiHeader.classList.remove('active');
-            levelSidebar.classList.remove('hidden');
-            modal.classList.add('hidden'); towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden');
-            renderLevelMenu(); 
+            if (state.gameWon && state.activeLevelId === maxUnlockedLevel && maxUnlockedLevel < 10) { maxUnlockedLevel++; localStorage.setItem('pokemonTD_maxLevel', maxUnlockedLevel); }
+            if (state.animationFrameId) { cancelAnimationFrame(state.animationFrameId); state.animationFrameId = null; }
+            gameMusic.pause(); gameMusic.currentTime = 0; muteAllTowers(); state.gameOver = true;
+            ctx.clearRect(0, 0, canvas.width, canvas.height); gameUiHeader.classList.remove('active'); levelSidebar.classList.remove('hidden');
+            modal.classList.add('hidden'); towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden'); renderLevelMenu(); 
         });
         
         function createRadialMenu() {
-            towerMenu.innerHTML = '';
-            const types = ['grass', 'water', 'fire', 'electric'];
-            const radius = 60; 
-            
+            towerMenu.innerHTML = ''; const types = ['grass', 'water', 'fire', 'electric']; const radius = 60; 
             types.forEach((type, index) => {
                 const angle = (index / types.length) * Math.PI * 2 - Math.PI / 2;
-                const btn = document.createElement('button');
-                btn.className = 'radial-btn'; btn.dataset.type = type;
+                const btn = document.createElement('button'); btn.className = 'radial-btn'; btn.dataset.type = type;
                 btn.style.left = `${Math.cos(angle) * radius}px`; btn.style.top = `${Math.sin(angle) * radius}px`;
-                
-                const icon = document.createElement('div');
-                icon.className = 'pokemon-menu-icon';
+                const icon = document.createElement('div'); icon.className = 'pokemon-menu-icon';
                 const sName = TOWER_STATS[type].levels[1].spriteName || TOWER_STATS[type].levels[1].name;
                 icon.style.backgroundImage = `url('Pokemon/SPRITES/${sName}/Sleep-Anim.png')`;
-                
-                const price = document.createElement('span');
-                price.className = 'price-tag'; price.textContent = `${TOWER_COST}g`;
-                
+                const price = document.createElement('span'); price.className = 'price-tag'; price.textContent = `${TOWER_COST} 🪙`;
                 btn.appendChild(icon); btn.appendChild(price);
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    handleTowerPurchase(e, type);
-                };
-                
-                btn.onmouseenter = () => { 
-                    state.hoveredTowerType = type; 
-                    handleBtnMouseEnter(btn, type, 1);
-                };
-                btn.onmouseleave = () => { 
-                    state.hoveredTowerType = null; 
-                    hideTooltip();
-                };
-                
+                btn.onclick = (e) => { e.stopPropagation(); handleTowerPurchase(e, type); };
+                btn.onmouseenter = () => { state.hoveredTowerType = type; handleBtnMouseEnter(btn, type, 1); };
+                btn.onmouseleave = () => { state.hoveredTowerType = null; hideTooltip(); };
                 towerMenu.appendChild(btn);
             });
         }
 
         function createUpgradeButton(tower, nextLevel, offsetX) {
-            const stats = TOWER_STATS[tower.elementType].levels[nextLevel];
-            const cost = nextLevel === 2 ? 150 : (nextLevel === 3 ? 300 : 200);
-            
-            const btn = document.createElement('button');
-            btn.className = 'radial-btn upgrade';
-            if (offsetX !== 0) btn.style.left = `${offsetX}px`;
-            
-            const icon = document.createElement('div');
-            icon.className = 'pokemon-menu-icon';
-            const spriteName = stats.spriteName || stats.name;
-            icon.style.backgroundImage = `url('Pokemon/SPRITES/${spriteName}/Sleep-Anim.png')`;
-            
-            const price = document.createElement('span');
-            price.className = 'price-tag'; 
-            price.textContent = `${cost}g`;
-            
-            btn.appendChild(icon);
-            btn.appendChild(price);
-            btn.disabled = state.gold < cost;
-            
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                if (state.gold >= cost) {
-                    updateGold(-cost);
-                    tower.level = nextLevel;
-                    upgradeMenu.classList.add('hidden');
-                    state.hoveredUpgrade = false;
-                    hideTooltip();
-                }
-            };
-            
-            btn.onmouseenter = () => {
-                state.hoveredUpgrade = true;
-                state.hoveredUpgradeLevel = nextLevel;
-                handleBtnMouseEnter(btn, tower.elementType, nextLevel);
-            };
-            btn.onmouseleave = () => {
-                state.hoveredUpgrade = false;
-                hideTooltip();
-            };
-            
+            const stats = TOWER_STATS[tower.elementType].levels[nextLevel]; const cost = nextLevel === 2 ? 150 : (nextLevel === 3 ? 300 : 200);
+            const btn = document.createElement('button'); btn.className = 'radial-btn upgrade'; if (offsetX !== 0) btn.style.left = `${offsetX}px`;
+            const icon = document.createElement('div'); icon.className = 'pokemon-menu-icon';
+            const spriteName = stats.spriteName || stats.name; icon.style.backgroundImage = `url('Pokemon/SPRITES/${spriteName}/Sleep-Anim.png')`;
+            const price = document.createElement('span'); price.className = 'price-tag'; price.textContent = `${cost} 🪙`;
+            btn.appendChild(icon); btn.appendChild(price); btn.disabled = state.gold < cost;
+            btn.onclick = (e) => { e.stopPropagation(); if (state.gold >= cost) { updateGold(-cost); tower.level = nextLevel; upgradeMenu.classList.add('hidden'); state.hoveredUpgrade = false; hideTooltip(); } };
+            btn.onmouseenter = () => { state.hoveredUpgrade = true; state.hoveredUpgradeLevel = nextLevel; handleBtnMouseEnter(btn, tower.elementType, nextLevel); };
+            btn.onmouseleave = () => { state.hoveredUpgrade = false; hideTooltip(); };
             return btn;
         }
 
@@ -663,20 +495,15 @@
                     const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
                     const pKey = pokemon.toLowerCase();
                     xmlDoc.querySelectorAll('Anim').forEach(anim => {
-                        const name = anim.querySelector('Name')?.textContent;
-                        if (!name) return;
+                        const name = anim.querySelector('Name')?.textContent; if (!name) return;
                         const copyOfNode = anim.querySelector('CopyOf');
                         if (copyOfNode) { ANIM_DATA[pKey][name] = { isCopy: copyOfNode.textContent }; return; }
                         const width = parseInt(anim.querySelector('FrameWidth')?.textContent || '32', 10);
                         const height = parseInt(anim.querySelector('FrameHeight')?.textContent || '32', 10);
                         ANIM_DATA[pKey][name] = { originalName: name, width, height };
                     });
-                    
                     for (const key in ANIM_DATA[pKey]) {
-                        if (ANIM_DATA[pKey][key].isCopy) {
-                            const target = ANIM_DATA[pKey][ANIM_DATA[pKey][key].isCopy];
-                            if (target) ANIM_DATA[pKey][key] = { ...target, originalName: target.originalName };
-                        }
+                        if (ANIM_DATA[pKey][key].isCopy) { const target = ANIM_DATA[pKey][ANIM_DATA[pKey][key].isCopy]; if (target) ANIM_DATA[pKey][key] = { ...target, originalName: target.originalName }; }
                     }
                 });
                 await Promise.all(fetchPromises);
@@ -685,8 +512,7 @@
 
         class Enemy {
             constructor(type, level) {
-                this.type = type;
-                this.level = level; 
+                this.type = type; this.level = level; 
                 this.x = state.path[0].x; this.y = state.path[0].y;
                 
                 this.config = ENEMY_STATS[this.type][this.level];
@@ -701,12 +527,10 @@
                 
                 this.animTime = Math.random() * 1.0;
                 this.directionRow = 0; 
+                this.dirLockTimer = 0; // Ošetření překlikávání (jitter) při změně směru
             }
             
-            takeDamage(amount, elementType) {
-                const resistance = this.resistances[elementType] || 0;
-                this.hp -= Math.max(0, amount - resistance);
-            }
+            takeDamage(amount, elementType) { const resistance = this.resistances[elementType] || 0; this.hp -= Math.max(0, amount - resistance); }
             
             update(dt) {
                 this.animTime += dt;
@@ -717,68 +541,66 @@
                 if (this.hp <= 0) return 'dead';
                 
                 if (this.slowTimer > 0) this.slowTimer -= dt;
-                if (this.stunTimer > 0) { this.stunTimer -= dt; return 'alive'; } // Plné zastavení pohybu
+                if (this.stunTimer > 0) { this.stunTimer -= dt; return 'alive'; }
                 
                 const currentSpeed = (this.slowTimer > 0 || this.paraTimer > 0) ? this.baseSpeed * 0.5 : this.baseSpeed;
 
+                let targetPoint = null;
+                let isTurningBack = false;
+
                 if (this.turnBackTimer > 0) {
                     this.turnBackTimer -= dt;
-                    const target = state.path[this.pathIndex]; 
-                    const dx = target.x - this.x; const dy = target.y - this.y;
-                    const dist = Math.hypot(dx, dy); const move = currentSpeed * dt;
-                    
-                    if (Math.abs(dx) > Math.abs(dy)) this.directionRow = dx > 0 ? 3 : 2; else this.directionRow = dy > 0 ? 0 : 1;
-                    
-                    if (dist <= move) { this.x = target.x; this.y = target.y; if (this.pathIndex > 0) this.pathIndex--; } 
-                    else { this.x += (dx / dist) * move; this.y += (dy / dist) * move; }
-                    this.distanceTravelled -= move;
-                    return 'alive';
+                    targetPoint = state.path[this.pathIndex];
+                    isTurningBack = true;
+                } else {
+                    if (this.pathIndex >= state.path.length - 1) return 'reached_end';
+                    targetPoint = state.path[this.pathIndex + 1];
                 }
 
-                if (this.pathIndex >= state.path.length - 1) return 'reached_end';
-                
-                const target = state.path[this.pathIndex + 1];
-                const dx = target.x - this.x; const dy = target.y - this.y;
+                const dx = targetPoint.x - this.x; const dy = targetPoint.y - this.y;
                 const dist = Math.hypot(dx, dy); const move = currentSpeed * dt;
+
+                // Logika uzamčení směru (Zabrání jitteringu na hranách animací)
+                let targetDir;
+                if (Math.abs(dx) > Math.abs(dy)) targetDir = dx > 0 ? 3 : 2; else targetDir = dy > 0 ? 0 : 1;
+                if (this.dirLockTimer > 0) this.dirLockTimer -= dt;
+                if (this.dirLockTimer <= 0 && targetDir !== this.directionRow) {
+                    this.directionRow = targetDir;
+                    this.dirLockTimer = 0.5; // Uzamknout na 500 ms
+                }
                 
-                if (Math.abs(dx) > Math.abs(dy)) this.directionRow = dx > 0 ? 3 : 2; else this.directionRow = dy > 0 ? 0 : 1;
-                
-                if (dist <= move) { this.x = target.x; this.y = target.y; this.pathIndex++; } 
-                else { this.x += (dx / dist) * move; this.y += (dy / dist) * move; }
-                this.distanceTravelled += move;
+                if (dist <= move) { 
+                    this.x = targetPoint.x; this.y = targetPoint.y; 
+                    if (isTurningBack) { if (this.pathIndex > 0) this.pathIndex--; } else { this.pathIndex++; }
+                } else { 
+                    this.x += (dx / dist) * move; this.y += (dy / dist) * move; 
+                }
+                this.distanceTravelled += isTurningBack ? -move : move;
                 return 'alive';
             }
 
             drawSprite(ctx, isDead = false) {
-                const drawX = this.x + this.offsetX;
-                const drawY = this.y + this.offsetY;
+                const drawX = this.x + this.offsetX; const drawY = this.y + this.offsetY;
                 const imgObj = isDead ? enemyImages[this.type][this.level].die : enemyImages[this.type][this.level].walk;
                 
                 if (imgObj && imgObj.complete && imgObj.naturalHeight !== 0) {
                     const cols = isDead ? this.config.dieFrames : this.config.walkFrames;
-                    const frameWidth = imgObj.naturalWidth / cols;
-                    const frameHeight = imgObj.naturalHeight / 4;
+                    const frameWidth = imgObj.naturalWidth / cols; const frameHeight = imgObj.naturalHeight / 4;
                     
                     let frameIndex = Math.floor(this.animTime * 11);
-                    if (isDead) frameIndex = Math.min(frameIndex, cols - 1);
-                    else frameIndex = frameIndex % cols;
+                    if (isDead) frameIndex = Math.min(frameIndex, cols - 1); else frameIndex = frameIndex % cols;
                     
-                    const sx = frameIndex * frameWidth;
-                    const sy = this.directionRow * frameHeight;
+                    const sx = frameIndex * frameWidth; const sy = this.directionRow * frameHeight;
                     const scale = 1.5 * (this.config.size || 1);
-                    const drawWidth = frameWidth * scale;
-                    const drawHeight = frameHeight * scale;
+                    const drawWidth = frameWidth * scale; const drawHeight = frameHeight * scale;
                     
-                    ctx.save();
-                    ctx.translate(drawX, drawY);
-                    
+                    ctx.save(); ctx.translate(drawX, drawY);
                     if (!isDead) {
                         if (this.stunTimer > 0) ctx.filter = 'brightness(150%) drop-shadow(0 0 5px yellow)';
                         else if (this.burnTimer > 0) ctx.filter = 'sepia(100%) hue-rotate(-50deg) saturate(200%)';
                         else if (this.paraTimer > 0) ctx.filter = 'sepia(100%) hue-rotate(50deg) saturate(200%)';
                         else if (this.slowTimer > 0) ctx.filter = 'sepia(100%) hue-rotate(180deg) saturate(200%)';
                     }
-
                     ctx.drawImage(imgObj, sx, sy, frameWidth, frameHeight, -drawWidth/2, -drawHeight/2, drawWidth, drawHeight);
                     ctx.restore();
                 }
@@ -788,7 +610,6 @@
                 this.drawSprite(ctx, false);
                 const drawX = this.x + this.offsetX; const drawY = this.y + this.offsetY;
                 if (this.turnBackTimer > 0) { ctx.fillStyle = '#9b59b6'; ctx.beginPath(); ctx.arc(drawX, drawY - 20, 3, 0, Math.PI*2); ctx.fill(); }
-
                 ctx.fillStyle = '#e74c3c'; ctx.fillRect(drawX - 15, drawY - 30, 20, 4);
                 ctx.fillStyle = '#2ecc71'; ctx.fillRect(drawX - 15, drawY - 30, 20 * Math.max(0, this.hp / this.maxHp), 4);
             }
@@ -800,6 +621,9 @@
                 this.level = 1; this.timeSinceLastShot = 0; this.angle = 0; 
                 this.sleepTime = 0; this.lungeTimer = 0; this.lungeDuration = 0.25; this.hasTarget = false; 
                 this.attackCount = 0; this.soundTimer = 0; this.currentSound = null; 
+                
+                // Rotace
+                this.currentSector = null; this.targetSector = 0; this.rotationTimer = 0;
             }
 
             getStats() { return this.config.levels[this.level]; }
@@ -807,8 +631,7 @@
             
             update(dt) {
                 let validTarget = null; let validMaxDist = -1; let mapTarget = null; let globalMaxDist = -1;
-                const stats = this.getStats();
-                const currentRange = stats.range;
+                const stats = this.getStats(); const currentRange = stats.range;
                 
                 this.timeSinceLastShot += dt * 1000;
                 if (this.lungeTimer > 0) this.lungeTimer -= dt;
@@ -823,7 +646,24 @@
                 if (this.hasTarget && mapTarget) {
                     const lookTarget = validTarget || mapTarget;
                     this.angle = Math.atan2((lookTarget.y + lookTarget.offsetY) - this.y, (lookTarget.x + lookTarget.offsetX) - this.x);
+                    
+                    this.targetSector = getSector(this.angle);
+                    if (this.currentSector === null) this.currentSector = this.targetSector; // Inicializační pohled
                 } else { this.sleepTime += dt; }
+
+                // Plynulá interpolace rotace (1 krok sektoru = 150 ms)
+                if (this.currentSector !== null && this.currentSector !== this.targetSector) {
+                    this.rotationTimer += dt;
+                    if (this.rotationTimer >= 0.15) {
+                        this.rotationTimer -= 0;
+                        let diff = this.targetSector - this.currentSector;
+                        if (diff > 4) diff -= 8;
+                        if (diff < -4) diff += 8;
+
+                        if (diff > 0) this.currentSector = (this.currentSector + 1) % 8;
+                        else if (diff < 0) this.currentSector = (this.currentSector - 1 + 8) % 8;
+                    }
+                }
 
                 if (validTarget) {
                     const hitX = validTarget.x + validTarget.offsetX; const hitY = validTarget.y + validTarget.offsetY;
@@ -837,18 +677,11 @@
             handleContinuousAttack(dt, target, stats, hitX, hitY) {
                 this.lungeTimer = 0.1; const dmg = stats.damage * dt; target.takeDamage(dmg, this.elementType);
                 if (!this.currentSound) {
-                    const soundName = (stats.spriteName || stats.name).toLowerCase();
-                    const buffer = loadedAudioBuffers[soundName];
+                    const soundName = (stats.spriteName || stats.name).toLowerCase(); const buffer = loadedAudioBuffers[soundName];
                     if (buffer && audioCtx.state === 'running') {
-                        const source = audioCtx.createBufferSource();
-                        source.buffer = buffer;
-                        source.loop = true;
-                        const gainNode = audioCtx.createGain();
-                        gainNode.gain.value = 0.5;
-                        source.connect(gainNode);
-                        gainNode.connect(audioCtx.destination);
-                        source.start(0);
-                        this.currentSound = source;
+                        const source = audioCtx.createBufferSource(); source.buffer = buffer; source.loop = true;
+                        const gainNode = audioCtx.createGain(); gainNode.gain.value = 0.5;
+                        source.connect(gainNode); gainNode.connect(audioCtx.destination); source.start(0); this.currentSound = source;
                     }
                 }
                 if (this.elementType === 'water' && stats.splash > 0) {
@@ -856,7 +689,6 @@
                     state.enemies.forEach(e => { if (e !== target && Math.hypot((e.x+e.offsetX) - hitX, (e.y+e.offsetY) - hitY) <= stats.splash) e.takeDamage(dmg, this.elementType); });
                 }
                 if (this.elementType === 'fire' && stats.burnChance && Math.random() < stats.burnChance * dt * 10) { target.burnTimer = stats.burnDuration; target.burnDps = stats.burnDps; }
-                
                 state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: dt*2, maxLife: dt*2 });
                 if (Math.random() < 0.3) spawnImpact(hitX, hitY, this.elementType);
             }
@@ -868,59 +700,33 @@
                 
                 if (this.elementType === 'electric') {
                     if (stats.attackName === 'chain_lightning') {
-                        let currentTarget = target;
-                        let targets = [currentTarget];
-                        let cHitX = hitX; let cHitY = hitY;
-                        
+                        let currentTarget = target; let targets = [currentTarget]; let cHitX = hitX; let cHitY = hitY;
                         for(let i = 0; i < stats.chainCount; i++) {
                             let nextTarget = null; let minDist = stats.chainRange;
-                            state.enemies.forEach(e => {
-                                if(!targets.includes(e)) {
-                                    let dist = Math.hypot((e.x+e.offsetX)-cHitX, (e.y+e.offsetY)-cHitY);
-                                    if(dist <= minDist) { minDist = dist; nextTarget = e; }
-                                }
-                            });
+                            state.enemies.forEach(e => { if(!targets.includes(e)) { let dist = Math.hypot((e.x+e.offsetX)-cHitX, (e.y+e.offsetY)-cHitY); if(dist <= minDist) { minDist = dist; nextTarget = e; } } });
                             if(nextTarget) { targets.push(nextTarget); cHitX = nextTarget.x + nextTarget.offsetX; cHitY = nextTarget.y + nextTarget.offsetY; } else break;
                         }
-                        
                         let startX = this.x; let startY = this.y;
                         targets.forEach(t => {
                             let tx = t.x + t.offsetX; let ty = t.y + t.offsetY;
-                            state.projectiles.push({ type: 'chain_lightning', elementType: this.elementType, x1: startX, y1: startY, x2: tx, y2: ty, life: 0.15, maxLife: 0.15, damage: stats.damage, target: t, width: stats.beamWidth });
-                            startX = tx; startY = ty;
+                            state.projectiles.push({ type: 'chain_lightning', elementType: this.elementType, x1: startX, y1: startY, x2: tx, y2: ty, life: 0.15, maxLife: 0.15, damage: stats.damage, target: t, width: stats.beamWidth }); startX = tx; startY = ty;
                         });
-                    } else if (stats.attackName === 'static_field') {
-                        state.projectiles.push({ type: 'static_field', elementType: this.elementType, x: hitX, y: hitY, life: 0.5, maxLife: 0.5, radius: stats.fieldRadius, stunDuration: stats.stunDuration, damage: stats.damage });
-                    } else {
-                        state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.1, maxLife: 0.1, width: stats.beamWidth, damage: stats.damage, target: target, paraChance: stats.paraChance, paraDuration: stats.paraDuration, paraDps: stats.paraDps });
-                    }
+                    } else if (stats.attackName === 'static_field') { state.projectiles.push({ type: 'static_field', elementType: this.elementType, x: hitX, y: hitY, life: 0.5, maxLife: 0.5, radius: stats.fieldRadius, stunDuration: stats.stunDuration, damage: stats.damage }); } 
+                    else { state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.1, maxLife: 0.1, width: stats.beamWidth, damage: stats.damage, target: target, paraChance: stats.paraChance, paraDuration: stats.paraDuration, paraDps: stats.paraDps }); }
                 }
                 else if (this.elementType === 'grass') {
-                    if (stats.attackName === 'plant_trap') {
-                        state.projectiles.push({ type: 'plant_trap', elementType: this.elementType, x: hitX, y: hitY, life: stats.trapDur, maxLife: stats.trapDur, dps: stats.trapDps, radius: stats.trapRadius });
-                    } else if (stats.attackName === 'earthquake') {
-                        state.projectiles.push({ type: 'earthquake', elementType: this.elementType, x: this.x, y: this.y, life: stats.eqDur, maxLife: stats.eqDur, dps: stats.eqDps, radius: stats.range });
-                    } else {
-                        let dmg = stats.damage; if (stats.doubleChance && Math.random() < stats.doubleChance) dmg *= 2;
-                        let isSplash = false; if (stats.splash && this.attackCount % 2 === 0) { dmg *= 2; isSplash = true; }
-                        state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.2, maxLife: 0.2, isSplash, splashR: stats.splash, damage: dmg, target: target });
-                    }
+                    if (stats.attackName === 'plant_trap') { state.projectiles.push({ type: 'plant_trap', elementType: this.elementType, x: hitX, y: hitY, life: stats.trapDur, maxLife: stats.trapDur, dps: stats.trapDps, radius: stats.trapRadius }); } 
+                    else if (stats.attackName === 'earthquake') { state.projectiles.push({ type: 'earthquake', elementType: this.elementType, x: this.x, y: this.y, life: stats.eqDur, maxLife: stats.eqDur, dps: stats.eqDps, radius: stats.range }); } 
+                    else { let dmg = stats.damage; if (stats.doubleChance && Math.random() < stats.doubleChance) dmg *= 2; let isSplash = false; if (stats.splash && this.attackCount % 2 === 0) { dmg *= 2; isSplash = true; } state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.2, maxLife: 0.2, isSplash, splashR: stats.splash, damage: dmg, target: target }); }
                 } 
                 else if (this.elementType === 'water') {
-                    if (stats.attackName === 'water_paralyzer') {
-                        state.projectiles.push({ type: 'water_paralyzer', elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.15, maxLife: 0.15, damage: stats.damage, target: target, stunDuration: stats.stunDuration });
-                    } else {
-                        state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.2, maxLife: 0.2, damage: stats.damage, target: target, turnChance: stats.turnChance, turnDuration: stats.turnDuration });
-                    }
+                    if (stats.attackName === 'water_paralyzer') { state.projectiles.push({ type: 'water_paralyzer', elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.15, maxLife: 0.15, damage: stats.damage, target: target, stunDuration: stats.stunDuration }); } 
+                    else { state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.2, maxLife: 0.2, damage: stats.damage, target: target, turnChance: stats.turnChance, turnDuration: stats.turnDuration }); }
                 }
                 else if (this.elementType === 'fire') {
-                    if (stats.attackName === 'fire_spin' || stats.attackName === 'fire_hurricane') { 
-                        state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x: hitX, y: hitY, life: stats.firestormDur, maxLife: stats.firestormDur, dps: stats.firestormDps, radius: 50 });
-                    } else if (stats.attackName === 'fire_tornado') {
-                        state.projectiles.push({ type: 'fire_tornado', elementType: this.elementType, x: hitX, y: hitY, life: stats.firestormDur, maxLife: stats.firestormDur, dps: stats.firestormDps, radius: 50, target: target });
-                    } else {
-                        state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.15, maxLife: 0.15, damage: stats.damage, target: target });
-                    }
+                    if (stats.attackName === 'fire_spin' || stats.attackName === 'fire_hurricane') { state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x: hitX, y: hitY, life: stats.firestormDur, maxLife: stats.firestormDur, dps: stats.firestormDps, radius: 50 }); } 
+                    else if (stats.attackName === 'fire_tornado') { state.projectiles.push({ type: 'fire_tornado', elementType: this.elementType, x: hitX, y: hitY, life: stats.firestormDur, maxLife: stats.firestormDur, dps: stats.firestormDps, radius: 50, target: target }); } 
+                    else { state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.15, maxLife: 0.15, damage: stats.damage, target: target }); }
                 }
             }
             
@@ -928,7 +734,7 @@
                 let drawX = this.x; let drawY = this.y; let animName = 'Rotate'; let frameIndex = 0;
                 if (this.lungeTimer > 0) {
                     animName = 'Charge'; const progress = 1 - (this.lungeTimer / this.lungeDuration); const offset = Math.sin(progress * Math.PI) * 1; 
-                    drawX += Math.cos(this.angle) * offset; drawY += Math.sin(this.angle) * offset;
+                    drawX += Math.cos(this.angle) * offset; drawY += Math.sin(this.angle) * offset; // Útok zůstává na absolutním úhlu pro přesnost
                 } else if (!this.hasTarget) { animName = 'Sleep'; frameIndex = Math.floor(this.sleepTime / 0.5) % 2; }
 
                 let pKey = this.getPKey(); const scale = 2 * (this.getStats().size || 1);
@@ -944,7 +750,11 @@
                     const sName = this.getStats().spriteName || this.getStats().name;
                     const img = getAnimImage(sName, animData.originalName);
                     const drawWidth = animData.width * scale; const drawHeight = animData.height * scale;
-                    if (img.complete && img.naturalHeight !== 0) ctx.drawImage(img, frameIndex * animData.width, getDirectionRow(this.angle) * animData.height, animData.width, animData.height, Math.floor(drawX - drawWidth / 2), Math.floor(drawY - drawHeight / 2), drawWidth, drawHeight);
+                    
+                    // Vykreslení dle aktuálně vypočteného (a interpolovaného) sektoru
+                    const sectorToDraw = this.currentSector !== null ? this.currentSector : 2;
+                    
+                    if (img.complete && img.naturalHeight !== 0) ctx.drawImage(img, frameIndex * animData.width, getDirectionRowFromSector(sectorToDraw) * animData.height, animData.width, animData.height, Math.floor(drawX - drawWidth / 2), Math.floor(drawY - drawHeight / 2), drawWidth, drawHeight);
                 }
             }
         }
@@ -965,62 +775,33 @@
         function updateGold(amount) {
             state.gold += amount; goldDisplay.textContent = state.gold;
             document.querySelectorAll('#tower-menu .radial-btn').forEach(btn => { btn.disabled = state.gold < TOWER_COST; });
-            document.querySelectorAll('#upgrade-menu .radial-btn').forEach(btn => { 
-                const price = parseInt(btn.querySelector('.price-tag').textContent);
-                btn.disabled = state.gold < price; 
-            });
+            document.querySelectorAll('#upgrade-menu .radial-btn').forEach(btn => { const price = parseInt(btn.querySelector('.price-tag').textContent); btn.disabled = state.gold < price; });
         }
 
         function endGame(isWin) {
             state.gameOver = true; state.gameWon = isWin; muteAllTowers(); hideTooltip();
-            gameMusic.pause(); 
-            gameMusic.currentTime = 0; 
+            gameMusic.pause(); gameMusic.currentTime = 0; 
             modal.classList.remove('hidden'); modalText.textContent = isWin ? 'VÍTĚZSTVÍ!' : 'GAME OVER'; modalText.className = isWin ? 'win' : 'lose';
         }
 
         btnPlayPause.addEventListener('click', () => {
             if (state.gameOver) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (gameMusic.paused) gameMusic.play().catch(e => console.warn("Audio play failed:", e));
             
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-
-            if (gameMusic.paused) {
-                gameMusic.play().catch(e => console.warn("Audio play failed:", e));
-            }
             if (!state.wavesActive) {
                 state.wavesActive = true; iconPlay.classList.add('hidden'); iconPause.classList.remove('hidden'); btnPlayPause.title = "Pozastavit hru"; state.lastTime = performance.now();
             } else {
                 state.isPaused = !state.isPaused;
                 if (state.isPaused) { iconPause.classList.add('hidden'); iconPlay.classList.remove('hidden'); btnPlayPause.title = "Pokračovat"; muteAllTowers(); } 
-                else {
-                    iconPlay.classList.add('hidden'); iconPause.classList.remove('hidden'); btnPlayPause.title = "Pozastavit hru"; state.lastTime = performance.now();
-                    state.towers.forEach(t => { 
-                        if (t.currentSound && t.hasTarget) {
-                            // Tohle už u Web Audio není potřeba spouštět z pauzy přímo tímto způsobem, 
-                            // protože u kontinuálních zvuků se vytvoří nový zdroj v update cyklu. 
-                            // Staré pause/play se na BufferSource nedá aplikovat. Můžeme to bezpečně ignorovat, update si to chytí.
-                        } 
-                    });
-                }
+                else { iconPlay.classList.add('hidden'); iconPause.classList.remove('hidden'); btnPlayPause.title = "Pozastavit hru"; state.lastTime = performance.now(); }
             }
         });
 
         btnEndGame.addEventListener('click', () => { 
-            if (state.animationFrameId) {
-                cancelAnimationFrame(state.animationFrameId);
-                state.animationFrameId = null;
-            }
-
-            gameMusic.pause(); 
-            gameMusic.currentTime = 0; 
-            muteAllTowers();
-            state.gameOver = true;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            gameUiHeader.classList.remove('active');
-            levelSidebar.classList.remove('hidden');
-            towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden'); hideTooltip();
-            renderLevelMenu(); 
+            if (state.animationFrameId) { cancelAnimationFrame(state.animationFrameId); state.animationFrameId = null; }
+            gameMusic.pause(); gameMusic.currentTime = 0; muteAllTowers(); state.gameOver = true; ctx.clearRect(0, 0, canvas.width, canvas.height);
+            gameUiHeader.classList.remove('active'); levelSidebar.classList.remove('hidden'); towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden'); hideTooltip(); renderLevelMenu(); 
         });
 
         canvas.addEventListener('mousemove', (e) => {
@@ -1032,30 +813,16 @@
         canvas.addEventListener('click', (e) => {
             if (state.gameOver || state.gameWon || state.isPaused) return;
             const clickX = e.clientX - canvas.getBoundingClientRect().left; const clickY = e.clientY - canvas.getBoundingClientRect().top;
-            
-            towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden'); hideTooltip();
-            state.selectedSlot = null; state.hoveredTowerType = null; state.hoveredUpgrade = false;
+            towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden'); hideTooltip(); state.selectedSlot = null; state.hoveredTowerType = null; state.hoveredUpgrade = false;
 
             state.slots.forEach(slot => {
                 if (Math.hypot(slot.x - clickX, slot.y - clickY) < slot.radius) {
                     state.selectedSlot = slot;
                     if (slot.tower) {
-                        upgradeMenu.innerHTML = '';
-                        const tower = slot.tower;
-                        if (tower.level < 3) {
-                            const btn = createUpgradeButton(tower, tower.level + 1, 0);
-                            upgradeMenu.appendChild(btn);
-                        } else if (tower.level === 3) {
-                            const btnA = createUpgradeButton(tower, '4a', -40);
-                            const btnB = createUpgradeButton(tower, '4b', 40);
-                            upgradeMenu.appendChild(btnA);
-                            upgradeMenu.appendChild(btnB);
-                        }
-                        
-                        if(upgradeMenu.innerHTML !== '') {
-                            upgradeMenu.style.left = `${slot.x}px`; upgradeMenu.style.top = `${slot.y + slot.radius + 40}px`; 
-                            upgradeMenu.classList.remove('hidden');
-                        }
+                        upgradeMenu.innerHTML = ''; const tower = slot.tower;
+                        if (tower.level < 3) upgradeMenu.appendChild(createUpgradeButton(tower, tower.level + 1, 0));
+                        else if (tower.level === 3) { upgradeMenu.appendChild(createUpgradeButton(tower, '4a', -40)); upgradeMenu.appendChild(createUpgradeButton(tower, '4b', 40)); }
+                        if(upgradeMenu.innerHTML !== '') { upgradeMenu.style.left = `${slot.x}px`; upgradeMenu.style.top = `${slot.y + slot.radius + 40}px`; upgradeMenu.classList.remove('hidden'); }
                     } else {
                         document.querySelectorAll('#tower-menu .radial-btn').forEach(btn => { btn.disabled = state.gold < TOWER_COST; });
                         towerMenu.style.left = `${slot.x}px`; towerMenu.style.top = `${slot.y}px`; towerMenu.classList.remove('hidden');
@@ -1076,14 +843,9 @@
             ctx.beginPath(); ctx.moveTo(state.path[0].x, state.path[0].y); for (let i = 1; i < state.path.length; i++) ctx.lineTo(state.path[i].x, state.path[i].y); ctx.stroke();
             state.slots.forEach(slot => {
                 const rx = slot.radius; const ry = slot.radius * 0.6; const depth = 8;
-
                 if (slot.tower) {
-                    ctx.fillStyle = '#556470'; 
-                    ctx.beginPath(); ctx.ellipse(slot.x, slot.y + depth, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillRect(slot.x - rx, slot.y, rx * 2, depth); 
-                    ctx.fillStyle = '#7f8c8d'; 
-                    ctx.beginPath(); ctx.ellipse(slot.x, slot.y, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
-                    ctx.lineWidth = 1; ctx.strokeStyle = '#2c3e50'; ctx.stroke();
+                    ctx.fillStyle = '#556470'; ctx.beginPath(); ctx.ellipse(slot.x, slot.y + depth, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(slot.x - rx, slot.y, rx * 2, depth); 
+                    ctx.fillStyle = '#7f8c8d'; ctx.beginPath(); ctx.ellipse(slot.x, slot.y, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = '#2c3e50'; ctx.stroke();
                 } else {
                     ctx.beginPath(); ctx.ellipse(slot.x, slot.y + depth, rx, ry, 0, 0, Math.PI); ctx.strokeStyle = 'rgba(46, 204, 113, 0.4)'; ctx.lineWidth = 2; ctx.stroke();
                     ctx.beginPath(); ctx.moveTo(slot.x - rx, slot.y); ctx.lineTo(slot.x - rx, slot.y + depth); ctx.moveTo(slot.x + rx, slot.y); ctx.lineTo(slot.x + rx, slot.y + depth); ctx.stroke();
@@ -1093,13 +855,10 @@
             });
 
             if ((state.hoveredSlot && state.hoveredSlot.tower) || (state.hoveredUpgrade && state.selectedSlot && state.selectedSlot.tower)) {
-                const tower = state.hoveredUpgrade ? state.selectedSlot.tower : state.hoveredSlot.tower;
-                let displayRange = state.hoveredUpgrade ? tower.config.levels[state.hoveredUpgradeLevel].range : tower.getStats().range;
-                ctx.beginPath(); ctx.arc(tower.x, tower.y, displayRange, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
+                const tower = state.hoveredUpgrade ? state.selectedSlot.tower : state.hoveredSlot.tower; let displayRange = state.hoveredUpgrade ? tower.config.levels[state.hoveredUpgradeLevel].range : tower.getStats().range;
+                ctx.beginPath(); ctx.arc(tower.x, tower.y, displayRange, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
             } else if (state.selectedSlot && !state.selectedSlot.tower && state.hoveredTowerType) {
-                ctx.beginPath(); ctx.arc(state.selectedSlot.x, state.selectedSlot.y, TOWER_STATS[state.hoveredTowerType].levels[1].range, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.arc(state.selectedSlot.x, state.selectedSlot.y, TOWER_STATS[state.hoveredTowerType].levels[1].range, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
             }
         }
 
@@ -1108,64 +867,37 @@
                 const p = state.projectiles[i]; p.life -= dt;
                 
                 if (p.type === 'particle') {
-                    p.x += p.vx * dt; p.y += p.vy * dt; ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
-                    ctx.beginPath();
+                    p.x += p.vx * dt; p.y += p.vy * dt; ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life / p.maxLife); ctx.beginPath();
                     if (p.shape === 'leaf') ctx.ellipse(p.x, p.y, p.size, p.size/2, Math.atan2(p.vy, p.vx), 0, Math.PI*2);
                     else if (p.shape === 'spark') { ctx.moveTo(p.x, p.y - p.size); ctx.lineTo(p.x + p.size/2, p.y + p.size); ctx.lineTo(p.x - p.size/2, p.y + p.size); }
                     else ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
-                    ctx.fill(); ctx.globalAlpha = 1.0;
-                    if (p.life <= 0) state.projectiles.splice(i, 1); continue;
+                    ctx.fill(); ctx.globalAlpha = 1.0; if (p.life <= 0) state.projectiles.splice(i, 1); continue;
                 } else if (p.type === 'impact_ring') {
-                    ctx.strokeStyle = p.color; ctx.lineWidth = 2; ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
-                    ctx.beginPath(); ctx.arc(p.x, p.y, 15 * (1 - p.life / p.maxLife), 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1.0;
-                    if (p.life <= 0) state.projectiles.splice(i, 1); continue;
+                    ctx.strokeStyle = p.color; ctx.lineWidth = 2; ctx.globalAlpha = Math.max(0, p.life / p.maxLife); ctx.beginPath(); ctx.arc(p.x, p.y, 15 * (1 - p.life / p.maxLife), 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1.0; if (p.life <= 0) state.projectiles.splice(i, 1); continue;
                 }
 
                 if (p.type === 'static_field') {
-                    const intensity = p.life / p.maxLife;
-                    ctx.fillStyle = `rgba(241, 196, 15, ${intensity * 0.4})`;
-                    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
-                    ctx.strokeStyle = `rgba(255, 255, 255, ${intensity})`; ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.stroke();
+                    const intensity = p.life / p.maxLife; ctx.fillStyle = `rgba(241, 196, 15, ${intensity * 0.4})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${intensity})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.stroke();
                     for(let k=0; k<3; k++) { const px = p.x + (Math.random() - 0.5) * p.radius * 2; const py = p.y + (Math.random() - 0.5) * p.radius * 2; if(Math.hypot(px-p.x, py-p.y) <= p.radius) { ctx.fillStyle = '#ffffff'; ctx.fillRect(px, py, 3, 3); } }
-                    
-                    state.enemies.forEach(e => { 
-                        if (Math.hypot((e.x+e.offsetX) - p.x, (e.y+e.offsetY) - p.y) <= p.radius) {
-                            e.takeDamage(p.damage * dt, p.elementType);
-                            e.stunTimer = Math.max(e.stunTimer || 0, p.stunDuration); 
-                        }
-                    });
+                    state.enemies.forEach(e => { if (Math.hypot((e.x+e.offsetX) - p.x, (e.y+e.offsetY) - p.y) <= p.radius) { e.takeDamage(p.damage * dt, p.elementType); e.stunTimer = Math.max(e.stunTimer || 0, p.stunDuration); } });
                     if (p.life <= 0) state.projectiles.splice(i, 1); continue;
                 }
 
                 if (p.type === 'plant_trap') {
                     state.enemies.forEach(e => { if (Math.hypot((e.x+e.offsetX) - p.x, (e.y+e.offsetY) - p.y) <= p.radius) e.takeDamage(p.dps * dt, p.elementType); });
-                    ctx.save();
-                    ctx.globalAlpha = Math.min(1, p.life * 2);
-                    ctx.fillStyle = "rgba(46, 204, 113, 0.4)";
-                    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fill();
-                    ctx.font = "24px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                    ctx.fillText("🏆", p.x, p.y);
-                    ctx.restore();
+                    ctx.save(); ctx.globalAlpha = Math.min(1, p.life * 2); ctx.fillStyle = "rgba(46, 204, 113, 0.4)"; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fill(); ctx.font = "24px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🏆", p.x, p.y); ctx.restore();
                     if (p.life <= 0) state.projectiles.splice(i, 1); continue;
                 }
 
                 if (p.type === 'earthquake') {
                     state.enemies.forEach(e => { if (Math.hypot((e.x+e.offsetX) - p.x, (e.y+e.offsetY) - p.y) <= p.radius) e.takeDamage(p.dps * dt, p.elementType); });
-                    ctx.save();
-                    ctx.strokeStyle = `rgba(139, 69, 19, ${0.2 + 0.1 * Math.sin(p.life * 20)})`; 
-                    ctx.lineWidth = 4 + 2 * Math.sin(p.life * 15);
-                    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius * (0.8 + 0.2 * Math.sin(p.life * 10)), 0, Math.PI*2); ctx.stroke();
-                    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius * (0.5 + 0.2 * Math.cos(p.life * 12)), 0, Math.PI*2); ctx.stroke();
-                    ctx.restore();
+                    ctx.save(); ctx.strokeStyle = `rgba(139, 69, 19, ${0.2 + 0.1 * Math.sin(p.life * 20)})`; ctx.lineWidth = 4 + 2 * Math.sin(p.life * 15); ctx.beginPath(); ctx.arc(p.x, p.y, p.radius * (0.8 + 0.2 * Math.sin(p.life * 10)), 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(p.x, p.y, p.radius * (0.5 + 0.2 * Math.cos(p.life * 12)), 0, Math.PI*2); ctx.stroke(); ctx.restore();
                     if (p.life <= 0) state.projectiles.splice(i, 1); continue;
                 }
 
                 if (p.type === 'fire_spin' || p.type === 'fire_hurricane' || p.type === 'fire_tornado') {
-                    if (p.type === 'fire_tornado' && p.target && p.target.hp > 0) {
-                        p.x = p.target.x + p.target.offsetX;
-                        p.y = p.target.y + p.target.offsetY;
-                    }
+                    if (p.type === 'fire_tornado' && p.target && p.target.hp > 0) { p.x = p.target.x + p.target.offsetX; p.y = p.target.y + p.target.offsetY; }
                     const intensity = p.life / p.maxLife; const radGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
                     radGrad.addColorStop(0, `rgba(255, 255, 150, ${Math.min(1, intensity * 1.5)})`); radGrad.addColorStop(0.4, `rgba(255, 60, 0, ${intensity})`); radGrad.addColorStop(1, `rgba(139, 0, 0, 0)`);
                     ctx.fillStyle = radGrad; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
@@ -1189,9 +921,7 @@
                     state.projectiles.splice(i, 1); continue;
                 }
 
-                const progress = 1 - (p.life / p.maxLife);
-                if (!p.x1 || !p.x2 && p.type !== 'splash_anim') continue;
-
+                const progress = 1 - (p.life / p.maxLife); if (!p.x1 || !p.x2 && p.type !== 'splash_anim') continue;
                 let sx = p.x1, sy = p.y1;
                 if (['thundershock', 'thunderbolt', 'thunder', 'chain_lightning', 'vine_whip', 'solar_beam', 'water_gun', 'hydro_pump', 'water_cutter', 'flamethrower'].includes(p.type)) { const ang = Math.atan2(p.y2 - p.y1, p.x2 - p.x1); sx += Math.cos(ang) * 30; sy += Math.sin(ang) * 20; }
                 const bx = sx + (p.x2 - sx) * progress; const by = sy + (p.y2 - sy) * progress;
@@ -1207,10 +937,8 @@
                 else if (p.type === 'ember') { ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(bx, by, 5, 0, Math.PI*2); ctx.fill(); } 
                 else if (p.type === 'flamethrower') {
                     const d = Math.hypot(p.x2 - sx, p.y2 - sy) * progress, a = Math.atan2(p.y2 - sy, p.x2 - sx), w = 2 + d * 0.08;
-                    ctx.save(); ctx.translate(sx, sy); ctx.rotate(a); ctx.globalCompositeOperation = 'screen';
-                    const g = ctx.createLinearGradient(0, 0, d, 0);
-                    g.addColorStop(0, `rgba(255,255,200,${progress})`); g.addColorStop(0.2, `rgba(255,215,0,${progress})`); g.addColorStop(0.5, `rgba(255,100,0,${progress*0.8})`); g.addColorStop(0.8, `rgba(220,20,0,${progress*0.5})`); 
-                    g.addColorStop(1, 'transparent');
+                    ctx.save(); ctx.translate(sx, sy); ctx.rotate(a); ctx.globalCompositeOperation = 'screen'; const g = ctx.createLinearGradient(0, 0, d, 0);
+                    g.addColorStop(0, `rgba(255,255,200,${progress})`); g.addColorStop(0.2, `rgba(255,215,0,${progress})`); g.addColorStop(0.5, `rgba(255,100,0,${progress*0.8})`); g.addColorStop(0.8, `rgba(220,20,0,${progress*0.5})`); g.addColorStop(1, 'transparent');
                     ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(d, -w); ctx.lineTo(d, w); ctx.lineTo(0, 1); ctx.fill(); ctx.restore();
                 } else if (p.type === 'splash_anim') { ctx.strokeStyle = `rgba(39, 174, 96, ${p.life / p.maxLife})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * Math.pow(1 - p.life / p.maxLife, 0.5), 0, Math.PI * 2); ctx.stroke(); }
             }
@@ -1221,8 +949,7 @@
             if (state.isPaused) { state.lastTime = timestamp; state.animationFrameId = requestAnimationFrame(loop); return; }
             
             const dt = (timestamp - state.lastTime) / 1000; state.lastTime = timestamp;
-            if (state.bgImage.complete && state.bgImage.naturalHeight !== 0) ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height);
-            else ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (state.bgImage.complete && state.bgImage.naturalHeight !== 0) ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height); else ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (state.wavesActive) {
                 state.gameTime += dt;
@@ -1231,10 +958,7 @@
                     if (state.gameTime >= currentWave.delay && !state.isSpawningWave) { state.isSpawningWave = true; state.enemiesToSpawn = currentWave.count; waveDisplay.textContent = `${state.currentWaveIndex + 1}/${state.levelWaves.length}`; }
                     if (state.isSpawningWave && state.enemiesToSpawn > 0) {
                         state.spawnTimer += dt;
-                        if (state.spawnTimer >= currentWave.interval) { 
-                            state.enemies.push(new Enemy(currentWave.enemyType, currentWave.enemyLevel)); state.enemiesToSpawn--; state.spawnTimer = 0; 
-                            if (state.enemiesToSpawn <= 0) { state.currentWaveIndex++; state.isSpawningWave = false; state.gameTime = 0; }
-                        }
+                        if (state.spawnTimer >= currentWave.interval) { state.enemies.push(new Enemy(currentWave.enemyType, currentWave.enemyLevel)); state.enemiesToSpawn--; state.spawnTimer = 0; if (state.enemiesToSpawn <= 0) { state.currentWaveIndex++; state.isSpawningWave = false; state.gameTime = 0; } }
                     }
                 }
             }
@@ -1263,12 +987,7 @@
             state.animationFrameId = requestAnimationFrame(loop);
         }
 
-        async function initializeGame() {
-            await Promise.all([loadEnemyImages(), loadAnimData()]);
-            renderLevelMenu();
-            createRadialMenu();
-        }
-
+        async function initializeGame() { await Promise.all([loadEnemyImages(), loadAnimData()]); renderLevelMenu(); createRadialMenu(); }
         initializeGame();
     </script>
 </body>
