@@ -157,14 +157,23 @@
                 ]
             },
             {
-                id: 3, background: 'Pokemon/Backgrounds/ice.jpg', startingGold: 1400,
-                path: [{ x: 180, y: 0 }, { x: 180, y: 100 }, { x: 250, y: 160 }, { x: 400, y: 200 }, { x: 550, y: 200 }, { x: 660, y: 230 }, { x: 680, y: 300 }, { x: 590, y: 370 }, { x: 470, y: 370 }, { x: 330, y: 380 }, { x: 230, y: 380 }, { x: 150, y: 420 }, { x: 130, y: 510 }, { x: 200, y: 560 }, { x: 400, y: 590 }, { x: 550, y: 570 }, { x: 620, y: 620 }, { x: 620, y: 710 }, { x: 620, y: 790 }],
-                slots: [{ x: 560, y: 280 }, { x: 220, y: 480 }, { x: 520, y: 650 }, { x: 430, y: 280 }, { x: 330, y: 90 }, { x: 490, y: 500 }, { x: 280, y: 650 }],
+                id: 3, background: 'Pokemon/Backgrounds/sand.jpg', startingGold: 1400,
+                    path: [{ x: 10, y: 110 }, { x: 70, y: 120 }, { x: 180, y: 180 }, { x: 330, y: 260 }, { x: 510, y: 210 }, { x: 630, y: 240 }, { x: 600, y: 360 }, { x: 460, y: 420 }, { x: 330, y: 480 }, { x: 380, y: 600 }, { x: 510, y: 650 }, { x: 690, y: 650 }, { x: 750, y: 700 }, { x: 750, y: 760 }, { x: 750, y: 790 }],
+                    slots: [{ x: 210, y: 100 }, { x: 110, y: 250 }, { x: 460, y: 150 }, { x: 340, y: 340 }, { x: 520, y: 300 }, { x: 690, y: 330 }, { x: 270, y: 560 }, { x: 440, y: 510 }, { x: 660, y: 580 }, { x: 440, y: 700 }, { x: 580, y: 450 }],
+                    objects: [{ x: 550, y: 540, src: 'Pokemon/Assets/Brown_ruins1.png' }, { x: 430, y: 320, src: 'Pokemon/Assets/Brown-gray_ruins2.png' }, { x: 190, y: 420, src: 'Pokemon/Assets/Sand_ruins1.png' }, { x: 330, y: 120, src: 'Pokemon/Assets/Water_ruins1.png' }, { x: 590, y: 690, src: 'Pokemon/Assets/Yellow_ruins4.png' }, { x: 650, y: 140, src: 'Pokemon/Assets/Tree_idol_human.png' }, { x: 640, y: 420, src: 'Pokemon/Assets/Blue-gray_ruins3.png' }],
                 waves: [
                     { enemyType: 'slime', enemyLevel: 2, count: 30, interval: 1.0, delay: 0 },
                     { enemyType: 'orc', enemyLevel: 2, count: 30, interval: 1.2, delay: 1 },
                     { enemyType: 'vampire', enemyLevel: 3, count: 1, interval: 1.0, delay: 12 }, // BOSS
                     { enemyType: 'slime', enemyLevel: 3, count: 20, interval: 0.1, delay: 8 }  // Final Rush
+                ]
+            },
+            {
+                id: 4, background: 'Pokemon/Backgrounds/grass.jpg', startingGold: 1400,
+                path: [{ x: 180, y: 0 }, { x: 180, y: 100 }, { x: 250, y: 160 }, { x: 400, y: 200 }, { x: 550, y: 200 }, { x: 660, y: 230 }, { x: 680, y: 300 }, { x: 590, y: 370 }, { x: 470, y: 370 }, { x: 330, y: 380 }, { x: 230, y: 380 }, { x: 150, y: 420 }, { x: 130, y: 510 }, { x: 200, y: 560 }, { x: 400, y: 590 }, { x: 550, y: 570 }, { x: 620, y: 620 }, { x: 620, y: 710 }, { x: 620, y: 790 }],
+                slots: [{ x: 560, y: 280 }, { x: 220, y: 480 }, { x: 520, y: 650 }, { x: 430, y: 280 }, { x: 330, y: 90 }, { x: 490, y: 500 }, { x: 280, y: 650 }],
+                waves: [
+                    { enemyType: 'slime', enemyLevel: 2, count: 1, interval: 1.0, delay: 0 }
                 ]
             },
             // Zbytek pole (generované levely 4-10) nech beze změny
@@ -185,6 +194,7 @@
         gameMusic.volume = 0.7; 
         const soundStart = new Audio('Pokemon/Sounds/Misc_start.mp3');
         const soundEnd = new Audio('Pokemon/Sounds/Misc_end.mp3');
+        const soundFanfare = new Audio('Pokemon/Sounds/Misc_fanfare.mp3');
 
         const TOWER_STATS = {
             electric: {
@@ -293,6 +303,7 @@
         const loadedImages = {};
         const loadedAudioBuffers = {}; 
         let otherAssetsLoaded = false;
+        const plantTrapImg = new Image(); plantTrapImg.src = 'Pokemon/SPRITES/Misc/Plant1_Attack_with_shadow.png';
         
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -440,8 +451,9 @@
             enemies: [], deadEnemies: [], towers: [], projectiles: [], 
             lastTime: performance.now(), spawnTimer: 0, enemiesToSpawn: 0,
             selectedSlot: null, hoveredSlot: null, hoveredTowerType: null, hoveredUpgrade: false, hoveredUpgradeLevel: null,
-            bgImage: new Image(), path: [], slots: [], animationFrameId: null,
-            levelWaves: [], totalLevelEnemies: 0, isSpawningWave: false
+            bgImage: new Image(), path: [], slots: [], objects: [], animationFrameId: null,
+            levelWaves: [], totalLevelEnemies: 0, isSpawningWave: false,
+            winSequenceStarted: false, winTimeoutId: null
         };
 
         function muteAllTowers() { state.towers.forEach(t => { if (t.currentSound) { try { t.currentSound.stop(); } catch(e){} t.currentSound = null; } }); }
@@ -456,10 +468,11 @@
             
             state.activeLevelId = levelId; state.gold = levelData.startingGold; state.path = smoothPath(levelData.path, 2);
             state.slots = levelData.slots.map(s => ({ ...s, radius: 25, tower: null })); state.bgImage.src = levelData.background;
+            state.objects = levelData.objects || [];
             state.levelWaves = levelData.waves; state.totalLevelEnemies = state.levelWaves.reduce((sum, wave) => sum + wave.count, 0);
             
-            Object.assign(state, { wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: false, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null, spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false });
-            
+           if (state.winTimeoutId) clearTimeout(state.winTimeoutId);
+            Object.assign(state, { wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: false, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null, spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false, winSequenceStarted: false, winTimeoutId: null });
             gameUiHeader.classList.add('active'); updateGold(0); waveDisplay.textContent = `0/${state.levelWaves.length}`; resetUIButtons();
             document.querySelectorAll('.level-btn').forEach(btn => btn.disabled = true);
             modal.classList.add('hidden'); towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden');
@@ -509,6 +522,7 @@
         }
 
         document.getElementById('restart-btn').addEventListener('click', () => {
+            if (state.winTimeoutId) clearTimeout(state.winTimeoutId); soundFanfare.pause(); soundFanfare.currentTime = 0;
             if (state.gameWon && state.activeLevelId === maxUnlockedLevel && maxUnlockedLevel < 10) { maxUnlockedLevel++; localStorage.setItem('pokemonTD_maxLevel', maxUnlockedLevel); }
             if (state.animationFrameId) { cancelAnimationFrame(state.animationFrameId); state.animationFrameId = null; }
             gameMusic.pause(); gameMusic.currentTime = 0; muteAllTowers(); state.gameOver = true;
@@ -960,6 +974,7 @@
         });
 
         btnEndGame.addEventListener('click', () => { 
+            if (state.winTimeoutId) clearTimeout(state.winTimeoutId); soundFanfare.pause(); soundFanfare.currentTime = 0;
             if (state.animationFrameId) { cancelAnimationFrame(state.animationFrameId); state.animationFrameId = null; }
             gameMusic.pause(); gameMusic.currentTime = 0; muteAllTowers(); state.gameOver = true; ctx.clearRect(0, 0, canvas.width, canvas.height);
             gameUiHeader.classList.remove('active'); levelSidebar.classList.remove('hidden'); towerMenu.classList.add('hidden'); upgradeMenu.classList.add('hidden'); hideTooltip(); renderLevelMenu(); 
@@ -1007,14 +1022,19 @@
             
             state.slots.forEach(slot => {
                 const rx = slot.radius; const ry = slot.radius * 0.6; const depth = 8;
+                const isHovered = state.hoveredSlot === slot;
+                
                 if (slot.tower) {
-                    ctx.fillStyle = '#556470'; ctx.beginPath(); ctx.ellipse(slot.x, slot.y + depth, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(slot.x - rx, slot.y, rx * 2, depth); 
-                    ctx.fillStyle = '#7f8c8d'; ctx.beginPath(); ctx.ellipse(slot.x, slot.y, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = '#2c3e50'; ctx.stroke();
+                    ctx.fillStyle = isHovered ? '#6c7a86' : '#556470'; ctx.beginPath(); ctx.ellipse(slot.x, slot.y + depth, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(slot.x - rx, slot.y, rx * 2, depth); 
+                    ctx.fillStyle = isHovered ? '#95a5a6' : '#7f8c8d'; ctx.beginPath(); ctx.ellipse(slot.x, slot.y, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = '#2c3e50'; ctx.stroke();
                 } else {
-                    ctx.beginPath(); ctx.ellipse(slot.x, slot.y + depth, rx, ry, 0, 0, Math.PI); ctx.strokeStyle = 'rgba(46, 204, 113, 0.4)'; ctx.lineWidth = 2; ctx.stroke();
+                    const baseColor = isHovered ? '241, 196, 15' : '46, 204, 113';
+                    const alphaFill = isHovered ? 0.9 : 0.6;
+                    
+                    ctx.beginPath(); ctx.ellipse(slot.x, slot.y + depth, rx, ry, 0, 0, Math.PI); ctx.strokeStyle = `rgba(${baseColor}, 0.8)`; ctx.lineWidth = 2; ctx.stroke();
                     ctx.beginPath(); ctx.moveTo(slot.x - rx, slot.y); ctx.lineTo(slot.x - rx, slot.y + depth); ctx.moveTo(slot.x + rx, slot.y); ctx.lineTo(slot.x + rx, slot.y + depth); ctx.stroke();
-                    ctx.beginPath(); ctx.ellipse(slot.x, slot.y, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(46, 204, 113, 0.2)'; ctx.fill(); ctx.strokeStyle = 'rgba(46, 204, 113, 0.8)'; ctx.stroke();
-                    ctx.save(); ctx.globalAlpha = 0.9; ctx.fillStyle = "#2c3e50"; ctx.font = "24px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🔨", slot.x, slot.y); ctx.restore();
+                    ctx.beginPath(); ctx.ellipse(slot.x, slot.y, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = `rgba(${baseColor}, ${alphaFill})`; ctx.fill(); ctx.strokeStyle = `rgba(${baseColor}, 1.0)`; ctx.stroke();
+                    ctx.save(); ctx.fillStyle = "#2c3e50"; ctx.font = "24px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🔨", slot.x, slot.y); ctx.restore();
                 }
             });
 
@@ -1050,7 +1070,13 @@
 
                 if (p.type === 'plant_trap') {
                     state.enemies.forEach(e => { if (Math.hypot((e.x+e.offsetX) - p.x, (e.y+e.offsetY) - p.y) <= p.radius) e.takeDamage(p.dps * dt, p.elementType); });
-                    ctx.save(); ctx.globalAlpha = Math.min(1, p.life * 2); ctx.fillStyle = "rgba(46, 204, 113, 0.4)"; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fill(); ctx.font = "24px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🏆", p.x, p.y); ctx.restore();
+                    if (plantTrapImg.complete && plantTrapImg.naturalHeight !== 0) {
+                        const elapsed = p.maxLife - p.life; const frameIndex = Math.floor((elapsed % 1.0) * 7);
+                        const fw = plantTrapImg.width / 7; const fh = plantTrapImg.height / 4; const size = p.radius * 4;
+                        ctx.save(); ctx.globalAlpha = Math.min(1, p.life * 2);
+                        ctx.drawImage(plantTrapImg, frameIndex * fw, fh, fw, fh, p.x - size / 2, p.y - size / 2, size, size);
+                        ctx.restore();
+                    }
                     if (p.life <= 0) state.projectiles.splice(i, 1); continue;
                 }
 
@@ -1129,6 +1155,18 @@
             const dt = (timestamp - state.lastTime) / 1000; state.lastTime = timestamp;
             if (state.bgImage.complete && state.bgImage.naturalHeight !== 0) ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height); else ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Vykreslení statických objektů mapy pod cestou a věžemi
+            if (state.objects && state.objects.length > 0) {
+                state.objects.forEach(obj => {
+                    let img = loadedImages[obj.src];
+                    if (!img) {
+                        img = new Image(); img.src = obj.src; loadedImages[obj.src] = img;
+                    } else if (img.complete && img.naturalHeight !== 0) {
+                        ctx.drawImage(img, obj.x - img.width / 2, obj.y - img.height / 2);
+                    }
+                });
+            }
+
             if (state.wavesActive) {
                 state.gameTime += dt;
                 if (state.currentWaveIndex < state.levelWaves.length) {
@@ -1165,7 +1203,10 @@
                 else if (status === 'dead') {
                     updateGold(enemy.goldReward); state.enemiesKilled++; enemy.fadeTimer = 2.0; enemy.animTime = 0;
                     state.deadEnemies.push(enemy); state.enemies.splice(i, 1); 
-                    if (state.enemiesKilled === state.totalLevelEnemies) { endGame(true); return; } 
+                    if (state.enemiesKilled === state.totalLevelEnemies && !state.winSequenceStarted) { 
+                        state.winSequenceStarted = true; gameMusic.pause(); soundFanfare.play().catch(e => console.warn(e));
+                        state.winTimeoutId = setTimeout(() => { if (!state.gameOver) endGame(true); }, 3000);
+                    } 
                 } else enemy.draw(ctx);
             }
 
