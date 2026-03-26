@@ -5,105 +5,96 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Herní Rozcestník</title>
   <style>
-  
-  @font-face {
-	  font-family: 'IgnisEtGlaciesSharp';
-	  src: url('Ignis et Glacies Sharp.ttf') format('truetype');
-	  font-display: swap;
-	}
-
-  
     body {
       margin: 0;
       padding: 0;
-      background: #fff;
-      height: 100vh;
+      background: #1e272e; /* Čisté tmavé pozadí */
+      min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      overflow: hidden;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #ecf0f1;
     }
 
-	.circle {
-	  position: absolute;
-	  width: 600px;
-	  height: 600px;
-	  z-index: 0;
-
-	}
-
-	.circle::before {
-	  content: '';
-	  position: absolute;
-	  inset: 0;
-	  background: url('TechCircle.png') center/contain no-repeat;
-	  animation: rotate-circle 120s linear infinite;
-	  transform-origin: center center;
-	}
-		.circle.paused::before {
-  animation-play-state: paused;
-}
-
-    .game-button {
-      position: absolute;
-      width: 260px;
-      height: 260px;
-      border-radius: 50%;
-      display: flex;
+    .games-grid {
+      display: grid;
+      /* Responzivní mřížka: automaticky zalamuje sloupce podle šířky obrazovky */
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 40px;
+      max-width: 1000px;
+      padding: 40px;
+      width: 100%;
       justify-content: center;
+    }
+
+    .game-card {
+      display: flex;
+      flex-direction: column;
       align-items: center;
       cursor: pointer;
-      transition: transform 0.6s ease, box-shadow 0.3s ease;
-      background: none;
+      /* Plynulý zdvih celé karty při hoveru */
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .game-cover-wrapper {
+      width: 200px;
+      height: 200px;
+      border-radius: 24px;
+      background: #2c3e50;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.4);
       overflow: hidden;
+      border: 4px solid transparent;
+      transition: box-shadow 0.3s ease, border 0.3s ease;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
     }
 
-	.game-icon {
-	  position: absolute;
-	  width: 70%;
-	  height: 70%;
-	  object-fit: contain;
-	  border-radius: 50%;
-	  z-index: 1;
-	  transform: rotate(0deg); /* důležité */
-	  will-change: transform;
-	}
-
-	.gamecircle {
-	  position: absolute;
-	  width: 100%;
-	  height: 100%;
-	  background: url('TechCircle.png') center/cover no-repeat;
-	  z-index: 2;
-	  pointer-events: none;
-	  animation: slow-spin 30s linear infinite;
-	  transform-origin: center;
-	}
-	.gamecircle.paused {
-  animation-play-state: paused;
-}
-
-
-    .game-button:hover {
-      transform: scale(1.3);
-      z-index: 100;
-
+    .game-cover {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.4s ease;
     }
 
-	.game-button.clicked .gamecircle {
-	  animation: fast-spin 1.5s linear forwards;
-	}
+    /* Hover efekty */
+    .game-card:hover {
+      transform: translateY(-12px);
+    }
 
+    .game-card:hover .game-cover-wrapper {
+      box-shadow: 0 15px 35px rgba(241, 196, 15, 0.5);
+      border-color: #f1c40f;
+    }
 
-    .game-button.clicked .game-icon {
-      animation: glow-out 1.5s ease forwards;
+    .game-card:hover .game-cover {
+      transform: scale(1.1); /* Zoom obrázku uvnitř ořezu */
+    }
+
+    .game-title {
+      margin-top: 16px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      transition: color 0.3s ease;
+      text-align: center;
+    }
+
+    .game-card:hover .game-title {
+      color: #f1c40f;
+    }
+
+    /* Efekt po kliknutí */
+    .game-card.clicked .game-cover-wrapper {
+      animation: pulse-glow 1.5s ease forwards;
     }
 
     .whiteout {
       position: fixed;
-      top: 0; left: 0;
-      width: 100vw;
-      height: 100vh;
+      inset: 0;
       background: white;
       opacity: 0;
       pointer-events: none;
@@ -115,87 +106,18 @@
       opacity: 1;
     }
 
-    @keyframes slow-spin {
-      to { transform: rotate(360deg); }
+    @keyframes pulse-glow {
+      0% { filter: brightness(1); transform: scale(1); }
+      50% { filter: brightness(1.5) drop-shadow(0 0 20px white); transform: scale(1.05); }
+      100% { filter: brightness(3) drop-shadow(0 0 50px white); transform: scale(1.05); }
     }
-
-    @keyframes fast-spin {
-      to { transform: rotate(720deg); }
-    }
-
-    @keyframes glow-out {
-      50% {
-        filter: brightness(2) drop-shadow(0 0 20px white);
-      }
-      100% {
-        filter: brightness(3) drop-shadow(0 0 40px white);
-      }
-    }
-	
-	@keyframes rotate-counterclockwise {
-	  from { transform: rotate(0deg); }
-	  to { transform: rotate(-360deg); }
-	}
-	
-	@keyframes rotate-circle {
-	  from {
-		transform: rotate(0deg);
-	  }
-	  to {
-		transform: rotate(-360deg);
-	  }
-	}
-	
-	
-	.circle.hover-boost::before {
-	  animation: rotate-circle-fast 10s linear infinite !important;
-	}
-	@keyframes rotate-circle-fast {
-	  to { transform: rotate(-360deg); }
-	}
-
-	.gamecircle.fast {
-	  animation: slow-spin 5s linear infinite !important;
-	}
-
-
-.game-title {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: #ffcc00;
-  pointer-events: none;
-  z-index: 10;
-  display: inline-block;
-  white-space: nowrap;
-}
-
-.game-title span {
-  display: inline-block;
-  position: relative;
-  color: #ffcc00;
-  font-family: 'IgnisEtGlaciesSharp', sans-serif;
-  font-size: 28px; /* zvětšení základní velikosti */
-  text-shadow:
-    -1px -1px 0 #000,
-     1px -1px 0 #000,
-    -1px  1px 0 #000,
-     1px  1px 0 #000,
-     0 0 6px #ff6600,
-     0 0 12px #ff3300,
-     0 0 20px rgba(255, 80, 0, 0.7);
-  transition: text-shadow 0.2s;
-  letter-spacing: 2px;
-}
-
-
   </style>
 </head>
 <body>
-  <div class="circle" id="circle"></div>
-  <div id="game-title" class="game-title"></div>
+
+  <div class="games-grid" id="games-grid"></div>
   <div class="whiteout" id="whiteout"></div>
+  
   <audio id="bg-music" src="index-tech-background.mp3" loop></audio>
   <audio id="poweron-sound" src="index-tech-poweron.mp3"></audio>
   <audio id="hover-hum" src="index-tech-hum.mp3" loop></audio>
@@ -205,160 +127,87 @@
       { name: 'ABECEDA', file: 'ABC.html', image: 'ABC.webp' },
       { name: 'HADI', file: 'Snakes.html', image: 'Snakes.webp' },
       { name: 'BLUDIŠTĚ', file: 'Maze.html', image: 'Maze.webp' },
-	  { name: 'HODINY', file: 'Clock.html', image: 'Clock.webp' },
-	  { name: 'MAKROFÁG', file: 'Macrophage.html', image: 'Macrophage.jpg' },
-	  { name: 'OBCHOD', file: 'Money.html', image: 'Money.jpg' },
-    { name: 'ENGLISH', file: 'ENGLISH.html', image: 'English.jpg' }
+      { name: 'HODINY', file: 'Clock.html', image: 'Clock.webp' },
+      { name: 'MAKROFÁG', file: 'Macrophage.html', image: 'Macrophage.jpg' },
+      { name: 'OBCHOD', file: 'Money.html', image: 'Money.jpg' },
+      { name: 'ENGLISH', file: 'ENGLISH.html', image: 'English.jpg' },
+      // Nově přidaný Pokémon
+      { name: 'POKÉMON', file: 'Pokemon.html', image: 'Pokemon.jpg' } 
     ];
 
-    const circle = document.getElementById('circle');
+    const grid = document.getElementById('games-grid');
     const whiteout = document.getElementById('whiteout');
     const bgMusic = document.getElementById('bg-music');
     const powerSound = document.getElementById('poweron-sound');
+    const humSound = document.getElementById('hover-hum');
+    humSound.volume = 0.3;
 
-    const radius = 230, centerX = 300, centerY = 280, speed = 0.001;
-    const buttons = [];
-    const frag = document.createDocumentFragment();
+    // Generování HTML pro každou hru
+    games.forEach(game => {
+      const card = document.createElement('div');
+      card.className = 'game-card';
+      
+      // Implementován fallback (onerror) v případě, že chybí obrázek (např. u Pokémona)
+      card.innerHTML = `
+        <div class="game-cover-wrapper">
+          <img src="${game.image}" alt="${game.name}" class="game-cover" 
+               onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'200\\'><rect width=\\'200\\' height=\\'200\\' fill=\\'%2334495e\\'/><text x=\\'50%\\' y=\\'50%\\' fill=\\'%23ecf0f1\\' font-family=\\'sans-serif\\' font-size=\\'24\\' text-anchor=\\'middle\\' dy=\\'.3em\\'>?</text></svg>'">
+        </div>
+        <div class="game-title">${game.name}</div>
+      `;
 
-    games.forEach((game, i) => {
-	  circle.classList.add('paused');
-	  const angle = (2 * Math.PI / games.length) * i;
-	  const btn = document.createElement('div');
-	  btn.className = 'game-button';
-
-	  // HTML obsahu
-	  btn.innerHTML = `
-		<img src="${game.image}" alt="${game.name}" class="game-icon">
-		<div class="gamecircle"></div>
-	  `;
-
-	  // Výpočet pozice
-	  const x = centerX + radius * Math.cos(angle) - 130;
-	  const y = centerY + radius * Math.sin(angle) - 130;
-	  btn.style.left = `${x}px`;
-	  btn.style.top = `${y}px`;
-
-	btn.innerHTML = `
-	  <img src="${game.image}" alt="${game.name}" class="game-icon">
-	  <div class="gamecircle"></div>
-	`;
-
-
-      btn.addEventListener('click', () => {
-        if (btn.classList.contains('clicked')) return;
+      card.addEventListener('click', () => {
+        if (card.classList.contains('clicked')) return;
 
         powerSound.currentTime = 0;
         powerSound.play().catch(() => {});
         bgMusic.pause();
 
-        btn.classList.add('clicked');
-        circle.classList.add('clicked');
+        card.classList.add('clicked');
 
         setTimeout(() => whiteout.classList.add('visible'), 500);
         setTimeout(() => window.location.href = game.file, 1500);
       });
 
-const humSound = document.getElementById('hover-hum'); humSound.volume = 0.3;
+      card.addEventListener('mouseenter', () => {
+        humSound.currentTime = 0;
+        humSound.play().catch(() => {});
+      });
 
-btn.addEventListener('mouseenter', () => {
-  showGameTitle(game.name);
+      card.addEventListener('mouseleave', () => {
+        humSound.pause();
+        humSound.currentTime = 0;
+      });
 
-  humSound.currentTime = 0;
-  humSound.play().catch(() => {});
-
-  circle.classList.remove('paused');
-  gameCircle.classList.remove('paused');
-});
-
-
-btn.addEventListener('mouseleave', () => {
-  clearGameTitle();
-  humSound.pause();
-  humSound.currentTime = 0;
-
-  circle.classList.add('paused');
-  gameCircle.classList.add('paused');
-});
-
-const gameCircle = btn.querySelector('.gamecircle');
-gameCircle.classList.add('paused');
-
-      frag.appendChild(btn);
-      buttons.push(btn);
+      grid.appendChild(card);
     });
 
-    circle.appendChild(frag);
-	
-	const gameTitle = document.getElementById('game-title');
+    // Inicializace audia při první interakci uživatele
+    function StartAction() {
+      const startMusic = () => {
+        bgMusic.volume = 0.5;
+        bgMusic.play().catch(() => {});
+        
+        // Přehrání a okamžitá pauza humSound odblokuje audio kontext prohlížeče
+        humSound.play().then(() => {
+          humSound.pause();
+          humSound.currentTime = 0;
+        }).catch(() => {});
 
-function showGameTitle(text) {
-  gameTitle.innerHTML = ''; // vymazat předchozí text
+        window.removeEventListener('mousemove', startMusic);
+      };
 
-  text.split('').forEach(char => {
-    const span = document.createElement('span');
-    span.textContent = char;
-	span.style.fontFamily = 'IgnisEtGlaciesSharp, sans-serif';
-    span.style.top = `${Math.floor(Math.random() * 6 - 3)}px`;
-    span.style.left = `${Math.floor(Math.random() * 6 - 3)}px`;
-    gameTitle.appendChild(span);
-  });
-}
-
-function clearGameTitle() {
-  gameTitle.innerHTML = '';
-}
-
-
-function StartAction() {
-  const bgMusic = document.getElementById('bg-music');
-  const humSound = document.getElementById('hover-hum');
-
-  const startMusic = () => {
-    bgMusic.volume = 0.5;
-    bgMusic.play().catch(() => {});
+      window.addEventListener('mousemove', startMusic);
+    }
     
-    // připrav hover-hum na přehrávání
-    humSound.play().then(() => {
-      humSound.pause();
-      humSound.currentTime = 0;
-    }).catch(() => {});
+    StartAction();
 
-    window.removeEventListener('mousemove', startMusic);
-  };
-
-  window.addEventListener('mousemove', startMusic);
-}
-
-
-setInterval(() => {
-  document.querySelectorAll('.game-title span').forEach(span => {
-    const dx = Math.floor(Math.random() * 2 - 2);
-    const dy = Math.floor(Math.random() * 2 - 2);
-    const scale = 1 + (Math.random() - 0.2) * 0.02;
-    const blur = 6 + Math.random() * 2;
-
-    span.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
-	span.style.textShadow = `
-	  -1px -1px 0 #000,
-	   1px -1px 0 #000,
-	  -1px  1px 0 #000,
-	   1px  1px 0 #000,
-	   0 0 ${blur}px #ff6600,
-	   0 0 ${blur + 10}px #ff3300,
-	   0 0 ${blur + 20}px rgba(255, 100, 0, 0.5)
-	`;
-
-  });
-}, 80);
-
-window.addEventListener('pageshow', (event) => {
-  if (event.persisted) {
-    location.reload();
-  }
-});
-
-
-
+    // Reset při návratu zpět na stránku pomocí tlačítka "Zpět" v prohlížeči
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        location.reload();
+      }
+    });
   </script>
 </body>
 </html>
