@@ -182,7 +182,7 @@
                 ]
             },
             {
-                id: 2, background: 'Pokemon/Backgrounds/sand.jpg', startingGold: 350,
+                id: 2, background: 'Pokemon/Backgrounds/ice.jpg', startingGold: 350,
                 path: [{ x: 180, y: 10 }, { x: 180, y: 100 }, { x: 290, y: 180 }, { x: 440, y: 210 }, { x: 610, y: 220 }, { x: 670, y: 310 }, { x: 640, y: 400 }, { x: 500, y: 400 }, { x: 340, y: 400 }, { x: 170, y: 430 }, { x: 130, y: 530 }, { x: 210, y: 600 }, { x: 410, y: 610 }, { x: 590, y: 640 }, { x: 630, y: 720 }, { x: 650, y: 790 }],
                 slots: [{ x: 370, y: 110 }, { x: 540, y: 310 }, { x: 260, y: 510 }, { x: 540, y: 540 }, { x: 350, y: 690 }, { x: 190, y: 330 }],
                 waves: [
@@ -325,6 +325,8 @@
 
         const piedestalImg = new Image();
         piedestalImg.src = 'Pokemon/Assets/Piedestal.png';
+        const pathTextureImg = new Image();
+        pathTextureImg.src = 'Pokemon/Backgrounds/cobblestone.jpg';
 
         const towerMenu = document.getElementById('tower-menu');
         const upgradeMenu = document.getElementById('upgrade-menu');
@@ -624,16 +626,50 @@
             pctx.lineJoin = 'round'; 
             pctx.lineCap = 'round';
             
-            for (let w = 100; w >= 70; w -= 6) {
-                pctx.lineWidth = w; 
-                pctx.strokeStyle = `rgba(127, 140, 141, 0.32)`;
+            const renderPathCanvas = () => {
+                pctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // 1. Tělo cesty z textury (šířka 100px)
+                if (pathTextureImg.complete && pathTextureImg.naturalHeight !== 0) {
+                    pctx.strokeStyle = pctx.createPattern(pathTextureImg, 'repeat');
+                } else {
+                    pctx.strokeStyle = '#7f8c8d'; // Fallback barva
+                }
+                pctx.globalAlpha = 0.5;
+                pctx.lineWidth = 100;
                 pctx.beginPath(); 
                 pctx.moveTo(state.path[0].x, state.path[0].y);
                 for (let i = 1; i < state.path.length; i++) pctx.lineTo(state.path[i].x, state.path[i].y);
                 pctx.stroke();
-            }
+                pctx.globalAlpha = 1.0;
 
-            pctx.lineWidth = 2; 
+                // 2. Tmavý, zubatý okraj cesty
+                pctx.lineWidth = 2; 
+                pctx.strokeStyle = 'rgba(0, 0, 0, 0.6)'; 
+                [-50, 50].forEach(side => { // Offset 50 přesně lícují s okrajem 100px cesty
+                    pctx.beginPath();
+                    const a0 = Math.atan2(state.path[1].y - state.path[0].y, state.path[1].x - state.path[0].x) + Math.PI/2;
+                    pctx.moveTo(state.path[0].x + Math.cos(a0) * side, state.path[0].y + Math.sin(a0) * side);
+                    for (let i = 1; i < state.path.length; i++) {
+                        const p1 = state.path[i-1], p2 = state.path[i];
+                        const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                        const steps = Math.max(1, Math.floor(dist / 6));
+                        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) + Math.PI/2;
+                        for(let k = 1; k <= steps; k++) {
+                            const t = k / steps;
+                            const cx = p1.x + (p2.x - p1.x) * t;
+                            const cy = p1.y + (p2.y - p1.y) * t;
+                            const noise = (Math.random() - 0.5) * 7;
+                            pctx.lineTo(cx + Math.cos(angle) * (side + noise), cy + Math.sin(angle) * (side + noise));
+                        }
+                    }
+                    pctx.stroke();
+                });
+            };
+
+            // Spuštění renderu (ihned nebo po načtení textury z disku)
+            if (pathTextureImg.complete) renderPathCanvas();
+            else pathTextureImg.onload = renderPathCanvas;
             pctx.strokeStyle = 'rgba(100, 110, 110, 0.4)';
             [-46, 46].forEach(side => {
                 pctx.beginPath();
@@ -1285,7 +1321,12 @@
                 else if (p.type === 'water_cutter') { ctx.strokeStyle = '#00a8ff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(p.x2, p.y2); ctx.stroke(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(); } 
                 else if (p.type === 'water_pulse') { ctx.fillStyle = '#2980b9'; ctx.beginPath(); ctx.ellipse(bx, by, 12, 4, Math.atan2(p.y2-p.y1, p.x2-p.x1), 0, Math.PI*2); ctx.fill(); } 
                 else if (p.type === 'water_paralyzer') { ctx.fillStyle = '#00ffff'; ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(); }
-                else if (p.type === 'ember') { ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(bx, by, 5, 0, Math.PI*2); ctx.fill(); } 
+                else if (p.type === 'ember') { 
+                    ctx.save(); ctx.translate(bx, by); ctx.rotate(Math.atan2(p.y2 - p.y1, p.x2 - p.x1)); ctx.globalCompositeOperation = 'screen';
+                    const g = ctx.createRadialGradient(0,0,0,0,0,24);
+                    g.addColorStop(0,'#fff'); g.addColorStop(0.2,'#fc0'); g.addColorStop(0.6,'rgba(231,76,60,0.6)'); g.addColorStop(1,'rgba(231,76,60,0)');
+                    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(16,0); ctx.quadraticCurveTo(0,16,-40,0); ctx.quadraticCurveTo(0,-16,16,0); ctx.fill(); ctx.restore(); 
+                }
                 else if (p.type === 'flamethrower') {
                     const d = Math.hypot(p.x2 - sx, p.y2 - sy) * progress, a = Math.atan2(p.y2 - sy, p.x2 - sx), w = 2 + d * 0.08;
                     ctx.save(); ctx.translate(sx, sy); ctx.rotate(a); ctx.globalCompositeOperation = 'screen'; const g = ctx.createLinearGradient(0, 0, d, 0);
