@@ -7,18 +7,32 @@
     <style>
         :root { --bg-dark: #2c3e50; --panel-bg: #34495e; --text-light: #ecf0f1; --accent: #e74c3c; }
         body { background-color: var(--bg-dark); color: var(--text-light); font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: flex-start; padding: 20px; gap: 20px; margin: 0; }
-        .canvas-container { border: 4px solid var(--panel-bg); border-radius: 8px; background: #000; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .canvas-container { border: 4px solid var(--panel-bg); border-radius: 8px; background: #000; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5); flex-shrink: 0; }
         canvas { display: block; cursor: crosshair; }
-        .controls { display: flex; flex-direction: column; gap: 12px; width: 380px; background: var(--panel-bg); padding: 20px; border-radius: 8px; }
+        
+        /* Upravené controls pro scrollování a flexibilitu */
+        .controls { display: flex; flex-direction: column; gap: 12px; width: 420px; background: var(--panel-bg); padding: 20px; border-radius: 8px; max-height: calc(100vh - 40px); overflow-y: auto; box-sizing: border-box; }
+        
         h2 { margin: 0 0 10px 0; font-size: 1.5rem; }
+        h3 { margin: 10px 0 5px 0; font-size: 1.1rem; border-bottom: 1px solid #7f8c8d; padding-bottom: 5px; }
+        
         .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
         button { background: #7f8c8d; color: white; border: none; padding: 10px 15px; font-size: 0.9rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; flex: 1; }
         button:hover { filter: brightness(1.1); }
         button.active-path { background: var(--accent); }
         button.active-slot { background: #2ecc71; }
         button.active-obj { background: #9b59b6; }
+        button.btn-add { background: #2980b9; }
+        
         .input-group { display: flex; flex-direction: column; gap: 5px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px; }
-        textarea { width: 100%; height: 200px; background: #1a252f; color: #2ecc71; border: 1px solid #7f8c8d; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 12px; box-sizing: border-box; resize: none; }
+        .flex-row { display: flex; gap: 10px; align-items: center; }
+        .flex-row > div { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        
+        label { font-size: 0.8rem; font-weight: bold; color: #bdc3c7; }
+        input, select { padding: 6px; border-radius: 4px; border: 1px solid #7f8c8d; background: #2c3e50; color: white; font-family: inherit; }
+        
+        textarea { width: 100%; height: 250px; background: #1a252f; color: #2ecc71; border: 1px solid #7f8c8d; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 12px; box-sizing: border-box; resize: vertical; white-space: pre; }
+        
         .warning { color: #f1c40f; font-size: 0.8rem; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; border-left: 3px solid #f1c40f; }
         .bg-picker { display: flex; gap: 5px; margin-top: 5px; }
         .bg-btn { font-size: 0.75rem; background: #2c3e50; }
@@ -28,6 +42,11 @@
         .palette img:hover { background: rgba(255,255,255,0.2); transform: scale(1.05); }
         .palette img.selected { border-color: var(--accent); background: rgba(231, 76, 60, 0.2); }
         .palette-empty { color: #7f8c8d; font-size: 0.8rem; font-style: italic; width: 100%; text-align: center; padding: 20px 0; }
+
+        .wave-item { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; border-left: 4px solid #e67e22; position: relative; margin-bottom: 8px; }
+        .wave-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px; }
+        .wave-grid-full { grid-column: span 2; display: flex; gap: 8px; }
+        .btn-remove-wave { position: absolute; top: 5px; right: 5px; background: #c0392b; padding: 2px 6px; font-size: 0.8rem; flex: none; width: auto; }
     </style>
 </head>
 <body>
@@ -39,6 +58,17 @@
     <div class="controls">
         <h2>Editor Mapy 4.0</h2>
         
+        <div class="flex-row">
+            <div>
+                <label>ID Levelu</label>
+                <input type="number" id="level-id" value="3" min="1" onchange="updateMeta()">
+            </div>
+            <div>
+                <label>Zlaťáky do startu</label>
+                <input type="number" id="starting-gold" value="1400" step="50" onchange="updateMeta()">
+            </div>
+        </div>
+
         <div class="btn-group">
             <button id="btn-path" class="active-path" onclick="setMode('path')">✏️ Cesta</button>
             <button id="btn-slot" onclick="setMode('slot')">⭕ Věže</button>
@@ -61,14 +91,14 @@
             </div>
         </div>
 
-        <div class="warning">
-            ⚠️ <strong>Ochranný pruh (80px):</strong> Sloty pro věže nelze umístit do červené zóny, aby menu ve hře nevyčnívalo z mapy.
-        </div>
+        <h3>Vlny nepřátel</h3>
+        <div id="waves-container"></div>
+        <button class="btn-add" onclick="addWave()">➕ Přidat vlnu</button>
 
-        <hr style="width: 100%; border: 0; border-top: 1px solid #7f8c8d;">
+        <hr style="width: 100%; border: 0; border-top: 1px solid #7f8c8d; margin-top: 10px;">
         
         <div class="btn-group">
-            <button onclick="undo()">↩️ Krok zpět</button>
+            <button onclick="undo()">↩️ Zpět</button>
             <button onclick="clearAll()" style="background: #c0392b;">🗑️ Smazat</button>
         </div>
         
@@ -80,9 +110,20 @@
         const canvas = document.getElementById('editor');
         const ctx = canvas.getContext('2d');
         const output = document.getElementById('output');
+        const wavesContainer = document.getElementById('waves-container');
         
         let mode = 'path'; 
-        let data = { path: [], slots: [], objects: [] };
+        let data = { 
+            id: 3, 
+            background: 'Pokemon/Backgrounds/grass.png', 
+            startingGold: 1400, 
+            path: [], 
+            slots: [], 
+            objects: [],
+            waves: [
+                { enemyType: 'slime', enemyLevel: 1, count: 10, interval: 1.0, delay: 0 }
+            ] 
+        };
         let history = []; 
         let draggingPoint = null;
         let isDragging = false;
@@ -97,9 +138,76 @@
         const MARGIN = 80;
         const HITBOX = 25;
 
+        // Metainfo update
+        function updateMeta() {
+            data.id = parseInt(document.getElementById('level-id').value) || 1;
+            data.startingGold = parseInt(document.getElementById('starting-gold').value) || 500;
+            updateOutput();
+        }
+
+        // Waves logic
+        function renderWaves() {
+            wavesContainer.innerHTML = '';
+            data.waves.forEach((wave, index) => {
+                const item = document.createElement('div');
+                item.className = 'wave-item';
+                item.innerHTML = `
+                    <button class="btn-remove-wave" onclick="removeWave(${index})">X</button>
+                    <strong>Vlna ${index + 1}</strong>
+                    <div class="wave-grid">
+                        <div>
+                            <label>Typ nepřítele</label>
+                            <select onchange="updateWave(${index}, 'enemyType', this.value)">
+                                <option value="slime" ${wave.enemyType === 'slime' ? 'selected' : ''}>Slime</option>
+                                <option value="orc" ${wave.enemyType === 'orc' ? 'selected' : ''}>Orc</option>
+                                <option value="vampire" ${wave.enemyType === 'vampire' ? 'selected' : ''}>Vampire</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Level (1-3)</label>
+                            <input type="number" min="1" max="3" value="${wave.enemyLevel}" onchange="updateWave(${index}, 'enemyLevel', parseInt(this.value))">
+                        </div>
+                        <div>
+                            <label>Počet</label>
+                            <input type="number" min="1" value="${wave.count}" onchange="updateWave(${index}, 'count', parseInt(this.value))">
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <div style="flex:1">
+                                <label>Interval (s)</label>
+                                <input type="number" min="0.1" step="0.1" value="${wave.interval}" onchange="updateWave(${index}, 'interval', parseFloat(this.value))" style="width:100%">
+                            </div>
+                            <div style="flex:1">
+                                <label>Zpoždění (s)</label>
+                                <input type="number" min="0" step="0.5" value="${wave.delay}" onchange="updateWave(${index}, 'delay', parseFloat(this.value))" style="width:100%">
+                            </div>
+                        </div>
+                    </div>
+                `;
+                wavesContainer.appendChild(item);
+            });
+            updateOutput();
+        }
+
+        function addWave() {
+            data.waves.push({ enemyType: 'slime', enemyLevel: 1, count: 10, interval: 1.0, delay: 5 });
+            renderWaves();
+        }
+
+        function removeWave(index) {
+            data.waves.splice(index, 1);
+            renderWaves();
+        }
+
+        function updateWave(index, field, value) {
+            data.waves[index][field] = value;
+            updateOutput();
+        }
+
         function setBG(url) { 
+            data.background = url;
             bgImg.src = url; 
             bgImg.onload = draw; 
+            updateOutput();
         }
 
         function handleFolderSelect(event) {
@@ -110,7 +218,6 @@
             let firstSrc = null;
             let firstImgElement = null;
 
-            // Seřazení souborů abecedně
             const sortedFiles = Array.from(files).sort((a, b) => a.name.localeCompare(b.name));
 
             for (let file of sortedFiles) {
@@ -127,36 +234,25 @@
                     
                     palette.appendChild(img);
 
-                    if (!firstSrc) {
-                        firstSrc = exportPath;
-                        firstImgElement = img;
-                    }
+                    if (!firstSrc) { firstSrc = exportPath; firstImgElement = img; }
                 }
             }
             
-            if (firstSrc) {
-                selectObjectFromPalette(firstImgElement, firstSrc);
-            } else {
-                palette.innerHTML = '<div class="palette-empty">Žádné obrázky nenalezeny</div>';
-                selectedObjectSrc = null;
-            }
+            if (firstSrc) selectObjectFromPalette(firstImgElement, firstSrc);
+            else { palette.innerHTML = '<div class="palette-empty">Žádné obrázky nenalezeny</div>'; selectedObjectSrc = null; }
         }
 
         function selectObjectFromPalette(imgElement, src) {
             document.querySelectorAll('#obj-palette img').forEach(i => i.classList.remove('selected'));
             if (imgElement) imgElement.classList.add('selected');
-            selectedObjectSrc = src;
-            preloadObject(src);
-            draw();
+            selectedObjectSrc = src; preloadObject(src); draw();
         }
 
         function preloadObject(src) {
             if (!src) return;
             if (!loadedObjectImages[src]) {
-                const img = new Image();
-                img.src = localBlobUrls[src] || src;
-                img.onload = draw;
-                img.onerror = () => console.warn("Nepodařilo se načíst obrázek: " + src);
+                const img = new Image(); img.src = localBlobUrls[src] || src;
+                img.onload = draw; img.onerror = () => console.warn("Nepodařilo se načíst obrázek: " + src);
                 loadedObjectImages[src] = img;
             }
         }
@@ -171,8 +267,7 @@
                     nextPath.push({ x: 0.75 * p0.x + 0.25 * p1.x, y: 0.75 * p0.y + 0.25 * p1.y });
                     nextPath.push({ x: 0.25 * p0.x + 0.75 * p1.x, y: 0.25 * p0.y + 0.75 * p1.y });
                 }
-                nextPath.push(result[result.length - 1]);
-                result = nextPath;
+                nextPath.push(result[result.length - 1]); result = nextPath;
             }
             return result;
         }
@@ -183,75 +278,52 @@
             document.getElementById('btn-slot').className = mode === 'slot' ? 'active-slot' : '';
             document.getElementById('btn-obj').className = mode === 'object' ? 'active-obj' : '';
             document.getElementById('obj-settings').style.display = mode === 'object' ? 'flex' : 'none';
-            ghostX = null; ghostY = null;
-            draw();
+            ghostX = null; ghostY = null; draw();
         }
 
         canvas.addEventListener('mousedown', (e) => {
             const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top;
 
             history.push(JSON.parse(JSON.stringify(data)));
 
             for (let i = data.objects.length - 1; i >= 0; i--) {
-                if (Math.hypot(data.objects[i].x - mouseX, data.objects[i].y - mouseY) <= HITBOX) {
-                    draggingPoint = { type: 'object', index: i }; isDragging = true; return;
-                }
+                if (Math.hypot(data.objects[i].x - mouseX, data.objects[i].y - mouseY) <= HITBOX) { draggingPoint = { type: 'object', index: i }; isDragging = true; return; }
             }
             for (let i = data.slots.length - 1; i >= 0; i--) {
-                if (Math.hypot(data.slots[i].x - mouseX, data.slots[i].y - mouseY) <= HITBOX) {
-                    draggingPoint = { type: 'slot', index: i }; isDragging = true; return;
-                }
+                if (Math.hypot(data.slots[i].x - mouseX, data.slots[i].y - mouseY) <= HITBOX) { draggingPoint = { type: 'slot', index: i }; isDragging = true; return; }
             }
             for (let i = data.path.length - 1; i >= 0; i--) {
-                if (Math.hypot(data.path[i].x - mouseX, data.path[i].y - mouseY) <= 15) {
-                    draggingPoint = { type: 'path', index: i }; isDragging = true; return;
-                }
+                if (Math.hypot(data.path[i].x - mouseX, data.path[i].y - mouseY) <= 15) { draggingPoint = { type: 'path', index: i }; isDragging = true; return; }
             }
 
-            const x = Math.round(mouseX / SNAP) * SNAP;
-            const y = Math.round(mouseY / SNAP) * SNAP;
+            const x = Math.round(mouseX / SNAP) * SNAP; const y = Math.round(mouseY / SNAP) * SNAP;
 
             if (mode === 'slot') {
                 if (x < MARGIN || x > 800 - MARGIN || y < MARGIN || y > 800 - MARGIN) { alert("Mimo povolenou zónu!"); return; }
                 data.slots.push({ x, y });
-            } else if (mode === 'object') {
-                if(selectedObjectSrc) {
-                    data.objects.push({ x, y, src: selectedObjectSrc });
-                    preloadObject(selectedObjectSrc);
-                }
+            } else if (mode === 'object' && selectedObjectSrc) {
+                data.objects.push({ x, y, src: selectedObjectSrc }); preloadObject(selectedObjectSrc);
             } else if (mode === 'path') {
                 data.path.push({ x, y });
             }
-            
             draw(); updateOutput();
         });
 
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
-            let x = Math.round((e.clientX - rect.left) / SNAP) * SNAP;
-            let y = Math.round((e.clientY - rect.top) / SNAP) * SNAP;
+            let x = Math.round((e.clientX - rect.left) / SNAP) * SNAP; let y = Math.round((e.clientY - rect.top) / SNAP) * SNAP;
 
             if (isDragging && draggingPoint) {
                 if (draggingPoint.type === 'slot') {
-                    x = Math.max(MARGIN, Math.min(800 - MARGIN, x));
-                    y = Math.max(MARGIN, Math.min(800 - MARGIN, y));
+                    x = Math.max(MARGIN, Math.min(800 - MARGIN, x)); y = Math.max(MARGIN, Math.min(800 - MARGIN, y));
                     data.slots[draggingPoint.index] = { x, y };
                 } else if (draggingPoint.type === 'object') {
-                    data.objects[draggingPoint.index].x = x;
-                    data.objects[draggingPoint.index].y = y;
-                } else {
-                    data.path[draggingPoint.index] = { x, y };
-                }
-                ghostX = null; ghostY = null;
-                updateOutput();
+                    data.objects[draggingPoint.index].x = x; data.objects[draggingPoint.index].y = y;
+                } else { data.path[draggingPoint.index] = { x, y }; }
+                ghostX = null; ghostY = null; updateOutput();
             } else {
-                if (mode === 'object' && selectedObjectSrc) {
-                    ghostX = x; ghostY = y;
-                } else {
-                    ghostX = null; ghostY = null;
-                }
+                if (mode === 'object' && selectedObjectSrc) { ghostX = x; ghostY = y; } else { ghostX = null; ghostY = null; }
             }
             draw();
         });
@@ -263,35 +335,26 @@
             ctx.clearRect(0, 0, 800, 800);
             if (bgImg.complete) ctx.drawImage(bgImg, 0, 0, 800, 800);
 
-            // Objekty
             data.objects.forEach(obj => {
                 const img = loadedObjectImages[obj.src];
-                if (img && img.complete && img.naturalHeight !== 0) {
-                    ctx.drawImage(img, obj.x - img.width / 2, obj.y - img.height / 2);
-                } else {
-                    ctx.fillStyle = '#9b59b6'; ctx.beginPath(); ctx.arc(obj.x, obj.y, 10, 0, Math.PI*2); ctx.fill();
-                }
+                if (img && img.complete && img.naturalHeight !== 0) ctx.drawImage(img, obj.x - img.width / 2, obj.y - img.height / 2);
+                else { ctx.fillStyle = '#9b59b6'; ctx.beginPath(); ctx.arc(obj.x, obj.y, 10, 0, Math.PI*2); ctx.fill(); }
                 ctx.strokeStyle = 'rgba(155, 89, 182, 0.4)'; ctx.lineWidth = 1; ctx.strokeRect(obj.x - 5, obj.y - 5, 10, 10);
             });
 
-            // Ghost
             if (mode === 'object' && ghostX !== null && ghostY !== null && !isDragging && selectedObjectSrc) {
                 const img = loadedObjectImages[selectedObjectSrc];
                 if (img && img.complete && img.naturalHeight !== 0) {
-                    ctx.globalAlpha = 0.5;
-                    ctx.drawImage(img, ghostX - img.width / 2, ghostY - img.height / 2);
-                    ctx.globalAlpha = 1.0;
+                    ctx.globalAlpha = 0.5; ctx.drawImage(img, ghostX - img.width / 2, ghostY - img.height / 2); ctx.globalAlpha = 1.0;
                 }
             }
 
-            // Ochranný pruh
             ctx.strokeStyle = 'rgba(231, 76, 60, 0.5)'; ctx.setLineDash([5, 5]); ctx.lineWidth = 1;
             ctx.strokeRect(MARGIN, MARGIN, 800 - 2 * MARGIN, 800 - 2 * MARGIN); ctx.setLineDash([]);
             ctx.fillStyle = 'rgba(231, 76, 60, 0.05)';
             ctx.fillRect(0, 0, 800, MARGIN); ctx.fillRect(0, 800 - MARGIN, 800, MARGIN); 
             ctx.fillRect(0, MARGIN, MARGIN, 800 - 2 * MARGIN); ctx.fillRect(800 - MARGIN, MARGIN, MARGIN, 800 - 2 * MARGIN);
 
-            // Cesta
             if (data.path.length > 0) {
                 const smoothed = smoothPath(data.path, 2);
                 ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -305,7 +368,6 @@
                 data.path.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.fill(); });
             }
 
-            // Sloty
             data.slots.forEach(slot => {
                 ctx.beginPath(); ctx.arc(slot.x, slot.y, 25, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(46, 204, 113, 0.3)'; ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 2; ctx.fill(); ctx.stroke();
@@ -316,14 +378,26 @@
         function updateOutput() {
             const fmt = (arr) => '[' + arr.map(p => `{ x: ${p.x}, y: ${p.y} }`).join(', ') + ']';
             const fmtObj = (arr) => '[' + arr.map(p => `{ x: ${p.x}, y: ${p.y}, src: '${p.src}' }`).join(', ') + ']';
-            output.value = `path: ${fmt(data.path)},\nslots: ${fmt(data.slots)},\nobjects: ${fmtObj(data.objects)},`;
+            const fmtWaves = (arr) => '[\n' + arr.map(w => `                    { enemyType: '${w.enemyType}', enemyLevel: ${w.enemyLevel}, count: ${w.count}, interval: ${w.interval}, delay: ${w.delay} }`).join(',\n') + '\n                ]';
+            
+            output.value = `{
+                id: ${data.id}, background: '${data.background}', startingGold: ${data.startingGold},
+                    path: ${fmt(data.path)},
+                    slots: ${fmt(data.slots)},
+                    objects: ${fmtObj(data.objects)},
+                waves: ${fmtWaves(data.waves)}
+            },`;
         }
 
-        function undo() { if (history.length > 0) { data = history.pop(); draw(); updateOutput(); } }
-        function clearAll() { if(confirm("Smazat celou mapu?")) { history.push(JSON.parse(JSON.stringify(data))); data = { path: [], slots: [], objects: [] }; draw(); updateOutput(); } }
+        function undo() { if (history.length > 0) { data = history.pop(); renderWaves(); draw(); updateOutput(); } }
+        function clearAll() { if(confirm("Smazat celou mapu?")) { history.push(JSON.parse(JSON.stringify(data))); data.path = []; data.slots = []; data.objects = []; data.waves = []; renderWaves(); draw(); updateOutput(); } }
         function copyCode() { output.select(); document.execCommand('copy'); alert('Kód zkopírován!'); }
         
-        setBG('Pokemon/Backgrounds/grass.png');
+        // Init
+        document.getElementById('level-id').value = data.id;
+        document.getElementById('starting-gold').value = data.startingGold;
+        setBG(data.background);
+        renderWaves();
     </script>
 </body>
 </html>

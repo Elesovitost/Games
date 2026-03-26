@@ -164,16 +164,18 @@
                 waves: [
                     { enemyType: 'slime', enemyLevel: 2, count: 30, interval: 1.0, delay: 0 },
                     { enemyType: 'orc', enemyLevel: 2, count: 30, interval: 1.2, delay: 1 },
-                    { enemyType: 'vampire', enemyLevel: 3, count: 1, interval: 1.0, delay: 12 }, // BOSS
-                    { enemyType: 'slime', enemyLevel: 3, count: 20, interval: 0.1, delay: 8 }  // Final Rush
+                    { enemyType: 'vampire', enemyLevel: 3, count: 1, interval: 1.0, delay: 12 }, 
+                    { enemyType: 'slime', enemyLevel: 3, count: 20, interval: 0.1, delay: 8 }  
                 ]
             },
             {
-                id: 4, background: 'Pokemon/Backgrounds/grass.jpg', startingGold: 1400,
-                path: [{ x: 180, y: 0 }, { x: 180, y: 100 }, { x: 250, y: 160 }, { x: 400, y: 200 }, { x: 550, y: 200 }, { x: 660, y: 230 }, { x: 680, y: 300 }, { x: 590, y: 370 }, { x: 470, y: 370 }, { x: 330, y: 380 }, { x: 230, y: 380 }, { x: 150, y: 420 }, { x: 130, y: 510 }, { x: 200, y: 560 }, { x: 400, y: 590 }, { x: 550, y: 570 }, { x: 620, y: 620 }, { x: 620, y: 710 }, { x: 620, y: 790 }],
-                slots: [{ x: 560, y: 280 }, { x: 220, y: 480 }, { x: 520, y: 650 }, { x: 430, y: 280 }, { x: 330, y: 90 }, { x: 490, y: 500 }, { x: 280, y: 650 }],
+                id: 4, background: 'Pokemon/Backgrounds/sand.jpg', startingGold: 750,
+                    path: [{ x: 700, y: 10 }, { x: 670, y: 90 }, { x: 540, y: 150 }, { x: 430, y: 270 }, { x: 370, y: 450 }, { x: 420, y: 540 }, { x: 460, y: 700 }, { x: 480, y: 780 }],
+                    slots: [{ x: 520, y: 310 }, { x: 330, y: 300 }, { x: 290, y: 470 }, { x: 480, y: 460 }],
+                    objects: [{ x: 320, y: 190, src: 'Pokemon/Assets/Brown_ruins1.png' }, { x: 610, y: 580, src: 'Pokemon/Assets/Brown_ruins2.png' }, { x: 670, y: 400, src: 'Pokemon/Assets/Brown_ruins3.png' }, { x: 680, y: 320, src: 'Pokemon/Assets/Brown_ruins4.png' }, { x: 300, y: 600, src: 'Pokemon/Assets/Sand_ruins1.png' }, { x: 260, y: 370, src: 'Pokemon/Assets/Sand_ruins2.png' }, { x: 90, y: 250, src: 'Pokemon/Assets/Sand_ruins3.png' }, { x: 660, y: 240, src: 'Pokemon/Assets/White_tree2.png' }, { x: 300, y: 710, src: 'Pokemon/Assets/White_ruins5.png' }],
                 waves: [
-                    { enemyType: 'slime', enemyLevel: 2, count: 1, interval: 1.0, delay: 0 }
+                    { enemyType: 'slime', enemyLevel: 2, count: 10, interval: 1, delay: 5 },
+                    { enemyType: 'orc', enemyLevel: 2, count: 10, interval: 1, delay: 5 }
                 ]
             },
             // Zbytek pole (generované levely 4-10) nech beze změny
@@ -220,7 +222,7 @@
                     1: { name: 'Squirtle', range: 120, attackName: 'water_gun', damage: 10, continuous: true, size: 1 },
                     2: { name: 'Wartortle', range: 140, attackName: 'water_pulse', damage: 20, cooldown: 1000, turnChance: 0.2, turnDuration: 1.0, size: 1.0 },
                     3: { name: 'Blastoise', range: 170, attackName: 'hydro_pump', damage: 30, continuous: true, splash: 10, size: 1.0 },
-                    '4a': { name: 'Blastoise (Cutter)', spriteName: 'Blastoise', range: 200, attackName: 'water_cutter', damage: 100, continuous: true, splash: 0, size: 1.0 },
+                    '4a': { name: 'Blastoise (Cutter)', spriteName: 'Blastoise', range: 200, attackName: 'water_cutter', damage: 50, continuous: true, splash: 0, size: 1.0 },
                     '4b': { name: 'Blastoise (Stun)', spriteName: 'Blastoise', range: 200, attackName: 'water_paralyzer', damage: 50, cooldown: 3000, stunDuration: 2.0, size: 1.0 }
                 }
             },
