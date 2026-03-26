@@ -282,6 +282,9 @@
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = false;
 
+        const piedestalImg = new Image();
+        piedestalImg.src = 'Pokemon/Assets/Piedestal.png';
+
         const towerMenu = document.getElementById('tower-menu');
         const upgradeMenu = document.getElementById('upgrade-menu');
         const goldDisplay = document.getElementById('gold-display');
@@ -582,14 +585,14 @@
             
             for (let w = 100; w >= 70; w -= 6) {
                 pctx.lineWidth = w; 
-                pctx.strokeStyle = `rgba(127, 140, 141, 0.12)`;
+                pctx.strokeStyle = `rgba(127, 140, 141, 0.32)`;
                 pctx.beginPath(); 
                 pctx.moveTo(state.path[0].x, state.path[0].y);
                 for (let i = 1; i < state.path.length; i++) pctx.lineTo(state.path[i].x, state.path[i].y);
                 pctx.stroke();
             }
 
-            pctx.lineWidth = 4; 
+            pctx.lineWidth = 2; 
             pctx.strokeStyle = 'rgba(100, 110, 110, 0.4)';
             [-46, 46].forEach(side => {
                 pctx.beginPath();
@@ -1115,34 +1118,39 @@
         }
 
         function drawPathAndRange(ctx) {
-            ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-            if (state.pathCanvas) ctx.drawImage(state.pathCanvas, 0, 0);
-            
-            state.slots.forEach(slot => {
-                const rx = slot.radius; const ry = slot.radius * 0.6; const depth = 8;
-                const isHovered = state.hoveredSlot === slot;
-                
-                if (slot.tower) {
-                    ctx.fillStyle = isHovered ? '#6c7a86' : '#556470'; ctx.beginPath(); ctx.ellipse(slot.x, slot.y + depth, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(slot.x - rx, slot.y, rx * 2, depth); 
-                    ctx.fillStyle = isHovered ? '#95a5a6' : '#7f8c8d'; ctx.beginPath(); ctx.ellipse(slot.x, slot.y, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = '#2c3e50'; ctx.stroke();
-                } else {
-                    const baseColor = isHovered ? '241, 196, 15' : '46, 204, 113';
-                    const alphaFill = isHovered ? 0.9 : 0.6;
-                    
-                    ctx.beginPath(); ctx.ellipse(slot.x, slot.y + depth, rx, ry, 0, 0, Math.PI); ctx.strokeStyle = `rgba(${baseColor}, 0.8)`; ctx.lineWidth = 2; ctx.stroke();
-                    ctx.beginPath(); ctx.moveTo(slot.x - rx, slot.y); ctx.lineTo(slot.x - rx, slot.y + depth); ctx.moveTo(slot.x + rx, slot.y); ctx.lineTo(slot.x + rx, slot.y + depth); ctx.stroke();
-                    ctx.beginPath(); ctx.ellipse(slot.x, slot.y, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = `rgba(${baseColor}, ${alphaFill})`; ctx.fill(); ctx.strokeStyle = `rgba(${baseColor}, 1.0)`; ctx.stroke();
-                    ctx.save(); ctx.fillStyle = "#2c3e50"; ctx.font = "24px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🔨", slot.x, slot.y); ctx.restore();
-                }
-            });
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    if (state.pathCanvas) ctx.drawImage(state.pathCanvas, 0, 0);
+    
+    state.slots.forEach(slot => {
+        const isHovered = state.hoveredSlot === slot;
 
-            if ((state.hoveredSlot && state.hoveredSlot.tower) || (state.hoveredUpgrade && state.selectedSlot && state.selectedSlot.tower)) {
-                const tower = state.hoveredUpgrade ? state.selectedSlot.tower : state.hoveredSlot.tower; let displayRange = state.hoveredUpgrade ? tower.config.levels[state.hoveredUpgradeLevel].range : tower.getStats().range;
-                ctx.beginPath(); ctx.arc(tower.x, tower.y, displayRange, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
-            } else if (state.selectedSlot && !state.selectedSlot.tower && state.hoveredTowerType) {
-                ctx.beginPath(); ctx.arc(state.selectedSlot.x, state.selectedSlot.y, TOWER_STATS[state.hoveredTowerType].levels[1].range, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
+        if (piedestalImg.complete && piedestalImg.naturalHeight !== 0) {
+            const targetWidth = slot.radius * 2.5; 
+            const targetHeight = piedestalImg.height * (targetWidth / piedestalImg.width);
+            const drawX = slot.x - targetWidth / 2;
+            const drawY = slot.y - targetHeight / 2 + 5; // +5 pro vizuální ukotvení do země
+
+            ctx.save();
+            if (isHovered) {
+                ctx.filter = 'brightness(1.2) drop-shadow(0 0 4px rgba(241, 196, 15, 0.6))';
             }
+            ctx.drawImage(piedestalImg, drawX, drawY, targetWidth, targetHeight);
+            ctx.restore();
         }
+    });
+
+    if ((state.hoveredSlot && state.hoveredSlot.tower) || (state.hoveredUpgrade && state.selectedSlot && state.selectedSlot.tower)) {
+        const tower = state.hoveredUpgrade ? state.selectedSlot.tower : state.hoveredSlot.tower; 
+        let displayRange = state.hoveredUpgrade ? tower.config.levels[state.hoveredUpgradeLevel].range : tower.getStats().range;
+        ctx.beginPath(); ctx.arc(tower.x, tower.y, displayRange, 0, Math.PI * 2); 
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; 
+        ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
+    } else if (state.selectedSlot && !state.selectedSlot.tower && state.hoveredTowerType) {
+        ctx.beginPath(); ctx.arc(state.selectedSlot.x, state.selectedSlot.y, TOWER_STATS[state.hoveredTowerType].levels[1].range, 0, Math.PI * 2); 
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; 
+        ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
+    }
+}
 
         function updateAndDrawProjectiles(dt, ctx) {
             for (let i = state.projectiles.length - 1; i >= 0; i--) {
