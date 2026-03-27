@@ -60,8 +60,8 @@
         .dex-header h2 { margin: 0; font-size: 1.8rem; color: #f1c40f; text-shadow: 1px 1px 3px #000; }
         .close-dex { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; filter: grayscale(1); }
         .close-dex:hover { transform: scale(1.2); filter: grayscale(0); }
-        .dex-content { flex: 1; overflow: hidden; padding: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-content: center; }
-        .enemy-card { background: rgba(0,0,0,0.5); border: 2px solid #7f8c8d; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; transition: transform 0.2s; }
+        .dex-content { flex: 1; overflow-y: auto; padding: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; align-content: start; box-sizing: border-box; }
+        .enemy-card { background: rgba(0,0,0,0.5); border: 2px solid #7f8c8d; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; transition: transform 0.2s; height: 100%; box-sizing: border-box; }
         .enemy-card:hover { transform: translateY(-5px); border-color: #e74c3c; background: rgba(0,0,0,0.7); }
         .enemy-card h3 { margin: 0 0 10px 0; text-transform: capitalize; color: #e74c3c; border-bottom: 1px solid #7f8c8d; padding-bottom: 5px; width: 100%; text-align: center; font-size: 1.1rem; }
         .enemy-sprite-container { margin-bottom: 10px; background-repeat: no-repeat; image-rendering: pixelated; background-position: 0 0; }
@@ -70,7 +70,7 @@
         @keyframes dex-sprite-walk { from { transform: translateX(0); } to { transform: translateX(-100%); } }
         .dex-sprite-viewport { overflow: hidden; position: relative; margin-bottom: 10px; }
         .dex-sprite-strip { position: absolute; left: 0; top: 0; background-repeat: no-repeat; image-rendering: pixelated; }
-        .res-stats { display: flex; justify-content: center; gap: 8px; font-size: 0.85rem; margin-top: 5px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 4px; border: 1px solid #7f8c8d; }
+        .res-stats { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; font-size: 0.75rem; margin-top: 5px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 4px; border: 1px solid #7f8c8d; width: 100%; box-sizing: border-box; }
         #pokemon-dex-content { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 5px; overflow-y: auto; align-content: start; height: 100%; box-sizing: border-box; }
         .poke-card { background: rgba(0,0,0,0.5); border: 2px solid #7f8c8d; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; align-items: center; text-align: center; transition: transform 0.2s; height: 100%; box-sizing: border-box; }
         .poke-card:hover { transform: translateY(-5px); border-color: #ffd700; background: rgba(0,0,0,0.7); }
@@ -666,10 +666,10 @@
                                 <div><strong>❤️ HP:</strong> ${stats.hp}</div>
                                 <div><strong>⚡ Rychlost:</strong> ${stats.speed}</div>
                                 <div class="res-stats">
-                                    <span title="Tráva">🌿 ${res.grass}</span>
-                                    <span title="Voda">💧 ${res.water}</span>
-                                    <span title="Oheň">🔥 ${res.fire}</span>
-                                    <span title="Elektřina">⚡ ${res.electric}</span>
+                                    <span title="Tráva">🌿 ${res.grass}%</span>
+                                    <span title="Voda">💧 ${res.water}%</span>
+                                    <span title="Oheň">🔥 ${res.fire}%</span>
+                                    <span title="Elektřina">⚡ ${res.electric}%</span>
                                 </div>
                             </div>
                         </div>
@@ -968,6 +968,48 @@
             });
         }
 
+        // --- JEDNOTNÁ LOGIKA PRO ZJEVENÍ POKÉMONA ---
+        function playPokemonEnterEffect(elementType, level, x, y) {
+            // U finálních upgradů (4a/4b) bereme vizuál a zvuk z levelu 3
+            const animLevel = (level === '4a' || level === '4b') ? 3 : level;
+            const stats = TOWER_STATS[elementType].levels[animLevel];
+            const pokemonName = (stats.spriteName || stats.name).toLowerCase();
+
+            // Přehrání zvuku zjevení a startovního zvuku (pouze jeden zvuk pro daný level)
+            soundArrive.currentTime = 0;
+            soundArrive.play().catch(e => console.warn("Arrive sound failed:", e));
+            playSound(stats.spriteName || stats.name, '_start');
+
+            // Vytvoření a vložení vizuálního kolečka s GIFem
+            const animCircle = document.createElement('div');
+            animCircle.className = 'enter-anim-circle';
+            animCircle.innerHTML = `<img src="Pokemon/Animations/Enter_${pokemonName}.gif?t=${Date.now()}" alt="${pokemonName} enter animation">`;
+            
+            animCircle.style.left = `${x}px`;
+            animCircle.style.top = `${y}px`;
+            
+            document.getElementById('main-canvas-container').appendChild(animCircle);
+
+            // Jednotné časování 1500 ms pro všechny Enter animace
+            setTimeout(() => {
+                animCircle.style.opacity = '0';
+                setTimeout(() => animCircle.remove(), 500); // Odstranění z DOMu po dokončení CSS transition
+            }, 1500);
+        }
+
+        function handleTowerPurchase(e, type) {
+            if (state.selectedSlot && state.gold >= TOWER_COST) {
+                updateGold(-TOWER_COST); 
+                state.selectedSlot.tower = new Tower(state.selectedSlot.x, state.selectedSlot.y, type);
+                state.towers.push(state.selectedSlot.tower); 
+                towerMenu.classList.add('hidden'); 
+                hideTooltip();
+
+                // Spuštění sjednocené animace a zvuku
+                playPokemonEnterEffect(type, 1, state.selectedSlot.x, state.selectedSlot.y);
+            }
+        }
+
         function createUpgradeButton(tower, nextLevel, offsetX) {
             const stats = TOWER_STATS[tower.elementType].levels[nextLevel]; 
             const cost = nextLevel === 2 ? 150 : (nextLevel === 3 ? 300 : 200);
@@ -997,20 +1039,8 @@
                     state.hoveredUpgrade = false; 
                     hideTooltip(); 
 
-                    // Přehrání zvuků při upgradu
-                    if (nextLevel === '4a' || nextLevel === '4b') {
-                        // Finální upgrade: všechny 3 fáze evoluce s 400ms odstupem pro dramatický efekt
-                        const lvl1 = TOWER_STATS[tower.elementType].levels[1];
-                        const lvl2 = TOWER_STATS[tower.elementType].levels[2];
-                        const lvl3 = TOWER_STATS[tower.elementType].levels[3];
-                        
-                        playSound(lvl1.spriteName || lvl1.name, '_start');
-                        setTimeout(() => playSound(lvl2.spriteName || lvl2.name, '_start'), 400);
-                        setTimeout(() => playSound(lvl3.spriteName || lvl3.name, '_start'), 800);
-                    } else {
-                        // Běžný upgrade: zvuk dané úrovně
-                        playSound(stats.spriteName || stats.name, '_start');
-                    }
+                    // Spuštění sjednocené animace a zvuku
+                    playPokemonEnterEffect(tower.elementType, nextLevel, tower.x, tower.y);
                 } 
             };
             
@@ -1069,7 +1099,7 @@
                 this.dirLockTimer = 0;
             }
             
-            takeDamage(amount, elementType) { const resistance = this.resistances[elementType] || 0; this.hp -= Math.max(0, amount - resistance); }
+            takeDamage(amount, elementType) { const resistance = this.resistances[elementType] || 0; this.hp -= Math.max(0, amount * (1 - resistance / 100)); }
             
             update(dt) {
                 this.animTime += dt;
@@ -1444,74 +1474,42 @@
             });
         });
 
-        function handleTowerPurchase(e, type) {
-            if (state.selectedSlot && state.gold >= TOWER_COST) {
-                updateGold(-TOWER_COST); state.selectedSlot.tower = new Tower(state.selectedSlot.x, state.selectedSlot.y, type);
-                state.towers.push(state.selectedSlot.tower); towerMenu.classList.add('hidden'); hideTooltip();
-                const stats = TOWER_STATS[type].levels[1];
-                playSound(stats.spriteName || stats.name, '_start');
 
-                // Přehrání speciálního zvuku zjevení
-                soundArrive.currentTime = 0;
-                soundArrive.play().catch(e => console.warn("Arrive sound failed:", e));
-
-                const gifMap = {
-                    'grass': 'Enter_bulbasaur.gif',
-                    'electric': 'Enter_pika.gif',
-                    'fire': 'Enter_charmander.gif',
-                    'water': 'Enter_squirtle.gif'
-                };
-                
-                const animCircle = document.createElement('div');
-                animCircle.className = 'enter-anim-circle';
-                animCircle.innerHTML = `<img src="Pokemon/Animations/${gifMap[type]}?t=${Date.now()}" alt="Enter animation">`;
-                
-                animCircle.style.left = `${state.selectedSlot.x}px`;
-                animCircle.style.top = `${state.selectedSlot.y}px`;
-                
-                document.getElementById('main-canvas-container').appendChild(animCircle);
-                
-                setTimeout(() => {
-                    animCircle.style.opacity = '0';
-                    setTimeout(() => animCircle.remove(), 500);
-                }, 800);
-            }
-        }
 
         function drawPathAndRange(ctx) {
-    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    if (state.pathCanvas) ctx.drawImage(state.pathCanvas, 0, 0);
-    
-    state.slots.forEach(slot => {
-        const isHovered = state.hoveredSlot === slot;
+            ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+            if (state.pathCanvas) ctx.drawImage(state.pathCanvas, 0, 0);
+            
+            state.slots.forEach(slot => {
+                const isHovered = state.hoveredSlot === slot;
 
-        if (piedestalImg.complete && piedestalImg.naturalHeight !== 0) {
-            const targetWidth = slot.radius * 2.5; 
-            const targetHeight = piedestalImg.height * (targetWidth / piedestalImg.width);
-            const drawX = slot.x - targetWidth / 2;
-            const drawY = slot.y - targetHeight / 2 + 5; // +5 pro vizuální ukotvení do země
+                if (piedestalImg.complete && piedestalImg.naturalHeight !== 0) {
+                    const targetWidth = slot.radius * 2.5; 
+                    const targetHeight = piedestalImg.height * (targetWidth / piedestalImg.width);
+                    const drawX = slot.x - targetWidth / 2;
+                    const drawY = slot.y - targetHeight / 2 + 5; // +5 pro vizuální ukotvení do země
 
-            ctx.save();
-            if (isHovered) {
-                ctx.filter = 'brightness(1.2) drop-shadow(0 0 4px rgba(241, 196, 15, 0.6))';
+                    ctx.save();
+                    if (isHovered) {
+                        ctx.filter = 'brightness(1.2) drop-shadow(0 0 4px rgba(241, 196, 15, 0.6))';
+                    }
+                    ctx.drawImage(piedestalImg, drawX, drawY, targetWidth, targetHeight);
+                    ctx.restore();
+                }
+            });
+
+            if ((state.hoveredSlot && state.hoveredSlot.tower) || (state.hoveredUpgrade && state.selectedSlot && state.selectedSlot.tower)) {
+                const tower = state.hoveredUpgrade ? state.selectedSlot.tower : state.hoveredSlot.tower; 
+                let displayRange = state.hoveredUpgrade ? tower.config.levels[state.hoveredUpgradeLevel].range : tower.getStats().range;
+                ctx.beginPath(); ctx.arc(tower.x, tower.y, displayRange, 0, Math.PI * 2); 
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; 
+                ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
+            } else if (state.selectedSlot && !state.selectedSlot.tower && state.hoveredTowerType) {
+                ctx.beginPath(); ctx.arc(state.selectedSlot.x, state.selectedSlot.y, TOWER_STATS[state.hoveredTowerType].levels[1].range, 0, Math.PI * 2); 
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; 
+                ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
             }
-            ctx.drawImage(piedestalImg, drawX, drawY, targetWidth, targetHeight);
-            ctx.restore();
         }
-    });
-
-    if ((state.hoveredSlot && state.hoveredSlot.tower) || (state.hoveredUpgrade && state.selectedSlot && state.selectedSlot.tower)) {
-        const tower = state.hoveredUpgrade ? state.selectedSlot.tower : state.hoveredSlot.tower; 
-        let displayRange = state.hoveredUpgrade ? tower.config.levels[state.hoveredUpgradeLevel].range : tower.getStats().range;
-        ctx.beginPath(); ctx.arc(tower.x, tower.y, displayRange, 0, Math.PI * 2); 
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; 
-        ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
-    } else if (state.selectedSlot && !state.selectedSlot.tower && state.hoveredTowerType) {
-        ctx.beginPath(); ctx.arc(state.selectedSlot.x, state.selectedSlot.y, TOWER_STATS[state.hoveredTowerType].levels[1].range, 0, Math.PI * 2); 
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; 
-        ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
-    }
-}
 
         function updateAndDrawProjectiles(dt, ctx) {
             for (let i = state.projectiles.length - 1; i >= 0; i--) {
