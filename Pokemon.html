@@ -5,149 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tower Defense - All Branching Upgrades</title>
     <style>
-    :root { --bg-dark: #2c3e50; --panel-bg: #34495e; --text-light: #ecf0f1; --accent: #e74c3c; --canvas-bg: #1a252f; --win-color: #2ecc71; --upgrade-color: #f39c12; --level-menu-bg: #2c3e50; --btn-size: 40px; }
-    body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: var(--bg-dark); font-family: system-ui, -apple-system, sans-serif; color: var(--text-light); }
-    .main-container { display: flex; gap: 20px; }
-    .level-sidebar { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: row; gap: 10px; background: rgba(52, 73, 94, 0.2); padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 20; visibility: visible; }
-    .game-ui.active ~ .level-sidebar, .level-sidebar.hidden { display: none; }
-    .level-btn { width: 50px; height: 50px; border: 2px solid transparent; border-radius: 8px; color: white; font-size: 1.2rem; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s ease; }
-    .level-btn.completed { background: #27ae60; border-color: #2ecc71; }
-    .level-btn.completed:hover { transform: scale(1.05); filter: brightness(1.2); }
-    .level-btn.unlocked { background: #f1c40f; border-color: #f39c12; color: #2c3e50; }
-    .level-btn.unlocked:hover { transform: scale(1.05); filter: brightness(1.1); }
-    .level-btn:disabled { cursor: not-allowed; background: #c0392b; border-color: #e74c3c; opacity: 0.8; }
-    .game-wrapper { display: flex; flex-direction: column; gap: 1rem; }
-    .game-ui { position: absolute; top: 0; left: 0; width: 100%; box-sizing: border-box; z-index: 10; display: flex; justify-content: space-between; align-items: center; background: rgba(52, 73, 94, 0.2); padding: 5px 15px; font-size: 1rem; visibility: hidden; }
-    .game-ui.active { visibility: visible; }
-    .stats { display: flex; gap: 1.5rem; text-shadow: 1px 1px 2px #000; }
-    .controls-group { display: flex; gap: 10px; }
-    .icon-btn { width: 30px; height: 30px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: filter 0.2s ease, transform 0.1s ease; }
-    .icon-btn:hover:not(:disabled) { filter: brightness(1.1); transform: scale(1.05); }
-    .icon-btn:active:not(:disabled) { transform: scale(0.95); }
-    .icon-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #7f8c8d; }
-    .icon-btn svg { width: 16px; height: 16px; fill: currentColor; }
-    .btn-end { background: #c0392b; }
-    .btn-play-pause { background: #27ae60; }
-    .btn-primary { background: var(--accent); color: white; border: none; padding: 0.5rem 1rem; font-size: 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: filter 0.2s ease; }
-    .btn-primary:hover { filter: brightness(1.1); }
-    .canvas-container { position: relative; border: 4px solid var(--panel-bg); border-radius: 8px; overflow: hidden; background: url('Pokemon/Backgrounds/main.jpg') no-repeat center / cover; width: 800px; height: 800px; }
-    #game-canvas { display: block; image-rendering: pixelated; }
-    #tower-menu, #upgrade-menu { position: absolute; pointer-events: none; z-index: 5; }
-    .hidden { display: none !important; }
-    .radial-btn { position: absolute; background: rgba(52, 73, 94, 0.9); border: 2px solid transparent; cursor: pointer; border-radius: 50%; width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform 0.2s ease, border-color 0.2s ease; color: white; pointer-events: auto; transform: translate(-50%, -50%); box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
-    .radial-btn:hover:not(:disabled) { border-color: var(--text-light); transform: translate(-50%, -50%) scale(1.1); }
-    .radial-btn.upgrade { background: rgba(243, 156, 18, 0.9); border-color: #e67e22; }
-    .radial-btn:disabled { background: rgba(127, 140, 141, 0.9); border-color: #95a5a6; cursor: not-allowed; }
-    .price-tag { font-size: 0.7rem; font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 4px; border-radius: 4px; position: absolute; bottom: -10px; }
-    .modal { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 3rem; font-weight: bold; z-index: 10; }
-    #modal-text.win { color: var(--win-color); }
-    #modal-text.lose { color: var(--accent); }
-    .pokemon-menu-icon { width: 48px; height: 48px; background-size: 200% auto; background-repeat: no-repeat; background-position: 0% center; image-rendering: pixelated; animation: sleepAnim 1s steps(1) infinite; }
-    @keyframes sleepAnim { 0% { background-position: 0% center; } 50% { background-position: 100% center; } }
-    #info-tooltip { position: absolute; background: rgba(255, 255, 255, 0.8); border: 1px solid #000; border-radius: 6px; color: #000; padding: 12px; font-size: 0.9rem; pointer-events: none; z-index: 20; width: 240px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 6px; transition: opacity 0.2s ease, visibility 0.2s ease; }
-    #info-tooltip.hidden { opacity: 0; visibility: hidden; }
-    .tooltip-header { font-weight: bold; text-align: center; border-bottom: 1px solid #000; padding-bottom: 6px; margin-bottom: 2px; font-size: 1rem; }
-    .tooltip-row { display: flex; justify-content: space-between; }
-    .tooltip-effects { margin-top: 6px; font-size: 0.8rem; font-style: italic; border-top: 1px dotted #666; padding-top: 6px; }
-
-    /* Encyklopedie styly */
-    .main-menu-bottom { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 20; transition: opacity 0.3s ease; }
-   .main-menu-bottom.hidden { opacity: 0; pointer-events: none; }
-    .dex-btn { width: 50px; height: 50px; font-size: 1.5rem; border-radius: 8px; background: #f5e343; border: 2px solid rgb(79, 87, 32); box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: all 0.2s ease; padding: 0; }
-    .dex-btn:hover { transform: scale(1.05); background: #f5e343; border-color: #d4f543; filter: brightness(1.1); }
-    .dex-modal { position: absolute; inset: 20px; background: rgba(44, 62, 80, 0.98); border: 4px solid var(--panel-bg); border-radius: 12px; z-index: 30; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.9); backdrop-filter: blur(5px); }
-    .dex-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; background: rgba(0,0,0,0.4); border-bottom: 2px solid var(--panel-bg); }
-    .dex-header h2 { margin: 0; font-size: 1.8rem; color: #f1c40f; text-shadow: 1px 1px 3px #000; }
-    .close-dex { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; filter: grayscale(1); }
-    .close-dex:hover { transform: scale(1.2); filter: grayscale(0); }
-    .dex-content { flex: 1; overflow: hidden; padding: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-content: center; }
-    .enemy-card { background: rgba(0,0,0,0.5); border: 2px solid #7f8c8d; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; transition: transform 0.2s; }
-    .enemy-card:hover { transform: translateY(-5px); border-color: #e74c3c; background: rgba(0,0,0,0.7); }
-    .enemy-card h3 { margin: 0 0 10px 0; text-transform: capitalize; color: #e74c3c; border-bottom: 1px solid #7f8c8d; padding-bottom: 5px; width: 100%; text-align: center; font-size: 1.1rem; }
-    .enemy-sprite-container { margin-bottom: 10px; background-repeat: no-repeat; image-rendering: pixelated; background-position: 0 0; }
-    .enemy-stats { font-size: 0.85rem; width: 100%; display: flex; flex-direction: column; gap: 2px; color: #bdc3c7; text-align: center; }
-    .enemy-stats strong { color: #ecf0f1; }
-
-    @keyframes dex-sprite-walk {
-        from { transform: translateX(0); }
-        to { transform: translateX(-100%); }
-    }
-    .dex-sprite-viewport {
-        overflow: hidden; 
-        position: relative; 
-        margin-bottom: 10px;
-    }
-    .dex-sprite-strip {
-        position: absolute; 
-        left: 0; 
-        top: 0;
-        background-repeat: no-repeat; 
-        image-rendering: pixelated;
-    }
-    .res-stats {
-        display: flex; 
-        justify-content: center; 
-        gap: 8px; 
-        font-size: 0.85rem;
-        margin-top: 5px; 
-        background: rgba(0,0,0,0.4); 
-        padding: 4px; 
-        border-radius: 4px; 
-        border: 1px solid #7f8c8d;
-    }
-
-    #pokemon-dex-content {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 6px; /* Zmenšené mezery mezi sloupci */
-        padding: 5px; /* Minimalizace místa od krajů modalu */
-        overflow-y: auto;
-        align-content: start;
-        height: 100%;
-        box-sizing: border-box;
-    }
-    .poke-card { 
-        background: rgba(0,0,0,0.5); 
-        border: 2px solid #7f8c8d; 
-        border-radius: 8px; 
-        padding: 8px; /* Menší vnitřní odsazení pro širší obsah */
-        display: flex; 
-        flex-direction: column; 
-        align-items: center; 
-        text-align: center; 
-        transition: transform 0.2s;
-        height: 100%;
-        box-sizing: border-box;
-    }
-    .poke-card:hover { 
-        transform: translateY(-5px); 
-        border-color: #ffd700; 
-        background: rgba(0,0,0,0.7); 
-    }
-    .poke-card h3 { 
-        margin: 0 0 8px 0; 
-        border-bottom: 1px solid #7f8c8d; 
-        padding-bottom: 5px; 
-        font-size: 1.15rem; 
-        width: 100%; 
-        text-shadow: 1px 1px 2px #000;
-        /* Barva se nyní nastavuje dynamicky přes JS */
-    }
-    .poke-stats { 
-        font-size: 0.8rem; 
-        color: #bdc3c7; 
-        display: flex; 
-        flex-direction: column; 
-        gap: 4px; 
-        width: 100%; 
-        flex-grow: 1; 
-    }
-    .poke-stats strong { 
-        color: #ecf0f1; 
-    }
-    .poke-effects { 
-        font-size: 0.7rem; 
-        color:
+        :root { --bg-dark: #2c3e50; --panel-bg: #34495e; --text-light: #ecf0f1; --accent: #e74c3c; --canvas-bg: #1a252f; --win-color: #2ecc71; --upgrade-color: #f39c12; --level-menu-bg: #2c3e50; --btn-size: 40px; }
+        body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: var(--bg-dark); font-family: system-ui, -apple-system, sans-serif; color: var(--text-light); }
+        .main-container { display: flex; gap: 20px; }
+        .level-sidebar { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: row; gap: 10px; background: rgba(52, 73, 94, 0.2); padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 20; visibility: visible; }
+        .game-ui.active ~ .level-sidebar, .level-sidebar.hidden { display: none; }
+        .level-btn { width: 50px; height: 50px; border: 2px solid transparent; border-radius: 8px; color: white; font-size: 1.2rem; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s ease; }
+        .level-btn.completed { background: #27ae60; border-color: #2ecc71; }
+        .level-btn.completed:hover { transform: scale(1.05); filter: brightness(1.2); }
+        .level-btn.unlocked { background: #f1c40f; border-color: #f39c12; color: #2c3e50; }
+        .level-btn.unlocked:hover { transform: scale(1.05); filter: brightness(1.1); }
+        .level-btn:disabled { cursor: not-allowed; background: #c0392b; border-color: #e74c3c; opacity: 0.8; }
+        .game-wrapper { display: flex; flex-direction: column; gap: 1rem; }
+        .game-ui { position: absolute; top: 0; left: 0; width: 100%; box-sizing: border-box; z-index: 10; display: flex; justify-content: space-between; align-items: center; background: rgba(52, 73, 94, 0.2); padding: 5px 15px; font-size: 1rem; visibility: hidden; }
+        .game-ui.active { visibility: visible; }
+        .stats { display: flex; gap: 1.5rem; text-shadow: 1px 1px 2px #000; }
+        .controls-group { display: flex; gap: 10px; }
+        .icon-btn { width: 30px; height: 30px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: filter 0.2s ease, transform 0.1s ease; }
+        .icon-btn:hover:not(:disabled) { filter: brightness(1.1); transform: scale(1.05); }
+        .icon-btn:active:not(:disabled) { transform: scale(0.95); }
+        .icon-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #7f8c8d; }
+        .icon-btn svg { width: 16px; height: 16px; fill: currentColor; }
+        .btn-end { background: #c0392b; }
+        .btn-play-pause { background: #27ae60; }
+        .btn-primary { background: var(--accent); color: white; border: none; padding: 0.5rem 1rem; font-size: 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: filter 0.2s ease; }
+        .btn-primary:hover { filter: brightness(1.1); }
+        .canvas-container { position: relative; border: 4px solid var(--panel-bg); border-radius: 8px; overflow: hidden; background: url('Pokemon/Backgrounds/main.jpg') no-repeat center / cover; width: 800px; height: 800px; }
+        #game-canvas { display: block; image-rendering: pixelated; }
+        #tower-menu, #upgrade-menu { position: absolute; pointer-events: none; z-index: 5; }
+        .hidden { display: none !important; }
+        .radial-btn { position: absolute; background: rgba(52, 73, 94, 0.9); border: 2px solid transparent; cursor: pointer; border-radius: 50%; width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform 0.2s ease, border-color 0.2s ease; color: white; pointer-events: auto; transform: translate(-50%, -50%); box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
+        .radial-btn:hover:not(:disabled) { border-color: var(--text-light); transform: translate(-50%, -50%) scale(1.1); }
+        .radial-btn.upgrade { background: rgba(243, 156, 18, 0.9); border-color: #e67e22; }
+        .radial-btn:disabled { background: rgba(127, 140, 141, 0.9); border-color: #95a5a6; cursor: not-allowed; }
+        .price-tag { font-size: 0.7rem; font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 4px; border-radius: 4px; position: absolute; bottom: -10px; }
+        .modal { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 3rem; font-weight: bold; z-index: 10; }
+        #modal-text.win { color: var(--win-color); }
+        #modal-text.lose { color: var(--accent); }
+        .pokemon-menu-icon { width: 48px; height: 48px; background-size: 200% auto; background-repeat: no-repeat; background-position: 0% center; image-rendering: pixelated; animation: sleepAnim 1s steps(1) infinite; }
+        @keyframes sleepAnim { 0% { background-position: 0% center; } 50% { background-position: 100% center; } }
+        #info-tooltip { position: absolute; background: rgba(255, 255, 255, 0.8); border: 1px solid #000; border-radius: 6px; color: #000; padding: 12px; font-size: 0.9rem; pointer-events: none; z-index: 20; width: 240px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 6px; transition: opacity 0.2s ease, visibility 0.2s ease; }
+        #info-tooltip.hidden { opacity: 0; visibility: hidden; }
+        .tooltip-header { font-weight: bold; text-align: center; border-bottom: 1px solid #000; padding-bottom: 6px; margin-bottom: 2px; font-size: 1rem; }
+        .tooltip-row { display: flex; justify-content: space-between; }
+        .tooltip-effects { margin-top: 6px; font-size: 0.8rem; font-style: italic; border-top: 1px dotted #666; padding-top: 6px; }
+        .main-menu-bottom { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 20; transition: opacity 0.3s ease; }
+        .main-menu-bottom.hidden { opacity: 0; pointer-events: none; }
+       .dex-btn { width: 50px; height: 50px; border-radius: 8px; border: 2px solid rgb(79, 87, 32); box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: all 0.2s ease; padding: 0; background-size: cover; background-position: center; background-repeat: no-repeat; cursor: pointer; }
+        .dex-btn:hover { transform: scale(1.05); border-color: #d4f543; filter: brightness(1.1); }
+        #btn-dex-pokemon { background-image: url('Pokemon/Pictures/Enc-pok.jpg'); }
+        #btn-dex-enemies { background-image: url('Pokemon/Pictures/Enc-mon.png'); }
+        .dex-modal { position: absolute; inset: 20px; background: rgba(44, 62, 80, 0.98); border: 4px solid var(--panel-bg); border-radius: 12px; z-index: 30; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.9); backdrop-filter: blur(5px); }
+        .dex-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; background: rgba(0,0,0,0.4); border-bottom: 2px solid var(--panel-bg); }
+        .dex-header h2 { margin: 0; font-size: 1.8rem; color: #f1c40f; text-shadow: 1px 1px 3px #000; }
+        .close-dex { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; filter: grayscale(1); }
+        .close-dex:hover { transform: scale(1.2); filter: grayscale(0); }
+        .dex-content { flex: 1; overflow: hidden; padding: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-content: center; }
+        .enemy-card { background: rgba(0,0,0,0.5); border: 2px solid #7f8c8d; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; transition: transform 0.2s; }
+        .enemy-card:hover { transform: translateY(-5px); border-color: #e74c3c; background: rgba(0,0,0,0.7); }
+        .enemy-card h3 { margin: 0 0 10px 0; text-transform: capitalize; color: #e74c3c; border-bottom: 1px solid #7f8c8d; padding-bottom: 5px; width: 100%; text-align: center; font-size: 1.1rem; }
+        .enemy-sprite-container { margin-bottom: 10px; background-repeat: no-repeat; image-rendering: pixelated; background-position: 0 0; }
+        .enemy-stats { font-size: 0.85rem; width: 100%; display: flex; flex-direction: column; gap: 2px; color: #bdc3c7; text-align: center; }
+        .enemy-stats strong { color: #ecf0f1; }
+        @keyframes dex-sprite-walk { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+        .dex-sprite-viewport { overflow: hidden; position: relative; margin-bottom: 10px; }
+        .dex-sprite-strip { position: absolute; left: 0; top: 0; background-repeat: no-repeat; image-rendering: pixelated; }
+        .res-stats { display: flex; justify-content: center; gap: 8px; font-size: 0.85rem; margin-top: 5px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 4px; border: 1px solid #7f8c8d; }
+        #pokemon-dex-content { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 5px; overflow-y: auto; align-content: start; height: 100%; box-sizing: border-box; }
+        .poke-card { background: rgba(0,0,0,0.5); border: 2px solid #7f8c8d; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; align-items: center; text-align: center; transition: transform 0.2s; height: 100%; box-sizing: border-box; }
+        .poke-card:hover { transform: translateY(-5px); border-color: #ffd700; background: rgba(0,0,0,0.7); }
+        .poke-card h3 { margin: 0 0 8px 0; border-bottom: 1px solid #7f8c8d; padding-bottom: 5px; font-size: 1.15rem; width: 100%; text-shadow: 1px 1px 2px #000; }
+        .poke-stats { font-size: 0.8rem; color: #bdc3c7; display: flex; flex-direction: column; gap: 4px; width: 100%; flex-grow: 1; }
+        .poke-stats strong { color: #ecf0f1; }
+        .poke-effects { font-size: 0.75rem; color: #a29bfe; font-style: italic; margin-top: 4px; border-top: 1px dotted #666; padding-top: 4px; }
+        .enter-anim-circle { position: absolute; width: 250px; height: 250px; border: 4px solid #ffd700; border-radius: 50%; overflow: hidden; pointer-events: none; z-index: 15; transform: translate(-50%, -50%); box-shadow: 0 0 15px rgba(255, 215, 0, 0.8), inset 0 0 15px rgba(255, 215, 0, 0.8); background: rgba(0,0,0,0.4); opacity: 1; transition: opacity 0.5s ease; }
+        .enter-anim-circle img { width: 100%; height: 100%; object-fit: cover; }
 </style>
 </head>
 <body>
@@ -181,8 +113,8 @@
                 <div id="info-tooltip" class="hidden"></div>
 
                 <nav class="main-menu-bottom" id="main-menu-bottom">
-                    <button id="btn-dex-pokemon" class="icon-btn dex-btn" title="Encyklopedie Pokémonů">🐉</button>
-                    <button id="btn-dex-enemies" class="icon-btn dex-btn" title="Encyklopedie Nepřátel">🦇</button>
+                    <button id="btn-dex-pokemon" class="icon-btn dex-btn" title="Encyklopedie Pokémonů"></button>
+                    <button id="btn-dex-enemies" class="icon-btn dex-btn" title="Encyklopedie Nepřátel"></button>
                 </nav>
 
                 <div id="enemy-dex-modal" class="dex-modal hidden" role="dialog">
@@ -207,35 +139,35 @@
     <script>
         const ENEMY_STATS = {
             vampire: {
-                1: { hp: 40, speed: 50, size: 0.9, gold: 15, res: { grass: 0, water: 0, fire: 0, electric: 0 }, 
+                1: { hp: 40, speed: 50, size: 0.9, gold: 15, res: { grass: 0, water: 0, fire: -50, electric: -20 }, 
                     walkSrc: 'Pokemon/SPRITES/Vampire1/Vampires1_Walk_with_shadow.png', walkFrames: 6,
                     dieSrc: 'Pokemon/SPRITES/Vampire1/Vampires1_Death_with_shadow.png', dieFrames: 11 },
-                2: { hp: 110, speed: 55, size: 1.1, gold: 25, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                2: { hp: 110, speed: 55, size: 1.1, gold: 25, res: { grass: 0, water: 0, fire: -50, electric: -20 },
                     walkSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Walk_with_shadow.png', walkFrames: 6,
                     dieSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Death_with_shadow.png', dieFrames: 11 },
-                3: { hp: 300, speed: 60, size: 1.3, gold: 100, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                3: { hp: 300, speed: 60, size: 1.3, gold: 100, res: { grass: 0, water: 0, fire: -50, electric: -20 },
                     walkSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Walk_with_shadow.png', walkFrames: 6,
                     dieSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Death_with_shadow.png', dieFrames: 11 }
             },
             orc: {
-                1: { hp: 40, speed: 40, size: 1.0, gold: 10, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                1: { hp: 40, speed: 40, size: 1.0, gold: 10, res: { grass: 0, water: 0, fire: 50, electric: 30 },
                     walkSrc: 'Pokemon/SPRITES/Orc1/orc1_walk_with_shadow.png', walkFrames: 6,
                     dieSrc: 'Pokemon/SPRITES/Orc1/orc1_death_with_shadow.png', dieFrames: 8 },
-                2: { hp: 90, speed: 42, size: 1.25, gold: 20, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                2: { hp: 90, speed: 42, size: 1.25, gold: 20, res: { grass: 0, water: 0, fire: 50, electric: 30 },
                     walkSrc: 'Pokemon/SPRITES/Orc2/orc2_walk_with_shadow.png', walkFrames: 6,
                     dieSrc: 'Pokemon/SPRITES/Orc2/orc2_death_with_shadow.png', dieFrames: 8 },
-                3: { hp: 150, speed: 45, size: 1.5, gold: 30, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                3: { hp: 150, speed: 45, size: 1.5, gold: 30, res: { grass: 0, water: 0, fire: 50, electric: 30 },
                     walkSrc: 'Pokemon/SPRITES/Orc3/orc3_walk_with_shadow.png', walkFrames: 6,
                     dieSrc: 'Pokemon/SPRITES/Orc3/orc3_death_with_shadow.png', dieFrames: 8 }
             },
             slime: {
-                1: { hp: 30, speed: 65, size: 0.8, gold: 5, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                1: { hp: 30, speed: 65, size: 0.8, gold: 5, res: { grass: 80, water: 50, fire: -30, electric: -20 },
                     walkSrc: 'Pokemon/SPRITES/Slime1/Slime1_Walk_with_shadow.png', walkFrames: 8,
                     dieSrc: 'Pokemon/SPRITES/Slime1/Slime1_Death_with_shadow.png', dieFrames: 10 },
-                2: { hp: 60, speed: 70, size: 1.0, gold: 10, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                2: { hp: 60, speed: 70, size: 1.0, gold: 10, res: { grass: 0, water: 80, fire: -30, electric: -20 },
                     walkSrc: 'Pokemon/SPRITES/Slime2/Slime2_Walk_with_shadow.png', walkFrames: 8,
                     dieSrc: 'Pokemon/SPRITES/Slime2/Slime2_Death_with_shadow.png', dieFrames: 10 },
-                3: { hp: 90, speed: 75, size: 1.2, gold: 15, res: { grass: 0, water: 0, fire: 0, electric: 0 },
+                3: { hp: 90, speed: 75, size: 1.2, gold: 15, res: { grass: 0, water: 50, fire: 80, electric: -20 },
                     walkSrc: 'Pokemon/SPRITES/Slime3/Slime3_Walk_with_shadow.png', walkFrames: 8,
                     dieSrc: 'Pokemon/SPRITES/Slime3/Slime3_Death_with_shadow.png', dieFrames: 10 }
             }
@@ -360,6 +292,7 @@
         const soundFanfare = new Audio('Pokemon/Sounds/Misc_fanfare.mp3');
         const soundClickShort = new Audio('Pokemon/Sounds/Misc_click.mp3');
         const soundClickMiddle = new Audio('Pokemon/Sounds/Misc_click_middle.mp3');
+        const soundArrive = new Audio('Pokemon/Sounds/Misc_arrive.mp3');
 
         const TOWER_STATS = {
             electric: {
@@ -374,18 +307,18 @@
             grass: {
                 levels: {
                     1: { name: 'Bulbasaur', range: 130, attackName: 'vine_whip', damage: 10, cooldown: 1000, size: 1 },
-                    2: { name: 'Ivysaur', range: 150, attackName: 'razor_leaf', damage: 20, cooldown: 1000, doubleChance: 0.5, size: 1.0 },
-                    3: { name: 'Venusaur', range: 180, attackName: 'solar_beam', damage: 25, cooldown: 1000, splash: 10, size: 1.0 },
+                    2: { name: 'Ivysaur', range: 150, attackName: 'razor_leaf', damage: 20, cooldown: 1000, doubleChance: 0.5, doubleMultiplier: 2, size: 1.0 },
+                    3: { name: 'Venusaur', range: 180, attackName: 'solar_beam', damage: 25, cooldown: 1000, splashRadius: 10, splashMultiplier: 2, size: 1.0 },
                     '4a': { name: 'Venusaur (Bloom)', spriteName: 'Venusaur', range: 210, attackName: 'plant_trap', damage: 0, cooldown: 3000, trapRadius: 25, trapDur: 5.0, trapDps: 20, size: 1.0 },
-                    '4b': { name: 'Venusaur (Quake)', spriteName: 'Venusaur', range: 180, attackName: 'earthquake', damage: 0, cooldown: 5000, eqDur: 3.0, eqDps: 20, size: 1.0 }
+                    '4b': { name: 'Venusaur (Quake)', spriteName: 'Venusaur', range: 180, attackName: 'earthquake', damage: 0, cooldown: 5000, eqDur: 3.0, eqDps: 20, eqRadius: 180, size: 1.0 }
                 }
             },
             water: {
                 levels: {
                     1: { name: 'Squirtle', range: 120, attackName: 'water_gun', damage: 10, continuous: true, size: 1 },
                     2: { name: 'Wartortle', range: 140, attackName: 'water_pulse', damage: 20, cooldown: 1000, turnChance: 0.2, turnDuration: 1.0, size: 1.0 },
-                    3: { name: 'Blastoise', range: 170, attackName: 'hydro_pump', damage: 30, continuous: true, splash: 10, size: 1.0 },
-                    '4a': { name: 'Blastoise (Cutter)', spriteName: 'Blastoise', range: 200, attackName: 'water_cutter', damage: 50, continuous: true, splash: 0, size: 1.0 },
+                    3: { name: 'Blastoise', range: 170, attackName: 'hydro_pump', damage: 30, continuous: true, splashRadius: 10, size: 1.0 },
+                    '4a': { name: 'Blastoise (Cutter)', spriteName: 'Blastoise', range: 200, attackName: 'water_cutter', damage: 50, continuous: true, splashRadius: 0, size: 1.0 },
                     '4b': { name: 'Blastoise (Stun)', spriteName: 'Blastoise', range: 200, attackName: 'water_paralyzer', damage: 50, cooldown: 3000, stunDuration: 2.0, size: 1.0 }
                 }
             },
@@ -393,9 +326,9 @@
                 levels: {
                     1: { name: 'Charmander', range: 120, attackName: 'ember', damage: 10, cooldown: 1000, size: 1 },
                     2: { name: 'Charmeleon', range: 140, attackName: 'flamethrower', damage: 20, continuous: true, burnChance: 0.10, burnDuration: 2.0, burnDps: 10, size: 1.0 },
-                    3: { name: 'Charizard', range: 160, attackName: 'fire_spin', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 3.0, size: 1.0 },
-                    '4a': { name: 'Charizard (Hurricane)', spriteName: 'Charizard', range: 190, attackName: 'fire_hurricane', damage: 0, cooldown: 3000, firestormDps: 40, firestormDur: 5.0, size: 1.0 },
-                    '4b': { name: 'Charizard (Tornado)', spriteName: 'Charizard', range: 190, attackName: 'fire_tornado', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 3.5, size: 1.0 }
+                    3: { name: 'Charizard', range: 160, attackName: 'fire_spin', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 3.0, firestormRadius: 50, size: 1.0 },
+                    '4a': { name: 'Charizard (Hurricane)', spriteName: 'Charizard', range: 190, attackName: 'fire_hurricane', damage: 0, cooldown: 4000, firestormDps: 40, firestormDur: 3.5, firestormRadius: 50, size: 1.0 },
+                    '4b': { name: 'Charizard (Tornado)', spriteName: 'Charizard', range: 190, attackName: 'fire_tornado', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 2.5, firestormRadius: 50, size: 1.0 }
                 }
             }
         };
@@ -482,6 +415,8 @@
         const loadedAudioBuffers = {}; 
         let otherAssetsLoaded = false;
         const plantTrapImg = new Image(); plantTrapImg.src = 'Pokemon/SPRITES/Misc/Plant1_Attack_with_shadow.png';
+        const fireTornadoImg = new Image(); fireTornadoImg.src = 'Pokemon/Animations/fire_tornado.png';
+        const fireStormImg = new Image(); fireStormImg.src = 'Pokemon/Animations/fire_storm.png';
         
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -545,35 +480,102 @@
 
         function getTowerTooltipInfo(type, level) {
             const stats = TOWER_STATS[type].levels[level];
-            let dps = 0; let effects = []; let cooldownSec = stats.continuous ? 0 : (stats.cooldown / 1000);
+            let minDps = 0; let maxDps = 0; let effects = []; 
+            const cooldownSec = stats.continuous ? 0 : (stats.cooldown / 1000);
+            const baseDps = stats.continuous ? stats.damage : (cooldownSec > 0 ? stats.damage / cooldownSec : 0);
 
-            if (stats.continuous) dps = stats.damage;
-            else if (cooldownSec > 0) dps = stats.damage / cooldownSec;
+            minDps = baseDps;
+            maxDps = baseDps;
 
-            if (stats.attackName === 'chain_lightning') effects.push(`Řetězový blesk (až ${stats.chainCount + 1} cílů, skok ${stats.chainRange}px)`);
-            else if (stats.attackName === 'static_field') effects.push(`Statické pole (Zastavení na ${stats.stunDuration}s, r: ${stats.fieldRadius})`);
-            else if (stats.attackName === 'plant_trap') effects.push(`Smrtící rostlina (DPS: ${stats.trapDps}, na ${stats.trapDur}s, r: ${stats.trapRadius})`);
-            else if (stats.attackName === 'earthquake') effects.push(`Zemětřesení (Plošné DPS: ${stats.eqDps}, trvání ${stats.eqDur}s v celém dosahu věže)`);
-            else if (stats.attackName === 'water_cutter') effects.push(`Vodní řezač (Soustředěný ničivý paprsek bez plošného poškození)`);
-            else if (stats.attackName === 'water_paralyzer') effects.push(`Vodní paralyzér (Okamžitě zastaví cíl na ${stats.stunDuration}s)`);
-            else if (stats.attackName === 'fire_hurricane') effects.push(`Ohnivý hurikán (Stacionární silná bouře, trvání ${stats.firestormDur}s)`);
-            else if (stats.attackName === 'fire_tornado') effects.push(`Ohnivé tornádo (Cestuje s cílem, trvání ${stats.firestormDur}s)`);
+            // Odhad počtu zasažených cílů na základě poloměru
+            const getAoETargets = (radius) => {
+                if (!radius) return 1;
+                if (radius <= 15) return 2;
+                if (radius <= 30) return 3;
+                if (radius <= 60) return 4;
+                if (radius <= 120) return 5;
+                return 6; // Pro největší efekty (např. zemětřesení s r: 180)
+            };
 
-            if (type === 'electric' && !stats.attackName.includes('chain') && !stats.attackName.includes('field') && stats.paraChance) {
-                dps += (stats.paraChance * stats.paraDuration * stats.paraDps) / cooldownSec; effects.push(`Paralýza (${(stats.paraChance * 100)}%, ${stats.paraDuration}s, ${stats.paraDps} DPS)`);
-            } else if (type === 'grass' && stats.attackName !== 'plant_trap' && stats.attackName !== 'earthquake') {
-                if (stats.doubleChance) { dps += (stats.damage * stats.doubleChance) / cooldownSec; effects.push(`Dvojitý útok (${(stats.doubleChance * 100)}%)`); }
-                if (stats.splash) { dps += (stats.damage * 0.5) / cooldownSec; effects.push(`Plošný útok (r: ${stats.splash})`); }
-            } else if (type === 'water' && stats.attackName !== 'water_cutter' && stats.attackName !== 'water_paralyzer') {
-                if (stats.turnChance) effects.push(`Zmatení (${(stats.turnChance * 100)}%, ${stats.turnDuration}s)`);
-                if (stats.splash) effects.push(`Plošný útok (r: ${stats.splash})`);
-            } else if (type === 'fire' && stats.attackName !== 'fire_hurricane' && stats.attackName !== 'fire_tornado') {
-                if (stats.burnChance) { dps += stats.burnDps * Math.min(1, stats.burnChance * 10); effects.push(`Popálení (${(stats.burnChance * 100)}% / s, ${stats.burnDps} DPS)`); }
-                if (stats.firestormDps) { dps = stats.firestormDps; effects.push(`Ohnivá bouře (${stats.firestormDur}s, r: 50)`); }
+            if (stats.attackName === 'chain_lightning') {
+                maxDps = baseDps * (stats.chainCount + 1);
+                effects.push(`Řetězový blesk (až ${stats.chainCount + 1} cílů, skok ${stats.chainRange}px)`);
+            } else if (stats.attackName === 'static_field') {
+                const dpsPerTarget = (stats.damage * 0.5) / cooldownSec;
+                minDps = dpsPerTarget;
+                maxDps = dpsPerTarget * getAoETargets(stats.fieldRadius);
+                effects.push(`Statické pole (Zastavení na ${stats.stunDuration}s, r: ${stats.fieldRadius})`);
+            } else if (stats.attackName === 'plant_trap') {
+                const dpsPerTarget = (stats.trapDps * stats.trapDur) / cooldownSec;
+                minDps = dpsPerTarget;
+                maxDps = dpsPerTarget * getAoETargets(stats.trapRadius);
+                effects.push(`Smrtící rostlina (DPS: ${stats.trapDps}, na ${stats.trapDur}s, r: ${stats.trapRadius})`);
+            } else if (stats.attackName === 'earthquake') {
+                const dpsPerTarget = (stats.eqDps * stats.eqDur) / cooldownSec;
+                minDps = dpsPerTarget;
+                maxDps = dpsPerTarget * getAoETargets(stats.eqRadius);
+                effects.push(`Zemětřesení (Plošné DPS: ${stats.eqDps}, trvání ${stats.eqDur}s, r: ${stats.eqRadius})`);
+            } else if (stats.attackName === 'water_cutter') {
+                effects.push(`Vodní řezač (Soustředěný ničivý paprsek)`);
+            } else if (stats.attackName === 'water_paralyzer') {
+                effects.push(`Vodní paralyzér (Okamžitě zastaví cíl na ${stats.stunDuration}s)`);
+            } else if (stats.attackName === 'fire_hurricane' || stats.attackName === 'fire_tornado' || stats.attackName === 'fire_spin') {
+                const dpsPerTarget = (stats.firestormDps * stats.firestormDur) / cooldownSec;
+                minDps = dpsPerTarget;
+                maxDps = dpsPerTarget * getAoETargets(stats.firestormRadius);
+                if (stats.attackName === 'fire_hurricane') effects.push(`Ohnivý hurikán (Stacionární silná bouře, trvání ${stats.firestormDur}s, r: ${stats.firestormRadius})`);
+                else if (stats.attackName === 'fire_tornado') effects.push(`Ohnivé tornádo (Cestuje s cílem, trvání ${stats.firestormDur}s, r: ${stats.firestormRadius})`);
+                else effects.push(`Ohnivá bouře (${stats.firestormDur}s, r: ${stats.firestormRadius})`);
+            } else {
+                if (type === 'electric' && stats.paraChance) {
+                    const addedDps = (stats.paraDps * stats.paraDuration) / cooldownSec;
+                    maxDps = baseDps + addedDps;
+                    effects.push(`Paralýza (${(stats.paraChance * 100)}%, ${stats.paraDuration}s, ${stats.paraDps} DPS)`);
+                } 
+                if (type === 'grass') {
+                    if (stats.doubleChance) { 
+                        minDps = baseDps; 
+                        maxDps = baseDps * (stats.doubleMultiplier || 2); 
+                        effects.push(`Dvojitý útok (${(stats.doubleChance * 100)}%)`); 
+                    }
+                    if (stats.splashRadius && stats.splashMultiplier) { 
+                        const targets = getAoETargets(stats.splashRadius);
+                        minDps = (baseDps + baseDps * stats.splashMultiplier) / 2;
+                        maxDps = (baseDps + baseDps * stats.splashMultiplier * targets) / 2;
+                        effects.push(`Plošný útok (r: ${stats.splashRadius})`); 
+                    }
+                } 
+                if (type === 'water') {
+                    if (stats.turnChance) effects.push(`Zmatení (${(stats.turnChance * 100)}%, ${stats.turnDuration}s)`);
+                    if (stats.splashRadius) { 
+                        maxDps = baseDps * getAoETargets(stats.splashRadius);
+                        effects.push(`Plošný útok (r: ${stats.splashRadius})`); 
+                    }
+                } 
+                if (type === 'fire') {
+                    if (stats.burnChance) { 
+                        maxDps = baseDps + stats.burnDps;
+                        effects.push(`Popálení (${(stats.burnChance * 100)}% / s, ${stats.burnDps} DPS)`); 
+                    }
+                }
             }
 
             const elementNames = { 'fire': 'Oheň', 'water': 'Voda', 'grass': 'Tráva', 'electric': 'Elektřina' };
-            return { name: stats.name, attack: stats.attackName.replace('_', ' '), element: elementNames[type] || type, cooldown: cooldownSec === 0 ? 'Trvalý' : `${cooldownSec}s`, range: stats.range, dps: dps.toFixed(1), effects: effects.length > 0 ? effects.join('<br>') : 'Žádné' };
+            
+            let dpsString = minDps.toFixed(1);
+            if (Math.abs(maxDps - minDps) > 0.1) {
+                dpsString = `${minDps.toFixed(1)} - ${maxDps.toFixed(1)}`;
+            }
+
+            return { 
+                name: stats.name, 
+                attack: stats.attackName.replace('_', ' '), 
+                element: elementNames[type] || type, 
+                cooldown: cooldownSec === 0 ? 'Trvalý' : `${cooldownSec}s`, 
+                range: stats.range, 
+                dps: dpsString, 
+                effects: effects.length > 0 ? effects.join('<br>') : 'Žádné' 
+            };
         }
 
         function showTooltip(type, level, originX, originY) {
@@ -584,7 +586,7 @@
                 <div class="tooltip-row"><span>Útok:</span> <strong style="text-transform: capitalize">${info.attack}</strong></div>
                 <div class="tooltip-row"><span>Dosah:</span> <strong>${info.range}</strong></div>
                 <div class="tooltip-row"><span>Cooldown:</span> <strong>${info.cooldown}</strong></div>
-                <div class="tooltip-row"><span>DPS:</span> <strong>~${info.dps}</strong></div>
+                <div class="tooltip-row"><span>DPS:</span> <strong>${info.dps}</strong></div>
                 <div class="tooltip-effects"><strong>Efekty:</strong><br>${info.effects}</div>
             `;
             infoTooltip.classList.remove('hidden');
@@ -663,21 +665,19 @@
         function renderPokemonDex() {
             if (pokemonDexContent.innerHTML !== '') return;
             const types = ['grass', 'water', 'fire', 'electric'];
-            const rows = ['1', '2', '3', '4']; // Změněno: Úroveň 4 nahrazuje obě větve (4a, 4b)
+            const rows = ['1', '2', '3', '4'];
             let html = '';
 
-            // Definice barevného přechodu pro názvy
             const levelColors = {
-                '1': '#3498db', // Modrá (Základní)
-                '2': '#1abc9c', // Tyrkysová (Přechod)
-                '3': '#f39c12', // Oranžová (Přechod)
-                '4': '#ffd700'  // Zlatá (Finální evoluce)
+                '1': '#3498db',
+                '2': '#1abc9c',
+                '3': '#f39c12',
+                '4': '#ffd700'
             };
 
             rows.forEach(row => {
                 types.forEach(type => {
                     if (row === '4') {
-                        // --- SLOUČENÁ KARTA PRO ÚROVEŇ 4 (Větve A a B) ---
                         const statsA = TOWER_STATS[type].levels['4a'];
                         const statsB = TOWER_STATS[type].levels['4b'];
                         if (!statsA || !statsB) return;
@@ -699,7 +699,6 @@
                         const displayWidth = animWidth * scale;
                         const stripWidth = displayWidth * frameCount;
 
-                        // Extrakce názvů mutací (např. z "Venusaur (Bloom)" vybere "Bloom")
                         const titleA = infoA.name.match(/\(([^)]+)\)/)?.[1] || 'Cesta A';
                         const titleB = infoB.name.match(/\(([^)]+)\)/)?.[1] || 'Cesta B';
 
@@ -720,7 +719,7 @@
                                         <div class="split-header">${titleA}</div>
                                         <div class="poke-stats">
                                             <div><strong>⚔️:</strong> <span style="text-transform: capitalize">${infoA.attack}</span></div>
-                                            <div><strong>💥:</strong> ~${infoA.dps}</div>
+                                            <div><strong>💥:</strong> ${infoA.dps}</div>
                                             ${infoA.effects !== 'Žádné' ? `<div class="poke-effects">${infoA.effects}</div>` : ''}
                                         </div>
                                     </div>
@@ -728,7 +727,7 @@
                                         <div class="split-header">${titleB}</div>
                                         <div class="poke-stats">
                                             <div><strong>⚔️:</strong> <span style="text-transform: capitalize">${infoB.attack}</span></div>
-                                            <div><strong>💥:</strong> ~${infoB.dps}</div>
+                                            <div><strong>💥:</strong> ${infoB.dps}</div>
                                             ${infoB.effects !== 'Žádné' ? `<div class="poke-effects">${infoB.effects}</div>` : ''}
                                         </div>
                                     </div>
@@ -736,7 +735,6 @@
                             </div>
                         `;
                     } else {
-                        // --- BĚŽNÁ KARTA PRO ÚROVNĚ 1 AŽ 3 ---
                         const stats = TOWER_STATS[type].levels[row];
                         if (!stats) return;
                         
@@ -770,7 +768,7 @@
                                 <div class="poke-stats">
                                     <div><strong>⚔️ Útok:</strong> <span style="text-transform: capitalize">${info.attack}</span></div>
                                     <div><strong>🎯 Element:</strong> ${info.element}</div>
-                                    <div><strong>💥 DPS:</strong> ~${info.dps}</div>
+                                    <div><strong>💥 DPS:</strong> ${info.dps}</div>
                                     ${info.effects !== 'Žádné' ? `<div class="poke-effects">${info.effects}</div>` : ''}
                                 </div>
                             </div>
@@ -1208,9 +1206,9 @@
                         source.connect(gainNode); gainNode.connect(audioCtx.destination); source.start(0); this.currentSound = source;
                     }
                 }
-                if (this.elementType === 'water' && stats.splash > 0) {
+                if (this.elementType === 'water' && stats.splashRadius > 0) {
                     if (Math.random() < 0.2) spawnImpact(hitX + (Math.random()-0.5)*20, hitY + (Math.random()-0.5)*20, 'water');
-                    state.enemies.forEach(e => { if (e !== target && Math.hypot((e.x+e.offsetX) - hitX, (e.y+e.offsetY) - hitY) <= stats.splash) e.takeDamage(dmg, this.elementType); });
+                    state.enemies.forEach(e => { if (e !== target && Math.hypot((e.x+e.offsetX) - hitX, (e.y+e.offsetY) - hitY) <= stats.splashRadius) e.takeDamage(dmg, this.elementType); });
                 }
                 if (this.elementType === 'fire' && stats.burnChance && Math.random() < stats.burnChance * dt * 10) { target.burnTimer = stats.burnDuration; target.burnDps = stats.burnDps; }
                 state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: dt*2, maxLife: dt*2 });
@@ -1240,16 +1238,16 @@
                 }
                 else if (this.elementType === 'grass') {
                     if (stats.attackName === 'plant_trap') { state.projectiles.push({ type: 'plant_trap', elementType: this.elementType, x: hitX, y: hitY, life: stats.trapDur, maxLife: stats.trapDur, dps: stats.trapDps, radius: stats.trapRadius }); } 
-                    else if (stats.attackName === 'earthquake') { state.projectiles.push({ type: 'earthquake', elementType: this.elementType, x: this.x, y: this.y, life: stats.eqDur, maxLife: stats.eqDur, dps: stats.eqDps, radius: stats.range }); } 
-                    else { let dmg = stats.damage; if (stats.doubleChance && Math.random() < stats.doubleChance) dmg *= 2; let isSplash = false; if (stats.splash && this.attackCount % 2 === 0) { dmg *= 2; isSplash = true; } state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.2, maxLife: 0.2, isSplash, splashR: stats.splash, damage: dmg, target: target }); }
+                    else if (stats.attackName === 'earthquake') { state.projectiles.push({ type: 'earthquake', elementType: this.elementType, x: this.x, y: this.y, life: stats.eqDur, maxLife: stats.eqDur, dps: stats.eqDps, radius: stats.eqRadius }); } 
+                    else { let dmg = stats.damage; if (stats.doubleChance && Math.random() < stats.doubleChance) dmg *= (stats.doubleMultiplier || 2); let isSplash = false; if (stats.splashRadius && this.attackCount % 2 === 0) { dmg *= (stats.splashMultiplier || 2); isSplash = true; } state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.2, maxLife: 0.2, isSplash, splashR: stats.splashRadius, damage: dmg, target: target }); }
                 } 
                 else if (this.elementType === 'water') {
                     if (stats.attackName === 'water_paralyzer') { state.projectiles.push({ type: 'water_paralyzer', elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.15, maxLife: 0.15, damage: stats.damage, target: target, stunDuration: stats.stunDuration }); } 
                     else { state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.2, maxLife: 0.2, damage: stats.damage, target: target, turnChance: stats.turnChance, turnDuration: stats.turnDuration }); }
                 }
                 else if (this.elementType === 'fire') {
-                    if (stats.attackName === 'fire_spin' || stats.attackName === 'fire_hurricane') { state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x: hitX, y: hitY, life: stats.firestormDur, maxLife: stats.firestormDur, dps: stats.firestormDps, radius: 50 }); } 
-                    else if (stats.attackName === 'fire_tornado') { state.projectiles.push({ type: 'fire_tornado', elementType: this.elementType, x: hitX, y: hitY, life: stats.firestormDur, maxLife: stats.firestormDur, dps: stats.firestormDps, radius: 50, target: target }); } 
+                    if (stats.attackName === 'fire_spin' || stats.attackName === 'fire_hurricane') { state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x: hitX, y: hitY, life: stats.firestormDur, maxLife: stats.firestormDur, dps: stats.firestormDps, radius: stats.firestormRadius }); } 
+                    else if (stats.attackName === 'fire_tornado') { state.projectiles.push({ type: 'fire_tornado', elementType: this.elementType, x: hitX, y: hitY, life: stats.firestormDur, maxLife: stats.firestormDur, dps: stats.firestormDps, radius: stats.firestormRadius, target: target }); } 
                     else { state.projectiles.push({ type: stats.attackName, elementType: this.elementType, x1: this.x, y1: this.y, x2: hitX, y2: hitY, life: 0.15, maxLife: 0.15, damage: stats.damage, target: target }); }
                 }
             }
@@ -1433,6 +1431,31 @@
                 state.towers.push(state.selectedSlot.tower); towerMenu.classList.add('hidden'); hideTooltip();
                 const stats = TOWER_STATS[type].levels[1];
                 playSound(stats.spriteName || stats.name, '_start');
+
+                // Přehrání speciálního zvuku zjevení
+                soundArrive.currentTime = 0;
+                soundArrive.play().catch(e => console.warn("Arrive sound failed:", e));
+
+                const gifMap = {
+                    'grass': 'Enter_bulbasaur.gif',
+                    'electric': 'Enter_pika.gif',
+                    'fire': 'Enter_charmander.gif',
+                    'water': 'Enter_squirtle.gif'
+                };
+                
+                const animCircle = document.createElement('div');
+                animCircle.className = 'enter-anim-circle';
+                animCircle.innerHTML = `<img src="Pokemon/Animations/${gifMap[type]}?t=${Date.now()}" alt="Enter animation">`;
+                
+                animCircle.style.left = `${state.selectedSlot.x}px`;
+                animCircle.style.top = `${state.selectedSlot.y}px`;
+                
+                document.getElementById('main-canvas-container').appendChild(animCircle);
+                
+                setTimeout(() => {
+                    animCircle.style.opacity = '0';
+                    setTimeout(() => animCircle.remove(), 500);
+                }, 800);
             }
         }
 
@@ -1525,12 +1548,43 @@
                     if(p.life<=0)state.projectiles.splice(i,1);continue;
                 }
 
-                if (p.type === 'fire_spin' || p.type === 'fire_hurricane' || p.type === 'fire_tornado') {
-                    if (p.type === 'fire_tornado' && p.target && p.target.hp > 0) { p.x = p.target.x + p.target.offsetX; p.y = p.target.y + p.target.offsetY; }
-                    const intensity = p.life / p.maxLife; const radGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
-                    radGrad.addColorStop(0, `rgba(255, 255, 150, ${Math.min(1, intensity * 1.5)})`); radGrad.addColorStop(0.4, `rgba(255, 60, 0, ${intensity})`); radGrad.addColorStop(1, `rgba(139, 0, 0, 0)`);
-                    ctx.fillStyle = radGrad; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
-                    for(let k=0; k<5; k++) { const px = p.x + (Math.random() - 0.5) * p.radius * 1.5; const py = p.y + (Math.random() - 0.5) * p.radius * 1.5; ctx.fillStyle = Math.random() > 0.5 ? '#ffeb3b' : '#ff3300'; ctx.beginPath(); ctx.arc(px, py, Math.random() * 4 + 1, 0, Math.PI*2); ctx.fill(); }
+                if (p.type === 'fire_spin' || p.type === 'fire_hurricane') {
+                    if (fireStormImg.complete && fireStormImg.naturalHeight !== 0) {
+                        const elapsed = p.maxLife - p.life;
+                        const frameIndex = Math.floor((elapsed * 15) % 13); 
+                        const fw = fireStormImg.width / 13;
+                        const fh = fireStormImg.height;
+                        
+                        // Zvětšení o 50 % pro fire_hurricane
+                        const baseSize = p.radius * 2.5;
+                        const size = p.type === 'fire_hurricane' ? baseSize * 1.5 : baseSize;
+                        
+                        ctx.save();
+                        ctx.globalAlpha = Math.min(0.75, p.life * 3); 
+                        ctx.drawImage(fireStormImg, frameIndex * fw, 0, fw, fh, p.x - size / 2, p.y - size / 2, size, size);
+                        ctx.restore();
+                    }
+                    
+                    state.enemies.forEach(e => { if (Math.hypot((e.x+e.offsetX) - p.x, (e.y+e.offsetY) - p.y) <= p.radius) e.takeDamage(p.dps * dt, p.elementType); });
+                    if (p.life <= 0) state.projectiles.splice(i, 1); continue;
+                }
+
+                if (p.type === 'fire_tornado') {
+                    if (p.target && p.target.hp > 0) { p.x = p.target.x + p.target.offsetX; p.y = p.target.y + p.target.offsetY; }
+                    
+                    if (fireTornadoImg.complete && fireTornadoImg.naturalHeight !== 0) {
+                        const elapsed = p.maxLife - p.life;
+                        const frameIndex = Math.floor((elapsed * 15) % 8); 
+                        const fw = fireTornadoImg.width / 8;
+                        const fh = fireTornadoImg.height;
+                        const size = p.radius * 3; 
+                        
+                        ctx.save();
+                        ctx.globalAlpha = Math.min(0.65, p.life * 3); 
+                        ctx.drawImage(fireTornadoImg, frameIndex * fw, 0, fw, fh, p.x - size / 2, p.y - size / 2 - size * 0.2, size, size);
+                        ctx.restore();
+                    }
+                    
                     state.enemies.forEach(e => { if (Math.hypot((e.x+e.offsetX) - p.x, (e.y+e.offsetY) - p.y) <= p.radius) e.takeDamage(p.dps * dt, p.elementType); });
                     if (p.life <= 0) state.projectiles.splice(i, 1); continue;
                 }
