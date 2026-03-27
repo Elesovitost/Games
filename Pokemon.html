@@ -423,7 +423,11 @@
         function playSound(spriteName, suffix = '') {
             const key = spriteName.toLowerCase() + suffix;
             const buffer = loadedAudioBuffers[key];
-            if (buffer && audioCtx.state === 'running') {
+            
+            if (buffer) {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
                 const source = audioCtx.createBufferSource();
                 source.buffer = buffer;
                 const gainNode = audioCtx.createGain();
@@ -1199,8 +1203,10 @@
             handleContinuousAttack(dt, target, stats, hitX, hitY) {
                 this.lungeTimer = 0.1; const dmg = stats.damage * dt; target.takeDamage(dmg, this.elementType);
                 if (!this.currentSound) {
-                    const soundName = (stats.spriteName || stats.name).toLowerCase(); const buffer = loadedAudioBuffers[soundName];
-                    if (buffer && audioCtx.state === 'running') {
+                    const soundName = (stats.spriteName || stats.name).toLowerCase(); 
+                    const buffer = loadedAudioBuffers[soundName];
+                    if (buffer) {
+                        if (audioCtx.state === 'suspended') audioCtx.resume();
                         const source = audioCtx.createBufferSource(); source.buffer = buffer; source.loop = true;
                         const gainNode = audioCtx.createGain(); gainNode.gain.value = 0.5;
                         source.connect(gainNode); gainNode.connect(audioCtx.destination); source.start(0); this.currentSound = source;
