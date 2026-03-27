@@ -67,6 +67,34 @@
     .enemy-sprite-container { margin-bottom: 10px; background-repeat: no-repeat; image-rendering: pixelated; background-position: 0 0; }
     .enemy-stats { font-size: 0.85rem; width: 100%; display: flex; flex-direction: column; gap: 2px; color: #bdc3c7; text-align: center; }
     .enemy-stats strong { color: #ecf0f1; }
+
+    @keyframes dex-sprite-walk {
+        from { transform: translateX(0); }
+        to { transform: translateX(-100%); }
+    }
+    .dex-sprite-viewport {
+        overflow: hidden; 
+        position: relative; 
+        margin-bottom: 10px;
+    }
+    .dex-sprite-strip {
+        position: absolute; 
+        left: 0; 
+        top: 0;
+        background-repeat: no-repeat; 
+        image-rendering: pixelated;
+    }
+    .res-stats {
+        display: flex; 
+        justify-content: center; 
+        gap: 8px; 
+        font-size: 0.85rem;
+        margin-top: 5px; 
+        background: rgba(0,0,0,0.4); 
+        padding: 4px; 
+        border-radius: 4px; 
+        border: 1px solid #7f8c8d;
+    }
 </style>
 </head>
 <body>
@@ -279,6 +307,8 @@
         const soundStart = new Audio('Pokemon/Sounds/Misc_start.mp3');
         const soundEnd = new Audio('Pokemon/Sounds/Misc_end.mp3');
         const soundFanfare = new Audio('Pokemon/Sounds/Misc_fanfare.mp3');
+        const soundClickShort = new Audio('Pokemon/Sounds/Misc_click.mp3');
+        const soundClickMiddle = new Audio('Pokemon/Sounds/Misc_click_middle.mp3');
 
         const TOWER_STATS = {
             electric: {
@@ -526,33 +556,47 @@
         });
 
         btnDexPokemon.addEventListener('click', () => pokemonDexModal.classList.remove('hidden'));
+        btnDexPokemon.addEventListener('mouseenter', () => { soundClickShort.currentTime = 0; soundClickShort.play().catch(()=>{}); });
 
         btnDexEnemies.addEventListener('click', () => {
             enemyDexModal.classList.remove('hidden');
             renderEnemyDex();
         });
+        btnDexEnemies.addEventListener('mouseenter', () => { soundClickShort.currentTime = 0; soundClickShort.play().catch(()=>{}); });
 
         function renderEnemyDex() {
             if (enemyDexContent.innerHTML !== '') return;
             let html = '';
             for (const [type, levels] of Object.entries(ENEMY_STATS)) {
                 for (const [level, stats] of Object.entries(levels)) {
-                    const bgSizeX = stats.walkFrames * 100;
-                    const bgSizeY = 400; // Máme 4 řádky ve spritesheetu
-                    const spriteSize = Math.floor(60 * stats.size); // Základ 60px násobený velikostí nepřítele
+                    // Výpočet rozměrů pro CSS krokovou animaci
+                    const spriteSize = Math.floor(60 * stats.size); 
+                    const stripWidth = spriteSize * stats.walkFrames;
+                    const stripHeight = spriteSize * 4; // 4 řádky ve spritesheetu
+                    
+                    const res = stats.res || { grass: 0, water: 0, fire: 0, electric: 0 };
                     
                     html += `
                         <div class="enemy-card">
                             <h3>${type} (Lvl ${level})</h3>
-                            <div class="enemy-sprite-container" style="
-                                width: ${spriteSize}px; 
-                                height: ${spriteSize}px;
-                                background-image: url('${stats.walkSrc}');
-                                background-size: ${bgSizeX}% ${bgSizeY}%;
-                            "></div>
+                            <div class="dex-sprite-viewport" style="width: ${spriteSize}px; height: ${spriteSize}px;">
+                                <div class="dex-sprite-strip" style="
+                                    width: ${stripWidth}px; 
+                                    height: ${stripHeight}px;
+                                    background-image: url('${stats.walkSrc}');
+                                    background-size: ${stripWidth}px ${stripHeight}px;
+                                    animation: dex-sprite-walk 1s steps(${stats.walkFrames}) infinite;
+                                "></div>
+                            </div>
                             <div class="enemy-stats">
                                 <div><strong>❤️ HP:</strong> ${stats.hp}</div>
                                 <div><strong>⚡ Rychlost:</strong> ${stats.speed}</div>
+                                <div class="res-stats">
+                                    <span title="Tráva">🌿 ${res.grass}</span>
+                                    <span title="Voda">💧 ${res.water}</span>
+                                    <span title="Oheň">🔥 ${res.fire}</span>
+                                    <span title="Elektřina">⚡ ${res.electric}</span>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -582,6 +626,11 @@
                 else if (i === maxUnlockedLevel) { btn.classList.add('unlocked'); btn.title = `Hrát Level ${i}`; } 
                 else { btn.disabled = true; btn.title = `Level ${i} (Uzamčeno)`; }
                 if (i <= maxUnlockedLevel) btn.onclick = () => initLevel(i);
+                
+                btn.onmouseenter = () => { 
+                    if (!btn.disabled) { soundClickShort.currentTime = 0; soundClickShort.play().catch(()=>{}); }
+                };
+
                 levelSidebar.appendChild(btn);
             }
         }
@@ -719,7 +768,10 @@
                 const price = document.createElement('span'); price.className = 'price-tag'; price.textContent = `${TOWER_COST} 🪙`;
                 btn.appendChild(icon); btn.appendChild(price);
                 btn.onclick = (e) => { e.stopPropagation(); handleTowerPurchase(e, type); };
-                btn.onmouseenter = () => { state.hoveredTowerType = type; handleBtnMouseEnter(btn, type, 1); };
+                btn.onmouseenter = () => { 
+                    if (!btn.disabled) { soundClickShort.currentTime = 0; soundClickShort.play().catch(()=>{}); }
+                    state.hoveredTowerType = type; handleBtnMouseEnter(btn, type, 1); 
+                };
                 btn.onmouseleave = () => { state.hoveredTowerType = null; hideTooltip(); };
                 towerMenu.appendChild(btn);
             });
@@ -771,7 +823,10 @@
                 } 
             };
             
-            btn.onmouseenter = () => { state.hoveredUpgrade = true; state.hoveredUpgradeLevel = nextLevel; handleBtnMouseEnter(btn, tower.elementType, nextLevel); };
+            btn.onmouseenter = () => { 
+                if (!btn.disabled) { soundClickShort.currentTime = 0; soundClickShort.play().catch(()=>{}); }
+                state.hoveredUpgrade = true; state.hoveredUpgradeLevel = nextLevel; handleBtnMouseEnter(btn, tower.elementType, nextLevel); 
+            };
             btn.onmouseleave = () => { state.hoveredUpgrade = false; hideTooltip(); };
             return btn;
         }
@@ -1160,8 +1215,19 @@
 
         canvas.addEventListener('mousemove', (e) => {
             if (state.gameOver || state.gameWon || state.isPaused) return;
+            if (!towerMenu.classList.contains('hidden') || !upgradeMenu.classList.contains('hidden')) return;
             const clickX = e.clientX - canvas.getBoundingClientRect().left; const clickY = e.clientY - canvas.getBoundingClientRect().top;
-            state.hoveredSlot = null; state.slots.forEach(slot => { if (Math.hypot(slot.x - clickX, slot.y - clickY) < slot.radius) state.hoveredSlot = slot; });
+            
+            let newHoveredSlot = null;
+            state.slots.forEach(slot => { if (Math.hypot(slot.x - clickX, slot.y - clickY) < slot.radius) newHoveredSlot = slot; });
+            
+            if (newHoveredSlot !== state.hoveredSlot) {
+                state.hoveredSlot = newHoveredSlot;
+                if (state.hoveredSlot) {
+                    soundClickMiddle.currentTime = 0;
+                    soundClickMiddle.play().catch(()=>{});
+                }
+            }
         });
 
         canvas.addEventListener('click', (e) => {
