@@ -152,18 +152,18 @@
     <script>
         const ENEMY_STATS = {
             vampire: {
-                1: { hp: 40, speed: 50, size: 0.9, gold: 15, res: { grass: 0, water: 0, fire: -50, electric: -20 }, 
+                1: { hp: 80, speed: 50, size: 0.9, gold: 15, res: { grass: 0, water: 0, fire: -25, electric: -25 }, 
                     walkSrc: 'Pokemon/SPRITES/Vampire1/Vampires1_Walk_with_shadow.png', walkFrames: 6,
                     dieSrc: 'Pokemon/SPRITES/Vampire1/Vampires1_Death_with_shadow.png', dieFrames: 11 },
-                2: { hp: 110, speed: 55, size: 1.1, gold: 25, res: { grass: 0, water: 0, fire: -50, electric: -20 },
+                2: { hp: 150, speed: 55, size: 1.1, gold: 25, res: { grass: 0, water: 0, fire: -50, electric: -20 },
                     walkSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Walk_with_shadow.png', walkFrames: 6,
                     dieSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Death_with_shadow.png', dieFrames: 11 },
-                3: { hp: 300, speed: 60, size: 1.3, gold: 100, res: { grass: 0, water: 0, fire: -50, electric: -20 },
+                3: { hp: 600, speed: 60, size: 1.3, gold: 100, res: { grass: 0, water: 0, fire: -50, electric: -20 },
                     walkSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Walk_with_shadow.png', walkFrames: 6,
                     dieSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Death_with_shadow.png', dieFrames: 11 }
             },
             orc: {
-                1: { hp: 40, speed: 40, size: 1.0, gold: 10, res: { grass: 0, water: 0, fire: 50, electric: 30 },
+                1: { hp: 40, speed: 40, size: 1.0, gold: 10, res: { grass: 0, water: -25, fire: 25, electric:25 },
                     walkSrc: 'Pokemon/SPRITES/Orc1/orc1_walk_with_shadow.png', walkFrames: 6,
                     dieSrc: 'Pokemon/SPRITES/Orc1/orc1_death_with_shadow.png', dieFrames: 8 },
                 2: { hp: 90, speed: 42, size: 1.25, gold: 20, res: { grass: 0, water: 0, fire: 50, electric: 30 },
@@ -174,7 +174,7 @@
                     dieSrc: 'Pokemon/SPRITES/Orc3/orc3_death_with_shadow.png', dieFrames: 8 }
             },
             slime: {
-                1: { hp: 30, speed: 65, size: 0.8, gold: 5, res: { grass: 80, water: 50, fire: -30, electric: -20 },
+                1: { hp: 30, speed: 65, size: 0.8, gold: 5, res: { grass: 25, water: 50, fire: -25, electric: -25 },
                     walkSrc: 'Pokemon/SPRITES/Slime1/Slime1_Walk_with_shadow.png', walkFrames: 8,
                     dieSrc: 'Pokemon/SPRITES/Slime1/Slime1_Death_with_shadow.png', dieFrames: 10 },
                 2: { hp: 60, speed: 70, size: 1.0, gold: 10, res: { grass: 0, water: 80, fire: -30, electric: -20 },
@@ -188,21 +188,17 @@
 
         const LEVEL_DATA = [
             {
-                id: 1, background: 'Pokemon/Backgrounds/grass.png', startingGold: 300,
+                id: 1, background: 'Pokemon/Backgrounds/grass.png', startingGold: 400,
                 path: [{ x: 580, y: 0 }, { x: 560, y: 60 }, { x: 430, y: 160 }, { x: 320, y: 240 }, { x: 210, y: 340 }, { x: 130, y: 470 }, { x: 180, y: 560 }, { x: 270, y: 600 }, { x: 430, y: 600 }, { x: 570, y: 530 }, { x: 680, y: 470 }, { x: 790, y: 470 }],
                 slots: [{ x: 250, y: 470 }, { x: 330, y: 510 }, { x: 120, y: 320 }, { x: 150, y: 640 }, { x: 670, y: 580 }, { x: 590, y: 150 }, { x: 420, y: 280 }],
                 objects: [{ x: 640, y: 20, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 250, y: 150, src: 'Pokemon/Assets/Luminous_tree1.png' }, { x: 160, y: 130, src: 'Pokemon/Assets/Luminous_tree1.png' }, { x: 340, y: 370, src: 'Pokemon/Assets/Luminous_tree1.png' }, { x: 510, y: 440, src: 'Pokemon/Assets/Luminous_tree1.png' }, { x: 660, y: 300, src: 'Pokemon/Assets/Luminous_tree1.png' }, { x: 600, y: 370, src: 'Pokemon/Assets/Luminous_tree3.png' }, { x: 550, y: 320, src: 'Pokemon/Assets/Luminous_tree3.png' }, { x: 180, y: 200, src: 'Pokemon/Assets/Luminous_tree3.png' }, { x: 310, y: 80, src: 'Pokemon/Assets/Luminous_tree3.png' }, { x: 80, y: 220, src: 'Pokemon/Assets/Luminous_tree4.png' }, { x: 420, y: 430, src: 'Pokemon/Assets/Luminous_tree4.png' }, { x: 460, y: 370, src: 'Pokemon/Assets/Luminous_tree4.png' }, { x: 500, y: 740, src: 'Pokemon/Assets/Luminous_tree3.png' }, { x: 80, y: 710, src: 'Pokemon/Assets/Luminous_tree3.png' }, { x: 440, y: 700, src: 'Pokemon/Assets/Luminous_tree4.png' }, { x: 390, y: 720, src: 'Pokemon/Assets/Luminous_tree4.png' }, { x: 230, y: 750, src: 'Pokemon/Assets/Luminous_tree4.png' }, { x: 290, y: 760, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 80, y: 600, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 610, y: 660, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 540, y: 710, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 550, y: 390, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 500, y: 370, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 500, y: 400, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 540, y: 430, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 740, y: 360, src: 'Pokemon/Assets/White_ruins1.png' }, { x: 90, y: 70, src: 'Pokemon/Assets/White_tree2.png' }, { x: 690, y: 200, src: 'Pokemon/Assets/Ent_woman.png' }, { x: 390, y: 60, src: 'Pokemon/Assets/Ent_woman.png' }, { x: 50, y: 450, src: 'Pokemon/Assets/Ent_woman.png' }, { x: 710, y: 720, src: 'Pokemon/Assets/Ent_woman.png' }, { x: 430, y: 470, src: 'Pokemon/Assets/Living gazebo1.png' }, { x: 430, y: 750, src: 'Pokemon/Assets/White_tree1.png' }],
                 waves: [
-                    { enemyType: 'slime', enemyLevel: 1, count: 10, interval: 0.8, delay: 0 },
-                    { enemyType: 'orc', enemyLevel: 1, count: 10, interval: 1, delay: 8 },
-                    { enemyType: 'slime', enemyLevel: 1, count: 10, interval: 1, delay: 8 },
-                    { enemyType: 'vampire', enemyLevel: 1, count: 10, interval: 1, delay: 8 },
-                    { enemyType: 'orc', enemyLevel: 1, count: 10, interval: 0.5, delay: 5 },
-                    { enemyType: 'slime', enemyLevel: 2, count: 10, interval: 0.8, delay: 10 },
-                    { enemyType: 'vampire', enemyLevel: 1, count: 10, interval: 0.4, delay: 8 },
-                    { enemyType: 'orc', enemyLevel: 2, count: 10, interval: 1, delay: 10 },
-                    { enemyType: 'slime', enemyLevel: 2, count: 10, interval: 0.5, delay: 8 },
-                    { enemyType: 'vampire', enemyLevel: 2, count: 2, interval: 2, delay: 12 }
+                    { enemyType: 'slime', enemyLevel: 1, count: 5, interval: 0.8, delay: 0 },
+                    { enemyType: 'orc', enemyLevel: 1, count: 5, interval: 1, delay: 7 },
+                    { enemyType: 'slime', enemyLevel: 1, count: 8, interval: 0.6, delay: 7 },
+                    { enemyType: 'orc', enemyLevel: 1, count: 8, interval: 0.8, delay: 7 },
+                    { enemyType: 'orc', enemyLevel: 1, count: 8, interval: 0.5, delay: 10 },
+                    { enemyType: 'slime', enemyLevel: 1, count: 8, interval: 0.4, delay: 5 }
                 ]
             },
             {
