@@ -95,6 +95,59 @@
         border-radius: 4px; 
         border: 1px solid #7f8c8d;
     }
+
+    #pokemon-dex-content {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px; /* Zmenšené mezery mezi sloupci */
+        padding: 5px; /* Minimalizace místa od krajů modalu */
+        overflow-y: auto;
+        align-content: start;
+        height: 100%;
+        box-sizing: border-box;
+    }
+    .poke-card { 
+        background: rgba(0,0,0,0.5); 
+        border: 2px solid #7f8c8d; 
+        border-radius: 8px; 
+        padding: 8px; /* Menší vnitřní odsazení pro širší obsah */
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        text-align: center; 
+        transition: transform 0.2s;
+        height: 100%;
+        box-sizing: border-box;
+    }
+    .poke-card:hover { 
+        transform: translateY(-5px); 
+        border-color: #ffd700; 
+        background: rgba(0,0,0,0.7); 
+    }
+    .poke-card h3 { 
+        margin: 0 0 8px 0; 
+        border-bottom: 1px solid #7f8c8d; 
+        padding-bottom: 5px; 
+        font-size: 1.15rem; 
+        width: 100%; 
+        text-shadow: 1px 1px 2px #000;
+        /* Barva se nyní nastavuje dynamicky přes JS */
+    }
+    .poke-stats { 
+        font-size: 0.8rem; 
+        color: #bdc3c7; 
+        display: flex; 
+        flex-direction: column; 
+        gap: 4px; 
+        width: 100%; 
+        flex-grow: 1; 
+    }
+    .poke-stats strong { 
+        color: #ecf0f1; 
+    }
+    .poke-effects { 
+        font-size: 0.7rem; 
+        color:
 </style>
 </head>
 <body>
@@ -145,9 +198,7 @@
                         <h2>Encyklopedie Pokémonů</h2>
                         <button class="close-dex">❌</button>
                     </div>
-                    <div class="dex-content">
-                        <p style="text-align:center; width: 100%; color: #7f8c8d;">Připravuje se...</p>
-                    </div>
+                    <div class="dex-content" id="pokemon-dex-content"></div>
                 </div>
             </section>
         </main>
@@ -377,6 +428,7 @@
         const enemyDexModal = document.getElementById('enemy-dex-modal');
         const pokemonDexModal = document.getElementById('pokemon-dex-modal');
         const enemyDexContent = document.getElementById('enemy-dex-content');
+        const pokemonDexContent = document.getElementById('pokemon-dex-content'); 
         const mainMenuBottom = document.getElementById('main-menu-bottom');
 
         const TOWER_COST = 100;
@@ -555,7 +607,10 @@
             });
         });
 
-        btnDexPokemon.addEventListener('click', () => pokemonDexModal.classList.remove('hidden'));
+        btnDexPokemon.addEventListener('click', () => {
+            pokemonDexModal.classList.remove('hidden');
+            renderPokemonDex();
+        });
         btnDexPokemon.addEventListener('mouseenter', () => { soundClickShort.currentTime = 0; soundClickShort.play().catch(()=>{}); });
 
         btnDexEnemies.addEventListener('click', () => {
@@ -603,6 +658,127 @@
                 }
             }
             enemyDexContent.innerHTML = html;
+        }
+
+        function renderPokemonDex() {
+            if (pokemonDexContent.innerHTML !== '') return;
+            const types = ['grass', 'water', 'fire', 'electric'];
+            const rows = ['1', '2', '3', '4']; // Změněno: Úroveň 4 nahrazuje obě větve (4a, 4b)
+            let html = '';
+
+            // Definice barevného přechodu pro názvy
+            const levelColors = {
+                '1': '#3498db', // Modrá (Základní)
+                '2': '#1abc9c', // Tyrkysová (Přechod)
+                '3': '#f39c12', // Oranžová (Přechod)
+                '4': '#ffd700'  // Zlatá (Finální evoluce)
+            };
+
+            rows.forEach(row => {
+                types.forEach(type => {
+                    if (row === '4') {
+                        // --- SLOUČENÁ KARTA PRO ÚROVEŇ 4 (Větve A a B) ---
+                        const statsA = TOWER_STATS[type].levels['4a'];
+                        const statsB = TOWER_STATS[type].levels['4b'];
+                        if (!statsA || !statsB) return;
+
+                        const infoA = getTowerTooltipInfo(type, '4a');
+                        const infoB = getTowerTooltipInfo(type, '4b');
+                        
+                        const baseName = statsA.spriteName || statsA.name;
+                        const pKey = baseName.toLowerCase();
+                        
+                        let frameCount = 4;
+                        if (pKey === 'pichu') frameCount = 8;
+                        else if (pKey === 'bulbasaur') frameCount = 6;
+
+                        let animWidth = 64;
+                        if (ANIM_DATA[pKey] && ANIM_DATA[pKey]['Walk']) animWidth = ANIM_DATA[pKey]['Walk'].width;
+                        
+                        const scale = 1.25;
+                        const displayWidth = animWidth * scale;
+                        const stripWidth = displayWidth * frameCount;
+
+                        // Extrakce názvů mutací (např. z "Venusaur (Bloom)" vybere "Bloom")
+                        const titleA = infoA.name.match(/\(([^)]+)\)/)?.[1] || 'Cesta A';
+                        const titleB = infoB.name.match(/\(([^)]+)\)/)?.[1] || 'Cesta B';
+
+                        html += `
+                            <div class="poke-card">
+                                <h3 style="color: ${levelColors['4']}">${baseName}</h3>
+                                <div class="dex-sprite-viewport" style="width: ${displayWidth}px; height: ${displayWidth}px;">
+                                    <div class="dex-sprite-strip" style="
+                                        width: ${stripWidth}px; 
+                                        height: ${displayWidth}px;
+                                        background-image: url('Pokemon/SPRITES/${baseName}/Walk-Anim.png');
+                                        background-size: ${stripWidth}px auto;
+                                        animation: dex-sprite-walk 1s steps(${frameCount}) infinite;
+                                    "></div>
+                                </div>
+                                <div class="split-stats-container">
+                                    <div class="split-stat-block">
+                                        <div class="split-header">${titleA}</div>
+                                        <div class="poke-stats">
+                                            <div><strong>⚔️:</strong> <span style="text-transform: capitalize">${infoA.attack}</span></div>
+                                            <div><strong>💥:</strong> ~${infoA.dps}</div>
+                                            ${infoA.effects !== 'Žádné' ? `<div class="poke-effects">${infoA.effects}</div>` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="split-stat-block">
+                                        <div class="split-header">${titleB}</div>
+                                        <div class="poke-stats">
+                                            <div><strong>⚔️:</strong> <span style="text-transform: capitalize">${infoB.attack}</span></div>
+                                            <div><strong>💥:</strong> ~${infoB.dps}</div>
+                                            ${infoB.effects !== 'Žádné' ? `<div class="poke-effects">${infoB.effects}</div>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // --- BĚŽNÁ KARTA PRO ÚROVNĚ 1 AŽ 3 ---
+                        const stats = TOWER_STATS[type].levels[row];
+                        if (!stats) return;
+                        
+                        const info = getTowerTooltipInfo(type, row);
+                        const spriteName = stats.spriteName || stats.name;
+                        const pKey = spriteName.toLowerCase();
+                        
+                        let frameCount = 4; 
+                        if (pKey === 'pichu') frameCount = 8;
+                        else if (pKey === 'bulbasaur') frameCount = 6;
+
+                        let animWidth = 64;
+                        if (ANIM_DATA[pKey] && ANIM_DATA[pKey]['Walk']) animWidth = ANIM_DATA[pKey]['Walk'].width;
+                        
+                        const scale = 1.25;
+                        const displayWidth = animWidth * scale;
+                        const stripWidth = displayWidth * frameCount;
+
+                        html += `
+                            <div class="poke-card">
+                                <h3 style="color: ${levelColors[row]}">${info.name}</h3>
+                                <div class="dex-sprite-viewport" style="width: ${displayWidth}px; height: ${displayWidth}px;">
+                                    <div class="dex-sprite-strip" style="
+                                        width: ${stripWidth}px; 
+                                        height: ${displayWidth}px;
+                                        background-image: url('Pokemon/SPRITES/${spriteName}/Walk-Anim.png');
+                                        background-size: ${stripWidth}px auto;
+                                        animation: dex-sprite-walk 1s steps(${frameCount}) infinite;
+                                    "></div>
+                                </div>
+                                <div class="poke-stats">
+                                    <div><strong>⚔️ Útok:</strong> <span style="text-transform: capitalize">${info.attack}</span></div>
+                                    <div><strong>🎯 Element:</strong> ${info.element}</div>
+                                    <div><strong>💥 DPS:</strong> ~${info.dps}</div>
+                                    ${info.effects !== 'Žádné' ? `<div class="poke-effects">${info.effects}</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            });
+            pokemonDexContent.innerHTML = html;
         }
         // -------------------------
 
