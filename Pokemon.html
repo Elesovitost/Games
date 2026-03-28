@@ -316,7 +316,7 @@
             grass: {
                 levels: {
                     1: { name: 'Bulbasaur', range: 130, attackName: 'vine_whip', damage: 10, cooldown: 1000, size: 1 },
-                    2: { name: 'Ivysaur', range: 150, attackName: 'razor_leaf', damage: 20, cooldown: 1000, doubleChance: 0.5, doubleMultiplier: 2, size: 1.0 },
+                    2: { name: 'Ivysaur', range: 150, attackName: 'razor_leaf', damage: 5, cooldown: 333, doubleChance: 0.5, doubleMultiplier: 2, size: 1.0 },
                     3: { name: 'Venusaur', range: 180, attackName: 'solar_beam', damage: 25, cooldown: 1000, splashRadius: 10, splashMultiplier: 2, size: 1.0 },
                     '4a': { name: 'Venusaur (Bloom)', spriteName: 'Venusaur', range: 210, attackName: 'plant_trap', damage: 0, cooldown: 3000, trapRadius: 25, trapDur: 5.0, trapDps: 20, size: 1.0 },
                     '4b': { name: 'Venusaur (Quake)', spriteName: 'Venusaur', range: 180, attackName: 'earthquake', damage: 0, cooldown: 5000, eqDur: 3.0, eqDps: 20, eqRadius: 180, size: 1.0 }
@@ -447,26 +447,44 @@
             }
         }
 
+        // Načtení spritů a startovních zvuků pro základní entity
         POKEMONS.forEach(poke => {
             const img = new Image();
             img.src = `Pokemon/SPRITES/${poke}/Sleep-Anim.png`;
             loadedImages[`${poke.toLowerCase()}_sleep`] = img;
-            
-            fetch(`Pokemon/Sounds/${poke}-attack.mp3`)
-                .then(response => response.arrayBuffer())
-                .then(data => audioCtx.decodeAudioData(data))
-                .then(buffer => {
-                    loadedAudioBuffers[poke.toLowerCase()] = buffer;
-                })
-                .catch(e => console.warn(`Nepodařilo se načíst zvuk pro ${poke}:`, e));
 
             fetch(`Pokemon/Sounds/${poke}-start.mp3`)
                 .then(response => response.arrayBuffer())
                 .then(data => audioCtx.decodeAudioData(data))
-                .then(buffer => {
-                    loadedAudioBuffers[`${poke.toLowerCase()}_start`] = buffer;
-                })
+                .then(buffer => { loadedAudioBuffers[`${poke.toLowerCase()}_start`] = buffer; })
                 .catch(e => console.warn(`Nepodařilo se načíst startovní zvuk pro ${poke}:`, e));
+        });
+
+        // Univerzální načtení útočných zvuků na základě TOWER_STATS
+        Object.values(TOWER_STATS).forEach(tower => {
+            Object.entries(tower.levels).forEach(([level, stats]) => {
+                const poke = stats.spriteName || stats.name;
+                const pKey = poke.toLowerCase();
+                
+                // Formátování názvu souboru a klíče pro buffer
+                let soundFileName = `${poke}-attack`;
+                let dictKey = pKey;
+
+                if (level === '4a' || level === '4b') {
+                    soundFileName = `${poke}-${level}-attack`;
+                    dictKey = `${pKey}_${level}`;
+                }
+
+                // Prevence duplicitních fetch requestů u sdílených levelů (1-3)
+                if (!loadedAudioBuffers[dictKey]) {
+                    loadedAudioBuffers[dictKey] = 'loading'; 
+                    fetch(`Pokemon/Sounds/${soundFileName}.mp3`)
+                        .then(response => response.arrayBuffer())
+                        .then(data => audioCtx.decodeAudioData(data))
+                        .then(buffer => { loadedAudioBuffers[dictKey] = buffer; })
+                        .catch(e => console.warn(`Nepodařilo se načíst zvuk útoku pro ${soundFileName}:`, e));
+                }
+            });
         });
 
         function getAnimImage(spriteName, animName) {
@@ -1242,9 +1260,10 @@
             handleContinuousAttack(dt, target, stats, hitX, hitY) {
                 this.lungeTimer = 0.1; const dmg = stats.damage * dt; target.takeDamage(dmg, this.elementType);
                 if (!this.currentSound) {
-                    const soundName = (stats.spriteName || stats.name).toLowerCase(); 
-                    const buffer = loadedAudioBuffers[soundName];
-                    if (buffer) {
+                    const pKey = (stats.spriteName || stats.name).toLowerCase();
+                    const soundKey = (this.level === '4a' || this.level === '4b') ? `${pKey}_${this.level}` : pKey;
+                    const buffer = loadedAudioBuffers[soundKey];
+                    if (buffer && buffer !== 'loading') { // Kontrola, zda se buffer stihl dekódovat
                         if (audioCtx.state === 'suspended') audioCtx.resume();
                         const source = audioCtx.createBufferSource(); source.buffer = buffer; source.loop = true;
                         const gainNode = audioCtx.createGain(); gainNode.gain.value = 0.5;
@@ -1263,7 +1282,9 @@
             handleBurstAttack(target, stats, hitX, hitY) {
                 this.timeSinceLastShot = 0; this.lungeTimer = this.lungeDuration; this.attackCount++;
                 if (this.currentSound) { try { this.currentSound.stop(); } catch(e){} this.currentSound = null; }
-                playSound(stats.spriteName || stats.name);
+                
+                const soundSuffix = (this.level === '4a' || this.level === '4b') ? `_${this.level}` : '';
+                playSound(stats.spriteName || stats.name, soundSuffix);
                 
                 if (this.elementType === 'electric') {
                     if (stats.attackName === 'chain_lightning') {
@@ -1461,7 +1482,7 @@
                         upgradeMenu.innerHTML = ''; const tower = slot.tower;
                         if (tower.level < 3) upgradeMenu.appendChild(createUpgradeButton(tower, tower.level + 1, 0));
                         else if (tower.level === 3) { upgradeMenu.appendChild(createUpgradeButton(tower, '4a', -40)); upgradeMenu.appendChild(createUpgradeButton(tower, '4b', 40)); }
-                        if(upgradeMenu.innerHTML !== '') { upgradeMenu.style.left = `${slot.x}px`; upgradeMenu.style.top = `${slot.y + slot.radius + 40}px`; upgradeMenu.classList.remove('hidden'); }
+                        if(upgradeMenu.innerHTML !== '') { upgradeMenu.style.left = `${slot.x}px`; upgradeMenu.style.top = `${slot.y + slot.radius -50}px`; upgradeMenu.classList.remove('hidden'); }
                     } else {
                         document.querySelectorAll('#tower-menu .radial-btn').forEach(btn => { btn.disabled = state.gold < TOWER_COST; });
                         towerMenu.style.left = `${slot.x}px`; towerMenu.style.top = `${slot.y}px`; towerMenu.classList.remove('hidden');
@@ -1483,7 +1504,7 @@
                     const targetWidth = slot.radius * 2.5; 
                     const targetHeight = piedestalImg.height * (targetWidth / piedestalImg.width);
                     const drawX = slot.x - targetWidth / 2;
-                    const drawY = slot.y - targetHeight / 2 + 5; // +5 pro vizuální ukotvení do země
+                    const drawY = slot.y - targetHeight / 2 + 5; 
 
                     ctx.save();
                     if (isHovered) {
@@ -1544,19 +1565,25 @@
                 if(p.type==='earthquake'){
                     state.enemies.forEach(e=>{if(Math.hypot((e.x+e.offsetX)-p.x,(e.y+e.offsetY)-p.y)<=p.radius)e.takeDamage(p.dps*dt,p.elementType);});
                     ctx.save();
-                    const pr=p.life/p.maxLife,t=p.life*15,drawW=(baseR,waves,amp,offset,color,width,fill=false)=>{
+                    const pr=p.life/p.maxLife;
+                    const shakeX = (Math.random() - 0.5) * 12 * pr; const shakeY = (Math.random() - 0.5) * 12 * pr;
+                    const drawW=(baseR,points,amp,color,width,fill=false)=>{
                         ctx.beginPath();
-                        for(let k=0;k<=40;k++){
-                            const a=(k/40)*Math.PI*2,r=Math.max(0,baseR+Math.sin(a*waves+offset)*amp),px=p.x+Math.cos(a)*r,py=p.y+Math.sin(a)*r;
+                        for(let k=0;k<=points;k++){
+                            const a=(k/points)*Math.PI*2;
+                            const jaggedAmp = (k % 2 === 0 ? amp : -amp) + (Math.random() * amp * 0.4);
+                            const r = Math.max(0, baseR + jaggedAmp);
+                            
+                            const px = p.x + shakeX + Math.cos(a) * r;
+                            const py = p.y + shakeY + Math.sin(a) * r;
                             k===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
                         }
                         ctx.closePath();
                         fill?(ctx.fillStyle=color,ctx.fill()):(ctx.strokeStyle=color,ctx.lineWidth=width,ctx.stroke());
                     };
-                    drawW(p.radius*(1-pr),6,8*pr,-t,`rgba(144,238,144,${pr*0.5})`,8);
-                    drawW(p.radius*0.85,5,12*Math.sin(t*0.5),t*0.8,`rgba(46,204,113,${0.3+0.3*pr})`,4+2*Math.sin(t));
-                    drawW(p.radius*0.55,8,15*Math.cos(t*0.8),-t*1.5,`rgba(39,174,96,${0.4+0.4*pr})`,3);
-                    drawW(p.radius*0.25,4,10*Math.sin(t),t*2.5,`rgba(22,160,133,${0.2+0.5*pr})`,0,true);
+                    
+                    ctx.lineJoin = 'miter';
+                    drawW(p.radius*(1-pr), 36, 12*pr, `rgba(144,238,144,${pr*0.5})`, 4); drawW(p.radius*0.85, 40, 18*pr, `rgba(46,204,113,${0.3+0.3*pr})`, 3); drawW(p.radius*0.55, 30, 22*pr, `rgba(39,174,96,${0.4+0.4*pr})`, 2); drawW(p.radius*0.25, 20, 10*pr, `rgba(22,160,133,${0.2+0.5*pr})`, 0, true);
                     ctx.restore();
                     if(p.life<=0)state.projectiles.splice(i,1);continue;
                 }
@@ -1624,7 +1651,7 @@
 
                 if (p.type.includes('thunder') || p.type === 'chain_lightning') { ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = p.width || 3; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo((sx+p.x2)/2 + (Math.random()-0.5)*20, (sy+p.y2)/2 + (Math.random()-0.5)*20); ctx.lineTo(p.x2, p.y2); ctx.stroke(); } 
                 else if (p.type === 'vine_whip') { ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(sx, by, p.x2, p.y2); ctx.stroke(); } 
-                else if (p.type === 'razor_leaf') { ctx.fillStyle = '#27ae60'; ctx.beginPath(); ctx.ellipse(bx, by, 8, 4, Math.atan2(p.y2-p.y1, p.x2-p.x1), 0, Math.PI*2); ctx.fill(); } 
+                else if (p.type === 'razor_leaf') { ctx.fillStyle = '#27ae60'; const angle = Math.atan2(p.y2 - p.y1, p.x2 - p.x1); const perpAngle = angle + Math.PI / 2; const offsetDist = 12; const drawLeaf = (cx, cy) => { ctx.beginPath(); ctx.ellipse(cx, cy, 8, 4, angle, 0, Math.PI*2); ctx.fill(); }; drawLeaf(bx, by); drawLeaf(bx + Math.cos(perpAngle) * offsetDist, by + Math.sin(perpAngle) * offsetDist); drawLeaf(bx - Math.cos(perpAngle) * offsetDist, by - Math.sin(perpAngle) * offsetDist);}
                 else if (p.type === 'solar_beam') { ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(p.x2, p.y2); ctx.stroke(); ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.stroke(); } 
                 else if (p.type === 'water_gun' || p.type === 'hydro_pump') { ctx.strokeStyle = p.type === 'water_gun' ? '#3498db' : '#2980b9'; ctx.lineWidth = p.type === 'water_gun' ? 3 : 6; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(p.x2, p.y2); ctx.stroke(); } 
                 else if (p.type === 'water_cutter') { ctx.strokeStyle = '#00a8ff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(p.x2, p.y2); ctx.stroke(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(); } 
