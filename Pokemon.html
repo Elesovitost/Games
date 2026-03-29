@@ -212,7 +212,12 @@
         path: [{ x: 700, y: 10 }, { x: 670, y: 90 }, { x: 540, y: 150 }, { x: 430, y: 270 }, { x: 370, y: 450 }, { x: 420, y: 540 }, { x: 460, y: 700 }, { x: 480, y: 780 }],
         slots: [{ x: 520, y: 310 }, { x: 330, y: 300 }, { x: 290, y: 470 }, { x: 480, y: 460 }],
         objects: [{ x: 320, y: 190, src: 'Pokemon/Assets/Brown_ruins1.png' }, { x: 610, y: 580, src: 'Pokemon/Assets/Brown_ruins2.png' }, { x: 670, y: 400, src: 'Pokemon/Assets/Brown_ruins3.png' }, { x: 680, y: 320, src: 'Pokemon/Assets/Brown_ruins4.png' }, { x: 300, y: 600, src: 'Pokemon/Assets/Sand_ruins1.png' }, { x: 260, y: 370, src: 'Pokemon/Assets/Sand_ruins2.png' }, { x: 90, y: 250, src: 'Pokemon/Assets/Sand_ruins3.png' }, { x: 660, y: 240, src: 'Pokemon/Assets/White_tree2.png' }, { x: 300, y: 710, src: 'Pokemon/Assets/White_ruins5.png' }],
-        waves: [{ enemyType: 'slime', enemyLevel: 2, count: 10, interval: 1, delay: 5 }, { enemyType: 'orc', enemyLevel: 2, count: 10, interval: 1, delay: 5 }]
+       waves: [
+                    { enemyType: 'orc', enemyLevel: 1, count: 10, interval: 0.7, delay: 0 },
+                    { enemyType: 'slime', enemyLevel: 2, count: 10, interval: 1, delay: 10 },
+                    { enemyType: 'orc', enemyLevel: 2, count: 10, interval: 1, delay: 5 },
+                    { enemyType: 'vampire', enemyLevel: 1, count: 10, interval: 0.7, delay: 5 }
+                ]
     },
     {
         id: 5, background: 'Pokemon/Backgrounds/rocks.jpg', startingGold: 750,
