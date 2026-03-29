@@ -92,6 +92,15 @@
         .poke-stats strong { color: #f1c40f; }
         .poke-effects { font-size: 0.75rem; color: #a29bfe; font-style: italic; margin-top: 4px; border-top: 1px dotted #666; padding-top: 4px; line-height: 1.2; }
 
+        #bonus-container { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 10px; z-index: 20; }
+        .bonus-btn { width: 50px; height: 50px; border-radius: 8px; border: 3px solid transparent; cursor: pointer; background-size: cover; background-position: center; transition: transform 0.2s, filter 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.5); background-color: rgba(0,0,0,0.5); }
+        .bonus-btn.ready { border-color: #ffd700; animation: pulseGold 1.5s infinite; filter: brightness(1.2); }
+        .bonus-btn.ready:hover { transform: scale(1.1); }
+        .bonus-btn.used { border-color: #7f8c8d; filter: grayscale(1) brightness(0.5); cursor: not-allowed; animation: none; }
+        .bonus-btn.selected { border-color: #2ecc71; transform: scale(1.1); animation: none; box-shadow: 0 0 15px #2ecc71; }
+        canvas.bonus-placement { cursor: crosshair !important; }
+        @keyframes pulseGold { 0% { box-shadow: 0 0 5px #ffd700; } 50% { box-shadow: 0 0 20px #ffd700; } 100% { box-shadow: 0 0 5px #ffd700; } }
+
         .enter-anim-circle { position: absolute; width: 250px; height: 250px; border: 4px solid #ffd700; border-radius: 50%; overflow: hidden; pointer-events: none; z-index: 15; transform: translate(-50%, -50%); box-shadow: 0 0 15px rgba(255, 215, 0, 0.8), inset 0 0 15px rgba(255, 215, 0, 0.8); background: rgba(0,0,0,0.4); opacity: 1; transition: opacity 0.5s ease; }
         .enter-anim-circle img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -142,6 +151,7 @@
                 </div>
                 <div id="info-tooltip" class="hidden"></div>
 
+                <div id="bonus-container" class="hidden"></div>
                 <nav class="main-menu-bottom" id="main-menu-bottom">
                     <button id="btn-dex-pokemon" class="icon-btn dex-btn" title="Encyklopedie Pokémonů"></button>
                     <button id="btn-dex-enemies" class="icon-btn dex-btn" title="Encyklopedie Nepřátel"></button>
@@ -242,6 +252,10 @@
         };
 
         const POKEMONS = [...new Set(Object.values(TOWER_STATS).flatMap(t => Object.values(t.levels).map(l => l.spriteName || l.name)))];
+        const BONUS_STATS = { 
+            electrode: { radius: 50, dps: 30, duration: 4.0, frames: 10, element: 'electric' }
+            // Zde v budoucnu přidáš další bonusy
+        };
 
         // ==========================================
         // 2. DOM ELEMENTY
@@ -271,7 +285,8 @@
             pokemonDexModal: document.getElementById('pokemon-dex-modal'),
             enemyDexContent: document.getElementById('enemy-dex-content'),
             pokemonDexContent: document.getElementById('pokemon-dex-content'),
-            restartBtn: document.getElementById('restart-btn')
+            restartBtn: document.getElementById('restart-btn'),
+            bonusContainer: document.getElementById('bonus-container')
         };
 
         // ==========================================
@@ -284,7 +299,7 @@
             lastTime: performance.now(), spawnTimer: 0, enemiesToSpawn: 0, selectedSlot: null, hoveredSlot: null, 
             hoveredTowerType: null, hoveredUpgrade: false, hoveredUpgradeLevel: null, bgImage: new Image(), path: [], 
             slots: [], objects: [], animationFrameId: null, levelWaves: [], totalLevelEnemies: 0, isSpawningWave: false, 
-            winSequenceStarted: false, winTimeoutId: null, pathCanvas: null
+            winSequenceStarted: false, winTimeoutId: null, pathCanvas: null, usedBonuses: [], selectedBonus: null, activeBonuses: []
         };
 
         // ==========================================
@@ -336,6 +351,12 @@
                 const dictKey = isLvl4 ? `${pKey}_${level}` : pKey;
                 loadAudioBuffer(dictKey, `Pokemon/Sounds/${sName}.mp3`);
             });
+        });
+
+        Object.keys(BONUS_STATS).forEach(b => {
+            const p = b.charAt(0).toUpperCase() + b.slice(1);
+            loadAudioBuffer(`${b}_start`, `Pokemon/Sounds/${p}-start.mp3`);
+            loadAudioBuffer(`${b}_attack`, `Pokemon/Sounds/${p}-attack.mp3`);
         });
 
         function playSound(spriteName, suffix = '') {
@@ -415,6 +436,55 @@
             circle.innerHTML = `<img src="Pokemon/Animations/Enter_${pKey}.gif?t=${Date.now()}" alt="${pKey} enter animation">`;
             document.getElementById('main-canvas-container').appendChild(circle);
             setTimeout(() => { circle.style.opacity = '0'; setTimeout(() => circle.remove(), 500); }, 1500);
+        }
+
+        function playBonusEnterEffect(type, x, y) {
+            const pKey = type.charAt(0).toUpperCase() + type.slice(1);
+            AUDIO.arrive.currentTime = 0; AUDIO.arrive.play().catch(()=>{}); playSound(type, '_start');
+            const circle = document.createElement('div'); circle.className = 'enter-anim-circle'; circle.style.left = `${x}px`; circle.style.top = `${y}px`;
+            circle.innerHTML = `<img src="Pokemon/Animations/Enter_${type}.gif?t=${Date.now()}" alt="${type} enter animation">`;
+            document.getElementById('main-canvas-container').appendChild(circle);
+            setTimeout(() => { circle.style.opacity = '0'; setTimeout(() => circle.remove(), 500); }, 1500);
+        }
+
+        function renderBonusIcons() {
+            ui.bonusContainer.innerHTML = '';
+            
+            // Od 4. kola se zobrazují bonusy (4. kolo = 1 slot, 5. = 2 sloty atd.)
+            const slotsCount = Math.max(0, state.activeLevelId - 3);
+            
+            if (slotsCount === 0) { ui.bonusContainer.classList.add('hidden'); return; }
+            ui.bonusContainer.classList.remove('hidden');
+            
+            // Pole reálných bonusů přiřazených napevno v pořadí
+            const levelBonuses = ['electrode', 'electrode']; // Druhý bude např. 'koffing' atd.
+            
+            for (let i = 0; i < slotsCount; i++) {
+                const b = levelBonuses[i];
+                const btn = document.createElement('button');
+                
+                if (b) {
+                    // Skutečný existující bonus
+                    const isUsed = state.usedBonuses.includes(b);
+                    btn.className = `bonus-btn ${isUsed ? 'used' : (state.selectedBonus === b ? 'selected' : 'ready')}`;
+                    btn.style.backgroundImage = `url('Pokemon/Pictures/${b.charAt(0).toUpperCase() + b.slice(1)}.png')`;
+                    btn.title = isUsed ? `${b} (Použito pro toto kolo)` : `Použít ${b}`;
+                    btn.onclick = (e) => {
+                        e.stopPropagation(); if (isUsed || state.isPaused || state.gameOver) return; AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{});
+                        if (state.selectedBonus === b) { state.selectedBonus = null; btn.classList.remove('selected'); btn.classList.add('ready'); canvas.classList.remove('bonus-placement'); }
+                        else { state.selectedBonus = b; renderBonusIcons(); canvas.classList.add('bonus-placement'); ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); }
+                    };
+                } else {
+                    // Prázdný rámeček (rezervace pro budoucí bonus)
+                    btn.className = 'bonus-btn used';
+                    btn.style.cursor = 'default';
+                    btn.style.backgroundImage = 'none';
+                    btn.style.border = '3px dashed #7f8c8d';
+                    btn.style.backgroundColor = 'rgba(0,0,0,0.2)';
+                    btn.title = 'Další bonus v přípravě';
+                }
+                ui.bonusContainer.appendChild(btn);
+            }
         }
 
         // ==========================================
@@ -506,11 +576,11 @@
             const data = LEVEL_DATA.find(l => l.id === levelId); if (!data) return;
             if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId); muteAllTowers(); hideTooltip();
             
-            Object.assign(state, { activeLevelId: levelId, gold: data.startingGold, path: smoothPath(data.path, 2), slots: data.slots.map(s => ({...s, radius: 25, tower: null})), objects: data.objects || [], levelWaves: data.waves, totalLevelEnemies: data.waves.reduce((s, w) => s + w.count, 0), wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: false, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null, spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false, winSequenceStarted: false, winTimeoutId: null });
-            state.bgImage.src = data.background; if (state.winTimeoutId) clearTimeout(state.winTimeoutId);
+            Object.assign(state, { activeLevelId: levelId, gold: data.startingGold, path: smoothPath(data.path, 2), slots: data.slots.map(s => ({...s, radius: 25, tower: null})), objects: data.objects || [], levelWaves: data.waves, totalLevelEnemies: data.waves.reduce((s, w) => s + w.count, 0), wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: false, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null, spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false, winSequenceStarted: false, winTimeoutId: null, usedBonuses: [], selectedBonus: null, activeBonuses: [] });
+            state.bgImage.src = data.background; if (state.winTimeoutId) clearTimeout(state.winTimeoutId); canvas.classList.remove('bonus-placement');
             
             ui.header.classList.add('active'); updateGold(0); ui.waveDisplay.textContent = `0/${state.levelWaves.length}`; resetUIButtons();
-            document.querySelectorAll('.level-btn').forEach(b => b.disabled = true); ui.modal.classList.add('hidden'); ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); ui.sidebar.classList.add('hidden'); ui.mainMenuBottom.classList.add('hidden');
+            document.querySelectorAll('.level-btn').forEach(b => b.disabled = true); ui.modal.classList.add('hidden'); ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); ui.sidebar.classList.add('hidden'); ui.mainMenuBottom.classList.add('hidden'); renderBonusIcons();
             state.lastTime = performance.now();
 
             state.pathCanvas = document.createElement('canvas'); state.pathCanvas.width = canvas.width; state.pathCanvas.height = canvas.height;
@@ -799,6 +869,17 @@
 
             state.towers.forEach(t => t.update(dt)); state.towers.forEach(t => t.draw(ctx));
 
+            for (let i = state.activeBonuses.length - 1; i >= 0; i--) {
+                const b = state.activeBonuses[i]; const st = BONUS_STATS[b.type]; b.life -= dt; b.animTime += dt;
+                state.enemies.forEach(e => { if (Math.hypot((e.x+e.offsetX)-b.x, (e.y+e.offsetY)-b.y) <= st.radius) e.takeDamage(st.dps * dt, st.element); });
+                const img = getAnimImage(b.type.charAt(0).toUpperCase() + b.type.slice(1), 'Hop');
+                if (img.complete && img.naturalHeight && img.naturalWidth) { 
+                    const fw = img.naturalWidth / st.frames; const fh = img.naturalHeight / 8; let fIdx = Math.floor(b.animTime * 10) % st.frames; const dw = fw * 2; const dh = fh * 2; ctx.drawImage(img, fIdx * fw, 0, fw, fh, b.x - dw / 2, b.y - dh / 2, dw, dh); 
+                }
+                if (b.type === 'electrode') { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; for(let j=0; j<3; j++) { if(Math.random()<0.3) continue; ctx.beginPath(); ctx.moveTo(b.x, b.y); const a = Math.random()*Math.PI*2; const d = Math.random()*st.radius; ctx.lineTo(b.x + Math.cos(a)*d/2 + (Math.random()-0.5)*20, b.y + Math.sin(a)*d/2 + (Math.random()-0.5)*20); ctx.lineTo(b.x + Math.cos(a)*d, b.y + Math.sin(a)*d); ctx.stroke(); } }
+                if (b.life <= 0) state.activeBonuses.splice(i, 1);
+            }
+
             for (let i = state.enemies.length - 1; i >= 0; i--) {
                 const e = state.enemies[i]; const st = e.update(dt);
                 if (st === 'reached_end') { state.gameOver = true; AUDIO.gameMusic.pause(); muteAllTowers(); AUDIO.end.play().catch(()=>{}); AUDIO.end.onended = () => endGame(false); return; } 
@@ -815,7 +896,7 @@
             if (state.winTimeoutId) clearTimeout(state.winTimeoutId); AUDIO.fanfare.pause(); AUDIO.fanfare.currentTime = 0;
             if (state.gameWon && state.activeLevelId === maxUnlockedLevel && maxUnlockedLevel < 10) { maxUnlockedLevel++; localStorage.setItem('pokemonTD_maxLevel', maxUnlockedLevel); }
             if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId); state.animationFrameId = null;
-            AUDIO.gameMusic.pause(); AUDIO.gameMusic.currentTime = 0; muteAllTowers(); state.gameOver = true; ctx.clearRect(0, 0, canvas.width, canvas.height); ui.header.classList.remove('active'); ui.sidebar.classList.remove('hidden'); ui.modal.classList.add('hidden'); ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); renderLevelMenu(); ui.mainMenuBottom.classList.remove('hidden');
+            AUDIO.gameMusic.pause(); AUDIO.gameMusic.currentTime = 0; muteAllTowers(); state.gameOver = true; ctx.clearRect(0, 0, canvas.width, canvas.height); ui.header.classList.remove('active'); ui.sidebar.classList.remove('hidden'); ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); hideTooltip(); ui.bonusContainer.classList.add('hidden'); renderLevelMenu(); ui.mainMenuBottom.classList.remove('hidden');
         });
 
         ui.btnPlayPause.addEventListener('click', () => {
@@ -826,7 +907,7 @@
 
         ui.btnEndGame.addEventListener('click', () => { 
             if (state.winTimeoutId) clearTimeout(state.winTimeoutId); AUDIO.fanfare.pause(); AUDIO.fanfare.currentTime = 0; if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId); state.animationFrameId = null;
-            AUDIO.gameMusic.pause(); AUDIO.gameMusic.currentTime = 0; muteAllTowers(); state.gameOver = true; ctx.clearRect(0, 0, canvas.width, canvas.height); ui.header.classList.remove('active'); ui.sidebar.classList.remove('hidden'); ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); hideTooltip(); renderLevelMenu(); ui.mainMenuBottom.classList.remove('hidden');
+            AUDIO.gameMusic.pause(); AUDIO.gameMusic.currentTime = 0; muteAllTowers(); state.gameOver = true; ctx.clearRect(0, 0, canvas.width, canvas.height); ui.header.classList.remove('active'); ui.sidebar.classList.remove('hidden'); ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); hideTooltip(); ui.bonusContainer.classList.add('hidden'); renderLevelMenu(); ui.mainMenuBottom.classList.remove('hidden');
         });
 
         canvas.addEventListener('mousemove', (e) => {
@@ -838,6 +919,11 @@
 
         canvas.addEventListener('click', (e) => {
             if (state.gameOver || state.gameWon || state.isPaused) return; const cx = e.clientX - canvas.getBoundingClientRect().left; const cy = e.clientY - canvas.getBoundingClientRect().top;
+            if (state.selectedBonus) {
+                const b = state.selectedBonus; state.activeBonuses.push({ type: b, x: cx, y: cy, life: BONUS_STATS[b].duration, maxLife: BONUS_STATS[b].duration, animTime: 0 });
+                state.usedBonuses.push(b); state.selectedBonus = null; canvas.classList.remove('bonus-placement'); renderBonusIcons();
+                playBonusEnterEffect(b, cx, cy); playSound(b, '_attack'); return;
+            }
             ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); hideTooltip(); state.selectedSlot = state.hoveredTowerType = null; state.hoveredUpgrade = false;
             state.slots.forEach(s => {
                 if (Math.hypot(s.x - cx, s.y - cy) < s.radius) {
