@@ -1080,8 +1080,26 @@
             const targetWidth = 840;  // Herní šířka s rezervou pro UI
             const targetHeight = 860; // Herní výška s rezervou pro UI
             const scale = Math.min(window.innerWidth / targetWidth, window.innerHeight / targetHeight, 1);
-            wrapper.style.transform = `scale(${scale})`;
-            wrapper.style.transformOrigin = 'center center';
+
+            if (scale < 1) {
+                // MOBIL / MALÁ OBRAZOVKA: Vypnutí Flexboxu, zmenšení z levého rohu a ruční vycentrování
+                document.body.style.display = 'block';
+                wrapper.style.position = 'absolute';
+                wrapper.style.transformOrigin = 'top left';
+                
+                const leftOffset = Math.max(0, (window.innerWidth - (targetWidth * scale)) / 2);
+                const topOffset = Math.max(0, (window.innerHeight - (targetHeight * scale)) / 2);
+                
+                wrapper.style.left = '0px';
+                wrapper.style.top = '0px';
+                wrapper.style.transform = `translate(${leftOffset}px, ${topOffset}px) scale(${scale})`;
+            } else {
+                // PC / VELKÁ OBRAZOVKA: Obnova původního, čistého chování Flexboxu bez škálování
+                document.body.style.display = 'flex';
+                wrapper.style.position = 'static';
+                wrapper.style.transformOrigin = 'center center';
+                wrapper.style.transform = 'none';
+            }
         }
         
         window.addEventListener('resize', resizeResponsive);
