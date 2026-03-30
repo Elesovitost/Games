@@ -16,6 +16,14 @@
         .level-btn.unlocked { background: #f1c40f; border-color: #f39c12; color: #2c3e50; }
         .level-btn.unlocked:hover { transform: scale(1.05); filter: brightness(1.1); }
         .level-btn:disabled { cursor: not-allowed; background: #c0392b; border-color: #e74c3c; opacity: 0.8; }
+
+        .level-wrapper { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .level-stars { font-size: 0.9rem; height: 1.2em; color: #f1c40f; text-shadow: 1px 1px 1px #000; letter-spacing: 1px; visibility: hidden; }
+        .level-wrapper:has(.completed) .level-stars { visibility: visible; }
+        .level-btn.completed.stars-3 { border-color: #f1c40f !important; box-shadow: 0 0 8px #f1c40f; }
+        .level-btn.completed.stars-2 { border-color: #ffffff !important; }
+        .level-btn.completed.stars-1 { border-color: #e67e22 !important; }
+
         .game-wrapper { display: flex; flex-direction: column; gap: 1rem; }
         .game-ui { position: absolute; top: 0; left: 0; width: 100%; box-sizing: border-box; z-index: 10; display: flex; justify-content: space-between; align-items: center; background: rgba(52, 73, 94, 0.2); padding: 5px 15px; font-size: 1rem; visibility: hidden; }
         .game-ui.active { visibility: visible; }
@@ -52,8 +60,11 @@
         @keyframes unlockPulse { 0% { opacity: 0.7; filter: drop-shadow(0 0 5px #f1c40f); } 100% { opacity: 1; filter: drop-shadow(0 0 15px #f1c40f); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .pokemon-menu-icon { width: 48px; height: 48px; background-size: cover; background-repeat: no-repeat; background-position: center; image-rendering: auto; border-radius: 50%; overflow: hidden; }
-        #info-tooltip { position: absolute; background: rgba(255, 255, 255, 0.8); border: 1px solid #000; border-radius: 6px; color: #000; padding: 12px; font-size: 0.9rem; pointer-events: none; z-index: 20; width: 240px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 6px; transition: opacity 0.2s ease, visibility 0.2s ease; }
+        #info-tooltip { position: absolute; background: rgba(255, 255, 255, 0.8); border: 1px solid #000; border-radius: 6px; color: #000; padding: 12px; font-size: 0.9rem; pointer-events: none; z-index: 999; width: 240px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 6px; transition: opacity 0.2s ease, visibility 0.2s ease; }
         #info-tooltip.hidden { opacity: 0; visibility: hidden; }
+        .tooltip-enemy-card { transform: scale(0.9); transform-origin: top center; margin-top: 10px; width: 100%; border: 1px solid #7f8c8d; background: rgba(0,0,0,0.8); border-radius: 6px; padding: 6px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }
+        .tooltip-enemy-card h3 { margin: 0 0 5px 0; font-size: 0.85rem; color: #e74c3c; width: 100%; text-align: center; text-transform: capitalize; background: rgba(0,0,0,0.6); border-radius: 4px; padding: 2px 0; border-bottom: 1px solid #555; }
+
         .tooltip-header { font-weight: bold; text-align: center; border-bottom: 1px solid #000; padding-bottom: 6px; margin-bottom: 2px; font-size: 1rem; }
         .tooltip-row { display: flex; justify-content: space-between; }
         .tooltip-effects { margin-top: 6px; font-size: 0.8rem; font-style: italic; border-top: 1px dotted #666; padding-top: 6px; }
@@ -112,6 +123,8 @@
 </head>
 <body>
     <div class="main-container">
+        <div class="main-container">
+        <div id="info-tooltip" class="hidden"></div>
         <main class="game-wrapper">
             <section class="canvas-container" id="main-canvas-container">
                 <nav class="level-sidebar" id="level-sidebar"></nav>
@@ -127,7 +140,8 @@
                 <header class="game-ui" id="game-ui-header">
                     <div class="stats">
                         <span>🪙 <strong id="gold-display">500</strong></span>
-                        <span>Vlna: <strong id="wave-display">0/10</strong></span>
+                        <span>❤️ <strong id="lives-display">10</strong></span>
+                        <span class="wave-container" style="cursor: help;">Vlna: <strong id="wave-display">0/10</strong></span>
                     </div>
                     <div class="controls-group">
                         <button id="btn-end-game" class="icon-btn btn-end" title="Ukončit hru" disabled><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
@@ -149,7 +163,6 @@
                     </div>
                     <button id="restart-btn" class="btn-primary hidden" style="margin-top: 1.5rem; font-size: 1.5rem;">Continue</button>
                 </div>
-                <div id="info-tooltip" class="hidden"></div>
 
                 <div id="bonus-container" class="hidden"></div>
                 <nav class="main-menu-bottom" id="main-menu-bottom">
@@ -173,45 +186,44 @@
         // ==========================================
         // 1. KONSTANTY A KONFIGURACE
         // ==========================================
-        const TOWER_COST = 100;
 
         const ENEMY_STATS = {
             vampire: {
                 1: { hp: 80, speed: 50, size: 0.9, gold: 15, res: { grass: 0, water: 25, fire: -50, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Vampire1/Vampires1_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Vampire1/Vampires1_Death_with_shadow.png', dieFrames: 11 },
-                2: { hp: 150, speed: 55, size: 1.1, gold: 25, res: { grass: 0, water: 25, fire: -50, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Death_with_shadow.png', dieFrames: 11 },
+                2: { hp: 150, speed: 55, size: 1.1, gold: 25, res: { grass: 0, water: 0, fire: -50, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Death_with_shadow.png', dieFrames: 11 },
                 3: { hp: 500, speed: 60, size: 1.3, gold: 100, res: { grass: 0, water: 25, fire: -50, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Death_with_shadow.png', dieFrames: 11 },
-                4: { hp: 1000, speed: 120, size: 1.3, gold: 100, res: { grass: 0, water: 25, fire: -50, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Run_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Death_with_shadow.png', dieFrames: 11 },
+                4: { hp: 1000, speed: 120, size: 1.3, gold: 100, res: { grass: 0, water: 25, fire: -25, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Run_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Death_with_shadow.png', dieFrames: 11 },
             },
             orc: {
                 1: { hp: 40, speed: 40, size: 1.0, gold: 10, res: { grass: 0, water: -25, fire: 25, electric:0 }, walkSrc: 'Pokemon/SPRITES/Orc1/orc1_walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Orc1/orc1_death_with_shadow.png', dieFrames: 8 },
                 2: { hp: 90, speed: 42, size: 1.1, gold: 20, res: { grass: 0, water: 0, fire: 25, electric: 0 }, walkSrc: 'Pokemon/SPRITES/Orc2/orc2_walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Orc2/orc2_death_with_shadow.png', dieFrames: 8 },
                 3: { hp: 150, speed: 45, size: 1.2, gold: 30, res: { grass: 0, water: 0, fire: 25, electric: 0 }, walkSrc: 'Pokemon/SPRITES/Orc3/orc3_walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Orc3/orc3_death_with_shadow.png', dieFrames: 8 },
-                4: { hp: 90, speed: 25, size: 1.3, gold: 50, res: { grass: 0, water: 0, fire: 25, electric: 0 }, walkSrc: 'Pokemon/SPRITES/Orc3/orc3_run_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Orc3/orc3_death_with_shadow.png', dieFrames: 8 }
+                4: { hp: 300, speed: 25, size: 1.3, gold: 50, res: { grass: 25, water: 25, fire: 25, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Orc3/orc3_run_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Orc3/orc3_death_with_shadow.png', dieFrames: 8 }
             },
             slime: {
-                1: { hp: 30, speed: 65, size: 0.8, gold: 5, res: { grass: 25, water: 0, fire: 25, electric: -50 }, walkSrc: 'Pokemon/SPRITES/Slime1/Slime1_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Slime1/Slime1_Death_with_shadow.png', dieFrames: 10 },
-                2: { hp: 60, speed: 70, size: 1.0, gold: 10, res: { grass: -50, water: 50, fire: 50, electric: -50 }, walkSrc: 'Pokemon/SPRITES/Slime2/Slime2_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Slime2/Slime2_Death_with_shadow.png', dieFrames: 10 },
-                3: { hp: 90, speed: 75, size: 1.2, gold: 15, res: { grass: 0, water: -50, fire: 75, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Slime3/Slime3_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Slime3/Slime3_Death_with_shadow.png', dieFrames: 10 }
+                1: { hp: 30, speed: 65, size: 0.8, gold: 5, res: { grass: 25, water: 0, fire: 0, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Slime1/Slime1_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Slime1/Slime1_Death_with_shadow.png', dieFrames: 10 },
+                2: { hp: 60, speed: 70, size: 1.0, gold: 10, res: { grass: 0, water: 25, fire: -25, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Slime2/Slime2_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Slime2/Slime2_Death_with_shadow.png', dieFrames: 10 },
+                3: { hp: 90, speed: 75, size: 1.3, gold: 15, res: { grass: 0, water: -50, fire: 50, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Slime3/Slime3_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Slime3/Slime3_Death_with_shadow.png', dieFrames: 10 }
             }
         };
 
         const LEVEL_DATA = [
     {
-        id: 1, background: 'Pokemon/Backgrounds/grass.png', startingGold: 200,
+        id: 1, lives: 10, background: 'Pokemon/Backgrounds/grass.png', startingGold: 200,
         path: [{ x: 580, y: 0 }, { x: 560, y: 60 }, { x: 430, y: 160 }, { x: 320, y: 240 }, { x: 210, y: 340 }, { x: 130, y: 470 }, { x: 180, y: 560 }, { x: 270, y: 600 }, { x: 430, y: 600 }, { x: 570, y: 530 }, { x: 680, y: 470 }, { x: 790, y: 470 }],
         slots: [{ x: 250, y: 470 }, { x: 330, y: 510 }, { x: 120, y: 320 }, { x: 150, y: 640 }, { x: 670, y: 580 }, { x: 590, y: 150 }, { x: 420, y: 280 }],
         objects: [{ x: 640, y: 20, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 250, y: 150, src: 'Pokemon/Assets/Luminous_tree1.png' }, { x: 160, y: 130, src: 'Pokemon/Assets/Luminous_tree1.png' }, { x: 340, y: 370, src: 'Pokemon/Assets/Luminous_tree1.png' }, { x: 510, y: 440, src: 'Pokemon/Assets/Luminous_tree1.png' }, { x: 660, y: 300, src: 'Pokemon/Assets/Luminous_tree1.png' }, { x: 600, y: 370, src: 'Pokemon/Assets/Luminous_tree3.png' }, { x: 550, y: 320, src: 'Pokemon/Assets/Luminous_tree3.png' }, { x: 180, y: 200, src: 'Pokemon/Assets/Luminous_tree3.png' }, { x: 310, y: 80, src: 'Pokemon/Assets/Luminous_tree3.png' }, { x: 80, y: 220, src: 'Pokemon/Assets/Luminous_tree4.png' }, { x: 420, y: 430, src: 'Pokemon/Assets/Luminous_tree4.png' }, { x: 460, y: 370, src: 'Pokemon/Assets/Luminous_tree4.png' }, { x: 500, y: 740, src: 'Pokemon/Assets/Luminous_tree3.png' }, { x: 80, y: 710, src: 'Pokemon/Assets/Luminous_tree3.png' }, { x: 440, y: 700, src: 'Pokemon/Assets/Luminous_tree4.png' }, { x: 390, y: 720, src: 'Pokemon/Assets/Luminous_tree4.png' }, { x: 230, y: 750, src: 'Pokemon/Assets/Luminous_tree4.png' }, { x: 290, y: 760, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 80, y: 600, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 610, y: 660, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 540, y: 710, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 550, y: 390, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 500, y: 370, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 500, y: 400, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 540, y: 430, src: 'Pokemon/Assets/Luminous_tree2.png' }, { x: 740, y: 360, src: 'Pokemon/Assets/White_ruins1.png' }, { x: 90, y: 70, src: 'Pokemon/Assets/White_tree2.png' }, { x: 690, y: 200, src: 'Pokemon/Assets/Ent_woman.png' }, { x: 390, y: 60, src: 'Pokemon/Assets/Ent_woman.png' }, { x: 50, y: 450, src: 'Pokemon/Assets/Ent_woman.png' }, { x: 710, y: 720, src: 'Pokemon/Assets/Ent_woman.png' }, { x: 430, y: 470, src: 'Pokemon/Assets/Living gazebo1.png' }, { x: 430, y: 750, src: 'Pokemon/Assets/White_tree1.png' }],
         waves: [{ enemyType: 'slime', enemyLevel: 1, count: 5, interval: 0.8, delay: 0 }, { enemyType: 'orc', enemyLevel: 1, count: 6, interval: 1, delay: 10 }, { enemyType: 'slime', enemyLevel: 1, count: 8, interval: 0.6, delay: 10 }, { enemyType: 'orc', enemyLevel: 1, count: 8, interval: 0.8, delay: 10 }, { enemyType: 'orc', enemyLevel: 1, count: 8, interval: 0.5, delay: 10 }, { enemyType: 'slime', enemyLevel: 1, count: 7, interval: 0.4, delay: 10 }]
     },
     {
-        id: 2, background: 'Pokemon/Backgrounds/grass.png', startingGold: 250,
+        id: 2, lives: 10, background: 'Pokemon/Backgrounds/grass.png', startingGold: 250,
         path: [{ x: 180, y: 10 }, { x: 180, y: 100 }, { x: 290, y: 180 }, { x: 440, y: 210 }, { x: 610, y: 220 }, { x: 670, y: 310 }, { x: 640, y: 400 }, { x: 500, y: 400 }, { x: 340, y: 400 }, { x: 170, y: 430 }, { x: 130, y: 530 }, { x: 210, y: 600 }, { x: 410, y: 610 }, { x: 590, y: 640 }, { x: 630, y: 720 }, { x: 650, y: 790 }],
         slots: [{ x: 370, y: 110 }, { x: 540, y: 310 }, { x: 260, y: 510 }, { x: 540, y: 540 }, { x: 350, y: 690 }, { x: 190, y: 330 }],
         objects: [{ x: 660, y: 150, src: 'Pokemon/Assets/Blue-gray_ruins3.png' }, { x: 450, y: 700, src: 'Pokemon/Assets/Blue-gray_ruins3.png' }, { x: 720, y: 410, src: 'Pokemon/Assets/Blue-gray_ruins4.png' }, { x: 110, y: 290, src: 'Pokemon/Assets/Curved_tree1.png' }, { x: 100, y: 240, src: 'Pokemon/Assets/Curved_tree1.png' }, { x: 120, y: 260, src: 'Pokemon/Assets/Curved_tree1.png' }, { x: 70, y: 290, src: 'Pokemon/Assets/Curved_tree1.png' }, { x: 660, y: 80, src: 'Pokemon/Assets/Curved_tree3.png' }, { x: 630, y: 100, src: 'Pokemon/Assets/Curved_tree3.png' }, { x: 610, y: 120, src: 'Pokemon/Assets/Curved_tree3.png' }, { x: 710, y: 110, src: 'Pokemon/Assets/Curved_tree3.png' }, { x: 720, y: 160, src: 'Pokemon/Assets/Curved_tree3.png' }, { x: 720, y: 510, src: 'Pokemon/Assets/Ent_man.png' }, { x: 760, y: 550, src: 'Pokemon/Assets/Ent_man.png' }, { x: 730, y: 570, src: 'Pokemon/Assets/Ent_man.png' }, { x: 700, y: 560, src: 'Pokemon/Assets/Ent_man.png' }, { x: 700, y: 600, src: 'Pokemon/Assets/Ent_man.png' }, { x: 140, y: 310, src: 'Pokemon/Assets/Curved_tree3.png' }, { x: 370, y: 310, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 330, y: 290, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 310, y: 310, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 350, y: 320, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 450, y: 320, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 440, y: 490, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 410, y: 490, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 370, y: 500, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 470, y: 530, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 120, y: 690, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 180, y: 730, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 230, y: 750, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 80, y: 620, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 50, y: 520, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 60, y: 450, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 200, y: 220, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 130, y: 150, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 80, y: 80, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 540, y: 720, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 510, y: 120, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 480, y: 110, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 440, y: 110, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 390, y: 50, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 310, y: 60, src: 'Pokemon/Assets/Chanterelles1.png' }, { x: 280, y: 80, src: 'Pokemon/Assets/Chanterelles3.png' }, { x: 340, y: 80, src: 'Pokemon/Assets/Chanterelles3.png' }, { x: 250, y: 290, src: 'Pokemon/Assets/Chanterelles3.png' }, { x: 140, y: 170, src: 'Pokemon/Assets/Chanterelles3.png' }, { x: 160, y: 670, src: 'Pokemon/Assets/Chanterelles3.png' }, { x: 120, y: 650, src: 'Pokemon/Assets/Chanterelles3.png' }, { x: 150, y: 640, src: 'Pokemon/Assets/Chanterelles3.png' }, { x: 410, y: 520, src: 'Pokemon/Assets/Light_balls_tree1.png' }, { x: 280, y: 300, src: 'Pokemon/Assets/Yellow_ruins1.png' }],
         waves: [{ enemyType: 'orc', enemyLevel: 1, count: 6, interval: 1.5, delay: 0 }, { enemyType: 'slime', enemyLevel: 1, count: 8, interval: 0.5, delay: 8 }, { enemyType: 'orc', enemyLevel: 1, count: 6, interval: 1, delay: 8 }, { enemyType: 'slime', enemyLevel: 1, count: 6, interval: 1, delay: 1 }, { enemyType: 'orc', enemyLevel: 2, count: 8, interval: 1, delay: 8 }, { enemyType: 'slime', enemyLevel: 2, count: 8, interval: 0.5, delay: 10 }, { enemyType: 'vampire', enemyLevel: 1, count: 10, interval: 0.7, delay: 10 }]
     },
     {
-        id: 3, background: 'Pokemon/Backgrounds/sand.jpg', startingGold: 300,
+        id: 3, lives: 10, background: 'Pokemon/Backgrounds/sand.jpg', startingGold: 300,
         path: [{ x: 10, y: 110 }, { x: 70, y: 120 }, { x: 180, y: 180 }, { x: 330, y: 260 }, { x: 510, y: 210 }, { x: 630, y: 240 }, { x: 600, y: 360 }, { x: 460, y: 420 }, { x: 330, y: 480 }, { x: 380, y: 600 }, { x: 510, y: 650 }, { x: 690, y: 650 }, { x: 750, y: 700 }, { x: 750, y: 760 }, { x: 750, y: 790 }],
         slots: [{ x: 210, y: 100 }, { x: 110, y: 250 }, { x: 460, y: 150 }, { x: 340, y: 340 }, { x: 520, y: 300 }, { x: 690, y: 330 }, { x: 270, y: 560 }, { x: 440, y: 510 }, { x: 660, y: 580 }, { x: 440, y: 700 }, { x: 580, y: 450 }],
         objects: [{ x: 550, y: 540, src: 'Pokemon/Assets/Brown_ruins1.png' }, { x: 430, y: 320, src: 'Pokemon/Assets/Brown-gray_ruins2.png' }, { x: 190, y: 420, src: 'Pokemon/Assets/Sand_ruins1.png' }, { x: 330, y: 120, src: 'Pokemon/Assets/Water_ruins1.png' }, { x: 590, y: 690, src: 'Pokemon/Assets/Yellow_ruins4.png' }, { x: 650, y: 140, src: 'Pokemon/Assets/Tree_idol_human.png' }, { x: 640, y: 420, src: 'Pokemon/Assets/Blue-gray_ruins3.png' }],
@@ -223,7 +235,7 @@
                 ]
     },
     {
-        id: 4, background: 'Pokemon/Backgrounds/sand.jpg', startingGold: 350,
+        id: 4, lives: 10,background: 'Pokemon/Backgrounds/sand.jpg', startingGold: 350,
         path: [{ x: 700, y: 10 }, { x: 670, y: 90 }, { x: 540, y: 150 }, { x: 430, y: 270 }, { x: 370, y: 450 }, { x: 420, y: 540 }, { x: 460, y: 700 }, { x: 480, y: 780 }],
         slots: [{ x: 520, y: 310 }, { x: 330, y: 300 }, { x: 290, y: 470 }, { x: 480, y: 460 }],
         objects: [{ x: 320, y: 190, src: 'Pokemon/Assets/Brown_ruins1.png' }, { x: 610, y: 580, src: 'Pokemon/Assets/Brown_ruins2.png' }, { x: 670, y: 400, src: 'Pokemon/Assets/Brown_ruins3.png' }, { x: 680, y: 320, src: 'Pokemon/Assets/Brown_ruins4.png' }, { x: 300, y: 600, src: 'Pokemon/Assets/Sand_ruins1.png' }, { x: 260, y: 370, src: 'Pokemon/Assets/Sand_ruins2.png' }, { x: 90, y: 250, src: 'Pokemon/Assets/Sand_ruins3.png' }, { x: 660, y: 240, src: 'Pokemon/Assets/White_tree2.png' }, { x: 300, y: 710, src: 'Pokemon/Assets/White_ruins5.png' }],
@@ -235,7 +247,7 @@
                 ]
     },
     {
-        id: 5, background: 'Pokemon/Backgrounds/rocks.jpg', startingGold: 400,
+        id: 5, lives: 10, background: 'Pokemon/Backgrounds/rocks.jpg', startingGold: 400,
         path: [{ x: 690, y: 0 }, { x: 660, y: 90 }, { x: 530, y: 150 }, { x: 410, y: 230 }, { x: 300, y: 250 }, { x: 210, y: 170 }, { x: 130, y: 180 }, { x: 130, y: 300 }, { x: 130, y: 440 }, { x: 160, y: 520 }, { x: 260, y: 560 }, { x: 310, y: 460 }, { x: 340, y: 380 }, { x: 440, y: 370 }, { x: 570, y: 390 }, { x: 600, y: 480 }, { x: 540, y: 540 }, { x: 430, y: 640 }, { x: 460, y: 750 }, { x: 480, y: 800 }],
         slots: [{ x: 220, y: 300 }, { x: 230, y: 430 }, { x: 330, y: 150 }, { x: 540, y: 660 }, { x: 590, y: 300 }, { x: 120, y: 610 }, { x: 460, y: 460 }],
         objects: [{ x: 690, y: 400, src: 'Pokemon/Assets/Snow_ruins4.png' }, { x: 260, y: 100, src: 'Pokemon/Assets/Snow_ruins3.png' }, { x: 450, y: 90, src: 'Pokemon/Assets/Snow_ruins2.png' }, { x: 380, y: 530, src: 'Pokemon/Assets/Snow_ruins1.png' }, { x: 710, y: 280, src: 'Pokemon/Assets/Water_ruins1.png' }, { x: 770, y: 250, src: 'Pokemon/Assets/Water_ruins2.png' }, { x: 660, y: 250, src: 'Pokemon/Assets/Water_ruins3.png' }, { x: 710, y: 210, src: 'Pokemon/Assets/Water_ruins4.png' }, { x: 630, y: 590, src: 'Pokemon/Assets/White-red_mushroom2.png' }, { x: 660, y: 610, src: 'Pokemon/Assets/White-red_mushroom2.png' }, { x: 630, y: 630, src: 'Pokemon/Assets/White-red_mushroom2.png' }, { x: 660, y: 650, src: 'Pokemon/Assets/White-red_mushroom3.png' }],
@@ -245,10 +257,42 @@
 ];
 
         const TOWER_STATS = {
-            electric: { levels: { 1: { name: 'Pichu', range: 140, attackName: 'thundershock', damage: 10, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 5, beamWidth: 2, size: 1 }, 2: { name: 'Pikachu', range: 160, attackName: 'thunderbolt', damage: 20, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 10, beamWidth: 5, size: 1.0 }, 3: { name: 'Raichu', range: 200, attackName: 'thunder', damage: 30, cooldown: 1000, paraChance: 0.30, paraDuration: 2.0, paraDps: 20, beamWidth: 9, size: 1.0 }, '4a': { name: 'Raichu (Chain)', spriteName: 'Raichu', range: 220, attackName: 'chain_lightning', damage: 45, cooldown: 1200, chainCount: 2, chainRange: 80, beamWidth: 6, size: 1.0 }, '4b': { name: 'Raichu (Field)', spriteName: 'Raichu', range: 200, attackName: 'static_field', damage: 20, cooldown: 2500, fieldRadius: 100, stunDuration: 1.0, size: 1.0 } } },
-            grass: { levels: { 1: { name: 'Bulbasaur', range: 130, attackName: 'vine_whip', damage: 10, cooldown: 1000, size: 1 }, 2: { name: 'Ivysaur', range: 150, attackName: 'razor_leaf', damage: 5, cooldown: 333, doubleChance: 0.5, doubleMultiplier: 2, size: 1.0 }, 3: { name: 'Venusaur', range: 180, attackName: 'solar_beam', damage: 25, cooldown: 1000, splashRadius: 10, splashMultiplier: 2, size: 1.0 }, '4a': { name: 'Venusaur (Bloom)', spriteName: 'Venusaur', range: 210, attackName: 'plant_trap', damage: 0, cooldown: 3000, trapRadius: 25, trapDur: 5.0, trapDps: 20, size: 1.0 }, '4b': { name: 'Venusaur (Quake)', spriteName: 'Venusaur', range: 180, attackName: 'earthquake', damage: 0, cooldown: 5000, eqDur: 3.0, eqDps: 20, eqRadius: 180, size: 1.0 } } },
-            water: { levels: { 1: { name: 'Squirtle', range: 120, attackName: 'water_gun', damage: 10, continuous: true, size: 1 }, 2: { name: 'Wartortle', range: 140, attackName: 'water_pulse', damage: 20, cooldown: 1000, turnChance: 0.2, turnDuration: 1.0, size: 1.0 }, 3: { name: 'Blastoise', range: 170, attackName: 'hydro_pump', damage: 30, continuous: true, splashRadius: 10, size: 1.0 }, '4a': { name: 'Blastoise (Cutter)', spriteName: 'Blastoise', range: 200, attackName: 'water_cutter', damage: 50, continuous: true, splashRadius: 0, size: 1.0 }, '4b': { name: 'Blastoise (Stun)', spriteName: 'Blastoise', range: 200, attackName: 'water_paralyzer', damage: 50, cooldown: 3000, stunDuration: 2.0, size: 1.0 } } },
-            fire: { levels: { 1: { name: 'Charmander', range: 120, attackName: 'ember', damage: 10, cooldown: 1000, size: 1 }, 2: { name: 'Charmeleon', range: 140, attackName: 'flamethrower', damage: 20, continuous: true, burnChance: 0.10, burnDuration: 2.0, burnDps: 10, size: 1.0 }, 3: { name: 'Charizard', range: 160, attackName: 'fire_spin', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 3.0, firestormRadius: 50, size: 1.0 }, '4a': { name: 'Charizard (Hurricane)', spriteName: 'Charizard', range: 190, attackName: 'fire_hurricane', damage: 0, cooldown: 4000, firestormDps: 40, firestormDur: 3.5, firestormRadius: 50, size: 1.0 }, '4b': { name: 'Charizard (Tornado)', spriteName: 'Charizard', range: 190, attackName: 'fire_tornado', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 2.5, firestormRadius: 50, size: 1.0 } } }
+            electric: {
+                levels: {
+                    1: { name: 'Pichu', cost: 100, range: 140, attackName: 'thundershock', damage: 10, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 5, beamWidth: 2, size: 1 },
+                    2: { name: 'Pikachu', cost: 150, range: 160, attackName: 'thunderbolt', damage: 20, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 10, beamWidth: 5, size: 1.0 },
+                    3: { name: 'Raichu', cost: 350, range: 200, attackName: 'thunder', damage: 30, cooldown: 1000, paraChance: 0.30, paraDuration: 2.0, paraDps: 20, beamWidth: 9, size: 1.0 },
+                    '4a': { name: 'Raichu (Chain)', cost: 250, spriteName: 'Raichu', range: 220, attackName: 'chain_lightning', damage: 45, cooldown: 1200, chainCount: 2, chainRange: 80, beamWidth: 6, size: 1.0 },
+                    '4b': { name: 'Raichu (Field)', cost: 250, spriteName: 'Raichu', range: 200, attackName: 'static_field', damage: 20, cooldown: 2500, fieldRadius: 100, stunDuration: 1.0, size: 1.0 }
+                }
+            },
+            grass: {
+                levels: {
+                    1: { name: 'Bulbasaur', cost: 100, range: 130, attackName: 'vine_whip', damage: 10, cooldown: 1000, size: 1 },
+                    2: { name: 'Ivysaur', cost: 150, range: 150, attackName: 'razor_leaf', damage: 5, cooldown: 333, doubleChance: 0.5, doubleMultiplier: 2, size: 1.0 },
+                    3: { name: 'Venusaur', cost: 300, range: 180, attackName: 'solar_beam', damage: 25, cooldown: 1000, splashRadius: 10, splashMultiplier: 2, size: 1.0 },
+                    '4a': { name: 'Venusaur (Bloom)', cost: 200, spriteName: 'Venusaur', range: 210, attackName: 'plant_trap', damage: 0, cooldown: 3000, trapRadius: 25, trapDur: 5.0, trapDps: 20, size: 1.0 },
+                    '4b': { name: 'Venusaur (Quake)', cost: 350, spriteName: 'Venusaur', range: 180, attackName: 'earthquake', damage: 0, cooldown: 5000, eqDur: 3.0, eqDps: 20, eqRadius: 180, size: 1.0 }
+                }
+            },
+            water: {
+                levels: {
+                    1: { name: 'Squirtle', cost: 100, range: 120, attackName: 'water_gun', damage: 10, continuous: true, size: 1 },
+                    2: { name: 'Wartortle', cost: 150, range: 140, attackName: 'water_pulse', damage: 20, cooldown: 1000, turnChance: 0.2, turnDuration: 1.0, size: 1.0 },
+                    3: { name: 'Blastoise', cost: 300, range: 170, attackName: 'hydro_pump', damage: 30, continuous: true, splashRadius: 10, size: 1.0 },
+                    '4a': { name: 'Blastoise (Cutter)', cost: 200, spriteName: 'Blastoise', range: 200, attackName: 'water_cutter', damage: 50, continuous: true, splashRadius: 0, size: 1.0 },
+                    '4b': { name: 'Blastoise (Stun)', cost: 200, spriteName: 'Blastoise', range: 200, attackName: 'water_paralyzer', damage: 50, cooldown: 3000, stunDuration: 2.0, size: 1.0 }
+                }
+            },
+            fire: {
+                levels: {
+                    1: { name: 'Charmander', cost: 100, range: 120, attackName: 'ember', damage: 10, cooldown: 1000, size: 1 },
+                    2: { name: 'Charmeleon', cost: 150, range: 140, attackName: 'flamethrower', damage: 20, continuous: true, burnChance: 0.10, burnDuration: 2.0, burnDps: 10, size: 1.0 },
+                    3: { name: 'Charizard', cost: 350, range: 160, attackName: 'fire_spin', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 3.0, firestormRadius: 50, size: 1.0 },
+                    '4a': { name: 'Charizard (Hurricane)', cost: 300, spriteName: 'Charizard', range: 190, attackName: 'fire_hurricane', damage: 0, cooldown: 4000, firestormDps: 40, firestormDur: 3.5, firestormRadius: 50, size: 1.0 },
+                    '4b': { name: 'Charizard (Tornado)', cost: 300, spriteName: 'Charizard', range: 190, attackName: 'fire_tornado', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 2.5, firestormRadius: 50, size: 1.0 }
+                }
+            }
         };
 
         const POKEMONS = [...new Set(Object.values(TOWER_STATS).flatMap(t => Object.values(t.levels).map(l => l.spriteName || l.name)))];
@@ -268,7 +312,9 @@
             towerMenu: document.getElementById('tower-menu'),
             upgradeMenu: document.getElementById('upgrade-menu'),
             goldDisplay: document.getElementById('gold-display'),
+            livesDisplay: document.getElementById('lives-display'),
             waveDisplay: document.getElementById('wave-display'),
+            waveContainer: document.querySelector('.wave-container'),
             btnEndGame: document.getElementById('btn-end-game'),
             btnPlayPause: document.getElementById('btn-play-pause'),
             iconPlay: document.querySelector('.icon-play'),
@@ -293,8 +339,9 @@
         // 3. GLOBÁLNÍ STAV HRY
         // ==========================================
         let maxUnlockedLevel = parseInt(localStorage.getItem('pokemonTD_maxLevel')) || 1;
+        let levelStats = JSON.parse(localStorage.getItem('pokemonTD_levelStats')) || {};
         const state = {
-            activeLevelId: null, gold: 0, wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0, 
+            activeLevelId: null, gold: 0, lives: 0, maxLives: 0, wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0,
             enemiesKilled: 0, gameOver: true, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], 
             lastTime: performance.now(), spawnTimer: 0, enemiesToSpawn: 0, selectedSlot: null, hoveredSlot: null, 
             hoveredTowerType: null, hoveredUpgrade: false, hoveredUpgradeLevel: null, bgImage: new Image(), path: [], 
@@ -538,11 +585,44 @@
         function renderLevelMenu() {
             ui.sidebar.innerHTML = '';
             for (let i = 1; i <= 10; i++) {
-                const btn = document.createElement('button'); btn.className = 'level-btn'; btn.textContent = i;
-                if (i < maxUnlockedLevel) { btn.classList.add('completed'); btn.title = `Level ${i} (Dokončeno)`; } else if (i === maxUnlockedLevel) { btn.classList.add('unlocked'); btn.title = `Hrát Level ${i}`; } else { btn.disabled = true; btn.title = `Level ${i} (Uzamčeno)`; }
+                const wrapper = document.createElement('div'); 
+                wrapper.className = 'level-wrapper';
+                
+                const starsDiv = document.createElement('div'); 
+                starsDiv.className = 'level-stars';
+                
+                const btn = document.createElement('button'); 
+                btn.className = 'level-btn'; 
+                btn.textContent = i;
+                
+                if (i < maxUnlockedLevel) { 
+                    btn.classList.add('completed'); 
+                    const stars = levelStats[i] || 0;
+                    
+                    // Zobrazí plné hvězdy a doplní prázdnými do 3
+                    starsDiv.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+                    
+                    if (stars === 3) btn.classList.add('stars-3');
+                    else if (stars === 2) btn.classList.add('stars-2');
+                    else if (stars === 1) btn.classList.add('stars-1');
+                    
+                    btn.title = `Level ${i} (Dokončeno - ${stars}/3 hvězdiček)`; 
+                } else if (i === maxUnlockedLevel) { 
+                    btn.classList.add('unlocked'); 
+                    btn.title = `Hrát Level ${i}`; 
+                    starsDiv.textContent = '☆☆☆';
+                } else { 
+                    btn.disabled = true; 
+                    btn.title = `Level ${i} (Uzamčeno)`; 
+                    starsDiv.textContent = '☆☆☆';
+                }
+                
                 if (i <= maxUnlockedLevel) btn.onclick = () => initLevel(i);
                 btn.onmouseenter = () => { if (!btn.disabled) { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); } };
-                ui.sidebar.appendChild(btn);
+                
+                wrapper.appendChild(starsDiv);
+                wrapper.appendChild(btn);
+                ui.sidebar.appendChild(wrapper);
             }
         }
 
@@ -550,18 +630,20 @@
             ui.towerMenu.innerHTML = ''; const types = ['grass', 'water', 'fire', 'electric']; const radius = 60;
             types.forEach((type, index) => {
                 const angle = (index / types.length) * Math.PI * 2 - Math.PI / 2; const btn = document.createElement('button'); btn.className = 'radial-btn'; btn.dataset.type = type; btn.style.left = `${Math.cos(angle)*radius}px`; btn.style.top = `${Math.sin(angle)*radius}px`;
-                const pokeName = TOWER_STATS[type].levels[1].spriteName || TOWER_STATS[type].levels[1].name;
+                const stats = TOWER_STATS[type].levels[1];
+                const pokeName = stats.spriteName || stats.name;
                 const icon = document.createElement('div'); icon.className = 'pokemon-menu-icon'; icon.style.backgroundImage = `url('Pokemon/Pictures/${pokeName}.png')`;
-                const price = document.createElement('span'); price.className = 'price-tag'; price.textContent = `${TOWER_COST} 🪙`;
+                const price = document.createElement('span'); price.className = 'price-tag'; price.textContent = `${stats.cost} 🪙`;
                 btn.appendChild(icon); btn.appendChild(price);
-                btn.onclick = (e) => { e.stopPropagation(); if (state.selectedSlot && state.gold >= TOWER_COST) { updateGold(-TOWER_COST); state.selectedSlot.tower = new Tower(state.selectedSlot.x, state.selectedSlot.y, type); state.towers.push(state.selectedSlot.tower); ui.towerMenu.classList.add('hidden'); hideTooltip(); playPokemonEnterEffect(type, 1, state.selectedSlot.x, state.selectedSlot.y); } };
+                btn.onclick = (e) => { e.stopPropagation(); if (state.selectedSlot && state.gold >= stats.cost) { updateGold(-stats.cost); state.selectedSlot.tower = new Tower(state.selectedSlot.x, state.selectedSlot.y, type); state.towers.push(state.selectedSlot.tower); ui.towerMenu.classList.add('hidden'); hideTooltip(); playPokemonEnterEffect(type, 1, state.selectedSlot.x, state.selectedSlot.y); } };
                 btn.onmouseenter = () => { if (!btn.disabled) { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); } state.hoveredTowerType = type; handleBtnMouseEnter(btn, type, 1); }; btn.onmouseleave = () => { state.hoveredTowerType = null; hideTooltip(); };
                 ui.towerMenu.appendChild(btn);
             });
         }
 
         function createUpgradeButton(tower, nextLevel, offsetX) {
-            const stats = TOWER_STATS[tower.elementType].levels[nextLevel]; const cost = nextLevel === 2 ? 150 : (nextLevel === 3 ? 300 : 200);
+            const stats = TOWER_STATS[tower.elementType].levels[nextLevel]; 
+            const cost = stats.cost;
             const btn = document.createElement('button'); btn.className = 'radial-btn upgrade'; if (offsetX !== 0) btn.style.left = `${offsetX}px`;
             const pokeName = stats.spriteName || stats.name;
             const icon = document.createElement('div'); icon.className = 'pokemon-menu-icon'; icon.style.backgroundImage = `url('Pokemon/Pictures/${pokeName}.png')`;
@@ -574,7 +656,7 @@
 
         function updateGold(amount) {
             state.gold += amount; ui.goldDisplay.textContent = state.gold;
-            document.querySelectorAll('#tower-menu .radial-btn').forEach(b => b.disabled = state.gold < TOWER_COST);
+            document.querySelectorAll('#tower-menu .radial-btn').forEach(b => b.disabled = state.gold < parseInt(b.querySelector('.price-tag').textContent));
             document.querySelectorAll('#upgrade-menu .radial-btn').forEach(b => b.disabled = state.gold < parseInt(b.querySelector('.price-tag').textContent));
         }
 
@@ -582,7 +664,8 @@
             const data = LEVEL_DATA.find(l => l.id === levelId); if (!data) return;
             if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId); muteAllTowers(); hideTooltip();
             
-            Object.assign(state, { activeLevelId: levelId, gold: data.startingGold, path: smoothPath(data.path, 2), slots: data.slots.map(s => ({...s, radius: 25, tower: null})), objects: data.objects || [], levelWaves: data.waves, totalLevelEnemies: data.waves.reduce((s, w) => s + w.count, 0), wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: false, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null, spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false, winSequenceStarted: false, winTimeoutId: null, usedBonuses: [], selectedBonus: null, activeBonuses: [] });
+            Object.assign(state, { activeLevelId: levelId, gold: data.startingGold, lives: data.lives || 10, maxLives: data.lives || 10, path: smoothPath(data.path, 2), slots: data.slots.map(s => ({...s, radius: 25, tower: null})), objects: data.objects || [], levelWaves: data.waves, totalLevelEnemies: data.waves.reduce((s, w) => s + w.count, 0), wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: false, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null, spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false, winSequenceStarted: false, winTimeoutId: null, usedBonuses: [], selectedBonus: null, activeBonuses: [] });
+            ui.livesDisplay.textContent = state.lives;
             state.bgImage.src = data.background; if (state.winTimeoutId) clearTimeout(state.winTimeoutId); canvas.classList.remove('bonus-placement');
             
             ui.header.classList.add('active'); updateGold(0); ui.waveDisplay.textContent = `0/${state.levelWaves.length}`; resetUIButtons();
@@ -616,6 +699,21 @@
             state.gameOver = true; state.gameWon = isWin; muteAllTowers(); hideTooltip(); AUDIO.gameMusic.pause(); AUDIO.gameMusic.currentTime = 0; 
             ui.modal.classList.remove('hidden'); ui.modalText.textContent = isWin ? 'VÍTĚZSTVÍ!' : 'GAME OVER'; ui.modalText.className = isWin ? 'win' : 'lose';
             
+            if (isWin) {
+                let stars = 1; // Default - ztratili jsme 50 % a více životů (oranžový rámeček)
+                if (state.lives === state.maxLives) {
+                    stars = 3; // Žádný neprošel (žlutý rámeček)
+                } else if (state.lives > state.maxLives / 2) {
+                    stars = 2; // Prošlo méně než polovina (bílý rámeček)
+                }
+                
+                // Uloží skóre pouze pokud je lepší než dosavadní, nebo level ještě nemá skóre
+                if (!levelStats[state.activeLevelId] || levelStats[state.activeLevelId] < stars) {
+                    levelStats[state.activeLevelId] = stars;
+                    localStorage.setItem('pokemonTD_levelStats', JSON.stringify(levelStats));
+                }
+            }
+
             const unlockContainer = document.getElementById('unlock-container');
             unlockContainer.classList.remove('active');
             unlockContainer.classList.add('hidden');
@@ -883,8 +981,14 @@
                     state.deadEnemies.push(e);
                     state.enemies.splice(i, 1);
                 } else if (status === 'reached_end') {
-                    endGame(false);
-                    return; // Okamžité přerušení smyčky pro zabránění dalších chyb
+                    state.lives--;
+                    ui.livesDisplay.textContent = Math.max(0, state.lives);
+                    state.enemies.splice(i, 1);
+                    
+                    if (state.lives <= 0) {
+                        endGame(false);
+                        return; // Okamžité přerušení smyčky
+                    }
                 } else {
                     e.draw(ctx);
                 }
@@ -982,7 +1086,7 @@
                     state.selectedSlot = s;
                     if (s.tower) { ui.upgradeMenu.innerHTML = ''; const t = s.tower; if (t.level < 3) ui.upgradeMenu.appendChild(createUpgradeButton(t, t.level+1, 0)); else if (t.level === 3) { ui.upgradeMenu.appendChild(createUpgradeButton(t, '4a', -40)); ui.upgradeMenu.appendChild(createUpgradeButton(t, '4b', 40)); }
                         if (ui.upgradeMenu.innerHTML !== '') { ui.upgradeMenu.style.left = `${s.x}px`; ui.upgradeMenu.style.top = `${s.y - s.radius - 50}px`; ui.upgradeMenu.classList.remove('hidden'); }
-                    } else { document.querySelectorAll('#tower-menu .radial-btn').forEach(b => b.disabled = state.gold < TOWER_COST); ui.towerMenu.style.left = `${s.x}px`; ui.towerMenu.style.top = `${s.y}px`; ui.towerMenu.classList.remove('hidden'); }
+                    } else { document.querySelectorAll('#tower-menu .radial-btn').forEach(b => b.disabled = state.gold < parseInt(b.querySelector('.price-tag').textContent)); ui.towerMenu.style.left = `${s.x}px`; ui.towerMenu.style.top = `${s.y}px`; ui.towerMenu.classList.remove('hidden'); }
                 }
             });
         });
@@ -991,6 +1095,81 @@
         document.querySelectorAll('.close-dex').forEach(b => b.addEventListener('click', () => { ui.enemyDexModal.classList.add('hidden'); ui.pokemonDexModal.classList.add('hidden'); }));
         ui.btnDexPokemon.addEventListener('click', () => { ui.pokemonDexModal.classList.remove('hidden'); renderPokemonDex(); }); ui.btnDexPokemon.addEventListener('mouseenter', () => { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); });
         ui.btnDexEnemies.addEventListener('click', () => { ui.enemyDexModal.classList.remove('hidden'); renderEnemyDex(); }); ui.btnDexEnemies.addEventListener('mouseenter', () => { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); });
+        ui.waveContainer.addEventListener('mouseenter', () => {
+            if (state.gameOver || state.levelWaves.length === 0) return;
+            
+            let waveIndex = state.currentWaveIndex;
+            if (waveIndex >= state.levelWaves.length) return; 
+            
+            const w = state.levelWaves[waveIndex];
+            const type = w.enemyType;
+            const lvl = w.enemyLevel;
+            const stats = ENEMY_STATS[type][lvl];
+            
+            if (!stats) return;
+
+            const img = enemyImages[type][lvl].walk;
+            const fw = img.naturalWidth / stats.walkFrames;
+            const fh = img.naturalHeight / 4;
+            const scale = 1.5 * (stats.size || 1);
+            const dw = Math.floor(fw * scale);
+            const dh = Math.floor(fh * scale);
+            const sW = dw * stats.walkFrames;
+            const sH = dh * 4;
+            const r = stats.res || { grass:0, water:0, fire:0, electric:0 };
+
+            // Čisté HTML bez konfliktních globálních tříd pro viewport
+            let html = `
+                <div class="tooltip-header">${state.isSpawningWave ? 'Probíhající vlna' : 'Následující vlna'}: ${waveIndex + 1}/${state.levelWaves.length}</div>
+                <div class="tooltip-row" style="justify-content: center; margin-top: 4px; margin-bottom: 8px;">
+                    <strong>Počet nepřátel: ${w.count}</strong>
+                </div>
+                <div style="width: 100%; border: 1px solid #7f8c8d; background: rgba(0,0,0,0.8); border-radius: 6px; padding: 8px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <h3 style="margin: 0; font-size: 0.9rem; color: #e74c3c; width: 100%; text-align: center; text-transform: capitalize; background: rgba(0,0,0,0.6); border-radius: 4px; padding: 4px 0; border-bottom: 1px solid #555; text-shadow: 1px 1px 2px #000;">
+                        ${type} L${lvl}
+                    </h3>
+                    
+                    <div style="width: ${dw}px; height: ${dh}px; position: relative; overflow: hidden; margin: 0 auto;">
+                        <div style="width: ${sW}px; height: ${sH}px; background-image: url('${stats.walkSrc}'); background-size: ${sW}px ${sH}px; animation: dex-sprite-walk 1s steps(${stats.walkFrames}) infinite; position: absolute; left: 0; top: 0;"></div>
+                    </div>
+                    
+                    <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; font-size: 0.8rem; color: #ecf0f1;">
+                        <div style="display: flex; justify-content: space-between; padding: 0 5px; font-weight: bold;">
+                            <span>❤️ HP: ${stats.hp}</span>
+                            <span>👟 Rychlost: ${stats.speed}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-around; background: rgba(0,0,0,0.6); border-radius: 4px; padding: 6px 2px; text-shadow: 1px 1px 2px #000;">
+                            <span>🌿 ${r.grass}%</span>
+                            <span>💧 ${r.water}%</span>
+                            <span>🔥 ${r.fire}%</span>
+                            <span>⚡ ${r.electric}%</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            ui.tooltip.innerHTML = html;
+            ui.tooltip.classList.remove('hidden');
+            
+            const rect = ui.waveContainer.getBoundingClientRect();
+            const tooltipWidth = 240; 
+            const centeredLeft = rect.left + window.scrollX + (rect.width / 2) - (tooltipWidth / 2);
+            
+            ui.tooltip.style.left = `${Math.max(10, centeredLeft)}px`; 
+            ui.tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
+        });
+
+        ui.waveContainer.addEventListener('mouseleave', () => {
+            ui.tooltip.classList.add('hidden');
+        });
+
+        ui.waveDisplay.parentElement.addEventListener('mouseleave', () => {
+            ui.tooltip.classList.add('hidden');
+        });
+
+        ui.waveDisplay.parentElement.addEventListener('mouseleave', () => {
+            ui.tooltip.classList.add('hidden');
+        });
 
         function renderEnemyDex() {
             if (ui.enemyDexContent.innerHTML !== '') return; 
@@ -1061,7 +1240,22 @@
         // Debug Menu
         const dbgTrg = document.getElementById('debug-trigger'); const dbgMenu = document.getElementById('debug-menu'); const dbgInp = document.getElementById('debug-level-input');
         dbgTrg.addEventListener('click', (e) => { e.stopPropagation(); dbgInp.value = maxUnlockedLevel; dbgMenu.classList.toggle('hidden'); });
-        document.getElementById('debug-save-btn').addEventListener('click', () => { const nl = parseInt(dbgInp.value); if (nl>=1 && nl<=10) { maxUnlockedLevel = nl; localStorage.setItem('pokemonTD_maxLevel', maxUnlockedLevel); renderLevelMenu(); dbgMenu.classList.add('hidden'); } });
+        document.getElementById('debug-save-btn').addEventListener('click', () => { 
+            const nl = parseInt(dbgInp.value); 
+            if (nl >= 1 && nl <= 10) { 
+                maxUnlockedLevel = nl; 
+                localStorage.setItem('pokemonTD_maxLevel', maxUnlockedLevel); 
+                
+                // Smazání uložených hvězd pro zamknuté levely
+                for (let k in levelStats) {
+                    if (parseInt(k) >= nl) delete levelStats[k];
+                }
+                localStorage.setItem('pokemonTD_levelStats', JSON.stringify(levelStats));
+                
+                renderLevelMenu(); 
+                dbgMenu.classList.add('hidden'); 
+            } 
+        });
         document.getElementById('debug-win-btn').addEventListener('click', () => { 
             if (!state.gameOver && state.activeLevelId !== null) { 
                 endGame(true); 
