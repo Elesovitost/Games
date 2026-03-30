@@ -6,8 +6,8 @@
     <title>Tower Defense - All Branching Upgrades</title>
     <style>
         :root { --bg-dark: #2c3e50; --panel-bg: #34495e; --text-light: #ecf0f1; --accent: #e74c3c; --canvas-bg: #1a252f; --win-color: #2ecc71; --upgrade-color: #f39c12; --level-menu-bg: #2c3e50; --btn-size: 40px; }
-        body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: var(--bg-dark); font-family: system-ui, -apple-system, sans-serif; color: var(--text-light); overflow: hidden; touch-action: none; }
-        .main-container { display: flex; gap: 20px; }
+        body { margin: 0; min-height: 100vh; min-height: 100dvh; background-color: var(--bg-dark); font-family: system-ui, -apple-system, sans-serif; color: var(--text-light); overflow: hidden; touch-action: none; position: relative; }
+        .main-container { position: absolute; top: 50%; left: 50%; display: flex; gap: 20px; transform-origin: center center; width: max-content; }
         .level-sidebar { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: row; gap: 10px; background: rgba(52, 73, 94, 0.2); padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 20; visibility: visible; }
         .game-ui.active ~ .level-sidebar, .level-sidebar.hidden { display: none; }
         .level-btn { width: 50px; height: 50px; border: 2px solid transparent; border-radius: 8px; color: white; font-size: 1.2rem; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s ease; }
@@ -1077,29 +1077,15 @@
         
         function resizeResponsive() {
             const wrapper = document.querySelector('.main-container');
-            const targetWidth = 840;  // Herní šířka s rezervou pro UI
-            const targetHeight = 860; // Herní výška s rezervou pro UI
+            const targetWidth = 820;  // 800px plátno + tenké okraje
+            const targetHeight = 880; // 800px plátno + bezpečný prostor pro horní/spodní UI menu
+            
+            // Výpočet zmenšení tak, aby se kontejner vždy stoprocentně vešel do okna
             const scale = Math.min(window.innerWidth / targetWidth, window.innerHeight / targetHeight, 1);
 
-            if (scale < 1) {
-                // MOBIL / MALÁ OBRAZOVKA: Vypnutí Flexboxu, zmenšení z levého rohu a ruční vycentrování
-                document.body.style.display = 'block';
-                wrapper.style.position = 'absolute';
-                wrapper.style.transformOrigin = 'top left';
-                
-                const leftOffset = Math.max(0, (window.innerWidth - (targetWidth * scale)) / 2);
-                const topOffset = Math.max(0, (window.innerHeight - (targetHeight * scale)) / 2);
-                
-                wrapper.style.left = '0px';
-                wrapper.style.top = '0px';
-                wrapper.style.transform = `translate(${leftOffset}px, ${topOffset}px) scale(${scale})`;
-            } else {
-                // PC / VELKÁ OBRAZOVKA: Obnova původního, čistého chování Flexboxu bez škálování
-                document.body.style.display = 'flex';
-                wrapper.style.position = 'static';
-                wrapper.style.transformOrigin = 'center center';
-                wrapper.style.transform = 'none';
-            }
+            // Kombinace translate(-50%, -50%) udrží herní okno vycentrované 
+            // k absolutnímu bodu left: 50%, top: 50% předtím, než se aplikuje scale
+            wrapper.style.transform = `translate(-50%, -50%) scale(${scale})`;
         }
         
         window.addEventListener('resize', resizeResponsive);
