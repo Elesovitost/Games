@@ -2,12 +2,12 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=840, user-scalable=no, viewport-fit=cover">
     <title>Tower Defense - All Branching Upgrades</title>
     <style>
         :root { --bg-dark: #2c3e50; --panel-bg: #34495e; --text-light: #ecf0f1; --accent: #e74c3c; --canvas-bg: #1a252f; --win-color: #2ecc71; --upgrade-color: #f39c12; --level-menu-bg: #2c3e50; --btn-size: 40px; }
-        body { margin: 0; width: 100vw; height: 100vh; height: 100dvh; background-color: var(--bg-dark); font-family: system-ui, -apple-system, sans-serif; color: var(--text-light); overflow: hidden; touch-action: none; position: relative; }
-        .main-container { position: absolute; top: 0; left: 0; transform-origin: top left; display: flex; width: 800px; height: 800px; }
+        body { margin: 0; min-height: 100vh; background-color: var(--bg-dark); font-family: system-ui, -apple-system, sans-serif; color: var(--text-light); display: flex; justify-content: center; align-items: center; overflow: hidden; touch-action: none; }
+        .main-container { display: flex; gap: 20px; }
         .level-sidebar { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: row; gap: 10px; background: rgba(52, 73, 94, 0.2); padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 20; visibility: visible; }
         .game-ui.active ~ .level-sidebar, .level-sidebar.hidden { display: none; }
         .level-btn { width: 50px; height: 50px; border: 2px solid transparent; border-radius: 8px; color: white; font-size: 1.2rem; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s ease; }
@@ -1075,37 +1075,7 @@
         // INIT
         async function initializeGame() { await Promise.all([loadEnemyImages(), loadAnimData()]); renderLevelMenu(); createRadialMenu(); }
         
-        function resizeResponsive() {
-            const wrapper = document.querySelector('.main-container');
-            const targetWidth = 800;  // Fyzická šířka herního plátna
-            const targetHeight = 800; // Fyzická výška herního plátna
-            
-            // Rezerva pro UI prvky mimo plátno (horní panely, spodní menu)
-            const paddingX = 20; 
-            const paddingY = 80; 
-            
-            // Výpočet zmenšení podle okna
-            const scale = Math.min(
-                window.innerWidth / (targetWidth + paddingX), 
-                window.innerHeight / (targetHeight + paddingY), 
-                1
-            );
-
-            // Výpočet reálné zmenšené velikosti
-            const actualWidth = targetWidth * scale;
-            const actualHeight = targetHeight * scale;
-            
-            // Manuální JS centrování (odstraní problémy Android adresních řádků)
-            const leftOffset = Math.max(0, (window.innerWidth - actualWidth) / 2);
-            const topOffset = Math.max(0, (window.innerHeight - actualHeight) / 2);
-
-            // Aplikace přesného posunu a zmenšení z levého horního rohu
-            wrapper.style.transform = `translate(${leftOffset}px, ${topOffset}px) scale(${scale})`;
-        }
         
-        window.addEventListener('resize', resizeResponsive);
-        resizeResponsive(); // Zavolá se rovnou při prvním načtení stránky
-
         initializeGame();
     </script>
 </body>
