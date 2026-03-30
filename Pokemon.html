@@ -6,7 +6,7 @@
     <title>Tower Defense - All Branching Upgrades</title>
     <style>
         :root { --bg-dark: #2c3e50; --panel-bg: #34495e; --text-light: #ecf0f1; --accent: #e74c3c; --canvas-bg: #1a252f; --win-color: #2ecc71; --upgrade-color: #f39c12; --level-menu-bg: #2c3e50; --btn-size: 40px; }
-        body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: var(--bg-dark); font-family: system-ui, -apple-system, sans-serif; color: var(--text-light); }
+        body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: var(--bg-dark); font-family: system-ui, -apple-system, sans-serif; color: var(--text-light); overflow: hidden; touch-action: none; }
         .main-container { display: flex; gap: 20px; }
         .level-sidebar { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: row; gap: 10px; background: rgba(52, 73, 94, 0.2); padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 20; visibility: visible; }
         .game-ui.active ~ .level-sidebar, .level-sidebar.hidden { display: none; }
@@ -526,7 +526,13 @@
             ui.tooltip.style.left = `${tX}px`; ui.tooltip.style.top = `${tY}px`;
         }
 
-        function handleBtnMouseEnter(btn, type, level) { const r = document.getElementById('main-canvas-container').getBoundingClientRect(); const br = btn.getBoundingClientRect(); showTooltip(type, level, br.left - r.left + br.width/2, br.top - r.top + br.height/2); }
+        function handleBtnMouseEnter(btn, type, level) { 
+            const canvasCont = document.getElementById('main-canvas-container');
+            const r = canvasCont.getBoundingClientRect(); 
+            const br = btn.getBoundingClientRect(); 
+            const scaleX = 800 / r.width; const scaleY = 800 / r.height; 
+            showTooltip(type, level, (br.left - r.left + br.width/2) * scaleX, (br.top - r.top + br.height/2) * scaleY); 
+        }
         function hideTooltip() { ui.tooltip.classList.add('hidden'); }
 
         function renderLevelMenu() {
@@ -952,13 +958,19 @@
 
         canvas.addEventListener('mousemove', (e) => {
             if (state.gameOver || state.gameWon || state.isPaused || !ui.towerMenu.classList.contains('hidden') || !ui.upgradeMenu.classList.contains('hidden')) return;
-            const r = canvas.getBoundingClientRect(); const cx = e.clientX - r.left; const cy = e.clientY - r.top; let hs = null;
+            const r = canvas.getBoundingClientRect(); 
+            const scaleX = canvas.width / r.width; const scaleY = canvas.height / r.height; 
+            const cx = (e.clientX - r.left) * scaleX; const cy = (e.clientY - r.top) * scaleY; 
+            let hs = null;
             state.slots.forEach(s => { if (Math.hypot(s.x - cx, s.y - cy) < s.radius) hs = s; });
             if (hs !== state.hoveredSlot) { state.hoveredSlot = hs; if (state.hoveredSlot) { AUDIO.clickMiddle.currentTime = 0; AUDIO.clickMiddle.play().catch(()=>{}); } }
         });
 
         canvas.addEventListener('click', (e) => {
-            if (state.gameOver || state.gameWon || state.isPaused) return; const cx = e.clientX - canvas.getBoundingClientRect().left; const cy = e.clientY - canvas.getBoundingClientRect().top;
+            if (state.gameOver || state.gameWon || state.isPaused) return; 
+            const r = canvas.getBoundingClientRect(); 
+            const scaleX = canvas.width / r.width; const scaleY = canvas.height / r.height; 
+            const cx = (e.clientX - r.left) * scaleX; const cy = (e.clientY - r.top) * scaleY;
             if (state.selectedBonus) {
                 const b = state.selectedBonus; state.activeBonuses.push({ type: b, x: cx, y: cy, life: BONUS_STATS[b].duration, maxLife: BONUS_STATS[b].duration, animTime: 0 });
                 state.usedBonuses.push(b); state.selectedBonus = null; canvas.classList.remove('bonus-placement'); renderBonusIcons();
@@ -1062,6 +1074,19 @@
 
         // INIT
         async function initializeGame() { await Promise.all([loadEnemyImages(), loadAnimData()]); renderLevelMenu(); createRadialMenu(); }
+        
+        function resizeResponsive() {
+            const wrapper = document.querySelector('.main-container');
+            const targetWidth = 840;  // Herní šířka s rezervou pro UI
+            const targetHeight = 860; // Herní výška s rezervou pro UI
+            const scale = Math.min(window.innerWidth / targetWidth, window.innerHeight / targetHeight, 1);
+            wrapper.style.transform = `scale(${scale})`;
+            wrapper.style.transformOrigin = 'center center';
+        }
+        
+        window.addEventListener('resize', resizeResponsive);
+        resizeResponsive(); // Zavolá se rovnou při prvním načtení stránky
+
         initializeGame();
     </script>
 </body>
