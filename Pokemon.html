@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
@@ -189,8 +189,8 @@
 
         const ENEMY_STATS = {
             vampire: {
-                1: { hp: 80, speed: 50, size: 0.9, gold: 15, res: { grass: 0, water: 25, fire: -50, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Vampire1/Vampires1_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Vampire1/Vampires1_Death_with_shadow.png', dieFrames: 11 },
-                2: { hp: 150, speed: 55, size: 1.1, gold: 25, res: { grass: 0, water: 0, fire: -50, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Death_with_shadow.png', dieFrames: 11 },
+                1: { hp: 120, speed: 50, size: 0.9, gold: 25, res: { grass: 0, water: 25, fire: -50, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Vampire1/Vampires1_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Vampire1/Vampires1_Death_with_shadow.png', dieFrames: 11 },
+                2: { hp: 200, speed: 55, size: 1.1, gold: 50, res: { grass: 0, water: 0, fire: -50, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Vampire2/Vampires2_Death_with_shadow.png', dieFrames: 11 },
                 3: { hp: 500, speed: 60, size: 1.3, gold: 100, res: { grass: 0, water: 25, fire: -50, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Death_with_shadow.png', dieFrames: 11 },
                 4: { hp: 1000, speed: 120, size: 1.3, gold: 100, res: { grass: 0, water: 25, fire: -25, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Run_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Vampire3/Vampires3_Death_with_shadow.png', dieFrames: 11 },
             },
@@ -201,9 +201,9 @@
                 4: { hp: 300, speed: 25, size: 1.3, gold: 50, res: { grass: 25, water: 25, fire: 25, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Orc3/orc3_run_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Orc3/orc3_death_with_shadow.png', dieFrames: 8 }
             },
             slime: {
-                1: { hp: 30, speed: 65, size: 0.8, gold: 5, res: { grass: 25, water: 0, fire: 0, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Slime1/Slime1_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Slime1/Slime1_Death_with_shadow.png', dieFrames: 10 },
-                2: { hp: 60, speed: 70, size: 1.0, gold: 10, res: { grass: 0, water: 25, fire: -25, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Slime2/Slime2_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Slime2/Slime2_Death_with_shadow.png', dieFrames: 10 },
-                3: { hp: 90, speed: 75, size: 1.3, gold: 15, res: { grass: 0, water: -50, fire: 50, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Slime3/Slime3_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Slime3/Slime3_Death_with_shadow.png', dieFrames: 10 }
+                1: { hp: 30, speed: 65, size: 0.8, gold: 10, res: { grass: 25, water: 0, fire: 0, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Slime1/Slime1_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Slime1/Slime1_Death_with_shadow.png', dieFrames: 10 },
+                2: { hp: 60, speed: 70, size: 1.0, gold: 15, res: { grass: 0, water: 25, fire: -25, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Slime2/Slime2_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Slime2/Slime2_Death_with_shadow.png', dieFrames: 10 },
+                3: { hp: 90, speed: 75, size: 1.3, gold: 20, res: { grass: 0, water: -50, fire: 50, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Slime3/Slime3_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Slime3/Slime3_Death_with_shadow.png', dieFrames: 10 }
             }
         };
 
@@ -223,28 +223,35 @@
         waves: [{ enemyType: 'orc', enemyLevel: 1, count: 6, interval: 1.5, delay: 0 }, { enemyType: 'slime', enemyLevel: 1, count: 8, interval: 0.5, delay: 8 }, { enemyType: 'orc', enemyLevel: 1, count: 6, interval: 1, delay: 8 }, { enemyType: 'slime', enemyLevel: 1, count: 6, interval: 1, delay: 1 }, { enemyType: 'orc', enemyLevel: 2, count: 8, interval: 1, delay: 8 }, { enemyType: 'slime', enemyLevel: 2, count: 8, interval: 0.5, delay: 10 }, { enemyType: 'vampire', enemyLevel: 1, count: 10, interval: 0.7, delay: 10 }]
     },
     {
-        id: 3, lives: 10, background: 'Pokemon/Backgrounds/sand.jpg', startingGold: 300,
-        path: [{ x: 10, y: 110 }, { x: 70, y: 120 }, { x: 180, y: 180 }, { x: 330, y: 260 }, { x: 510, y: 210 }, { x: 630, y: 240 }, { x: 600, y: 360 }, { x: 460, y: 420 }, { x: 330, y: 480 }, { x: 380, y: 600 }, { x: 510, y: 650 }, { x: 690, y: 650 }, { x: 750, y: 700 }, { x: 750, y: 760 }, { x: 750, y: 790 }],
-        slots: [{ x: 210, y: 100 }, { x: 110, y: 250 }, { x: 460, y: 150 }, { x: 340, y: 340 }, { x: 520, y: 300 }, { x: 690, y: 330 }, { x: 270, y: 560 }, { x: 440, y: 510 }, { x: 660, y: 580 }, { x: 440, y: 700 }, { x: 580, y: 450 }],
-        objects: [{ x: 550, y: 540, src: 'Pokemon/Assets/Brown_ruins1.png' }, { x: 430, y: 320, src: 'Pokemon/Assets/Brown-gray_ruins2.png' }, { x: 190, y: 420, src: 'Pokemon/Assets/Sand_ruins1.png' }, { x: 330, y: 120, src: 'Pokemon/Assets/Water_ruins1.png' }, { x: 590, y: 690, src: 'Pokemon/Assets/Yellow_ruins4.png' }, { x: 650, y: 140, src: 'Pokemon/Assets/Tree_idol_human.png' }, { x: 640, y: 420, src: 'Pokemon/Assets/Blue-gray_ruins3.png' }],
+        id: 3, background: 'Pokemon/Backgrounds/grass.png', startingGold: 300,
+        path: [{ x: 780, y: 80 }, { x: 640, y: 80 }, { x: 570, y: 210 }, { x: 430, y: 300 }, { x: 330, y: 400 }, { x: 180, y: 510 }, { x: 160, y: 670 }, { x: 260, y: 710 }, { x: 380, y: 640 }, { x: 460, y: 540 }, { x: 550, y: 450 }, { x: 660, y: 480 }, { x: 640, y: 600 }, { x: 620, y: 740 }, { x: 600, y: 790 }], pathB: [],
+        slots: [{ x: 660, y: 210 }, { x: 240, y: 350 }, { x: 360, y: 490 }, { x: 80, y: 590 }, { x: 520, y: 650 }, { x: 610, y: 360 }, { x: 510, y: 120 }],
+        objects: [{ x: 320, y: 120, src: 'Pokemon/Assets/Beige_green_mushroom1.png' }, { x: 360, y: 150, src: 'Pokemon/Assets/Beige_green_mushroom1.png' }, { x: 320, y: 170, src: 'Pokemon/Assets/Beige_green_mushroom1.png' }, { x: 240, y: 200, src: 'Pokemon/Assets/Beige_green_mushroom1.png' }, { x: 170, y: 240, src: 'Pokemon/Assets/Beige_green_mushroom1.png' }, { x: 180, y: 270, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 230, y: 250, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 270, y: 220, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 290, y: 200, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 340, y: 190, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 380, y: 170, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 290, y: 110, src: 'Pokemon/Assets/Beige_green_mushroom3.png' }, { x: 210, y: 90, src: 'Pokemon/Assets/Beige_green_mushroom3.png' }, { x: 250, y: 90, src: 'Pokemon/Assets/Beige_green_mushroom3.png' }, { x: 180, y: 100, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 110, y: 170, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 110, y: 200, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 130, y: 240, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 130, y: 130, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 150, y: 90, src: 'Pokemon/Assets/Beige_green_mushroom2.png' }, { x: 200, y: 150, src: 'Pokemon/Assets/Blue-gray_ruins3.png' }, { x: 590, y: 500, src: 'Pokemon/Assets/Brown_ruins3.png' }, { x: 540, y: 540, src: 'Pokemon/Assets/Brown_ruins2.png' }, { x: 570, y: 580, src: 'Pokemon/Assets/Brown_ruins3.png' }, { x: 590, y: 530, src: 'Pokemon/Assets/Brown_ruins1.png' }, { x: 510, y: 350, src: 'Pokemon/Assets/Building2_light_shadow.png' }, { x: 440, y: 410, src: 'Pokemon/Assets/Dead_tree_shadow3_1.png' }, { x: 750, y: 670, src: 'Pokemon/Assets/Pile_sculls_shadow1.png' }, { x: 470, y: 730, src: 'Pokemon/Assets/Tree_idol_human.png' }, { x: 720, y: 330, src: 'Pokemon/Assets/Willow3.png' }, { x: 740, y: 380, src: 'Pokemon/Assets/Willow2.png' }, { x: 760, y: 300, src: 'Pokemon/Assets/Willow1.png' }, { x: 670, y: 300, src: 'Pokemon/Assets/Willow1.png' }, { x: 690, y: 350, src: 'Pokemon/Assets/Willow3.png' }],
         waves: [
-                    { enemyType: 'orc', enemyLevel: 1, count: 10, interval: 0.7, delay: 0 },
-                    { enemyType: 'slime', enemyLevel: 2, count: 10, interval: 1, delay: 10 },
-                    { enemyType: 'orc', enemyLevel: 2, count: 10, interval: 1, delay: 5 },
-                    { enemyType: 'vampire', enemyLevel: 1, count: 10, interval: 0.7, delay: 5 }
-                ]
+            { path: 'A', enemyType: 'orc', enemyLevel: 1, count: 8, interval: 0.7, delay: 0 },
+            { path: 'A', enemyType: 'slime', enemyLevel: 2, count: 4, interval: 1, delay: 10 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 4, interval: 1, delay: 5 },
+            { path: 'A', enemyType: 'vampire', enemyLevel: 1, count: 1, interval: 0.7, delay: 10 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 7, interval: 1, delay: 10 },
+            { path: 'A', enemyType: 'slime', enemyLevel: 1, count: 10, interval: 0.5, delay: 10 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 10, interval: 1, delay: 5 }
+        ]
     },
     {
-        id: 4, lives: 10,background: 'Pokemon/Backgrounds/sand.jpg', startingGold: 350,
-        path: [{ x: 700, y: 10 }, { x: 670, y: 90 }, { x: 540, y: 150 }, { x: 430, y: 270 }, { x: 370, y: 450 }, { x: 420, y: 540 }, { x: 460, y: 700 }, { x: 480, y: 780 }],
-        slots: [{ x: 520, y: 310 }, { x: 330, y: 300 }, { x: 290, y: 470 }, { x: 480, y: 460 }],
-        objects: [{ x: 320, y: 190, src: 'Pokemon/Assets/Brown_ruins1.png' }, { x: 610, y: 580, src: 'Pokemon/Assets/Brown_ruins2.png' }, { x: 670, y: 400, src: 'Pokemon/Assets/Brown_ruins3.png' }, { x: 680, y: 320, src: 'Pokemon/Assets/Brown_ruins4.png' }, { x: 300, y: 600, src: 'Pokemon/Assets/Sand_ruins1.png' }, { x: 260, y: 370, src: 'Pokemon/Assets/Sand_ruins2.png' }, { x: 90, y: 250, src: 'Pokemon/Assets/Sand_ruins3.png' }, { x: 660, y: 240, src: 'Pokemon/Assets/White_tree2.png' }, { x: 300, y: 710, src: 'Pokemon/Assets/White_ruins5.png' }],
-       waves: [
-                    { enemyType: 'orc', enemyLevel: 1, count: 10, interval: 0.7, delay: 0 },
-                    { enemyType: 'slime', enemyLevel: 2, count: 10, interval: 1, delay: 10 },
-                    { enemyType: 'orc', enemyLevel: 2, count: 10, interval: 1, delay: 5 },
-                    { enemyType: 'vampire', enemyLevel: 1, count: 10, interval: 0.7, delay: 5 }
-                ]
+        id: 4, background: 'Pokemon/Backgrounds/sand.jpg', startingGold: 350,
+        path: [{ x: 700, y: 10 }, { x: 670, y: 90 }, { x: 540, y: 150 }, { x: 430, y: 270 }, { x: 370, y: 450 }, { x: 420, y: 540 }, { x: 460, y: 700 }, { x: 480, y: 780 }], pathB: [{ x: 250, y: 10 }, { x: 190, y: 90 }, { x: 210, y: 180 }, { x: 200, y: 310 }, { x: 190, y: 490 }, { x: 380, y: 530 }],
+        slots: [{ x: 520, y: 310 }, { x: 480, y: 460 }, { x: 320, y: 620 }, { x: 100, y: 330 }, { x: 480, y: 80 }, { x: 100, y: 110 }],
+        objects: [{ x: 320, y: 190, src: 'Pokemon/Assets/Brown_ruins1.png' }, { x: 610, y: 580, src: 'Pokemon/Assets/Brown_ruins2.png' }, { x: 670, y: 400, src: 'Pokemon/Assets/Brown_ruins3.png' }, { x: 680, y: 320, src: 'Pokemon/Assets/Brown_ruins4.png' }, { x: 210, y: 600, src: 'Pokemon/Assets/Sand_ruins1.png' }, { x: 290, y: 370, src: 'Pokemon/Assets/Sand_ruins2.png' }, { x: 90, y: 250, src: 'Pokemon/Assets/Sand_ruins3.png' }, { x: 660, y: 240, src: 'Pokemon/Assets/White_tree2.png' }, { x: 300, y: 710, src: 'Pokemon/Assets/White_ruins5.png' }, { x: 700, y: 700, src: 'Pokemon/Assets/magic_circle_light_shadow.png' }, { x: 610, y: 490, src: 'Pokemon/Assets/Dinosaur_skeleton_part1_light_shadow.png' }, { x: 690, y: 500, src: 'Pokemon/Assets/Dinosaur_skeleton_part2_light_shadow.png' }, { x: 140, y: 600, src: 'Pokemon/Assets/Sand_ruins4.png' }, { x: 140, y: 550, src: 'Pokemon/Assets/Sand_ruins3.png' }, { x: 160, y: 640, src: 'Pokemon/Assets/Sand_ruins2.png' }, { x: 290, y: 420, src: 'Pokemon/Assets/Sand_ruins3.png' }, { x: 110, y: 460, src: 'Pokemon/Assets/Sand_ruins3.png' }, { x: 720, y: 240, src: 'Pokemon/Assets/Dead_tree_shadow3_1.png' }, { x: 670, y: 190, src: 'Pokemon/Assets/Dead_tree_shadow3_2.png' }],
+        waves: [
+            { path: 'A', enemyType: 'orc', enemyLevel: 1, count: 5, interval: 0.7, delay: 0 },
+            { path: 'B', enemyType: 'slime', enemyLevel: 1, count: 5, interval: 1, delay: 6 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 1, count: 6, interval: 1, delay: 10 },
+            { path: 'B', enemyType: 'slime', enemyLevel: 2, count: 5, interval: 0.7, delay: 10 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 1, count: 5, interval: 1, delay: 10 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 4, interval: 1, delay: 10 },
+            { path: 'B', enemyType: 'vampire', enemyLevel: 1, count: 3, interval: 1, delay: 10 },
+            { path: 'B', enemyType: 'slime', enemyLevel: 2, count: 10, interval: 1, delay: 10 }
+        ]
     },
     {
         id: 5, lives: 10, background: 'Pokemon/Backgrounds/rocks.jpg', startingGold: 400,
@@ -862,7 +869,7 @@
             const data = LEVEL_DATA.find(l => l.id === levelId); if (!data) return;
             if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId); muteAllTowers(); hideTooltip();
             
-            Object.assign(state, { activeLevelId: levelId, gold: data.startingGold, lives: data.lives || 10, maxLives: data.lives || 10, path: smoothPath(data.path, 2), slots: data.slots.map(s => ({...s, radius: 25, tower: null})), objects: data.objects || [], levelWaves: data.waves, totalLevelEnemies: data.waves.reduce((s, w) => s + w.count, 0), wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: false, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null, spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false, winSequenceStarted: false, winTimeoutId: null, usedBonuses: [], selectedBonus: null, activeBonuses: [] });
+            Object.assign(state, { activeLevelId: levelId, gold: data.startingGold, lives: data.lives || 10, maxLives: data.lives || 10, path: smoothPath(data.path, 2), pathB: data.pathB ? smoothPath(data.pathB, 2) : [], slots: data.slots.map(s => ({...s, radius: 25, tower: null})), objects: data.objects || [], levelWaves: data.waves, totalLevelEnemies: data.waves.reduce((s, w) => s + w.count, 0), wavesActive: false, isPaused: false, gameTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: false, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null, spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false, winSequenceStarted: false, winTimeoutId: null, usedBonuses: [], selectedBonus: null, activeBonuses: [] });
             ui.livesDisplay.textContent = state.lives;
             state.bgImage.src = data.background; if (state.winTimeoutId) clearTimeout(state.winTimeoutId); canvas.classList.remove('bonus-placement');
             
@@ -872,21 +879,34 @@
 
             state.pathCanvas = document.createElement('canvas'); state.pathCanvas.width = canvas.width; state.pathCanvas.height = canvas.height;
             const pctx = state.pathCanvas.getContext('2d'); pctx.lineJoin = 'round'; pctx.lineCap = 'round';
-            const renderPathCanvas = () => {
-                pctx.clearRect(0, 0, canvas.width, canvas.height); pctx.strokeStyle = (IMAGES.pathTexture.complete && IMAGES.pathTexture.naturalHeight) ? pctx.createPattern(IMAGES.pathTexture, 'repeat') : '#7f8c8d';
-                pctx.globalAlpha = 0.5; pctx.lineWidth = 100; pctx.beginPath(); pctx.moveTo(state.path[0].x, state.path[0].y); for (let i = 1; i < state.path.length; i++) pctx.lineTo(state.path[i].x, state.path[i].y); pctx.stroke(); pctx.globalAlpha = 1.0;
+            
+            const drawSinglePath = (pathObj) => {
+                if (!pathObj || pathObj.length === 0) return;
+                
+                // Znovu načte texturu před kreslením každé jednotlivé větve
+                pctx.strokeStyle = (IMAGES.pathTexture.complete && IMAGES.pathTexture.naturalHeight) ? pctx.createPattern(IMAGES.pathTexture, 'repeat') : '#7f8c8d';
+                
+                pctx.globalAlpha = 0.5; pctx.lineWidth = 100; pctx.beginPath(); pctx.moveTo(pathObj[0].x, pathObj[0].y); for (let i = 1; i < pathObj.length; i++) pctx.lineTo(pathObj[i].x, pathObj[i].y); pctx.stroke(); pctx.globalAlpha = 1.0;
+                
                 pctx.lineWidth = 2; pctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
-                [-50, 50].forEach(side => { pctx.beginPath(); const a0 = Math.atan2(state.path[1].y - state.path[0].y, state.path[1].x - state.path[0].x) + Math.PI/2; pctx.moveTo(state.path[0].x + Math.cos(a0)*side, state.path[0].y + Math.sin(a0)*side);
-                    for (let i = 1; i < state.path.length; i++) { const p1 = state.path[i-1], p2 = state.path[i]; const steps = Math.max(1, Math.floor(Math.hypot(p2.x-p1.x, p2.y-p1.y) / 6)); const angle = Math.atan2(p2.y-p1.y, p2.x-p1.x) + Math.PI/2;
+                [-50, 50].forEach(side => { pctx.beginPath(); const a0 = Math.atan2(pathObj[1].y - pathObj[0].y, pathObj[1].x - pathObj[0].x) + Math.PI/2; pctx.moveTo(pathObj[0].x + Math.cos(a0)*side, pathObj[0].y + Math.sin(a0)*side);
+                    for (let i = 1; i < pathObj.length; i++) { const p1 = pathObj[i-1], p2 = pathObj[i]; const steps = Math.max(1, Math.floor(Math.hypot(p2.x-p1.x, p2.y-p1.y) / 6)); const angle = Math.atan2(p2.y-p1.y, p2.x-p1.x) + Math.PI/2;
                         for(let k = 1; k <= steps; k++) pctx.lineTo(p1.x + (p2.x-p1.x)*(k/steps) + Math.cos(angle)*(side+(Math.random()-0.5)*7), p1.y + (p2.y-p1.y)*(k/steps) + Math.sin(angle)*(side+(Math.random()-0.5)*7));
                     } pctx.stroke();
                 });
+                
                 pctx.strokeStyle = 'rgba(100, 110, 110, 0.4)';
-                [-46, 46].forEach(side => { pctx.beginPath(); const a0 = Math.atan2(state.path[1].y - state.path[0].y, state.path[1].x - state.path[0].x) + Math.PI/2; pctx.moveTo(state.path[0].x + Math.cos(a0)*side, state.path[0].y + Math.sin(a0)*side);
-                    for (let i = 1; i < state.path.length; i++) { const p1 = state.path[i-1], p2 = state.path[i]; const steps = Math.max(1, Math.floor(Math.hypot(p2.x-p1.x, p2.y-p1.y) / 6)); const angle = Math.atan2(p2.y-p1.y, p2.x-p1.x) + Math.PI/2;
+                [-46, 46].forEach(side => { pctx.beginPath(); const a0 = Math.atan2(pathObj[1].y - pathObj[0].y, pathObj[1].x - pathObj[0].x) + Math.PI/2; pctx.moveTo(pathObj[0].x + Math.cos(a0)*side, pathObj[0].y + Math.sin(a0)*side);
+                    for (let i = 1; i < pathObj.length; i++) { const p1 = pathObj[i-1], p2 = pathObj[i]; const steps = Math.max(1, Math.floor(Math.hypot(p2.x-p1.x, p2.y-p1.y) / 6)); const angle = Math.atan2(p2.y-p1.y, p2.x-p1.x) + Math.PI/2;
                         for(let k = 1; k <= steps; k++) pctx.lineTo(p1.x + (p2.x-p1.x)*(k/steps) + Math.cos(angle)*(side+(Math.random()-0.5)*16), p1.y + (p2.y-p1.y)*(k/steps) + Math.sin(angle)*(side+(Math.random()-0.5)*16));
                     } pctx.stroke();
                 });
+            };
+
+            const renderPathCanvas = () => {
+                pctx.clearRect(0, 0, canvas.width, canvas.height); 
+                drawSinglePath(state.path);
+                drawSinglePath(state.pathB);
             };
             if (IMAGES.pathTexture.complete) renderPathCanvas(); else IMAGES.pathTexture.onload = renderPathCanvas;
             const startLoop = () => { ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height); drawPathAndRange(ctx); if(!state.animationFrameId) state.animationFrameId = requestAnimationFrame(loop); };
@@ -941,45 +961,80 @@
         // 7. HERNÍ TŘÍDY (Enemy, Tower)
         // ==========================================
         class Enemy {
-            constructor(type, level) {
-                this.type = type; this.level = level; this.x = state.path[0].x; this.y = state.path[0].y; this.config = ENEMY_STATS[type][level];
+            constructor(type, level, startPath = 'A') {
+                this.type = type; this.level = level; this.config = ENEMY_STATS[type][level];
+                this.currentPathName = startPath;
+                this.currentPath = (startPath === 'B' && state.pathB && state.pathB.length > 0) ? state.pathB : state.path;
+                this.pathIndex = 0;
+                
+                this.x = this.currentPath[0].x; this.y = this.currentPath[0].y; 
                 this.hp = this.maxHp = this.config.hp; this.baseSpeed = this.config.speed; this.resistances = this.config.res; this.goldReward = this.config.gold || 10;
                 const ao = Math.random() * Math.PI * 2; const d = Math.random() * 18; this.offsetX = Math.cos(ao)*d; this.offsetY = Math.sin(ao)*d;
-                this.pathIndex = 0; this.distanceTravelled = 0; this.slowTimer = this.paraTimer = this.paraDps = this.stunTimer = this.turnBackTimer = this.burnTimer = this.burnDps = this.fadeTimer = 0;
+                this.distanceTravelled = 0; this.slowTimer = this.paraTimer = this.paraDps = this.stunTimer = this.turnBackTimer = this.burnTimer = this.burnDps = this.fadeTimer = 0;
                 this.animTime = Math.random(); this.directionRow = 0; this.dirLockTimer = 0;
-                
-                // ZMĚNA: Přidání vlastností pro rotaci (např. vlivem Mewtwo)
-                this.spinAngle = 0; 
-                this.mewtwoActive = false; 
+                this.spinAngle = 0; this.mewtwoActive = false; 
             }
             takeDamage(amount, type) { this.hp -= Math.max(0, amount * (1 - (this.resistances[type] || 0) / 100)); }
+            
             update(dt) {
                 this.animTime += dt; if (this.hp <= 0) return 'dead';
-                
-                // Plynulý návrat z rotace do normálu, pokud efekt pominul
-                if (!this.mewtwoActive && this.spinAngle !== 0) { 
-                    this.spinAngle *= 0.9; 
-                    if (Math.abs(this.spinAngle) < 0.05) this.spinAngle = 0; 
-                }
-                
+                if (!this.mewtwoActive && this.spinAngle !== 0) { this.spinAngle *= 0.9; if (Math.abs(this.spinAngle) < 0.05) this.spinAngle = 0; }
                 if (this.paraTimer > 0) { this.paraTimer -= dt; this.takeDamage(this.paraDps * dt, 'electric'); }
                 if (this.burnTimer > 0) { this.burnTimer -= dt; this.takeDamage(this.burnDps * dt, 'fire'); } if (this.hp <= 0) return 'dead';
                 if (this.slowTimer > 0) this.slowTimer -= dt; if (this.stunTimer > 0) { this.stunTimer -= dt; return 'alive'; }
                 
-                // ZMĚNA: Rychlost se sníží na 50 %, pokud probíhá paralýza, zpomalení NEBO Mewtwo efekt
                 const curSpd = (this.slowTimer > 0 || this.paraTimer > 0 || this.mewtwoActive) ? this.baseSpeed * 0.5 : this.baseSpeed;
-                
-                // ZMĚNA: Reset příznaku pro další frame musí proběhnout až ZDE, po definici curSpd
                 this.mewtwoActive = false; 
 
                 let targetPoint = null; let turning = false;
-                if (this.turnBackTimer > 0) { this.turnBackTimer -= dt; targetPoint = state.path[this.pathIndex]; turning = true; } else { if (this.pathIndex >= state.path.length - 1) return 'reached_end'; targetPoint = state.path[this.pathIndex + 1]; }
+                
+                if (this.turnBackTimer > 0) { 
+                    this.turnBackTimer -= dt; targetPoint = this.currentPath[this.pathIndex]; turning = true; 
+                } else { 
+                    // KONTROLA KONCE TRASY / MERGE LOGIKA
+                    if (this.pathIndex >= this.currentPath.length - 1) {
+                        if (this.currentPathName === 'B') {
+                            this.currentPathName = 'A';
+                            this.currentPath = state.path;
+                            
+                            // Najdi nejbližší bod na hlavní (vyhlazené) trase A
+                            let closestIdx = 0; let minD = Infinity;
+                            for (let i = 0; i < state.path.length; i++) {
+                                let d = Math.hypot(state.path[i].x - this.x, state.path[i].y - this.y);
+                                if (d < minD) { minD = d; closestIdx = i; }
+                            }
+                            
+                            this.pathIndex = closestIdx;
+                            // Umělý boost vzdálenosti, aby věže správně cílily nepřátele připojující se z B
+                            this.distanceTravelled += closestIdx * (curSpd * 0.1);
+                            
+                            if (this.pathIndex >= this.currentPath.length - 1) return 'reached_end';
+                            targetPoint = this.currentPath[this.pathIndex + 1];
+                        } else {
+                            return 'reached_end'; 
+                        }
+                    } else { 
+                        targetPoint = this.currentPath[this.pathIndex + 1]; 
+                    }
+                }
+                
                 const dx = targetPoint.x - this.x; const dy = targetPoint.y - this.y; const dist = Math.hypot(dx, dy); const move = curSpd * dt;
                 let tDir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 3 : 2) : (dy > 0 ? 0 : 1);
                 if (this.dirLockTimer > 0) this.dirLockTimer -= dt; if (this.dirLockTimer <= 0 && tDir !== this.directionRow) { this.directionRow = tDir; this.dirLockTimer = 0.5; }
-                if (dist <= move) { this.x = targetPoint.x; this.y = targetPoint.y; if (turning) { if (this.pathIndex > 0) this.pathIndex--; } else this.pathIndex++; } else { this.x += (dx/dist)*move; this.y += (dy/dist)*move; }
+                
+                if (dist <= move) { 
+                    this.x = targetPoint.x; this.y = targetPoint.y; 
+                    if (turning) { 
+                        if (this.pathIndex > 0) this.pathIndex--; 
+                    } else { 
+                        this.pathIndex++; 
+                    } 
+                } else { 
+                    this.x += (dx/dist)*move; this.y += (dy/dist)*move; 
+                }
                 this.distanceTravelled += turning ? -move : move; return 'alive';
             }
+            
             drawSprite(ctx, isDead = false) {
                 const img = isDead ? enemyImages[this.type][this.level].die : enemyImages[this.type][this.level].walk;
                 if (img && img.complete && img.naturalHeight) {
@@ -988,15 +1043,13 @@
                     const scale = 1.5 * (this.config.size || 1); const dw = fw*scale; const dh = fh*scale;
                     ctx.save(); 
                     ctx.translate(this.x + this.offsetX, this.y + this.offsetY);
-                    
-                    // ZMĚNA: Aplikace rotace kolem středu nepřítele
                     if (this.spinAngle !== 0) ctx.rotate(this.spinAngle); 
-                    
                     if (!isDead) { if (this.stunTimer > 0) ctx.filter = 'brightness(150%) drop-shadow(0 0 5px yellow)'; else if (this.burnTimer > 0) ctx.filter = 'sepia(100%) hue-rotate(-50deg) saturate(200%)'; else if (this.paraTimer > 0) ctx.filter = 'sepia(100%) hue-rotate(50deg) saturate(200%)'; else if (this.slowTimer > 0) ctx.filter = 'sepia(100%) hue-rotate(180deg) saturate(200%)'; }
                     ctx.drawImage(img, fIdx*fw, this.directionRow*fh, fw, fh, -dw/2, -dh/2, dw, dh); 
                     ctx.restore();
                 }
             }
+            
             draw(ctx) {
                 this.drawSprite(ctx, false); const dx = this.x + this.offsetX; const dy = this.y + this.offsetY;
                 if (this.turnBackTimer > 0) { ctx.fillStyle = '#9b59b6'; ctx.beginPath(); ctx.arc(dx, dy-20, 3, 0, Math.PI*2); ctx.fill(); }
@@ -1212,7 +1265,7 @@
             if (state.wavesActive && state.currentWaveIndex < state.levelWaves.length) {
                 state.gameTime += dt; const w = state.levelWaves[state.currentWaveIndex];
                 if (state.gameTime >= w.delay && !state.isSpawningWave) { state.isSpawningWave = true; state.enemiesToSpawn = w.count; ui.waveDisplay.textContent = `${state.currentWaveIndex + 1}/${state.levelWaves.length}`; }
-                if (state.isSpawningWave && state.enemiesToSpawn > 0) { state.spawnTimer += dt; if (state.spawnTimer >= w.interval) { state.enemies.push(new Enemy(w.enemyType, w.enemyLevel)); state.enemiesToSpawn--; state.spawnTimer = 0; if (state.enemiesToSpawn <= 0) { state.currentWaveIndex++; state.isSpawningWave = false; state.gameTime = 0; } } }
+                if (state.isSpawningWave && state.enemiesToSpawn > 0) { state.spawnTimer += dt; if (state.spawnTimer >= w.interval) { state.enemies.push(new Enemy(w.enemyType, w.enemyLevel, w.path || 'A')); state.enemiesToSpawn--; state.spawnTimer = 0; if (state.enemiesToSpawn <= 0) { state.currentWaveIndex++; state.isSpawningWave = false; state.gameTime = 0; } } }
             }
 
             drawPathAndRange(ctx);
@@ -1224,8 +1277,8 @@
                 if (status === 'dead') {
                     updateGold(e.goldReward);
                     state.enemiesKilled++;
-                    // Pro inicializaci animace smrti předáme plný čas fade efektu
                     e.fadeTimer = 1.0; 
+                    e.animTime = 0; // RESET ČASOVAČE PRO ANIMACI SMRTI
                     state.deadEnemies.push(e);
                     state.enemies.splice(i, 1);
                 } else if (status === 'reached_end') {
