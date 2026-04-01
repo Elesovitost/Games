@@ -286,7 +286,7 @@
         path: [{ x: 690, y: 0 }, { x: 660, y: 90 }, { x: 530, y: 150 }, { x: 410, y: 230 }, { x: 300, y: 250 }, { x: 210, y: 170 }, { x: 130, y: 180 }, { x: 130, y: 300 }, { x: 130, y: 440 }, { x: 160, y: 520 }, { x: 260, y: 560 }, { x: 310, y: 460 }, { x: 340, y: 380 }, { x: 440, y: 370 }, { x: 570, y: 390 }, { x: 600, y: 480 }, { x: 540, y: 540 }, { x: 430, y: 640 }, { x: 460, y: 750 }, { x: 480, y: 800 }],
         slots: [{ x: 220, y: 300 }, { x: 230, y: 430 }, { x: 330, y: 150 }, { x: 540, y: 660 }, { x: 590, y: 300 }, { x: 120, y: 610 }, { x: 460, y: 460 }],
         objects: [{ x: 690, y: 400, src: 'Pokemon/Assets/Snow_ruins4.png' }, { x: 260, y: 100, src: 'Pokemon/Assets/Snow_ruins3.png' }, { x: 450, y: 90, src: 'Pokemon/Assets/Snow_ruins2.png' }, { x: 380, y: 530, src: 'Pokemon/Assets/Snow_ruins1.png' }, { x: 710, y: 280, src: 'Pokemon/Assets/Water_ruins1.png' }, { x: 770, y: 250, src: 'Pokemon/Assets/Water_ruins2.png' }, { x: 660, y: 250, src: 'Pokemon/Assets/Water_ruins3.png' }, { x: 710, y: 210, src: 'Pokemon/Assets/Water_ruins4.png' }, { x: 630, y: 590, src: 'Pokemon/Assets/White-red_mushroom2.png' }, { x: 660, y: 610, src: 'Pokemon/Assets/White-red_mushroom2.png' }, { x: 630, y: 630, src: 'Pokemon/Assets/White-red_mushroom2.png' }, { x: 660, y: 650, src: 'Pokemon/Assets/White-red_mushroom3.png' }],
-        waves: [{ enemyType: 'orc', enemyLevel: 2, count: 10, interval: 0.7, delay: 0 }]
+        waves: [{ enemyType: 'orc', enemyLevel: 2, count: 30, interval: 0.7, delay: 0 }]
     }
 
 ];
@@ -386,7 +386,8 @@
             lastTime: performance.now(), spawnTimer: 0, enemiesToSpawn: 0, selectedSlot: null, hoveredSlot: null, 
             hoveredTowerType: null, hoveredUpgrade: false, hoveredUpgradeLevel: null, bgImage: new Image(), path: [], 
             slots: [], objects: [], animationFrameId: null, levelWaves: [], totalLevelEnemies: 0, isSpawningWave: false, 
-            winSequenceStarted: false, winTimeoutId: null, pathCanvas: null, usedBonuses: [], selectedBonus: null, activeBonuses: []
+            winSequenceStarted: false, winTimeoutId: null, pathCanvas: null, usedBonuses: [], selectedBonus: null, activeBonuses: [],
+            timeScale: 1.0, slowMo: { active: false, timer: 0 }
         };
 
         // ==========================================
@@ -516,7 +517,14 @@
         function muteAllTowers() { state.towers.forEach(t => { if (t.currentSound) { try { t.currentSound.stop(); } catch(e){} t.currentSound = null; } }); }
         function resetUIButtons() { ui.btnPlayPause.disabled = ui.btnEndGame.disabled = false; ui.iconPlay.classList.remove('hidden'); ui.iconPause.classList.add('hidden'); ui.btnPlayPause.title = "Spustit hru"; }
 
+        function triggerCinematicTimeStop() {
+            state.slowMo.active = true;
+            state.slowMo.timer = 0;
+            state.timeScale = 1.0;
+        }
+
         function playPokemonEnterEffect(elementType, level, x, y) {
+            triggerCinematicTimeStop();
             const animLevel = (level === '4a' || level === '4b') ? 3 : level; const stats = TOWER_STATS[elementType].levels[animLevel]; const pKey = (stats.spriteName || stats.name).toLowerCase();
             AUDIO.arrive.currentTime = 0; AUDIO.arrive.play().catch(()=>{}); playSound(stats.spriteName || stats.name, '_start');
             const circle = document.createElement('div'); circle.className = 'enter-anim-circle'; circle.style.left = `${x}px`; circle.style.top = `${y}px`;
@@ -526,6 +534,7 @@
         }
 
         function playBonusEnterEffect(type, x, y) {
+            triggerCinematicTimeStop();
             const pKey = type.charAt(0).toUpperCase() + type.slice(1);
             AUDIO.arrive.currentTime = 0; AUDIO.arrive.play().catch(()=>{}); playSound(type, '_start');
             const circle = document.createElement('div'); circle.className = 'enter-anim-circle'; circle.style.left = `${x}px`; circle.style.top = `${y}px`;
@@ -689,7 +698,19 @@
             const icon = document.createElement('div'); icon.className = 'pokemon-menu-icon'; icon.style.backgroundImage = `url('Pokemon/Pictures/${pokeName}.png')`;
             const price = document.createElement('span'); price.className = 'price-tag'; price.textContent = `${cost} 🪙`;
             btn.appendChild(icon); btn.appendChild(price); btn.disabled = state.gold < cost;
-            btn.onclick = (e) => { e.stopPropagation(); if (state.gold >= cost) { updateGold(-cost); tower.level = nextLevel; ui.upgradeMenu.classList.add('hidden'); state.hoveredUpgrade = false; hideTooltip(); playPokemonEnterEffect(tower.elementType, nextLevel, tower.x, tower.y); } };
+            btn.onclick = (e) => { 
+                e.stopPropagation(); 
+                if (state.gold >= cost) { 
+                    updateGold(-cost); 
+                    tower.level = nextLevel; 
+                    tower.timeSinceLastShot = 0; 
+                    if (tower.currentSound) { try { tower.currentSound.stop(); } catch(e){} tower.currentSound = null; }
+                    ui.upgradeMenu.classList.add('hidden'); 
+                    state.hoveredUpgrade = false; 
+                    hideTooltip(); 
+                    playPokemonEnterEffect(tower.elementType, nextLevel, tower.x, tower.y); 
+                } 
+            };
             btn.onmouseenter = () => { if (!btn.disabled) { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); } state.hoveredUpgrade = true; state.hoveredUpgradeLevel = nextLevel; handleBtnMouseEnter(btn, tower.elementType, nextLevel); }; btn.onmouseleave = () => { state.hoveredUpgrade = false; hideTooltip(); };
             return btn;
         }
@@ -1033,9 +1054,22 @@
 
         function loop(timestamp) {
             if (state.gameOver) return; if (state.isPaused) { state.lastTime = timestamp; state.animationFrameId = requestAnimationFrame(loop); return; }
-            const dt = (timestamp - state.lastTime) / 1000; state.lastTime = timestamp;
-            if (state.bgImage.complete && state.bgImage.naturalHeight) ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height); else ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const rawDt = (timestamp - state.lastTime) / 1000; 
+            state.lastTime = timestamp;
 
+            if (state.slowMo && state.slowMo.active) {
+                state.slowMo.timer += rawDt;
+                const t = state.slowMo.timer;
+                if (t <= 0.2) state.timeScale = 1.0 - (t / 0.2);
+                else if (t <= 1.2) state.timeScale = 0;
+                else if (t <= 1.4) state.timeScale = (t - 1.2) / 0.2;
+                else { state.timeScale = 1.0; state.slowMo.active = false; }
+            }
+
+            const dt = rawDt * Math.max(0, state.timeScale !== undefined ? state.timeScale : 1);
+
+            if (state.bgImage.complete && state.bgImage.naturalHeight) ctx.drawImage(state.bgImage, 0, 0, canvas.width, canvas.height); else ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (state.objects.length > 0) state.objects.forEach(o => { let img = loadedImages[o.src]; if (!img) { img = new Image(); img.src = o.src; loadedImages[o.src] = img; } else if (img.complete && img.naturalHeight) ctx.drawImage(img, o.x - img.width/2, o.y - img.height/2); });
 
             if (state.wavesActive && state.currentWaveIndex < state.levelWaves.length) {
@@ -1250,9 +1284,20 @@
             const scaleX = canvas.width / r.width; const scaleY = canvas.height / r.height; 
             const cx = (e.clientX - r.left) * scaleX; const cy = (e.clientY - r.top) * scaleY;
             if (state.selectedBonus) {
-                const b = state.selectedBonus; state.activeBonuses.push({ type: b, x: cx, y: cy, life: BONUS_STATS[b].duration, maxLife: BONUS_STATS[b].duration, animTime: 0 });
-                state.usedBonuses.push(b); state.selectedBonus = null; canvas.classList.remove('bonus-placement'); renderBonusIcons();
-                playBonusEnterEffect(b, cx, cy); playSound(b, '_attack'); return;
+                const b = state.selectedBonus; 
+                state.usedBonuses.push(b); 
+                state.selectedBonus = null; 
+                canvas.classList.remove('bonus-placement'); 
+                renderBonusIcons();
+                
+                playBonusEnterEffect(b, cx, cy); 
+                
+                setTimeout(() => {
+                    if (state.gameOver) return;
+                    state.activeBonuses.push({ type: b, x: cx, y: cy, life: BONUS_STATS[b].duration, maxLife: BONUS_STATS[b].duration, animTime: 0 });
+                    playSound(b, '_attack');
+                }, 1400);
+                return;
             }
             ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); hideTooltip(); state.selectedSlot = state.hoveredTowerType = null; state.hoveredUpgrade = false;
             state.slots.forEach(s => {
