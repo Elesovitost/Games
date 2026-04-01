@@ -297,7 +297,7 @@
                     1: { name: 'Pichu', cost: 100, range: 140, attackName: 'thundershock', damage: 10, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 5, beamWidth: 2, size: 1 },
                     2: { name: 'Pikachu', cost: 150, range: 160, attackName: 'thunderbolt', damage: 20, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 10, beamWidth: 5, size: 1.0 },
                     3: { name: 'Raichu', cost: 350, range: 200, attackName: 'thunder', damage: 30, cooldown: 1000, paraChance: 0.30, paraDuration: 2.0, paraDps: 20, beamWidth: 9, size: 1.0 },
-                    '4a': { name: 'Raichu (Chain)', cost: 250, spriteName: 'Raichu', range: 220, attackName: 'chain_lightning', damage: 45, cooldown: 1200, chainCount: 2, chainRange: 80, beamWidth: 6, size: 1.0 },
+                    '4a': { name: 'Raichu (Chain)', cost: 300, spriteName: 'Raichu', range: 220, attackName: 'chain_lightning', damage: 35, cooldown: 1200, chainCount: 2, chainRange: 80, beamWidth: 6, size: 1.0 },
                     '4b': { name: 'Raichu (Field)', cost: 250, spriteName: 'Raichu', range: 200, attackName: 'static_field', damage: 20, cooldown: 2500, fieldRadius: 100, stunDuration: 1.0, size: 1.0 }
                 }
             },
@@ -305,7 +305,7 @@
                 levels: {
                     1: { name: 'Bulbasaur', cost: 100, range: 130, attackName: 'vine_whip', damage: 10, cooldown: 1000, size: 1 },
                     2: { name: 'Ivysaur', cost: 150, range: 150, attackName: 'razor_leaf', damage: 5, cooldown: 333, doubleChance: 0.5, doubleMultiplier: 2, size: 1.0 },
-                    3: { name: 'Venusaur', cost: 300, range: 180, attackName: 'solar_beam', damage: 25, cooldown: 1000, splashRadius: 10, splashMultiplier: 2, size: 1.0 },
+                    3: { name: 'Venusaur', cost: 300, range: 180, attackName: 'solar_beam', damage: 25, cooldown: 1000, splashRadius: 20, splashMultiplier: 0.5, size: 1.0 },
                     '4a': { name: 'Venusaur (Bloom)', cost: 200, spriteName: 'Venusaur', range: 210, attackName: 'plant_trap', damage: 0, cooldown: 3000, trapRadius: 25, trapDur: 5.0, trapDps: 20, size: 1.0 },
                     '4b': { name: 'Venusaur (Quake)', cost: 350, spriteName: 'Venusaur', range: 180, attackName: 'earthquake', damage: 0, cooldown: 5000, eqDur: 3.0, eqDps: 20, eqRadius: 180, size: 1.0 }
                 }
@@ -314,9 +314,9 @@
                 levels: {
                     1: { name: 'Squirtle', cost: 100, range: 120, attackName: 'water_gun', damage: 10, continuous: true, size: 1 },
                     2: { name: 'Wartortle', cost: 150, range: 140, attackName: 'water_pulse', damage: 20, cooldown: 1000, turnChance: 0.2, turnDuration: 1.0, size: 1.0 },
-                    3: { name: 'Blastoise', cost: 300, range: 170, attackName: 'hydro_pump', damage: 30, continuous: true, splashRadius: 10, size: 1.0 },
-                    '4a': { name: 'Blastoise (Cutter)', cost: 200, spriteName: 'Blastoise', range: 200, attackName: 'water_cutter', damage: 50, continuous: true, splashRadius: 0, size: 1.0 },
-                    '4b': { name: 'Blastoise (Stun)', cost: 200, spriteName: 'Blastoise', range: 200, attackName: 'water_paralyzer', damage: 50, cooldown: 3000, stunDuration: 2.0, size: 1.0 }
+                    3: { name: 'Blastoise', cost: 300, range: 170, attackName: 'hydro_pump', damage: 30, continuous: true, splashRadius: 20, size: 1.0 },
+                    '4a': { name: 'Blastoise (Cutter)', cost: 200, spriteName: 'Blastoise', range: 200, attackName: 'water_cutter', damage: 70, continuous: true, splashRadius: 0, size: 1.0 },
+                    '4b': { name: 'Blastoise (Stun)', cost: 200, spriteName: 'Blastoise', range: 200, attackName: 'water_paralyzer', damage: 60, cooldown: 2000, stunDuration: 2.0, size: 1.0 }
                 }
             },
             fire: {
@@ -325,7 +325,7 @@
                     2: { name: 'Charmeleon', cost: 150, range: 140, attackName: 'flamethrower', damage: 20, continuous: true, burnChance: 0.10, burnDuration: 2.0, burnDps: 10, size: 1.0 },
                     3: { name: 'Charizard', cost: 350, range: 160, attackName: 'fire_spin', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 3.0, firestormRadius: 50, size: 1.0 },
                     '4a': { name: 'Charizard (Hurricane)', cost: 300, spriteName: 'Charizard', range: 190, attackName: 'fire_hurricane', damage: 0, cooldown: 4000, firestormDps: 40, firestormDur: 3.5, firestormRadius: 50, size: 1.0 },
-                    '4b': { name: 'Charizard (Tornado)', cost: 300, spriteName: 'Charizard', range: 190, attackName: 'fire_tornado', damage: 0, cooldown: 3000, firestormDps: 30, firestormDur: 2.5, firestormRadius: 50, size: 1.0 }
+                    '4b': { name: 'Charizard (Tornado)', cost: 300, spriteName: 'Charizard', range: 190, attackName: 'fire_tornado', damage: 0, cooldown: 2500, firestormDps: 30, firestormDur: 2.5, firestormRadius: 50, size: 1.0 }
                 }
             }
         };
@@ -336,7 +336,7 @@
             machamp: { radius: 40, dps: 30, duration: 3.0, frames: 11, element: 'normal', row: 0 },
             espeon: { radius: 50, dps: 30, duration: 3.0, frames: 11, element: 'normal', row: 0 },
             onix: { radius: 80, dps: 40, duration: 4.0, frames: 10, element: 'normal', row: 1 },
-            snorlax: { radius: 60, dps: 0, duration: 4.0, frames: 10, element: 'normal', row: 0, stunDuration: 5.0 },
+            snorlax: { radius: 60, dps: 0, duration: 4.0, frames: 10, element: 'normal', row: 0, stunDuration: 4.0 },
             vaporeon: { radius: 60, dps: 65, duration: 4.0, frames: 9, element: 'water', row: 0 },
             mewtwo: { radius: 300, dps: 0, duration: 5.0, frames: 13, element: 'normal', row: 0 } // DPS se počítá dynamicky
         };
@@ -589,33 +589,170 @@
         function getTowerTooltipInfo(type, level) {
             const stats = TOWER_STATS[type].levels[level];
             const cooldownSec = stats.continuous ? 0 : (stats.cooldown / 1000);
-            const baseDps = stats.continuous ? stats.damage : (cooldownSec > 0 ? stats.damage / cooldownSec : 0);
-            let minDps = baseDps; let maxDps = baseDps; let effects = [];
-            const getAoETargets = (r) => r <= 15 ? 2 : r <= 30 ? 3 : r <= 60 ? 4 : r <= 120 ? 5 : (r ? 6 : 1);
 
-            switch(stats.attackName) {
-                case 'chain_lightning': maxDps = baseDps * (stats.chainCount + 1); effects.push(`Řetězový blesk (až ${stats.chainCount+1} cílů, skok ${stats.chainRange}px)`); break;
-                case 'static_field': minDps = (stats.damage*0.5)/cooldownSec; maxDps = minDps*getAoETargets(stats.fieldRadius); effects.push(`Statické pole (Stun ${stats.stunDuration}s, r: ${stats.fieldRadius})`); break;
-                case 'plant_trap': minDps = (stats.trapDps*stats.trapDur)/cooldownSec; maxDps = minDps*getAoETargets(stats.trapRadius); effects.push(`Smrtící rostlina (DPS: ${stats.trapDps}, trvání ${stats.trapDur}s, r: ${stats.trapRadius})`); break;
-                case 'earthquake': minDps = (stats.eqDps*stats.eqDur)/cooldownSec; maxDps = minDps*getAoETargets(stats.eqRadius); effects.push(`Zemětřesení (Plošné DPS: ${stats.eqDps}, trvání ${stats.eqDur}s, r: ${stats.eqRadius})`); break;
-                case 'water_cutter': effects.push(`Vodní řezač (Soustředěný ničivý paprsek)`); break;
-                case 'water_paralyzer': effects.push(`Vodní paralyzér (Stun ${stats.stunDuration}s)`); break;
-                case 'fire_hurricane': case 'fire_tornado': case 'fire_spin': minDps = (stats.firestormDps*stats.firestormDur)/cooldownSec; maxDps = minDps*getAoETargets(stats.firestormRadius); effects.push(`Ohnivá bouře (${stats.firestormDur}s, r: ${stats.firestormRadius})`); break;
-                default:
-                    if (stats.paraChance) { maxDps += (stats.paraDps*stats.paraDuration)/cooldownSec; effects.push(`Paralýza (${stats.paraChance*100}%, ${stats.paraDuration}s, ${stats.paraDps} DPS)`); }
-                    if (stats.doubleChance) { maxDps = baseDps * (stats.doubleMultiplier || 2); effects.push(`Dvojitý útok (${stats.doubleChance*100}%)`); }
-                    if (stats.splashRadius && stats.splashMultiplier) { const targets = getAoETargets(stats.splashRadius); minDps = (baseDps+baseDps*stats.splashMultiplier)/2; maxDps = (baseDps+baseDps*stats.splashMultiplier*targets)/2; effects.push(`Plošný útok (r: ${stats.splashRadius})`); }
-                    else if (stats.splashRadius) { maxDps = baseDps*getAoETargets(stats.splashRadius); effects.push(`Plošný útok (r: ${stats.splashRadius})`); }
-                    if (stats.turnChance) effects.push(`Zmatení (${stats.turnChance*100}%, ${stats.turnDuration}s)`);
-                    if (stats.burnChance) { maxDps += stats.burnDps; effects.push(`Popálení (${stats.burnChance*100}%/s, ${stats.burnDps} DPS)`); }
+            // 1. ZÁKLADNÍ VÝPOČET TRASY A ČASU
+            const enemySpeed = 50;
+            const pathLength = stats.range * (2 / 3);
+            const timeInRange = pathLength / enemySpeed;
+
+            // 2. VÝPOČET ZÁKLADNÍHO POŠKOZENÍ NA JEDEN CÍL ZA 1s
+            let baseSingleDps = 0;
+            if (stats.continuous) {
+                baseSingleDps = stats.damage;
+            } else {
+                const hits = Math.floor(timeInRange / cooldownSec) + 1;
+                const totalDamage = hits * stats.damage;
+                baseSingleDps = totalDamage / timeInRange;
             }
+
+            let minDps = baseSingleDps;
+            let maxDps = baseSingleDps;
+            const effects = [];
+
+            // 3. PARAMETRY PRO VÝPOČET PLOŠNÉHO (AoE) DPS
+            const spawnInterval = 0.8;
+            const distBetweenEnemies = enemySpeed * spawnInterval; 
+            const getEnemiesInRadius = (aoeRadius) => Math.floor((aoeRadius * 2) / distBetweenEnemies) + 1;
+
+            // 4. SPECIFICKÁ LOGIKA PODLE TYPU ÚTOKU
+            switch (stats.attackName) {
+                // === ELEKTŘINA ===
+                case 'thundershock':
+                case 'thunderbolt':
+                case 'thunder': {
+                    const extraDps = (stats.paraDps * stats.paraDuration) / cooldownSec;
+                    minDps += extraDps; 
+                    maxDps += extraDps;
+                    effects.push(`Paralysis (${stats.paraChance * 100}%), ${stats.paraDuration}s`);
+                    break;
+                }
+                case 'chain_lightning': {
+                    maxDps = baseSingleDps * (stats.chainCount + 1);
+                    effects.push(`Chain lightning (${stats.chainCount + 1} targets)`);
+                    break;
+                }
+                case 'static_field': {
+                    const uptime = 0.5 / cooldownSec; 
+                    minDps = stats.damage * uptime;
+                    maxDps = minDps * getEnemiesInRadius(stats.fieldRadius);
+                    effects.push(`Static field (Stun ${stats.stunDuration}s)`);
+                    break;
+                }
+
+                // === TRÁVA ===
+                case 'vine_whip': {
+                    break;
+                }
+                case 'razor_leaf': {
+                    const avgMult = 1 + (stats.doubleChance * ((stats.doubleMultiplier || 2) - 1));
+                    minDps *= avgMult; 
+                    maxDps *= avgMult;
+                    effects.push(`Double damage (${stats.doubleChance * 100}%)`);
+                    break;
+                }
+                case 'solar_beam': {
+                    const splashDmg = baseSingleDps * (stats.splashMultiplier || 1);
+                    maxDps = baseSingleDps + splashDmg; 
+                    effects.push(`Splash damage`);
+                    break;
+                }
+                case 'plant_trap': {
+                    const uptime = stats.trapDur / cooldownSec;
+                    minDps = stats.trapDps * uptime;
+                    maxDps = minDps * getEnemiesInRadius(stats.trapRadius);
+                    effects.push(`Deadly plant (${stats.trapDur}s)`);
+                    break;
+                }
+                case 'earthquake': {
+                    const uptime = stats.eqDur / cooldownSec;
+                    minDps = stats.eqDps * uptime;
+                    maxDps = minDps * getEnemiesInRadius(stats.eqRadius);
+                    effects.push(`Earthquake (${stats.eqDur}s)`);
+                    break;
+                }
+
+                // === VODA ===
+                case 'water_gun': {
+                    break;
+                }
+                case 'water_pulse': {
+                    effects.push(`Confusion (${stats.turnChance * 100}%, ${stats.turnDuration}s)`);
+                    break;
+                }
+                case 'hydro_pump': {
+                    const splashDmg = baseSingleDps * (stats.splashMultiplier || 1);
+                    maxDps = baseSingleDps + splashDmg;
+                    effects.push(`Continuous Splash`);
+                    break;
+                }
+                case 'water_cutter': {
+                    effects.push(`Water cutter (High Pierce)`);
+                    break;
+                }
+                case 'water_paralyzer': {
+                    effects.push(`Water paralyzer (Single stun ${stats.stunDuration}s)`);
+                    break;
+                }
+
+                // === OHEŇ ===
+                case 'ember': {
+                    break;
+                }
+                case 'flamethrower': {
+                    minDps += stats.burnDps; 
+                    maxDps += stats.burnDps;
+                    effects.push(`Burning (${stats.burnChance * 100}%/s, ${stats.burnDps} DPS)`);
+                    break;
+                }
+                case 'fire_spin': {
+                    const uptime = stats.firestormDur / cooldownSec;
+                    minDps = stats.firestormDps * uptime;
+                    maxDps = minDps * getEnemiesInRadius(stats.firestormRadius);
+                    effects.push(`Firestorm (${stats.firestormDur}s)`);
+                    break;
+                }
+                case 'fire_hurricane': {
+                    const uptime = stats.firestormDur / cooldownSec;
+                    minDps = stats.firestormDps * uptime;
+                    maxDps = minDps * getEnemiesInRadius(stats.firestormRadius);
+                    effects.push(`Hurricane (${stats.firestormDur}s, r: ${stats.firestormRadius})`);
+                    break;
+                }
+                case 'fire_tornado': {
+                    const uptime = stats.firestormDur / cooldownSec;
+                    minDps = stats.firestormDps * uptime;
+                    maxDps = minDps * getEnemiesInRadius(stats.firestormRadius);
+                    effects.push(`Fire Tornado (Sleduje cíl, ${stats.firestormDur}s)`);
+                    break;
+                }
+            }
+
             const dpsStr = Math.abs(maxDps - minDps) > 0.1 ? `${minDps.toFixed(1)} - ${maxDps.toFixed(1)}` : minDps.toFixed(1);
-            return { name: stats.name, attack: stats.attackName.replace('_', ' '), element: { fire: 'Oheň', water: 'Voda', grass: 'Tráva', electric: 'Elektřina' }[type] || type, cooldown: cooldownSec === 0 ? 'Trvalý' : `${cooldownSec}s`, range: stats.range, dps: dpsStr, effects: effects.length > 0 ? effects.join('<br>') : 'Žádné' };
+
+            return { 
+                name: stats.name,
+                cost: stats.cost, // Přidaná cena z konfigurace
+                attack: stats.attackName.replace('_', ' '), 
+                element: { fire: 'Oheň', water: 'Voda', grass: 'Tráva', electric: 'Elektřina' }[type] || type, 
+                cooldown: cooldownSec === 0 ? 'Trvalý' : `${cooldownSec}s`, 
+                range: stats.range, 
+                dps: dpsStr, 
+                effects: effects.length > 0 ? effects.join('<br>') : 'Žádné' 
+            };
         }
 
         function showTooltip(type, level, originX, originY) {
             const info = getTowerTooltipInfo(type, level);
-            ui.tooltip.innerHTML = `<div class="tooltip-header">${info.name} (Lvl ${level.toString().toUpperCase()})</div><div class="tooltip-row"><span>Element:</span> <strong>${info.element}</strong></div><div class="tooltip-row"><span>Útok:</span> <strong style="text-transform: capitalize">${info.attack}</strong></div><div class="tooltip-row"><span>Dosah:</span> <strong>${info.range}</strong></div><div class="tooltip-row"><span>Cooldown:</span> <strong>${info.cooldown}</strong></div><div class="tooltip-row"><span>DPS:</span> <strong>${info.dps}</strong></div><div class="tooltip-effects"><strong>Efekty:</strong><br>${info.effects}</div>`;
+            ui.tooltip.innerHTML = `
+                <div class="tooltip-header">${info.name} (Lvl ${level.toString().toUpperCase()})</div>
+                <div class="tooltip-row"><span>Cena:</span> <strong style="color: #f1c40f;">${info.cost} 🪙</strong></div>
+                <div class="tooltip-row"><span>Element:</span> <strong>${info.element}</strong></div>
+                <div class="tooltip-row"><span>Útok:</span> <strong style="text-transform: capitalize">${info.attack}</strong></div>
+                <div class="tooltip-row"><span>Dosah:</span> <strong>${info.range}</strong></div>
+                <div class="tooltip-row"><span>Cooldown:</span> <strong>${info.cooldown}</strong></div>
+                <div class="tooltip-row"><span>DPS:</span> <strong>${info.dps}</strong></div>
+                <div class="tooltip-effects"><strong>Efekty:</strong><br>${info.effects}</div>
+            `;
             ui.tooltip.classList.remove('hidden');
             const w = ui.tooltip.offsetWidth; const h = ui.tooltip.offsetHeight; const o = 32;
             let tX = originX <= 400 ? originX + o : originX - o - w; let tY = originY <= 400 ? originY + o : originY - o - h;
@@ -1061,9 +1198,9 @@
             if (state.slowMo && state.slowMo.active) {
                 state.slowMo.timer += rawDt;
                 const t = state.slowMo.timer;
-                if (t <= 0.2) state.timeScale = 1.0 - (t / 0.2);
-                else if (t <= 1.2) state.timeScale = 0;
-                else if (t <= 1.4) state.timeScale = (t - 1.2) / 0.2;
+                if (t <= 0.2) state.timeScale = 1.0 - (0.75 * (t / 0.2)); // Zpomalení ze 100% na 25%
+                else if (t <= 1.2) state.timeScale = 0.25; // Udržení na 25%
+                else if (t <= 1.4) state.timeScale = 0.25 + (0.75 * ((t - 1.2) / 0.2)); // Zrychlení z 25% na 100%
                 else { state.timeScale = 1.0; state.slowMo.active = false; }
             }
 
@@ -1441,19 +1578,89 @@
         }
 
         function renderPokemonDex() {
-            if (ui.pokemonDexContent.innerHTML !== '') return; const t = ['grass','water','fire','electric']; const rw = ['1','2','3','4']; let html = ''; const lc = { '1':'#3498db', '2':'#1abc9c', '3':'#f39c12', '4':'#ffd700' };
-            rw.forEach(row => { t.forEach(type => {
-                if (row === '4') {
-                    const sA = TOWER_STATS[type].levels['4a']; const sB = TOWER_STATS[type].levels['4b']; if (!sA || !sB) return;
-                    const iA = getTowerTooltipInfo(type, '4a'); const iB = getTowerTooltipInfo(type, '4b'); const bN = sA.spriteName || sA.name; const pK = bN.toLowerCase();
-                    const fC = pK === 'pichu' ? 8 : (pK === 'bulbasaur' ? 6 : 4); const aW = (ANIM_DATA[pK] && ANIM_DATA[pK]['Walk']) ? ANIM_DATA[pK]['Walk'].width : 64; const dW = aW * 1.25; const sW = dW * fC;
-                    html += `<div class="poke-card"><h3 style="color: ${lc['4']}">${bN}</h3><div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dW}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${dW}px; background-image: url('Pokemon/SPRITES/${bN}/Walk-Anim.png'); background-size: ${sW}px auto; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div></div><div class="split-stats-container"><div class="split-stat-block"><div class="split-header">${iA.name.match(/\(([^)]+)\)/)?.[1]||'Cesta A'}</div><div class="poke-stats"><div><strong>⚔️:</strong> <span style="text-transform: capitalize">${iA.attack}</span></div><div><strong>💥:</strong> ${iA.dps}</div>${iA.effects !== 'Žádné' ? `<div class="poke-effects">${iA.effects}</div>` : ''}</div></div><div class="split-stat-block"><div class="split-header">${iB.name.match(/\(([^)]+)\)/)?.[1]||'Cesta B'}</div><div class="poke-stats"><div><strong>⚔️:</strong> <span style="text-transform: capitalize">${iB.attack}</span></div><div><strong>💥:</strong> ${iB.dps}</div>${iB.effects !== 'Žádné' ? `<div class="poke-effects">${iB.effects}</div>` : ''}</div></div></div></div>`;
-                } else {
-                    const stats = TOWER_STATS[type].levels[row]; if (!stats) return; const info = getTowerTooltipInfo(type, row); const sN = stats.spriteName || stats.name; const pK = sN.toLowerCase();
-                    const fC = pK === 'pichu' ? 8 : (pK === 'bulbasaur' ? 6 : 4); const aW = (ANIM_DATA[pK] && ANIM_DATA[pK]['Walk']) ? ANIM_DATA[pK]['Walk'].width : 64; const dW = aW * 1.25; const sW = dW * fC;
-                    html += `<div class="poke-card"><h3 style="color: ${lc[row]}">${info.name}</h3><div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dW}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${dW}px; background-image: url('Pokemon/SPRITES/${sN}/Walk-Anim.png'); background-size: ${sW}px auto; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div></div><div class="poke-stats"><div><strong>⚔️ Útok:</strong> <span style="text-transform: capitalize">${info.attack}</span></div><div><strong>🎯 Element:</strong> ${info.element}</div><div><strong>💥 DPS:</strong> ${info.dps}</div>${info.effects !== 'Žádné' ? `<div class="poke-effects">${info.effects}</div>` : ''}</div></div>`;
-                }
-            }); }); ui.pokemonDexContent.innerHTML = html;
+            if (ui.pokemonDexContent.innerHTML !== '') return; 
+            
+            const t = ['grass', 'water', 'fire', 'electric']; 
+            const rw = ['1', '2', '3', '4']; 
+            let html = ''; 
+            const lc = { '1': '#3498db', '2': '#1abc9c', '3': '#f39c12', '4': '#ffd700' };
+
+            rw.forEach(row => { 
+                t.forEach(type => {
+                    if (row === '4') {
+                        const sA = TOWER_STATS[type].levels['4a']; 
+                        const sB = TOWER_STATS[type].levels['4b']; 
+                        if (!sA || !sB) return;
+
+                        const iA = getTowerTooltipInfo(type, '4a'); 
+                        const iB = getTowerTooltipInfo(type, '4b'); 
+                        const bN = sA.spriteName || sA.name; 
+                        const pK = bN.toLowerCase();
+                        
+                        const fC = pK === 'pichu' ? 8 : (pK === 'bulbasaur' ? 6 : 4); 
+                        const aW = (ANIM_DATA[pK] && ANIM_DATA[pK]['Walk']) ? ANIM_DATA[pK]['Walk'].width : 64; 
+                        const dW = aW * 1.25; 
+                        const sW = dW * fC;
+
+                        html += `
+                        <div class="poke-card">
+                            <h3 style="color: ${lc['4']}">${bN}</h3>
+                            <div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dW}px;">
+                                <div class="dex-sprite-strip" style="width: ${sW}px; height: ${dW}px; background-image: url('Pokemon/SPRITES/${bN}/Walk-Anim.png'); background-size: ${sW}px auto; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div>
+                            </div>
+                            <div class="split-stats-container">
+                                <div class="split-stat-block">
+                                    <div class="split-header">${iA.name.match(/\(([^)]+)\)/)?.[1]||'Cesta A'}</div>
+                                    <div class="poke-stats">
+                                        <div><strong>🪙:</strong> ${iA.cost}</div>
+                                        <div><strong>⚔️:</strong> <span style="text-transform: capitalize">${iA.attack}</span></div>
+                                        <div><strong>💥:</strong> ${iA.dps}</div>
+                                        ${iA.effects !== 'Žádné' ? `<div class="poke-effects">${iA.effects}</div>` : ''}
+                                    </div>
+                                </div>
+                                <div class="split-stat-block">
+                                    <div class="split-header">${iB.name.match(/\(([^)]+)\)/)?.[1]||'Cesta B'}</div>
+                                    <div class="poke-stats">
+                                        <div><strong>🪙:</strong> ${iB.cost}</div>
+                                        <div><strong>⚔️:</strong> <span style="text-transform: capitalize">${iB.attack}</span></div>
+                                        <div><strong>💥:</strong> ${iB.dps}</div>
+                                        ${iB.effects !== 'Žádné' ? `<div class="poke-effects">${iB.effects}</div>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                    } else {
+                        const stats = TOWER_STATS[type].levels[row]; 
+                        if (!stats) return; 
+                        
+                        const info = getTowerTooltipInfo(type, row); 
+                        const sN = stats.spriteName || stats.name; 
+                        const pK = sN.toLowerCase();
+                        
+                        const fC = pK === 'pichu' ? 8 : (pK === 'bulbasaur' ? 6 : 4); 
+                        const aW = (ANIM_DATA[pK] && ANIM_DATA[pK]['Walk']) ? ANIM_DATA[pK]['Walk'].width : 64; 
+                        const dW = aW * 1.25; 
+                        const sW = dW * fC;
+
+                        html += `
+                        <div class="poke-card">
+                            <h3 style="color: ${lc[row]}">${info.name}</h3>
+                            <div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dW}px;">
+                                <div class="dex-sprite-strip" style="width: ${sW}px; height: ${dW}px; background-image: url('Pokemon/SPRITES/${sN}/Walk-Anim.png'); background-size: ${sW}px auto; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div>
+                            </div>
+                            <div class="poke-stats">
+                                <div><strong>🪙 Cost:</strong> ${info.cost}</div>
+                                <div><strong>⚔️ Attack:</strong> <span style="text-transform: capitalize">${info.attack}</span></div>
+                                <div><strong>🎯 Element:</strong> ${info.element}</div>
+                                <div><strong>💥 DPS:</strong> ${info.dps}</div>
+                                ${info.effects !== 'Žádné' ? `<div class="poke-effects">${info.effects}</div>` : ''}
+                            </div>
+                        </div>`;
+                    }
+                }); 
+            }); 
+            
+            ui.pokemonDexContent.innerHTML = html;
         }
 
         // Debug Menu
