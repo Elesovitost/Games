@@ -658,11 +658,12 @@
                 earnedStarsCont.innerHTML = `<span style="color:#f1c40f">${'★'.repeat(stars)}</span><span style="color:#7f8c8d">${'☆'.repeat(3 - stars)}</span>`;
                 const levelBonuses = ['electrode', 'machamp', 'espeon', 'onix', 'snorlax', 'vaporeon', 'mewtwo'], unlockedBonus = (state.activeLevelId >= 3 && state.activeLevelId - 3 < levelBonuses.length) ? levelBonuses[state.activeLevelId - 3] : null;
                 let delay = 300;
+                const isFirstClear = (state.activeLevelId === maxUnlockedLevel);
 
                 setTimeout(() => { earnedStarsCont.classList.remove('hidden'); void earnedStarsCont.offsetWidth; earnedStarsCont.classList.add('active'); AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); }, delay);
                 delay += 700;
 
-                if (state.activeLevelId < 10) { 
+                if (state.activeLevelId < 10 && isFirstClear) { 
                     setTimeout(() => { 
                         const nextLvl = state.activeLevelId + 1;
                         document.querySelector('.unlock-text').textContent = `LEVEL ${nextLvl} UNLOCKED`;
@@ -673,7 +674,7 @@
                     delay += 700;
                 }
 
-                if (unlockedBonus && state.activeLevelId < 10) {
+                if (unlockedBonus && state.activeLevelId < 10 && isFirstClear) {
                     setTimeout(() => { 
                         const bName = unlockedBonus.charAt(0).toUpperCase() + unlockedBonus.slice(1); 
                         document.getElementById('bonus-img').style.backgroundImage = `url('Pokemon/Pictures/${bName}.png')`; 
@@ -684,11 +685,11 @@
                     delay += 900;
                 }
 
-                if (state.activeLevelId === 10) {
+                if (state.activeLevelId === 10 && isFirstClear) {
                     setTimeout(() => { AUDIO.fanfare.currentTime = 0; AUDIO.fanfare.play().catch(()=>{}); }, delay);
                 }
 
-                setTimeout(() => { ui.restartBtn.textContent = state.activeLevelId < 10 ? 'Continue' : 'Zpět na výběr levelu'; ui.restartBtn.classList.remove('hidden'); ui.restartBtn.classList.add('fade-in'); }, delay);
+                setTimeout(() => { ui.restartBtn.textContent = state.activeLevelId < 10 && isFirstClear ? 'Continue' : 'Zpět na výběr levelu'; ui.restartBtn.classList.remove('hidden'); ui.restartBtn.classList.add('fade-in'); }, delay);
             } else { ui.restartBtn.textContent = 'Zkusit znovu'; ui.restartBtn.classList.remove('hidden'); } 
         }
 
