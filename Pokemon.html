@@ -244,8 +244,8 @@
                     1: { name: 'Pichu', cost: 100, range: 140, attackName: 'thundershock', damage: 10, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 5, beamWidth: 2, size: 1 },
                     2: { name: 'Pikachu', cost: 150, range: 160, attackName: 'thunderbolt', damage: 20, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 5, beamWidth: 5, size: 1.0 },
                     3: { name: 'Raichu', cost: 350, range: 180, attackName: 'thunder', damage: 30, cooldown: 1000, paraChance: 0.30, paraDuration: 2.0, paraDps: 10, beamWidth: 9, size: 1.0 },
-                    '4a': { name: 'Raichu (Chain)', cost: 300, spriteName: 'Raichu', range: 190, attackName: 'chain_lightning', damage: 30, cooldown: 1200, chainCount: 2, chainRange: 80, beamWidth: 6, size: 1.0 },
-                    '4b': { name: 'Raichu (Field)', cost: 250, spriteName: 'Raichu', range: 200, attackName: 'static_field', damage: 20, cooldown: 3000, fieldRadius: 100, stunDuration: 1.0, size: 1.0 }
+                    '4a': { name: 'Raichu (Chain Lightning)', cost: 300, spriteName: 'Raichu', range: 190, attackName: 'chain_lightning', damage: 30, cooldown: 1200, chainCount: 2, chainRange: 80, beamWidth: 6, size: 1.0 },
+                    '4b': { name: 'Raichu (Static Field)', cost: 250, spriteName: 'Raichu', range: 200, attackName: 'static_field', damage: 20, cooldown: 3000, fieldRadius: 100, stunDuration: 1.0, size: 1.0 }
                 }
             },
             grass: {
@@ -253,8 +253,8 @@
                     1: { name: 'Bulbasaur', cost: 100, range: 130, attackName: 'vine_whip', damage: 10, cooldown: 1000, size: 1 },
                     2: { name: 'Ivysaur', cost: 150, range: 150, attackName: 'razor_leaf', damage: 6, cooldown: 333, doubleChance: 0.5, doubleMultiplier: 2, size: 1.0 },
                     3: { name: 'Venusaur', cost: 300, range: 180, attackName: 'solar_beam', damage: 20, cooldown: 1000, splashRadius: 40, splashMultiplier: 0.5, size: 1.0 },
-                    '4a': { name: 'Venusaur (Bloom)', cost: 200, spriteName: 'Venusaur', range: 210, attackName: 'plant_trap', damage: 0, cooldown: 1500, trapRadius: 25, trapDur: 3.0, trapDps: 15, size: 1.0 },
-                    '4b': { name: 'Venusaur (Quake)', cost: 350, spriteName: 'Venusaur', range: 160, attackName: 'earthquake', damage: 0, cooldown: 5000, eqDur: 3.0, eqDps: 20, eqRadius: 160, size: 1.0 }
+                    '4a': { name: 'Venusaur (Deadly Bloom)', cost: 200, spriteName: 'Venusaur', range: 180, attackName: 'plant_trap', damage: 0, cooldown: 3000, trapRadius: 30, trapDur: 3.0, trapDps: 25, size: 1.0 },
+                    '4b': { name: 'Venusaur (Earthquake)', cost: 350, spriteName: 'Venusaur', range: 160, attackName: 'earthquake', damage: 0, cooldown: 5000, eqDur: 3.0, eqDps: 20, eqRadius: 160, size: 1.0 }
                 }
             },
             water: {
@@ -262,8 +262,8 @@
                     1: { name: 'Squirtle', cost: 100, range: 120, attackName: 'water_gun', damage: 10, continuous: true, size: 1 },
                     2: { name: 'Wartortle', cost: 150, range: 140, attackName: 'water_pulse', damage: 20, cooldown: 1000, turnChance: 0.2, turnDuration: 1.0, size: 1.0 },
                     3: { name: 'Blastoise', cost: 300, range: 160, attackName: 'hydro_pump', damage: 25, continuous: true, splashRadius: 40, size: 1.0 },
-                    '4a': { name: 'Blastoise (Cutter)', cost: 250, spriteName: 'Blastoise', range: 180, attackName: 'water_cutter', damage: 60, continuous: true, splashRadius: 0, size: 1.0 },
-                    '4b': { name: 'Blastoise (Stun)', cost: 200, spriteName: 'Blastoise', range: 180, attackName: 'water_paralyzer', damage: 60, cooldown: 2500, stunDuration: 2.0, size: 1.0 }
+                    '4a': { name: 'Blastoise (Water Cutter)', cost: 250, spriteName: 'Blastoise', range: 180, attackName: 'water_cutter', damage: 60, continuous: true, splashRadius: 0, size: 1.0 },
+                    '4b': { name: 'Blastoise (Water Stun)', cost: 200, spriteName: 'Blastoise', range: 180, attackName: 'water_paralyzer', damage: 60, cooldown: 2500, stunDuration: 2.0, size: 1.0 }
                 }
             },
             fire: {
@@ -271,8 +271,8 @@
                     1: { name: 'Charmander', cost: 100, range: 120, attackName: 'ember', damage: 10, cooldown: 1000, size: 1 },
                     2: { name: 'Charmeleon', cost: 150, range: 140, attackName: 'flamethrower', damage: 20, continuous: true, burnChance: 0.10, burnDuration: 2.0, burnDps: 10, size: 1.0 },
                     3: { name: 'Charizard', cost: 350, range: 160, attackName: 'fire_spin', damage: 0, cooldown: 3500, firestormDps: 20, firestormDur: 2.5, firestormRadius: 70, size: 1.0 },
-                    '4a': { name: 'Charizard (Hurricane)', cost: 300, spriteName: 'Charizard', range: 180, attackName: 'fire_hurricane', damage: 0, cooldown: 4000, firestormDps: 30, firestormDur: 3.0, firestormRadius: 100, size: 1.0 },
-                    '4b': { name: 'Charizard (Tornado)', cost: 300, spriteName: 'Charizard', range: 180, attackName: 'fire_tornado', damage: 0, cooldown: 3500, firestormDps: 30, firestormDur: 2.0, firestormRadius: 60, size: 1.0 }
+                    '4a': { name: 'Charizard (Fire Hurricane)', cost: 300, spriteName: 'Charizard', range: 180, attackName: 'fire_hurricane', damage: 0, cooldown: 4000, firestormDps: 30, firestormDur: 3.0, firestormRadius: 100, size: 1.0 },
+                    '4b': { name: 'Charizard (Fire Tornado)', cost: 300, spriteName: 'Charizard', range: 180, attackName: 'fire_tornado', damage: 0, cooldown: 3500, firestormDps: 30, firestormDur: 2.0, firestormRadius: 60, size: 1.0 }
                 }
             }
         };
@@ -361,15 +361,15 @@
         waves: [
             { path: 'A', enemyType: 'orc', enemyLevel: 1, count: 7, interval: 1.5, delay: 0 },
             { path: 'B', enemyType: 'slime', enemyLevel: 2, count: 5, interval: 1.2, delay: 10 },
-            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 5, interval: 1.5, delay: 10 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 4, interval: 1.5, delay: 10 },
             { path: 'B', enemyType: 'skeleton', enemyLevel: 1, count: 8, interval: 0.6, delay: 15 },
             { path: 'A', enemyType: 'golem', enemyLevel: 1, count: 3, interval: 2, delay: 15 },
-            { path: 'B', enemyType: 'slime', enemyLevel: 3, count: 5, interval: 1, delay: 15 },
-            { path: 'A', enemyType: 'ghost', enemyLevel: 1, count: 8, interval: 0.8, delay: 15 },
-            { path: 'B', enemyType: 'vampire', enemyLevel: 1, count: 3, interval: 1.5, delay: 12 },
-            { path: 'A', enemyType: 'skeleton', enemyLevel: 2, count: 12, interval: 0.5, delay: 10 },
+            { path: 'B', enemyType: 'slime', enemyLevel: 3, count: 4, interval: 1, delay: 15 },
+            { path: 'A', enemyType: 'ghost', enemyLevel: 1, count: 6, interval: 0.8, delay: 15 },
+            { path: 'B', enemyType: 'vampire', enemyLevel: 1, count: 2, interval: 1.5, delay: 12 },
+            { path: 'A', enemyType: 'skeleton', enemyLevel: 2, count: 7, interval: 0.5, delay: 10 },
             { path: 'A', enemyType: 'golem', enemyLevel: 2, count: 2, interval: 3, delay: 15 },
-            { path: 'B', enemyType: 'orc', enemyLevel: 3, count: 4, interval: 1.5, delay: 10 }
+            { path: 'B', enemyType: 'orc', enemyLevel: 3, count: 3, interval: 1.5, delay: 10 }
         ]
             },
     {
@@ -381,16 +381,16 @@
             { path: 'A', enemyType: 'slime', enemyLevel: 2, count: 10, interval: 1.0, delay: 5 },
             { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 8, interval: 1.2, delay: 20 },
             { path: 'A', enemyType: 'skeleton', enemyLevel: 1, count: 15, interval: 0.5, delay: 20 },
-            { path: 'A', enemyType: 'ghost', enemyLevel: 1, count: 10, interval: 0.8, delay: 15 },
+            { path: 'A', enemyType: 'ghost', enemyLevel: 1, count: 10, interval: 0.6, delay: 15 },
             { path: 'A', enemyType: 'golem', enemyLevel: 1, count: 5, interval: 1.5, delay: 12 },
             { path: 'A', enemyType: 'orc', enemyLevel: 3, count: 6, interval: 1.5, delay: 15 },
-            { path: 'A', enemyType: 'skeleton', enemyLevel: 1, count: 12, interval: 0.4, delay: 5 },
-            { path: 'A', enemyType: 'golem', enemyLevel: 2, count: 5, interval: 1.8, delay: 15 },
+            { path: 'A', enemyType: 'skeleton', enemyLevel: 2, count: 10, interval: 0.4, delay: 5 },
+            { path: 'A', enemyType: 'golem', enemyLevel: 2, count: 6, interval: 1.5, delay: 15 },
             { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 4, interval: 0.8, delay: 12 },
             { path: 'A', enemyType: 'slime', enemyLevel: 3, count: 10, interval: 0.6, delay: 20 },
             { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 6, interval: 2.0, delay: 20 },
-            { path: 'A', enemyType: 'orc', enemyLevel: 3, count: 6, interval: 1.5, delay: 15 },
-            { path: 'A', enemyType: 'vampire', enemyLevel: 2, count: 8, interval: 2.0, delay: 20 }
+            { path: 'A', enemyType: 'orc', enemyLevel: 3, count: 8, interval: 1.0, delay: 15 },
+            { path: 'A', enemyType: 'vampire', enemyLevel: 2, count: 8, interval: 1.0, delay: 20 }
         ]
     },
 {
@@ -399,18 +399,19 @@
         slots: [{ x: 220, y: 300 }, { x: 230, y: 430 }, { x: 330, y: 150 }, { x: 540, y: 660 }, { x: 590, y: 300 }, { x: 120, y: 610 }, { x: 460, y: 460 }],
         objects: [{ x: 690, y: 400, src: 'Pokemon/Assets/Snow_ruins4.png', scale: 1 }, { x: 260, y: 100, src: 'Pokemon/Assets/Snow_ruins3.png', scale: 1 }, { x: 450, y: 90, src: 'Pokemon/Assets/Snow_ruins2.png', scale: 1 }, { x: 380, y: 530, src: 'Pokemon/Assets/Snow_ruins1.png', scale: 1 }, { x: 710, y: 280, src: 'Pokemon/Assets/Water_ruins1.png', scale: 1 }, { x: 770, y: 250, src: 'Pokemon/Assets/Water_ruins2.png', scale: 1 }, { x: 660, y: 250, src: 'Pokemon/Assets/Water_ruins3.png', scale: 1 }, { x: 710, y: 210, src: 'Pokemon/Assets/Water_ruins4.png', scale: 1 }, { x: 630, y: 590, src: 'Pokemon/Assets/White-red_mushroom2.png', scale: 1 }, { x: 660, y: 610, src: 'Pokemon/Assets/White-red_mushroom2.png', scale: 1 }, { x: 630, y: 630, src: 'Pokemon/Assets/White-red_mushroom2.png', scale: 1 }, { x: 660, y: 650, src: 'Pokemon/Assets/White-red_mushroom3.png', scale: 1 }, { x: 760, y: 320, src: 'Pokemon/Assets/Ruins_ground_shadow4.png', scale: 1 }, { x: 360, y: 610, src: 'Pokemon/Assets/Snow_ruins3.png', scale: 1 }, { x: 310, y: 620, src: 'Pokemon/Assets/Snow_ruins5.png', scale: 1 }, { x: 750, y: 370, src: 'Pokemon/Assets/Water_ruins2.png', scale: 1 }, { x: 100, y: 110, src: 'Pokemon/Assets/The_beast_grass_shadow6.png', scale: 1 }, { x: 600, y: 210, src: 'Pokemon/Assets/The_beast_sand_shadow6.png', scale: 1 }, { x: 270, y: 610, src: 'Pokemon/Assets/The_beast_sand_shadow5.png', scale: 1 }, { x: 50, y: 160, src: 'Pokemon/Assets/The_beast_grass_shadow4.png', scale: 1 }, { x: 90, y: 750, src: 'Pokemon/Assets/The_beast_sand_shadow1.png', scale: 1 }, { x: 410, y: 480, src: 'Pokemon/Assets/Levender_white_flowers1.png', scale: 1 }, { x: 340, y: 570, src: 'Pokemon/Assets/Levender_white_flowers1.png', scale: 1 }, { x: 340, y: 660, src: 'Pokemon/Assets/Levender_white_flowers1.png', scale: 1 }, { x: 360, y: 690, src: 'Pokemon/Assets/Levender_white_flowers1.png', scale: 1 }],
         waves: [
-            { path: 'A', enemyType: 'golem', enemyLevel: 1, count: 6, interval: 0.7, delay: 1 },
+            { path: 'A', enemyType: 'golem', enemyLevel: 1, count: 5, interval: 0.7, delay: 1 },
             { path: 'A', enemyType: 'orc', enemyLevel: 3, count: 6, interval: 1, delay: 12 },
-            { path: 'A', enemyType: 'ghost', enemyLevel: 1, count: 5, interval: 0.5, delay: 20 },
-            { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 5, interval: 1, delay: 1 },
-            { path: 'A', enemyType: 'ghost', enemyLevel: 3, count: 3, interval: 1, delay: 2 },
+            { path: 'A', enemyType: 'ghost', enemyLevel: 3, count: 1, interval: 1, delay: 20 },
+            { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 5, interval: 1, delay: 2 },
+            { path: 'A', enemyType: 'ghost', enemyLevel: 1, count: 8, interval: 1, delay: 4 },
             { path: 'A', enemyType: 'orc', enemyLevel: 3, count: 6, interval: 1.5, delay: 20 },
             { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 6, interval: 1.3, delay: 20 },
             { path: 'A', enemyType: 'orc', enemyLevel: 3, count: 5, interval: 1, delay: 20 },
             { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 8, interval: 1.5, delay: 10 },
             { path: 'A', enemyType: 'slime', enemyLevel: 3, count: 6, interval: 1, delay: 5 },
-            { path: 'A', enemyType: 'golem', enemyLevel: 2, count: 6, interval: 1.4, delay: 20 },
-            { path: 'A', enemyType: 'ghost', enemyLevel: 3, count: 6, interval: 1.2, delay: 20 }
+            { path: 'A', enemyType: 'golem', enemyLevel: 2, count: 8, interval: 1.4, delay: 20 },
+            { path: 'A', enemyType: 'ghost', enemyLevel: 3, count: 2, interval: 1.2, delay: 20 },
+            { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 8, interval: 1.2, delay: 6 }
         ]
             },
 {
@@ -426,7 +427,7 @@
             { path: 'B', enemyType: 'golem', enemyLevel: 1, count: 6, interval: 2, delay: 20 },
             { path: 'A', enemyType: 'slime', enemyLevel: 3, count: 8, interval: 1, delay: 20 },
             { path: 'B', enemyType: 'orc', enemyLevel: 3, count: 8, interval: 1, delay: 3 },
-            { path: 'A', enemyType: 'slime', enemyLevel: 1, count: 10, interval: 1, delay: 20 },
+            { path: 'A', enemyType: 'slime', enemyLevel: 3, count: 10, interval: 1, delay: 20 },
             { path: 'B', enemyType: 'golem', enemyLevel: 2, count: 6, interval: 2, delay: 2 },
             { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 20, interval: 0.8, delay: 20 },
             { path: 'B', enemyType: 'ghost', enemyLevel: 3, count: 3, interval: 1, delay: 5 }
@@ -447,7 +448,9 @@
             { path: 'B', enemyType: 'vampire', enemyLevel: 2, count: 4, interval: 1, delay: 45 },
             { path: 'B', enemyType: 'orc', enemyLevel: 3, count: 10, interval: 1, delay: 20 },
             { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 12, interval: 0.8, delay: 30 },
-            { path: 'B', enemyType: 'ghost', enemyLevel: 3, count: 3, interval: 3, delay: 10 }
+            { path: 'B', enemyType: 'ghost', enemyLevel: 3, count: 2, interval: 3, delay: 10 },
+            { path: 'A', enemyType: 'vampire', enemyLevel: 2, count: 6, interval: 1, delay: 20 },
+            { path: 'B', enemyType: 'golem', enemyLevel: 3, count: 6, interval: 1, delay: 25 }
         ]
     },
     {
@@ -592,19 +595,21 @@
             const cooldownSec = stats.continuous ? 0 : (stats.cooldown / 1000); let minDps = stats.continuous ? stats.damage : (stats.damage / cooldownSec); let maxDps = minDps; const effects = []; const getAoEMult = (r) => r >= 40 ? 5 : (r > 0 ? 3 : 1);
             switch (stats.attackName) {
                 case 'thundershock': case 'thunderbolt': case 'thunder': { const extraDps = ((stats.paraDps * stats.paraDuration) / cooldownSec) * stats.paraChance; minDps += extraDps; maxDps += extraDps; effects.push(`Paralysis (${stats.paraChance * 100}%), ${stats.paraDuration}s`); break; }
-                case 'chain_lightning': { maxDps = minDps * (stats.chainCount + 1); effects.push(`Chain lightning (${stats.chainCount + 1} targets)`); break; }
-                case 'static_field': { const singleDps = stats.damage * (0.5 / cooldownSec); minDps = singleDps; maxDps = singleDps * getAoEMult(stats.fieldRadius); effects.push(`Static field (Stun ${stats.stunDuration}s)`); break; }
+                case 'chain_lightning': { maxDps = minDps * (stats.chainCount + 1); effects.push(`${stats.chainCount + 1} targets`); break; }
+                case 'static_field': { const singleDps = stats.damage * (0.5 / cooldownSec); minDps = singleDps; maxDps = singleDps * getAoEMult(stats.fieldRadius); effects.push(`Area stun ${stats.stunDuration}s every 3s`); break; }
                 case 'razor_leaf': { const avgMult = 1 + (stats.doubleChance * ((stats.doubleMultiplier || 2) - 1)); minDps *= avgMult; maxDps *= avgMult; effects.push(`Double damage (${stats.doubleChance * 100}%)`); break; }
                 case 'solar_beam': { maxDps = minDps + (minDps * (stats.splashMultiplier || 1) * getAoEMult(stats.splashRadius || 20)); effects.push(`Splash damage`); break; }
-                case 'plant_trap': { const singleDps = stats.trapDps * (stats.trapDur / cooldownSec); minDps = singleDps; maxDps = singleDps * getAoEMult(stats.trapRadius); effects.push(`Deadly plant (${stats.trapDur}s)`); break; }
-                case 'earthquake': { const singleDps = stats.eqDps * (stats.eqDur / cooldownSec); minDps = singleDps; maxDps = singleDps * getAoEMult(stats.eqRadius); effects.push(`Earthquake (${stats.eqDur}s)`); break; }
+                case 'plant_trap': { const singleDps = stats.trapDps * (stats.trapDur / cooldownSec); minDps = singleDps; maxDps = singleDps * getAoEMult(stats.trapRadius); effects.push(`Duration (${stats.trapDur}s)`); break; }
+                case 'earthquake': { const singleDps = stats.eqDps * (stats.eqDur / cooldownSec); minDps = singleDps; maxDps = singleDps * getAoEMult(stats.eqRadius); effects.push(`Duration (${stats.eqDur}s)`); break; }
                 case 'water_pulse': { effects.push(`Confusion (${stats.turnChance * 100}%, ${stats.turnDuration}s)`); break; }
                 case 'hydro_pump': { maxDps = minDps + (minDps * (stats.splashMultiplier || 1) * getAoEMult(stats.splashRadius || 20)); effects.push(`Continuous Splash`); break; }
-                case 'water_cutter': { effects.push(`Water cutter (High Pierce)`); break; }
-                case 'water_paralyzer': { effects.push(`Water paralyzer (Single stun ${stats.stunDuration}s)`); break; }
+                case 'water_cutter': { effects.push(`Single target`); break; }
+                case 'water_paralyzer': { effects.push(`Single stun (${stats.stunDuration}s)`); break; }
                 case 'flamethrower': { const extraDps = stats.burnDps * stats.burnChance; minDps += extraDps; maxDps += extraDps; effects.push(`Burning (${stats.burnChance * 100}%/s, ${parseFloat(stats.burnDps).toFixed(1).replace('.0', '')} DPS)`); break; }
-                case 'fire_spin': case 'fire_hurricane': case 'fire_tornado': { const singleDps = stats.firestormDps * (stats.firestormDur / cooldownSec); minDps = singleDps; maxDps = singleDps * getAoEMult(stats.firestormRadius); effects.push(`${stats.attackName.replace('_', ' ')} (${stats.firestormDur}s)`); break; }
-            } return { name: stats.name, cost: stats.cost, attack: stats.attackName.replace('_', ' '), element: { fire: 'Oheň', water: 'Voda', grass: 'Tráva', electric: 'Elektřina' }[type] || type, cooldown: cooldownSec === 0 ? 'Trvalý' : `${cooldownSec}s`, range: stats.range, dps: Math.abs(maxDps - minDps) > 0.1 ? `${minDps.toFixed(1)} - ${maxDps.toFixed(1)}` : minDps.toFixed(1), effects: effects.length > 0 ? effects.join('<br>') : 'Žádné' };
+                case 'fire_spin': case 'fire_hurricane': case 'fire_tornado': {     const singleDps = stats.firestormDps * (stats.firestormDur / cooldownSec);minDps = singleDps;maxDps = singleDps * getAoEMult(stats.firestormRadius);const customDesc = {'fire_spin': 'Static fire spin','fire_hurricane': 'Static fire hurricane','fire_tornado': 'Moving fire tornado'};    effects.push(`${customDesc[stats.attackName] || stats.attackName} (${stats.firestormDur}s)`); 
+    break; 
+}
+            } return { name: stats.name, cost: stats.cost, attack: stats.attackName.replace('_', ' '), element: { fire: 'Fire', water: 'Water', grass: 'Grass', electric: 'Lightning' }[type] || type, cooldown: cooldownSec === 0 ? 'Trvalý' : `${cooldownSec}s`, range: stats.range, dps: Math.abs(maxDps - minDps) > 0.1 ? `${minDps.toFixed(1)} - ${maxDps.toFixed(1)}` : minDps.toFixed(1), effects: effects.length > 0 ? effects.join('<br>') : 'Žádné' };
         }
 
         function showTooltip(type, level, originX, originY) { const info = getTowerTooltipInfo(type, level); ui.tooltip.innerHTML = `<div class="tooltip-header">${info.name} (Lvl ${level.toString().toUpperCase()})</div><div class="tooltip-row"><span>Cena:</span> <strong style="color: #f1c40f;">${info.cost} 🪙</strong></div><div class="tooltip-row"><span>Element:</span> <strong>${info.element}</strong></div><div class="tooltip-row"><span>Útok:</span> <strong style="text-transform: capitalize">${info.attack}</strong></div><div class="tooltip-row"><span>Dosah:</span> <strong>${info.range}</strong></div><div class="tooltip-row"><span>Cooldown:</span> <strong>${info.cooldown}</strong></div><div class="tooltip-row"><span>DPS:</span> <strong>${info.dps}</strong></div><div class="tooltip-effects"><strong>Efekty:</strong><br>${info.effects}</div>`; ui.tooltip.classList.remove('hidden'); const w = ui.tooltip.offsetWidth; const h = ui.tooltip.offsetHeight; const o = 32; const halfW = window.innerWidth / 2 + window.scrollX; const halfH = window.innerHeight / 2 + window.scrollY; ui.tooltip.style.left = `${originX <= halfW ? originX + o : originX - o - w}px`; ui.tooltip.style.top = `${originY <= halfH ? originY + o : originY - o - h}px`; }
@@ -789,13 +794,14 @@
                 if (p.type === 'fire_spin' || p.type === 'fire_hurricane') { if (IMAGES.fireStorm.complete && IMAGES.fireStorm.naturalHeight) { const fw = IMAGES.fireStorm.width/13; const fh = IMAGES.fireStorm.height; const sz = p.type==='fire_hurricane'?p.radius*3.75:p.radius*2.5; ctx.save(); ctx.globalAlpha = Math.min(0.75, p.life*3); ctx.drawImage(IMAGES.fireStorm, Math.floor(((p.maxLife-p.life)*15)%13)*fw, 0, fw, fh, p.x-sz/2, p.y-sz/2, sz, sz); ctx.restore(); } state.enemies.forEach(e => { if (Math.hypot(e.x - p.x, e.y - p.y) <= p.radius) e.takeDamage(p.dps*dt, p.elementType); }); if (p.life <= 0) state.projectiles.splice(i, 1); continue; }
                 if (p.type === 'fire_tornado') { if (p.target && p.target.hp > 0) { const tx = p.target.x + p.target.offsetX; const ty = p.target.y + p.target.offsetY; p.vx = (tx - p.x)/ (dt || 0.016); p.vy = (ty - p.y)/ (dt || 0.016); p.x = tx; p.y = ty; } else { p.x += (p.vx||0)*dt*0.3; p.y += (p.vy||0)*dt*0.3; } if (IMAGES.fireTornado.complete && IMAGES.fireTornado.naturalHeight) { const fw = IMAGES.fireTornado.width/8; const fh = IMAGES.fireTornado.height; const sz = p.radius*3; ctx.save(); ctx.globalAlpha = Math.min(0.65, p.life*3); ctx.drawImage(IMAGES.fireTornado, Math.floor(((p.maxLife-p.life)*15)%8)*fw, 0, fw, fh, p.x-sz/2, p.y-sz/2-sz*0.2, sz, sz); ctx.restore(); } state.enemies.forEach(e => { if (Math.hypot(e.x - p.x, e.y - p.y) <= p.radius) e.takeDamage(p.dps*dt, p.elementType); }); if (p.life <= 0) state.projectiles.splice(i, 1); continue; }
                 if (p.life <= 0) { if (p.target) { p.target.takeDamage(p.damage||0, p.elementType); if (p.paraChance && Math.random()<p.paraChance) { p.target.paraTimer=p.paraDuration; p.target.paraDps=p.paraDps; } if (p.turnChance && Math.random()<p.turnChance) p.target.turnBackTimer=p.turnDuration; if (p.stunDuration) p.target.stunTimer=Math.max(p.target.stunTimer||0, p.stunDuration); } if (p.isSplash) { state.projectiles.push({ type:'splash_anim', x:p.x2, y:p.y2, maxLife:0.3, life:0.3, r:p.splashR, color:'#27ae60' }); state.enemies.forEach(e => { if (e !== p.target && Math.hypot(e.x - p.x2, e.y - p.y2)<=p.splashR) e.takeDamage(p.damage, p.elementType); }); } 
-                if (['thundershock','thunderbolt','thunder','chain_lightning','vine_whip','razor_leaf','solar_beam','water_pulse','water_paralyzer','ember','tracking_leaf'].includes(p.type)) spawnImpact(p.x2, p.y2, p.elementType); state.projectiles.splice(i, 1); continue; }
+                if (['thundershock','thunderbolt','thunder','chain_lightning','vine_whip','razor_leaf','solar_beam','water_pulse','water_paralyzer','ember','tracking_leaf'].includes(p.type)) { spawnImpact(p.x2, p.y2, p.elementType); if(p.type==='thunder') spawnImpact(p.x2, p.y2, p.elementType); if(p.type==='chain_lightning') { spawnImpact(p.x2, p.y2, p.elementType); spawnImpact(p.x2, p.y2, p.elementType); } } state.projectiles.splice(i, 1); continue; }
                 const pr = 1 - (p.life/p.maxLife); if (!p.x1 || !p.x2 && p.type !== 'splash_anim') continue; let sx = p.x1, sy = p.y1; if (['thundershock','thunderbolt','thunder','chain_lightning','vine_whip','solar_beam','water_gun','hydro_pump','water_cutter','flamethrower'].includes(p.type)) { const ang = Math.atan2(p.y2-p.y1, p.x2-p.x1); sx += Math.cos(ang)*30; sy += Math.sin(ang)*20; } const bx = sx+(p.x2-sx)*pr; const by = sy+(p.y2-sy)*pr;
-                if (p.type.includes('thunder') || p.type === 'chain_lightning') { ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = p.width||3; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo((sx+p.x2)/2+(Math.random()-0.5)*20, (sy+p.y2)/2+(Math.random()-0.5)*20); ctx.lineTo(p.x2,p.y2); ctx.stroke(); 
-                } else if (p.type === 'vine_whip') { ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.quadraticCurveTo(sx,by,p.x2,p.y2); ctx.stroke(); 
+                if (p.type.includes('thunder') || p.type === 'chain_lightning') { const mX=(sx+p.x2)/2+(Math.random()-0.5)*20, mY=(sy+p.y2)/2+(Math.random()-0.5)*20, w=p.width||3; if(p.type==='thunder'||p.type==='chain_lightning'){ctx.shadowColor='#f1c40f';ctx.shadowBlur=p.type==='chain_lightning'?15:10;} if(p.type==='chain_lightning'){ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=w+6;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(mX,mY);ctx.lineTo(p.x2,p.y2);ctx.stroke();} if(p.type!=='thundershock'){ctx.strokeStyle='#fff';ctx.lineWidth=w+2;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(mX,mY);ctx.lineTo(p.x2,p.y2);ctx.stroke();} ctx.strokeStyle='#f1c40f';ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(mX,mY);ctx.lineTo(p.x2,p.y2);ctx.stroke();ctx.shadowBlur=0; 
+                } else if (p.type === 'vine_whip') { ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.quadraticCurveTo(sx,by,p.x2,p.y2); ctx.stroke();
                 } else if (p.type === 'razor_leaf') { ctx.fillStyle = '#27ae60'; const a = Math.atan2(p.y2-p.y1, p.x2-p.x1); const pa = a+Math.PI/2; const drawL = (cx, cy) => { ctx.beginPath(); ctx.ellipse(cx,cy,8,4,a,0,Math.PI*2); ctx.fill(); }; drawL(bx,by); drawL(bx+Math.cos(pa)*12, by+Math.sin(pa)*12); drawL(bx-Math.cos(pa)*12, by-Math.sin(pa)*12); 
                 } else if (p.type === 'tracking_leaf') { const dx = p.x2 - sx; const dy = p.y2 - sy; const dist = Math.hypot(dx, dy); const nx = dx / (dist || 1); const ny = dy / (dist || 1); const offset = Math.sin(pr * Math.PI) * p.curve; const lx = bx + (-ny) * offset; const ly = by + nx * offset; ctx.save(); ctx.translate(lx, ly); ctx.rotate(p.rot + p.rotSpd * pr); ctx.fillStyle = '#2ecc71'; ctx.beginPath(); ctx.ellipse(0, 0, 5, 3, 0, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#27ae60'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(6, 0); ctx.stroke(); ctx.restore(); 
-                } else if (p.type === 'solar_beam') { ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(p.x2,p.y2); ctx.stroke(); ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.stroke(); } else if (p.type === 'water_gun' || p.type === 'hydro_pump') { ctx.strokeStyle = p.type === 'water_gun' ? '#3498db' : '#2980b9'; ctx.lineWidth = p.type === 'water_gun' ? 3 : 6; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(p.x2,p.y2); ctx.stroke(); } else if (p.type === 'water_cutter') { ctx.strokeStyle = '#00a8ff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(p.x2,p.y2); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); 
+                } else if (p.type === 'solar_beam') { ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(p.x2,p.y2); ctx.stroke(); ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.stroke(); 
+                } else if (p.type === 'water_gun') { const d = Math.hypot(p.x2 - sx, p.y2 - sy); const ang = Math.atan2(p.y2 - sy, p.x2 - sx); const perpX = -Math.sin(ang), perpY = Math.cos(ang); const freq = d / 15, spd = state.visualTime * 15, amp = 4; ctx.lineWidth = 2.5; ctx.strokeStyle = '#85c1e9'; ctx.beginPath(); for (let i = 0; i <= 1; i += 0.05) { const w = Math.sin(i * freq * Math.PI * 2 - spd) * amp; const x = sx + (p.x2 - sx) * i + perpX * w; const y = sy + (p.y2 - sy) * i + perpY * w; i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } ctx.stroke(); ctx.strokeStyle = '#3498db'; ctx.beginPath(); for (let i = 0; i <= 1; i += 0.05) { const w = Math.sin(i * freq * Math.PI * 2 - spd + Math.PI) * amp; const x = sx + (p.x2 - sx) * i + perpX * w; const y = sy + (p.y2 - sy) * i + perpY * w; i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } ctx.stroke(); } else if (p.type === 'hydro_pump') { ctx.strokeStyle = '#2980b9'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(p.x2,p.y2); ctx.stroke(); } else if (p.type === 'water_cutter') { ctx.strokeStyle = '#00a8ff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(p.x2,p.y2); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); 
                 } else if (p.type === 'water_pulse') { ctx.fillStyle = '#2980b9'; ctx.beginPath(); ctx.ellipse(bx,by,12,4,Math.atan2(p.y2-p.y1,p.x2-p.x1),0,Math.PI*2); ctx.fill(); } else if (p.type === 'water_paralyzer') { ctx.fillStyle = '#0ff'; ctx.beginPath(); ctx.arc(bx,by,8,0,Math.PI*2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); } else if (p.type === 'ember') { ctx.save(); ctx.translate(bx,by); ctx.rotate(Math.atan2(p.y2-p.y1,p.x2-p.x1)); ctx.globalCompositeOperation = 'screen'; const g = ctx.createRadialGradient(0,0,0,0,0,24); g.addColorStop(0,'#fff'); g.addColorStop(0.2,'#fc0'); g.addColorStop(0.6,'rgba(231,76,60,0.6)'); g.addColorStop(1,'rgba(231,76,60,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(16,0); ctx.quadraticCurveTo(0,16,-40,0); ctx.quadraticCurveTo(0,-16,16,0); ctx.fill(); ctx.restore(); 
                 } else if (p.type === 'flamethrower') { const d = Math.hypot(p.x2-sx,p.y2-sy)*pr, a = Math.atan2(p.y2-sy,p.x2-sx), w = 2+d*0.08; ctx.save(); ctx.translate(sx,sy); ctx.rotate(a); ctx.globalCompositeOperation = 'screen'; const g = ctx.createLinearGradient(0,0,d,0); g.addColorStop(0,`rgba(255,255,200,${pr})`); g.addColorStop(0.2,`rgba(255,215,0,${pr})`); g.addColorStop(0.5,`rgba(255,100,0,${pr*0.8})`); g.addColorStop(0.8,`rgba(220,20,0,${pr*0.5})`); g.addColorStop(1,'transparent'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0,-1); ctx.lineTo(d,-w); ctx.lineTo(d,w); ctx.lineTo(0,1); ctx.fill(); ctx.restore(); } else if (p.type === 'splash_anim') { ctx.strokeStyle = `rgba(39, 174, 96, ${p.life/p.maxLife})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, p.r*Math.pow(1-p.life/p.maxLife,0.5), 0, Math.PI*2); ctx.stroke(); }
             }
@@ -895,14 +901,16 @@
         canvas.addEventListener('mousemove', (e) => {
             if (state.gameOver || state.gameWon) return; const r = canvas.getBoundingClientRect(); const cx = (e.clientX - r.left) * (canvas.width / r.width); const cy = (e.clientY - r.top) * (canvas.height / r.height); const isMenuOpen = !ui.towerMenu.classList.contains('hidden') || !ui.upgradeMenu.classList.contains('hidden');
             if (!isMenuOpen) { let hs = null; state.slots.forEach(s => { if (Math.hypot(s.x - cx, s.y - cy) < s.radius) hs = s; }); if (hs !== state.hoveredSlot) { state.hoveredSlot = hs; if (state.hoveredSlot) { AUDIO.clickMiddle.currentTime = 0; AUDIO.clickMiddle.play().catch(()=>{}); } } }
-            let hoveredSpawner = false; if (!state.isSpawningWave && state.currentWaveIndex < state.levelWaves.length) { const w = state.levelWaves[state.currentWaveIndex]; const pCoords = (w.path === 'B' && state.pathB && state.pathB.length > 0) ? state.pathB[0] : state.path[0]; if (pCoords) { const safeX = Math.max(50, Math.min(canvas.width - 50, pCoords.x)); const safeY = Math.max(50, Math.min(canvas.height - 50, pCoords.y)); if (Math.hypot(safeX - cx, safeY - cy) < 25) { hoveredSpawner = true; if (!state.hoveredSpawnerTooltip) { state.hoveredSpawnerTooltip = true; showSpawnerTooltip(w, safeX, safeY); } } } }
-            if (!hoveredSpawner && state.hoveredSpawnerTooltip) { state.hoveredSpawnerTooltip = false; if (!state.hoveredTowerType && !state.hoveredUpgrade) ui.tooltip.classList.add('hidden'); }
+            let hoveredSpawner = false; if (!state.isSpawningWave && state.currentWaveIndex < state.levelWaves.length) { const w = state.levelWaves[state.currentWaveIndex]; const pCoords = (w.path === 'B' && state.pathB && state.pathB.length > 0) ? state.pathB[0] : state.path[0]; if (pCoords) { const safeX = Math.max(50, Math.min(canvas.width - 50, pCoords.x)); const safeY = Math.max(50, Math.min(canvas.height - 50, pCoords.y)); if (Math.hypot(safeX - cx, safeY - cy) < 25) { hoveredSpawner = true; if (!state.hoveredSpawnerTooltip && !state.spawnerTooltipLocked) { state.hoveredSpawnerTooltip = true; showSpawnerTooltip(w, safeX, safeY); } } } }
+            if (!hoveredSpawner && state.hoveredSpawnerTooltip) { state.hoveredSpawnerTooltip = false; if (!state.spawnerTooltipLocked && !state.hoveredTowerType && !state.hoveredUpgrade) ui.tooltip.classList.add('hidden'); }
         });
 
         canvas.addEventListener('click', (e) => {
             if (state.gameOver || state.gameWon) return; const r = canvas.getBoundingClientRect(); const cx = (e.clientX - r.left) * (canvas.width / r.width); const cy = (e.clientY - r.top) * (canvas.height / r.height);
             if (state.selectedBonus) { if (state.isPaused) return; const b = state.selectedBonus; state.usedBonuses.push(b); state.selectedBonus = null; canvas.classList.remove('bonus-placement'); renderBonusIcons(); playBonusEnterEffect(b, cx, cy); setTimeout(() => { if (state.gameOver) return; state.activeBonuses.push({ type: b, x: cx, y: cy, life: BONUS_STATS[b].duration, maxLife: BONUS_STATS[b].duration, animTime: 0 }); playSound(b, '_attack'); }, 1400); return; }
-            ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); hideTooltip(); state.selectedSlot = state.hoveredTowerType = null; state.hoveredUpgrade = false;
+            let clickedSpawner = false; if (!state.isSpawningWave && state.currentWaveIndex < state.levelWaves.length) { const w = state.levelWaves[state.currentWaveIndex]; const pCoords = (w.path === 'B' && state.pathB && state.pathB.length > 0) ? state.pathB[0] : state.path[0]; if (pCoords) { const safeX = Math.max(50, Math.min(canvas.width - 50, pCoords.x)); const safeY = Math.max(50, Math.min(canvas.height - 50, pCoords.y)); if (Math.hypot(safeX - cx, safeY - cy) < 25) { clickedSpawner = true; state.spawnerTooltipLocked = !state.spawnerTooltipLocked; if (state.spawnerTooltipLocked) showSpawnerTooltip(w, safeX, safeY); } } }
+            if (!clickedSpawner) state.spawnerTooltipLocked = false;
+            ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); if (!state.spawnerTooltipLocked) hideTooltip(); state.selectedSlot = state.hoveredTowerType = null; state.hoveredUpgrade = false;
             state.slots.forEach(s => { if (Math.hypot(s.x - cx, s.y - cy) < s.radius) { state.selectedSlot = s; if (s.tower) { ui.upgradeMenu.innerHTML = ''; const t = s.tower; if (t.level < 3) ui.upgradeMenu.appendChild(createUpgradeButton(t, t.level+1, 0)); else if (t.level === 3) { ui.upgradeMenu.appendChild(createUpgradeButton(t, '4a', -40)); ui.upgradeMenu.appendChild(createUpgradeButton(t, '4b', 40)); } if (ui.upgradeMenu.innerHTML !== '') { ui.upgradeMenu.style.left = `${s.x}px`; ui.upgradeMenu.style.top = `${s.y - s.radius - 50}px`; ui.upgradeMenu.classList.remove('hidden'); } } else { document.querySelectorAll('#tower-menu .radial-btn').forEach(b => b.disabled = state.gold < parseInt(b.querySelector('.price-tag').textContent)); ui.towerMenu.style.left = `${s.x}px`; ui.towerMenu.style.top = `${s.y}px`; ui.towerMenu.classList.remove('hidden'); } } });
         });
 
@@ -923,9 +931,62 @@
         function renderEnemyDex() { if (ui.enemyDexContent.innerHTML !== '') return; let html = ''; Object.keys(ENEMY_STATS).forEach(type => { const levels = ENEMY_STATS[type]; if (levels) { for (const [lvl, stats] of Object.entries(levels)) { const img = enemyImages[type][lvl].walk; const fw = img.naturalWidth / stats.walkFrames; const fh = img.naturalHeight / 4; const scale = 1.5 * (stats.size || 1); const dw = Math.floor(fw * scale); const dh = Math.floor(fh * scale); const sW = dw * stats.walkFrames; const sH = dh * 4; const r = stats.res || { grass:0, water:0, fire:0, electric:0 }; html += `<div class="enemy-card"><h3>${stats.name}</h3><div class="dex-sprite-viewport" style="width: ${dw}px; height: ${dh}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${sH}px; background-image: url('${stats.walkSrc}'); background-size: ${sW}px ${sH}px; animation: dex-sprite-walk 1s steps(${stats.walkFrames}) infinite;"></div></div><div class="enemy-stats"><div style="display: flex; justify-content: space-around; font-weight: bold;"><span>❤️: ${stats.hp}</span><span>👟: ${stats.speed}</span></div><div class="res-stats"><span>🌿${r.grass}%</span> <span>💧${r.water}%</span> <span>🔥${r.fire}%</span> <span>⚡${r.electric}%</span></div></div></div>`; } } }); ui.enemyDexContent.innerHTML = html; }
 
         function renderPokemonDex() {
-            ui.pokemonDexContent.innerHTML = ''; const t = ['grass', 'water', 'fire', 'electric']; const rw = ['1', '2', '3', '4']; let html = ''; const lc = { '1': '#3498db', '2': '#1abc9c', '3': '#f39c12', '4': '#ffd700', 'bonus': '#a29bfe' };
-            rw.forEach(row => { t.forEach(type => { if (row === '4') { const sA = TOWER_STATS[type].levels['4a']; const sB = TOWER_STATS[type].levels['4b']; if (!sA || !sB) return; const iA = getTowerTooltipInfo(type, '4a'); const iB = getTowerTooltipInfo(type, '4b'); const bN = sA.spriteName || sA.name; const pK = bN.toLowerCase(); const fC = pK === 'pichu' ? 8 : (pK === 'bulbasaur' ? 6 : 4); const aW = (ANIM_DATA[pK] && ANIM_DATA[pK]['Walk']) ? ANIM_DATA[pK]['Walk'].width : 64; const dW = aW * 1.25; const sW = dW * fC; html += `<div class="poke-card"><h3 style="color: ${lc['4']}">${bN}</h3><div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dW}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${dW}px; background-image: url('Pokemon/SPRITES/${bN}/Walk-Anim.png'); background-size: ${sW}px auto; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div></div><div class="split-stats-container"><div class="split-stat-block"><div class="split-header">${iA.name.match(/\(([^)]+)\)/)?.[1]||'Cesta A'}</div><div class="poke-stats"><div><strong>🪙:</strong> ${iA.cost}</div><div><strong>⚔️:</strong> <span style="text-transform: capitalize">${iA.attack}</span></div><div><strong>💥:</strong> ${iA.dps}</div>${iA.effects !== 'Žádné' ? `<div class="poke-effects">${iA.effects}</div>` : ''}</div></div><div class="split-stat-block"><div class="split-header">${iB.name.match(/\(([^)]+)\)/)?.[1]||'Cesta B'}</div><div class="poke-stats"><div><strong>🪙:</strong> ${iB.cost}</div><div><strong>⚔️:</strong> <span style="text-transform: capitalize">${iB.attack}</span></div><div><strong>💥:</strong> ${iB.dps}</div>${iB.effects !== 'Žádné' ? `<div class="poke-effects">${iB.effects}</div>` : ''}</div></div></div></div>`; } else { const stats = TOWER_STATS[type].levels[row]; if (!stats) return; const info = getTowerTooltipInfo(type, row); const sN = stats.spriteName || stats.name; const pK = sN.toLowerCase(); const fC = pK === 'pichu' ? 8 : (pK === 'bulbasaur' ? 6 : 4); const aW = (ANIM_DATA[pK] && ANIM_DATA[pK]['Walk']) ? ANIM_DATA[pK]['Walk'].width : 64; const dW = aW * 1.25; const sW = dW * fC; html += `<div class="poke-card"><h3 style="color: ${lc[row]}">${info.name}</h3><div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dW}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${dW}px; background-image: url('Pokemon/SPRITES/${sN}/Walk-Anim.png'); background-size: ${sW}px auto; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div></div><div class="poke-stats"><div><strong>🪙 Cost:</strong> ${info.cost}</div><div><strong>⚔️ Attack:</strong> <span style="text-transform: capitalize">${info.attack}</span></div><div><strong>🎯 Element:</strong> ${info.element}</div><div><strong>💥 DPS:</strong> ${info.dps}</div>${info.effects !== 'Žádné' ? `<div class="poke-effects">${info.effects}</div>` : ''}</div></div>`; } }); }); 
-            Object.keys(BONUS_STATS).forEach(type => { const stats = BONUS_STATS[type]; const bM = getRPGMult('bonus_dmg', 6) ? (1+RPG_CONFIG.bonusDmg) : 1; const sN = type.charAt(0).toUpperCase() + type.slice(1), pK = type.toLowerCase(); let aN = 'Hop'; if (type === 'machamp') aN = 'Punch'; else if (type === 'espeon') aN = 'Attack'; else if (type === 'onix' || type === 'snorlax') aN = 'Shoot'; else if (type === 'vaporeon') aN = 'Swing'; else if (type === 'mewtwo') aN = 'Hover'; const fC = stats.frames; const ad = (ANIM_DATA[pK] && ANIM_DATA[pK][aN]) ? ANIM_DATA[pK][aN] : {width:64, height:64}; const sc = 1.25, dW = Math.floor(ad.width * sc), dH = Math.floor(ad.height * sc), sW = dW * fC, sH = dH * 8, rO = (stats.row || 0) * dH; const atkName = stats.attack || 'Special Attack'; html += `<div class="poke-card" style="border-color: #6c5ce7;"><h3 style="color: ${lc['bonus']}">${sN} (Bonus)</h3><div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dH}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${sH}px; background-image: url('Pokemon/SPRITES/${sN}/${aN}-Anim.png'); background-size: ${sW}px ${sH}px; background-position: left 0 top -${rO}px; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div></div><div class="poke-stats"><div><strong>⚔️ Attack:</strong> ${atkName}</div><div><strong>🎯 Element:</strong> ${stats.element}</div><div><strong>⏳ Trvání:</strong> ${stats.duration}s</div><div><strong>⭕ Dosah:</strong> ${stats.radius}</div><div><strong>💥 DPS:</strong> ${stats.dmg > 0 ? ((stats.dmg * stats.duration) * bM).toFixed(1).replace('.0', '') : (type === 'mewtwo' ? `${Math.round(10 * bM)} - ${Math.round(100 * bM)}` : '0')}</div></div></div>`; });
+            ui.pokemonDexContent.innerHTML = ''; 
+            const t = ['grass', 'water', 'fire', 'electric']; 
+            const rw = ['1', '2', '3', '4']; 
+            let html = ''; 
+            
+            // Konfigurace barev
+            const baseCol = { grass: '#2ecc71', water: '#3498db', fire: '#e74c3c', electric: '#f1c40f' };
+            const gold = '#ffd700';
+            const bonusColor = '#a29bfe';
+            // Poměr přimíchání zlaté barvy (0 = čistý element, 0.9 = 90% zlatá s 10% nádechem elementu)
+            const weights = { '1': 0, '2': 0.33, '3': 0.66, '4': 0.90 };
+
+            // Pomocná funkce pro interpolaci hex barev
+            const mixColor = (hex1, hex2, weight) => {
+                const r1 = parseInt(hex1.substring(1, 3), 16), g1 = parseInt(hex1.substring(3, 5), 16), b1 = parseInt(hex1.substring(5, 7), 16);
+                const r2 = parseInt(hex2.substring(1, 3), 16), g2 = parseInt(hex2.substring(3, 5), 16), b2 = parseInt(hex2.substring(5, 7), 16);
+                const r = Math.round(r1 + (r2 - r1) * weight).toString(16).padStart(2, '0');
+                const g = Math.round(g1 + (g2 - g1) * weight).toString(16).padStart(2, '0');
+                const b = Math.round(b1 + (b2 - b1) * weight).toString(16).padStart(2, '0');
+                return `#${r}${g}${b}`;
+            };
+
+            rw.forEach(row => { 
+                t.forEach(type => { 
+                    const titleColor = mixColor(baseCol[type], gold, weights[row]);
+
+                    if (row === '4') { 
+                        const sA = TOWER_STATS[type].levels['4a']; const sB = TOWER_STATS[type].levels['4b']; 
+                        if (!sA || !sB) return; 
+                        const iA = getTowerTooltipInfo(type, '4a'); const iB = getTowerTooltipInfo(type, '4b'); 
+                        const bN = sA.spriteName || sA.name; const pK = bN.toLowerCase(); 
+                        const fC = pK === 'pichu' ? 8 : (pK === 'bulbasaur' ? 6 : 4); 
+                        const aW = (ANIM_DATA[pK] && ANIM_DATA[pK]['Walk']) ? ANIM_DATA[pK]['Walk'].width : 64; 
+                        const dW = aW * 1.25; const sW = dW * fC; 
+                        
+                        html += `<div class="poke-card"><h3 style="color: ${titleColor}">${bN}</h3><div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dW}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${dW}px; background-image: url('Pokemon/SPRITES/${bN}/Walk-Anim.png'); background-size: ${sW}px auto; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div></div><div class="split-stats-container"><div class="split-stat-block"><div class="split-header">${iA.name.match(/\(([^)]+)\)/)?.[1]||'Cesta A'}</div><div class="poke-stats"><div><strong>🪙:</strong> ${iA.cost}</div><div><strong>⚔️:</strong> <span style="text-transform: capitalize">${iA.attack}</span></div><div><strong>💥:</strong> ${iA.dps}</div>${iA.effects !== 'Žádné' ? `<div class="poke-effects">${iA.effects}</div>` : ''}</div></div><div class="split-stat-block"><div class="split-header">${iB.name.match(/\(([^)]+)\)/)?.[1]||'Cesta B'}</div><div class="poke-stats"><div><strong>🪙:</strong> ${iB.cost}</div><div><strong>⚔️:</strong> <span style="text-transform: capitalize">${iB.attack}</span></div><div><strong>💥:</strong> ${iB.dps}</div>${iB.effects !== 'Žádné' ? `<div class="poke-effects">${iB.effects}</div>` : ''}</div></div></div></div>`; 
+                    } else { 
+                        const stats = TOWER_STATS[type].levels[row]; 
+                        if (!stats) return; 
+                        const info = getTowerTooltipInfo(type, row); 
+                        const sN = stats.spriteName || stats.name; const pK = sN.toLowerCase(); 
+                        const fC = pK === 'pichu' ? 8 : (pK === 'bulbasaur' ? 6 : 4); 
+                        const aW = (ANIM_DATA[pK] && ANIM_DATA[pK]['Walk']) ? ANIM_DATA[pK]['Walk'].width : 64; 
+                        const dW = aW * 1.25; const sW = dW * fC; 
+                        
+                        html += `<div class="poke-card"><h3 style="color: ${titleColor}">${info.name}</h3><div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dW}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${dW}px; background-image: url('Pokemon/SPRITES/${sN}/Walk-Anim.png'); background-size: ${sW}px auto; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div></div><div class="poke-stats"><div><strong>🪙 Cost:</strong> ${info.cost}</div><div><strong>⚔️ Attack:</strong> <span style="text-transform: capitalize">${info.attack}</span></div><div><strong>🎯 Element:</strong> ${info.element}</div><div><strong>💥 DPS:</strong> ${info.dps}</div>${info.effects !== 'Žádné' ? `<div class="poke-effects">${info.effects}</div>` : ''}</div></div>`; 
+                    } 
+                }); 
+            }); 
+            
+            Object.keys(BONUS_STATS).forEach(type => { 
+                const stats = BONUS_STATS[type]; const bM = getRPGMult('bonus_dmg', 6) ? (1+RPG_CONFIG.bonusDmg) : 1; const sN = type.charAt(0).toUpperCase() + type.slice(1), pK = type.toLowerCase(); let aN = 'Hop'; if (type === 'machamp') aN = 'Punch'; else if (type === 'espeon') aN = 'Attack'; else if (type === 'onix' || type === 'snorlax') aN = 'Shoot'; else if (type === 'vaporeon') aN = 'Swing'; else if (type === 'mewtwo') aN = 'Hover'; const fC = stats.frames; const ad = (ANIM_DATA[pK] && ANIM_DATA[pK][aN]) ? ANIM_DATA[pK][aN] : {width:64, height:64}; const sc = 1.25, dW = Math.floor(ad.width * sc), dH = Math.floor(ad.height * sc), sW = dW * fC, sH = dH * 8, rO = (stats.row || 0) * dH; const atkName = stats.attack || 'Special Attack'; 
+                
+                html += `<div class="poke-card" style="border-color: #6c5ce7;"><h3 style="color: ${bonusColor}">${sN} (Bonus)</h3><div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dH}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${sH}px; background-image: url('Pokemon/SPRITES/${sN}/${aN}-Anim.png'); background-size: ${sW}px ${sH}px; background-position: left 0 top -${rO}px; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div></div><div class="poke-stats"><div><strong>⚔️ Attack:</strong> ${atkName}</div><div><strong>🎯 Element:</strong> ${stats.element}</div><div><strong>⏳ Trvání:</strong> ${stats.duration}s</div><div><strong>⭕ Dosah:</strong> ${stats.radius}</div><div><strong>💥 DPS:</strong> ${stats.dmg > 0 ? ((stats.dmg * stats.duration) * bM).toFixed(1).replace('.0', '') : (type === 'mewtwo' ? `${Math.round(10 * bM)} - ${Math.round(100 * bM)}` : '0')}</div></div></div>`; 
+            });
+            
             ui.pokemonDexContent.innerHTML = html;
         }
 
