@@ -13,9 +13,14 @@
         .game-ui.active ~ .level-sidebar, .level-sidebar.hidden { display: none; }
         .level-btn { width: 50px; height: 50px; border: 2px solid transparent; border-radius: 8px; color: white; font-size: 1.2rem; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s ease; }
         .level-btn.completed { background: #27ae60; border-color: #2ecc71; }
-        .level-btn.completed:hover { transform: scale(1.05); filter: brightness(1.2); }
-        .level-btn.unlocked { background: #f1c40f; border-color: #f39c12; color: #2c3e50; }
-        .level-btn.unlocked:hover { transform: scale(1.05); filter: brightness(1.1); }
+        .level-btn.unlocked { background: #f1c40f; border-color: #f39c12; color: #2c3e50; animation: pulseGold 1.5s infinite; }
+        .level-btn.unlocked:hover { transform: scale(1.05); filter: brightness(1.1); animation: none; }
+        #completed-screen { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); text-align: center; z-index: 15; width: 90%; pointer-events: none; }
+        .comp-title { font-size: 5rem; font-weight: 900; color: #2ecc71; text-shadow: 3px 3px 6px #000, 0 0 20px #27ae60; margin: 0; letter-spacing: 5px; }
+        .comp-subtitle { font-size: 1.5rem; font-weight: bold; color: #f1c40f; text-shadow: 2px 2px 4px #000; margin-top: 10px; text-transform: uppercase; }
+        .comp-pokes { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 30px; }
+        .comp-poke-sleep { width: 64px; height: 64px; background-size: auto 100%; background-position: left center; background-repeat: no-repeat; filter: drop-shadow(2px 2px 3px #000); }
+
         .level-btn:disabled { cursor: not-allowed; background: #c0392b; border-color: #e74c3c; opacity: 0.8; }
         .level-wrapper { display: flex; flex-direction: column; align-items: center; gap: 2px; }
         .level-stars { font-size: 0.9rem; height: 1.2em; color: #f1c40f; text-shadow: 1px 1px 1px #000; letter-spacing: 1px; visibility: hidden; }
@@ -133,6 +138,7 @@
         <main class="game-wrapper">
             <section class="canvas-container" id="main-canvas-container">
                 <nav class="level-sidebar" id="level-sidebar"></nav>
+                <div id="completed-screen" class="hidden"><h1 class="comp-title">COMPLETED</h1><div class="comp-subtitle" id="comp-subtitle"></div><div class="comp-pokes" id="comp-pokes"></div></div>
                 <div id="debug-trigger"></div>
                 <div id="debug-menu" class="hidden">
                     <label>Odemčeno kol:</label>
@@ -140,7 +146,7 @@
                         <input type="number" id="debug-level-input" min="1" max="10">
                         <button id="debug-save-btn" class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem;">Uložit</button>
                     </div>
-                    <button id="debug-win-btn" class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem; background: #27ae60;">Okamžitá výhra (Test)</button>
+                    <button id="debug-win-btn" class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem; background: #27ae60;">Kompletace</button>
                 </div>
                 <header class="game-ui" id="game-ui-header">
                     <div class="stats">
@@ -203,7 +209,7 @@
         const ENEMY_STATS = {
             slime: {
                 1: { name: 'Organic Slime', hp: 25, speed: 50, size: 0.8, gold: 10, res: { grass: 25, water: 0, fire: 0, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Monsters/Slime1/Slime1_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Monsters/Slime1/Slime1_Death_with_shadow.png', dieFrames: 10 },
-                2: { name: 'Water Slime', hp: 50, speed: 60, size: 0.9, gold: 15, res: { grass: 0, water: 25, fire: -25, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Monsters/Slime2/Slime2_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Monsters/Slime2/Slime2_Death_with_shadow.png', dieFrames: 10 },
+                2: { name: 'Water Slime', hp: 50, speed: 60, size: 0.9, gold: 15, res: { grass: 0, water: 25, fire: 25, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Monsters/Slime2/Slime2_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Monsters/Slime2/Slime2_Death_with_shadow.png', dieFrames: 10 },
                 3: { name: 'Gas Slime', hp: 90, speed: 75, size: 1.0, gold: 20, res: { grass: 0, water: -50, fire: 50, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Monsters/Slime3/Slime3_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Monsters/Slime3/Slime3_Death_with_shadow.png', dieFrames: 10 }
             },
             orc: {
@@ -217,9 +223,9 @@
                 3: { name: 'Iron Golem', hp: 750, speed: 35, size: 1.1, gold: 50, res: { grass: 25, water: -25, fire: 50, electric: -50 }, walkSrc: 'Pokemon/SPRITES/Monsters/Golem3/Golem3_Walk_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Monsters/Golem3/Golem3_Death_with_shadow.png', dieFrames: 8 }
             },
             ghost: {
-                1: { name: 'Ghost', hp: 60, speed: 65, size: 0.8, gold: 15, res: { grass: 25, water: -25, fire: 25, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Monsters/Ghost1/Ghost1_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Monsters/Ghost1/Ghost1_Death_with_shadow.png', dieFrames: 9 },
-                2: { name: 'Major Ghost', hp: 100, speed: 55, size: 0.9, gold: 25, res: { grass: 25, water: -25, fire: 25, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Monsters/Ghost2/Ghost2_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Monsters/Ghost2/Ghost2_Death_with_shadow.png', dieFrames: 9 },
-                3: { name: 'Ghost Prince', hp: 400, speed: 45, size: 1.0, gold: 65, res: { grass: 25, water: 25, fire: 25, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Monsters/Ghost3/Ghost3_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Monsters/Ghost3/Ghost3_Death_with_shadow.png', dieFrames: 9, attackSrc: 'Pokemon/SPRITES/Monsters/Ghost3/Ghost3_Attack_with_shadow.png', attackFrames: 12 }
+                1: { name: 'Ghost', hp: 60, speed: 65, size: 0.8, gold: 15, res: { grass: 25, water: -25, fire: -25, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Monsters/Ghost1/Ghost1_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Monsters/Ghost1/Ghost1_Death_with_shadow.png', dieFrames: 9 },
+                2: { name: 'Major Ghost', hp: 100, speed: 55, size: 0.9, gold: 25, res: { grass: 25, water: -25, fire: -25, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Monsters/Ghost2/Ghost2_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Monsters/Ghost2/Ghost2_Death_with_shadow.png', dieFrames: 9 },
+                3: { name: 'Ghost Prince', hp: 400, speed: 45, size: 1.0, gold: 65, res: { grass: 25, water: 25, fire: -25, electric: 25 }, walkSrc: 'Pokemon/SPRITES/Monsters/Ghost3/Ghost3_Walk_with_shadow.png', walkFrames: 6, dieSrc: 'Pokemon/SPRITES/Monsters/Ghost3/Ghost3_Death_with_shadow.png', dieFrames: 9, attackSrc: 'Pokemon/SPRITES/Monsters/Ghost3/Ghost3_Attack_with_shadow.png', attackFrames: 12 }
             },
             skeleton: {
                 1: { name: 'Skeleton', hp: 45, speed: 90, size: 0.8, gold: 5, res: { grass: 0, water: 25, fire: -50, electric: -25 }, walkSrc: 'Pokemon/SPRITES/Monsters/Skeleton1/Skeleton1_Run_with_shadow.png', walkFrames: 8, dieSrc: 'Pokemon/SPRITES/Monsters/Skeleton1/Skeleton1_Death_with_shadow.png', dieFrames: 6 },
@@ -244,7 +250,7 @@
                     1: { name: 'Pichu', cost: 100, range: 140, attackName: 'thundershock', damage: 10, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 5, beamWidth: 2, size: 1 },
                     2: { name: 'Pikachu', cost: 150, range: 160, attackName: 'thunderbolt', damage: 20, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 5, beamWidth: 5, size: 1.0 },
                     3: { name: 'Raichu', cost: 350, range: 180, attackName: 'thunder', damage: 30, cooldown: 1000, paraChance: 0.30, paraDuration: 2.0, paraDps: 10, beamWidth: 9, size: 1.0 },
-                    '4a': { name: 'Raichu (Chain Lightning)', cost: 300, spriteName: 'Raichu', range: 190, attackName: 'chain_lightning', damage: 30, cooldown: 1200, chainCount: 2, chainRange: 80, beamWidth: 6, size: 1.0 },
+                    '4a': { name: 'Raichu (Chain Lightning)', cost: 300, spriteName: 'Raichu', range: 190, attackName: 'chain_lightning', damage: 30, cooldown: 1200, chainCount: 2, chainRange: 70, beamWidth: 6, size: 1.0 },
                     '4b': { name: 'Raichu (Static Field)', cost: 250, spriteName: 'Raichu', range: 200, attackName: 'static_field', damage: 20, cooldown: 3000, fieldRadius: 100, stunDuration: 1.0, size: 1.0 }
                 }
             },
@@ -444,13 +450,13 @@
             { path: 'A', enemyType: 'golem', enemyLevel: 2, count: 5, interval: 1, delay: 25 },
             { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 12, interval: 1, delay: 25 },
             { path: 'B', enemyType: 'ghost', enemyLevel: 3, count: 1, interval: 3, delay: 5 },
-            { path: 'A', enemyType: 'golem', enemyLevel: 3, count: 6, interval: 1, delay: 25 },
-            { path: 'B', enemyType: 'vampire', enemyLevel: 2, count: 4, interval: 1, delay: 45 },
+            { path: 'A', enemyType: 'golem', enemyLevel: 3, count: 3, interval: 1, delay: 25 },
+            { path: 'B', enemyType: 'vampire', enemyLevel: 2, count: 3, interval: 1, delay: 45 },
             { path: 'B', enemyType: 'orc', enemyLevel: 3, count: 10, interval: 1, delay: 20 },
-            { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 12, interval: 0.8, delay: 30 },
-            { path: 'B', enemyType: 'ghost', enemyLevel: 3, count: 2, interval: 3, delay: 10 },
+            { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 15, interval: 0.8, delay: 30 },
+            { path: 'B', enemyType: 'ghost', enemyLevel: 3, count: 1, interval: 3, delay: 10 },
             { path: 'A', enemyType: 'vampire', enemyLevel: 2, count: 6, interval: 1, delay: 20 },
-            { path: 'B', enemyType: 'golem', enemyLevel: 3, count: 6, interval: 1, delay: 25 }
+            { path: 'B', enemyType: 'golem', enemyLevel: 3, count: 5, interval: 1, delay: 25 }
         ]
     },
     {
@@ -521,7 +527,7 @@
         };
 
         // --- LOGIKA RESETU PŘI UPDATE ---
-        const CURRENT_VERSION = '1.0.3'; // Tuto verzi (save, verze) změníš (např. na 1.0.2), když chceš resetovat progres
+        const CURRENT_VERSION = '1.0.5'; // Tuto verzi (save, verze) změníš (např. na 1.0.2), když chceš resetovat progres
         const savedVersion = localStorage.getItem('pokemonTD_version');
 
         if (savedVersion !== CURRENT_VERSION) {
@@ -616,13 +622,14 @@
         function handleBtnMouseEnter(btn, type, level) { const br = btn.getBoundingClientRect(); showTooltip(type, level, br.left + window.scrollX + (br.width / 2), br.top + window.scrollY + (br.height / 2)); }
         function hideTooltip() { ui.tooltip.classList.add('hidden'); }
 
-        function renderLevelMenu() { ui.sidebar.innerHTML = ''; for (let i = 1; i <= 10; i++) { const wrapper = document.createElement('div'); wrapper.className = 'level-wrapper'; const starsDiv = document.createElement('div'); starsDiv.className = 'level-stars'; const btn = document.createElement('button'); btn.className = 'level-btn'; btn.textContent = i; if (i < maxUnlockedLevel) { btn.classList.add('completed'); const stars = levelStats[i] || 0; starsDiv.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars); if (stars === 3) btn.classList.add('stars-3'); else if (stars === 2) btn.classList.add('stars-2'); else if (stars === 1) btn.classList.add('stars-1'); btn.title = `Level ${i} (Dokončeno - ${stars}/3 hvězdiček)`; } else if (i === maxUnlockedLevel) { btn.classList.add('unlocked'); btn.title = `Hrát Level ${i}`; starsDiv.textContent = '☆☆☆'; } else { btn.disabled = true; btn.title = `Level ${i} (Uzamčeno)`; starsDiv.textContent = '☆☆☆'; } if (i <= maxUnlockedLevel) btn.onclick = () => { if (audioCtx.state === 'suspended') audioCtx.resume(); initLevel(i); }; btn.onmouseenter = () => { if (!btn.disabled) { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); } }; wrapper.appendChild(starsDiv); wrapper.appendChild(btn); ui.sidebar.appendChild(wrapper); } }
+        function renderLevelMenu() { ui.sidebar.innerHTML = ''; let totalStars = 0; let lvl10Completed = (levelStats[10] && levelStats[10] > 0); for (let i = 1; i <= 10; i++) { if (levelStats[i]) totalStars += levelStats[i]; const wrapper = document.createElement('div'); wrapper.className = 'level-wrapper'; const starsDiv = document.createElement('div'); starsDiv.className = 'level-stars'; const btn = document.createElement('button'); btn.className = 'level-btn'; btn.textContent = i; if (i < maxUnlockedLevel || (i === 10 && lvl10Completed)) { btn.classList.add('completed'); const stars = levelStats[i] || 0; starsDiv.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars); if (stars === 3) btn.classList.add('stars-3'); else if (stars === 2) btn.classList.add('stars-2'); else if (stars === 1) btn.classList.add('stars-1'); btn.title = `Level ${i} (Dokončeno - ${stars}/3 hvězdiček)`; } else if (i === maxUnlockedLevel && !lvl10Completed) { btn.classList.add('unlocked'); btn.title = `Hrát Level ${i}`; starsDiv.textContent = '☆☆☆'; } else { btn.disabled = true; btn.title = `Level ${i} (Uzamčeno)`; starsDiv.textContent = '☆☆☆'; } if (i <= maxUnlockedLevel || (i === 10 && lvl10Completed)) btn.onclick = () => { if (audioCtx.state === 'suspended') audioCtx.resume(); initLevel(i); }; btn.onmouseenter = () => { if (!btn.disabled) { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); } }; wrapper.appendChild(starsDiv); wrapper.appendChild(btn); ui.sidebar.appendChild(wrapper); } const compScreen = document.getElementById('completed-screen'); if (compScreen) { const title = compScreen.querySelector('.comp-title'); const sub = document.getElementById('comp-subtitle'); if (lvl10Completed) { compScreen.classList.remove('hidden'); title.style.display = 'block'; if (totalStars < 20) sub.textContent = 'YOU ARE A GOOD POKEMON TRAINER, BUT YOU CAN STILL IMPROVE.'; else if (totalStars < 30) sub.textContent = 'YOU ARE A GREAT POKEMON TRAINER, BUT YOU CAN STILL IMPROVE A LITTLE.'; else sub.textContent = 'YOU ARE THE BEST POKEMON TRAINER.... A LEGEND.'; } else if (!levelStats[1] || levelStats[1] === 0) { compScreen.classList.remove('hidden'); title.style.display = 'none'; sub.textContent = 'ARE YOU A GOOD POKEMON TRAINER? WE\'LL SEE...'; } else { compScreen.classList.add('hidden'); } } }
         function createRadialMenu() { ui.towerMenu.innerHTML = ''; const types = ['grass', 'water', 'fire', 'electric']; const radius = 60; types.forEach((type, index) => { const angle = (index / types.length) * Math.PI * 2 - Math.PI / 2; const btn = document.createElement('button'); btn.className = 'radial-btn'; btn.dataset.type = type; btn.style.left = `${Math.cos(angle)*radius}px`; btn.style.top = `${Math.sin(angle)*radius}px`; const stats = TOWER_STATS[type].levels[1]; const pokeName = stats.spriteName || stats.name; const icon = document.createElement('div'); icon.className = 'pokemon-menu-icon'; icon.style.backgroundImage = `url('Pokemon/Pictures/${pokeName}.png')`; const price = document.createElement('span'); price.className = 'price-tag'; price.textContent = `${stats.cost} 🪙`; btn.appendChild(icon); btn.appendChild(price); btn.onclick = (e) => { e.stopPropagation(); if (state.selectedSlot && state.gold >= stats.cost) { updateGold(-stats.cost); state.selectedSlot.tower = new Tower(state.selectedSlot.x, state.selectedSlot.y, type); state.towers.push(state.selectedSlot.tower); ui.towerMenu.classList.add('hidden'); hideTooltip(); playPokemonEnterEffect(type, 1, state.selectedSlot.x, state.selectedSlot.y); } }; btn.onmouseenter = () => { if (!btn.disabled) { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); } state.hoveredTowerType = type; handleBtnMouseEnter(btn, type, 1); }; btn.onmouseleave = () => { state.hoveredTowerType = null; hideTooltip(); }; ui.towerMenu.appendChild(btn); }); }
         function createUpgradeButton(tower, nextLevel, offsetX) { const stats = TOWER_STATS[tower.elementType].levels[nextLevel]; const cost = stats.cost; const btn = document.createElement('button'); btn.className = 'radial-btn upgrade'; if (offsetX !== 0) btn.style.left = `${offsetX}px`; const pokeName = stats.spriteName || stats.name; const icon = document.createElement('div'); icon.className = 'pokemon-menu-icon'; icon.style.backgroundImage = `url('Pokemon/Pictures/${pokeName}.png')`; const price = document.createElement('span'); price.className = 'price-tag'; price.textContent = `${cost} 🪙`; btn.appendChild(icon); btn.appendChild(price); btn.disabled = state.gold < cost; btn.onclick = (e) => { e.stopPropagation(); if (state.gold >= cost) { updateGold(-cost); tower.level = nextLevel; tower.timeSinceLastShot = 0; if (tower.currentSound) { try { tower.currentSound.stop(); } catch(e){} tower.currentSound = null; } ui.upgradeMenu.classList.add('hidden'); state.hoveredUpgrade = false; hideTooltip(); playPokemonEnterEffect(tower.elementType, nextLevel, tower.x, tower.y); } }; btn.onmouseenter = () => { if (!btn.disabled) { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); } state.hoveredUpgrade = true; state.hoveredUpgradeLevel = nextLevel; handleBtnMouseEnter(btn, tower.elementType, nextLevel); }; btn.onmouseleave = () => { state.hoveredUpgrade = false; hideTooltip(); }; return btn; }
         function updateGold(amount) { state.gold += amount; ui.goldDisplay.textContent = state.gold; document.querySelectorAll('#tower-menu .radial-btn, #upgrade-menu .radial-btn').forEach(b => b.disabled = state.gold < parseInt(b.querySelector('.price-tag').textContent)); }
 
         function initLevel(levelId) {
             const data = LEVEL_DATA.find(l => l.id === levelId); if (!data) return; if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId); muteAllTowers(); hideTooltip();
+            const cs = document.getElementById('completed-screen'); if(cs) cs.classList.add('hidden');
             Object.assign(state, { activeLevelId: levelId, gold: data.startingGold, lives: data.lives || 10, maxLives: data.lives || 10, path: smoothPath(data.path, 2), pathB: data.pathB ? smoothPath(data.pathB, 2) : [], slots: data.slots.map(s => ({...s, radius: 25, tower: null})), objects: data.objects || [], levelWaves: data.waves, totalLevelEnemies: data.waves.reduce((s, w) => s + w.count, 0), wavesActive: false, isPaused: false, gameTime: 0, visualTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: false, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null, spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false, winSequenceStarted: false, lossSequenceStarted: false, winTimeoutId: null, usedBonuses: [], selectedBonus: null, activeBonuses: [] });
             ui.livesDisplay.textContent = state.lives; state.bgImage.src = data.background; if (state.winTimeoutId) clearTimeout(state.winTimeoutId); canvas.classList.remove('bonus-placement');
             ui.header.classList.add('active'); updateGold(0); ui.waveDisplay.textContent = `0/${state.levelWaves.length}`; resetUIButtons(); document.querySelectorAll('.level-btn').forEach(b => b.disabled = true); ui.modal.classList.add('hidden'); ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); ui.sidebar.classList.add('hidden'); ui.mainMenuBottom.classList.add('hidden'); renderBonusIcons();
@@ -712,7 +719,7 @@
                 let curSpd = (this.slowTimer > 0 || this.paraTimer > 0 || this.mewtwoActive) ? this.baseSpeed * 0.5 : this.baseSpeed; 
                 if (this.waterAuraT > 0) curSpd *= (1 - RPG_CONFIG.aura.water.slow);
                 this.mewtwoActive = false; let targetPoint = null; let turning = false;
-                if (this.turnBackTimer > 0) { this.turnBackTimer -= dt; targetPoint = this.currentPath[this.pathIndex]; turning = true; } else { if (this.pathIndex >= this.currentPath.length - 1) { if (this.currentPathName === 'B') { this.currentPathName = 'A'; this.currentPath = state.path; let closestIdx = 0; let minD = Infinity; for (let i = 0; i < state.path.length; i++) { let d = Math.hypot(state.path[i].x - this.x, state.path[i].y - this.y); if (d < minD) { minD = d; closestIdx = i; } } this.pathIndex = closestIdx; this.distanceTravelled += closestIdx * (curSpd * 0.1); if (this.pathIndex >= this.currentPath.length - 1) return 'reached_end'; targetPoint = this.currentPath[this.pathIndex + 1]; } else return 'reached_end'; } else targetPoint = this.currentPath[this.pathIndex + 1]; }
+                if (this.turnBackTimer > 0) { this.turnBackTimer -= dt; targetPoint = this.currentPath[this.pathIndex]; turning = true; } else { if (this.pathIndex >= this.currentPath.length - 1) { if (this.currentPathName === 'B') { this.currentPathName = 'A'; this.currentPath = state.path; let closestIdx = 0; let minD = Infinity; for (let i = 0; i < state.path.length; i++) { let d = Math.hypot(state.path[i].x - this.x, state.path[i].y - this.y); if (d < minD) { minD = d; closestIdx = i; } } this.pathIndex = closestIdx; let dPathA = 0; for(let j=0; j<closestIdx; j++) dPathA += Math.hypot(state.path[j+1].x - state.path[j].x, state.path[j+1].y - state.path[j].y); this.distanceTravelled = dPathA; if (this.pathIndex >= this.currentPath.length - 1) return 'reached_end'; targetPoint = this.currentPath[this.pathIndex + 1]; } else return 'reached_end'; } else targetPoint = this.currentPath[this.pathIndex + 1]; }
                 const dx = targetPoint.x - this.x; const dy = targetPoint.y - this.y; const dist = Math.hypot(dx, dy); const move = curSpd * dt; let tDir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 3 : 2) : (dy > 0 ? 0 : 1); if (this.dirLockTimer > 0) this.dirLockTimer -= dt; if (this.dirLockTimer <= 0 && tDir !== this.directionRow) { this.directionRow = tDir; this.dirLockTimer = 0.5; }
                 if (dist <= move) { this.x = targetPoint.x; this.y = targetPoint.y; if (turning) { if (this.pathIndex > 0) this.pathIndex--; } else this.pathIndex++; } else { this.x += (dx/dist)*move; this.y += (dy/dist)*move; } this.distanceTravelled += turning ? -move : move; return 'alive';
             }
@@ -993,7 +1000,7 @@
         const dbgTrg = document.getElementById('debug-trigger'); const dbgMenu = document.getElementById('debug-menu'); const dbgInp = document.getElementById('debug-level-input');
         dbgTrg.addEventListener('click', (e) => { e.stopPropagation(); dbgInp.value = maxUnlockedLevel; dbgMenu.classList.toggle('hidden'); });
         document.getElementById('debug-save-btn').addEventListener('click', () => { const nl = parseInt(dbgInp.value); if (nl >= 1 && nl <= 10) { maxUnlockedLevel = nl; localStorage.setItem('pokemonTD_maxLevel', maxUnlockedLevel); for (let k in levelStats) { if (parseInt(k) >= nl) delete levelStats[k]; } localStorage.setItem('pokemonTD_levelStats', JSON.stringify(levelStats)); renderLevelMenu(); dbgMenu.classList.add('hidden'); } });
-        document.getElementById('debug-win-btn').addEventListener('click', () => { if (!state.gameOver && state.activeLevelId !== null) { endGame(true); dbgMenu.classList.add('hidden'); } else { alert('Musíš mít spuštěný level, abys mohl vyhrát!'); } });
+        document.getElementById('debug-win-btn').addEventListener('click', () => { maxUnlockedLevel = 10; localStorage.setItem('pokemonTD_maxLevel', maxUnlockedLevel); for(let i=1; i<=10; i++) levelStats[i] = 3; localStorage.setItem('pokemonTD_levelStats', JSON.stringify(levelStats)); renderLevelMenu(); if(window.checkUnspentStars) window.checkUnspentStars(); dbgMenu.classList.add('hidden'); });
         document.addEventListener('click', (e) => { if (!dbgMenu.contains(e.target) && e.target !== dbgTrg) dbgMenu.classList.add('hidden'); });
 
 
