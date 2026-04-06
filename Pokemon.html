@@ -54,18 +54,26 @@
         .radial-btn.upgrade { background: rgba(243, 156, 18, 0.9); border-color: #e67e22; }
         .radial-btn:disabled { background: rgba(127, 140, 141, 0.9); border-color: #95a5a6; cursor: not-allowed; }
         .price-tag { font-size: 0.7rem; font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 4px; border-radius: 4px; position: absolute; bottom: -10px; }
-        .modal { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 3rem; font-weight: bold; z-index: 10; }
+        .modal { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
+        #modal-text { font-size: 2.2rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; text-shadow: 2px 2px 4px #000; }
         #modal-text.win { color: var(--win-color); }
         #modal-text.lose { color: var(--accent); }
         #unlock-container { display: flex; flex-direction: column; align-items: center; margin-top: 20px; opacity: 0; transform: scale(0); }
         #unlock-container.active { animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-        .unlock-star { position: relative; font-size: 6rem; line-height: 1; color: #f1c40f; display: flex; justify-content: center; align-items: center; filter: drop-shadow(0 0 20px rgba(241,196,15,1)); }
-        #unlock-level-num { position: absolute; font-size: 2.5rem; color: #2c3e50; font-weight: 900; text-shadow: none; margin-top: 5px; font-family: sans-serif; }
-        .unlock-text { font-size: 1.8rem; color: #f1c40f; letter-spacing: 6px; margin-top: 15px; text-transform: uppercase; text-shadow: 2px 2px 4px #000; animation: unlockPulse 1s infinite alternate; font-weight: bold; }
+        .unlock-star { position: relative; font-size: 4rem; line-height: 1; color: #f1c40f; display: flex; justify-content: center; align-items: center; filter: drop-shadow(0 0 15px rgba(241,196,15,1)); }
+        #unlock-level-num { position: absolute; font-size: 1.8rem; color: #2c3e50; font-weight: 900; text-shadow: none; margin-top: 3px; font-family: sans-serif; }
+        .unlock-text { font-size: 1.2rem; color: #f1c40f; letter-spacing: 4px; margin-top: 10px; text-transform: uppercase; text-shadow: 2px 2px 4px #000; animation: unlockPulse 1s infinite alternate; font-weight: bold; }
         .fade-in { animation: fadeIn 0.5s ease forwards; }
         @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes unlockPulse { 0% { opacity: 0.7; filter: drop-shadow(0 0 5px #f1c40f); } 100% { opacity: 1; filter: drop-shadow(0 0 15px #f1c40f); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .earned-stars-container { font-size: 3.5rem; margin-top: 15px; letter-spacing: 10px; opacity: 0; transform: translateY(-20px); transition: all 0.5s ease; text-shadow: 2px 2px 5px #000; }
+        .earned-stars-container.active { opacity: 1; transform: translateY(0); }
+        .bonus-unlock-container { display: flex; flex-direction: column; align-items: center; margin-top: 15px; opacity: 0; transform: scale(0.5); transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 10px; border: 1px solid rgba(255, 215, 0, 0.3); }
+        .bonus-unlock-container.active { opacity: 1; transform: scale(1); }
+        .bonus-unlock-img { width: 60px; height: 60px; border-radius: 50%; border: 2px solid #ffd700; box-shadow: 0 0 15px rgba(255,215,0,0.8); background-color: rgba(44, 62, 80, 0.8); background-size: cover; background-position: center; margin-bottom: 8px; }
+        .bonus-unlock-text { font-size: 0.9rem; color: #ecf0f1; text-transform: uppercase; letter-spacing: 1px; }
+
         .pokemon-menu-icon { width: 48px; height: 48px; background-size: cover; background-repeat: no-repeat; background-position: center; image-rendering: auto; border-radius: 50%; overflow: hidden; }
         #info-tooltip { position: absolute; background: rgba(255, 255, 255, 0.8); border: 1px solid #000; border-radius: 6px; color: #000; padding: 12px; font-size: 0.9rem; pointer-events: none; z-index: 999; width: 240px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 6px; transition: opacity 0.2s ease, visibility 0.2s ease; }
         #info-tooltip.hidden { opacity: 0; visibility: hidden; }
@@ -145,8 +153,8 @@
                         </div>
                     </div>
                     <div class="top-dex-group">
-                        <button id="btn-top-dex-pokemon" class="icon-btn top-dex-btn" aria-label="Encyklopedie Pokémonů" title="Encyklopedie Pokémonů"></button>
-                        <button id="btn-top-dex-enemies" class="icon-btn top-dex-btn" aria-label="Encyklopedie Nepřátel" title="Encyklopedie Nepřátel"></button>
+                        <button id="btn-top-dex-pokemon" class="icon-btn top-dex-btn" aria-label="Pokemon Encyclopedia" title="Encyklopedie Pokémonů"></button>
+                        <button id="btn-top-dex-enemies" class="icon-btn top-dex-btn" aria-label="Enemy Encyclopedia" title="Encyklopedie Nepřátel"></button>
                     </div>
                     <div class="controls-group">
                         <button id="btn-play-pause" class="icon-btn btn-play-pause" title="Spustit hru" disabled>
@@ -161,23 +169,27 @@
                 <div id="upgrade-menu" class="hidden" aria-label="Vylepšení věže"></div>
                 <div id="game-modal" class="modal hidden" role="dialog" aria-labelledby="modal-text">
                     <span id="modal-text"></span>
+                    <div id="earned-stars" class="earned-stars-container hidden"></div>
                     <div id="unlock-container" class="hidden">
-                        <div class="unlock-star">⭐<span id="unlock-level-num"></span></div>
                         <div class="unlock-text">Unlocked</div>
                     </div>
-                    <button id="restart-btn" class="btn-primary hidden" style="margin-top: 1.5rem; font-size: 1.5rem;">Continue</button>
+                    <div id="bonus-unlock" class="bonus-unlock-container hidden">
+                        <div id="bonus-img" class="bonus-unlock-img"></div>
+                        <div class="bonus-unlock-text">New bonus: <span id="bonus-name" style="color: #ffd700; font-weight: bold;"></span></div>
+                    </div>
+                    <button id="restart-btn" class="btn-primary hidden" style="margin-top: 1.5rem; font-size: 1.1rem; text-transform: uppercase; background: #7f8c8d; letter-spacing: 1.5px; padding: 10px 25px;">Continue</button>
                 </div>
                 <div id="bonus-container" class="hidden"></div>
                 <nav class="main-menu-bottom" id="main-menu-bottom">
-                    <button id="btn-dex-pokemon" class="icon-btn dex-btn" aria-label="Encyklopedie Pokémonů" title="Encyklopedie Pokémonů"></button>
-                    <button id="btn-dex-enemies" class="icon-btn dex-btn" aria-label="Encyklopedie Nepřátel" title="Encyklopedie Nepřátel"></button>
+                    <button id="btn-dex-pokemon" class="icon-btn dex-btn" aria-label="Pokemon Encyclopedia" title="Encyklopedie Pokemonů"></button>
+                    <button id="btn-dex-enemies" class="icon-btn dex-btn" aria-label="Enemy Encyclopedia" title="Encycklopedie Nepřátel"></button>
                 </nav>
                 <div id="enemy-dex-modal" class="dex-modal hidden" role="dialog">
-                    <div class="dex-header"><h2>Encyklopedie Nepřátel</h2><button class="close-dex">❌</button></div>
+                    <div class="dex-header"><h2>Enemy Encyclopedia</h2><button class="close-dex">❌</button></div>
                     <div class="dex-content" id="enemy-dex-content"></div>
                 </div>
                 <div id="pokemon-dex-modal" class="dex-modal hidden" role="dialog">
-                    <div class="dex-header"><h2>Encyklopedie Pokémonů</h2><button class="close-dex">❌</button></div>
+                    <div class="dex-header"><h2>Pokemon Encyclopedia</h2><button class="close-dex">❌</button></div>
                     <div class="dex-content" id="pokemon-dex-content"></div>
                 </div>
             </section>
@@ -266,13 +278,13 @@
         };
 
         const BONUS_STATS = { 
-            electrode: { radius: 70, dps: 30, duration: 4.0, frames: 10, element: 'electric', row: 0 },
-            machamp: { radius: 40, dps: 50, duration: 3.0, frames: 11, element: 'normal', row: 0 },
-            espeon: { radius: 70, dps: 50, duration: 3.0, frames: 11, element: 'normal', row: 0 },
-            onix: { radius: 80, dps: 40, duration: 4.0, frames: 10, element: 'normal', row: 1 },
-            snorlax: { radius: 100, dps: 0, duration: 4.0, frames: 12, element: 'normal', row: 0, stunDuration: 4.0 },
-            vaporeon: { radius: 80, dps: 65, duration: 4.0, frames: 9, element: 'water', row: 0 },
-            mewtwo: { radius: 300, dps: 0, duration: 5.0, frames: 13, element: 'normal', row: 0 }
+            electrode: { radius: 70, dmg: 30, duration: 4.0, frames: 10, element: 'electric', row: 0, attack: 'Discharge' },
+            machamp: { radius: 40, dmg: 50, duration: 3.0, frames: 11, element: 'normal', row: 0, attack: 'Dynamic Punch' },
+            espeon: { radius: 70, dmg: 50, duration: 3.0, frames: 11, element: 'normal', row: 0, attack: 'Swift' },
+            onix: { radius: 50, dmg: 40, duration: 4.0, frames: 10, element: 'normal', row: 1, attack: 'Rock Slide' },
+            snorlax: { radius: 100, dmg: 0, duration: 4.0, frames: 12, element: 'normal', row: 0, stunDuration: 4.0, attack: 'Snore' },
+            vaporeon: { radius: 80, dmg: 65, duration: 4.0, frames: 9, element: 'water', row: 0, attack: 'Whirlpool' },
+            mewtwo: { radius: 250, dmg: 80, duration: 5.0, frames: 13, element: 'normal', row: 0, attack: 'Psychic Vortex' }
         };
    
         const POKEMONS = [...new Set([
@@ -286,7 +298,7 @@
                 r: 130, 
                 elec: { cd: 3, dps: 10 },
                 fire: { dmg: 7, deb: 0.5 },
-                water: { slow: 0.3 }, 
+                water: { slow: 0.2 }, 
                 grass: { cd: 0.33, dmg: 3 }
             }
         };
@@ -302,11 +314,11 @@
             { path: 'A', enemyType: 'slime', enemyLevel: 1, count: 6, interval: 1.5, delay: 0 },
             { path: 'A', enemyType: 'orc', enemyLevel: 1, count: 5, interval: 2.5, delay: 10 },
             { path: 'A', enemyType: 'slime', enemyLevel: 1, count: 8, interval: 1.6, delay: 10 },
-            { path: 'A', enemyType: 'orc', enemyLevel: 1, count: 8, interval: 0.8, delay: 10 },
-            { path: 'A', enemyType: 'orc', enemyLevel: 1, count: 8, interval: 0.5, delay: 10 },
-            { path: 'A', enemyType: 'slime', enemyLevel: 1, count: 7, interval: 0.4, delay: 10 },
-            { path: 'A', enemyType: 'slime', enemyLevel: 2, count: 10, interval: 1.1, delay: 15 },
-            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 10, interval: 1.5, delay: 15 }
+            { path: 'A', enemyType: 'orc', enemyLevel: 1, count: 8, interval: 1.2, delay: 10 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 4, interval: 1.5, delay: 8 },
+            { path: 'A', enemyType: 'slime', enemyLevel: 1, count: 8, interval: 0.4, delay: 10 },
+            { path: 'A', enemyType: 'slime', enemyLevel: 2, count: 8, interval: 1.5, delay: 15 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 7, interval: 1.0, delay: 15 }
         ]
     },
     {
@@ -315,14 +327,14 @@
         slots: [{ x: 370, y: 110 }, { x: 540, y: 310 }, { x: 260, y: 510 }, { x: 540, y: 540 }, { x: 350, y: 690 }, { x: 190, y: 330 }],
         objects: [{ x: 660, y: 150, src: 'Pokemon/Assets/Blue-gray_ruins3.png', scale: 1 }, { x: 450, y: 700, src: 'Pokemon/Assets/Blue-gray_ruins3.png', scale: 1 }, { x: 720, y: 410, src: 'Pokemon/Assets/Blue-gray_ruins4.png', scale: 1 }, { x: 110, y: 290, src: 'Pokemon/Assets/Curved_tree1.png', scale: 1 }, { x: 100, y: 240, src: 'Pokemon/Assets/Curved_tree1.png', scale: 1 }, { x: 120, y: 260, src: 'Pokemon/Assets/Curved_tree1.png', scale: 1 }, { x: 70, y: 290, src: 'Pokemon/Assets/Curved_tree1.png', scale: 1 }, { x: 660, y: 80, src: 'Pokemon/Assets/Curved_tree3.png', scale: 1 }, { x: 630, y: 100, src: 'Pokemon/Assets/Curved_tree3.png', scale: 1 }, { x: 610, y: 120, src: 'Pokemon/Assets/Curved_tree3.png', scale: 1 }, { x: 710, y: 110, src: 'Pokemon/Assets/Curved_tree3.png', scale: 1 }, { x: 720, y: 160, src: 'Pokemon/Assets/Curved_tree3.png', scale: 1 }, { x: 720, y: 510, src: 'Pokemon/Assets/Ent_man.png', scale: 1 }, { x: 760, y: 550, src: 'Pokemon/Assets/Ent_man.png', scale: 1 }, { x: 730, y: 570, src: 'Pokemon/Assets/Ent_man.png', scale: 1 }, { x: 700, y: 560, src: 'Pokemon/Assets/Ent_man.png', scale: 1 }, { x: 700, y: 600, src: 'Pokemon/Assets/Ent_man.png', scale: 1 }, { x: 140, y: 310, src: 'Pokemon/Assets/Curved_tree3.png', scale: 1 }, { x: 370, y: 310, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 330, y: 290, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 310, y: 310, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 350, y: 320, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 450, y: 320, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 440, y: 490, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 410, y: 490, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 370, y: 500, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 470, y: 530, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 120, y: 690, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 180, y: 730, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 230, y: 750, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 80, y: 620, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 50, y: 520, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 60, y: 450, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 200, y: 220, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 130, y: 150, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 80, y: 80, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 540, y: 720, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 510, y: 120, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 480, y: 110, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 440, y: 110, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 390, y: 50, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 310, y: 60, src: 'Pokemon/Assets/Chanterelles1.png', scale: 1 }, { x: 280, y: 80, src: 'Pokemon/Assets/Chanterelles3.png', scale: 1 }, { x: 340, y: 80, src: 'Pokemon/Assets/Chanterelles3.png', scale: 1 }, { x: 250, y: 290, src: 'Pokemon/Assets/Chanterelles3.png', scale: 1 }, { x: 140, y: 170, src: 'Pokemon/Assets/Chanterelles3.png', scale: 1 }, { x: 160, y: 670, src: 'Pokemon/Assets/Chanterelles3.png', scale: 1 }, { x: 120, y: 650, src: 'Pokemon/Assets/Chanterelles3.png', scale: 1 }, { x: 150, y: 640, src: 'Pokemon/Assets/Chanterelles3.png', scale: 1 }, { x: 410, y: 520, src: 'Pokemon/Assets/Light_balls_tree1.png', scale: 1 }, { x: 280, y: 300, src: 'Pokemon/Assets/Yellow_ruins1.png', scale: 1 }, { x: 100, y: 160, src: 'Pokemon/Assets/Black-red_flowers1.png', scale: 1.2 }, { x: 40, y: 40, src: 'Pokemon/Assets/Black-red_flowers1.png', scale: 1.2 }, { x: 30, y: 100, src: 'Pokemon/Assets/Black-red_flowers1.png', scale: 1.2 }],
         waves: [
-            { path: 'A', enemyType: 'orc', enemyLevel: 1, count: 6, interval: 1.5, delay: 0 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 1, count: 6, interval: 1.0, delay: 0 },
             { path: 'A', enemyType: 'slime', enemyLevel: 1, count: 8, interval: 0.5, delay: 8 },
             { path: 'A', enemyType: 'orc', enemyLevel: 1, count: 6, interval: 1, delay: 8 },
-            { path: 'A', enemyType: 'slime', enemyLevel: 1, count: 6, interval: 1, delay: 1 },
-            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 7, interval: 1, delay: 8 },
+            { path: 'A', enemyType: 'slime', enemyLevel: 1, count: 8, interval: 1, delay: 1 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 8, interval: 1, delay: 8 },
             { path: 'A', enemyType: 'slime', enemyLevel: 2, count: 8, interval: 1.3, delay: 15 },
-            { path: 'A', enemyType: 'golem', enemyLevel: 1, count: 5, interval: 1.3, delay: 10 },
-            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 12, interval: 1, delay: 10 }
+            { path: 'A', enemyType: 'golem', enemyLevel: 1, count: 6, interval: 1.3, delay: 10 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 2, count: 10, interval: 1, delay: 10 }
         ]
             },
     {
@@ -506,13 +518,13 @@
         };
 
         // --- LOGIKA RESETU PŘI UPDATE ---
-        const CURRENT_VERSION = '1.0.2'; // Tuto verzi (save, verze) změníš (např. na 1.0.2), když chceš resetovat progres
+        const CURRENT_VERSION = '1.0.3'; // Tuto verzi (save, verze) změníš (např. na 1.0.2), když chceš resetovat progres
         const savedVersion = localStorage.getItem('pokemonTD_version');
 
         if (savedVersion !== CURRENT_VERSION) {
             localStorage.removeItem('pokemonTD_maxLevel');
             localStorage.removeItem('pokemonTD_levelStats');
-            localStorage.removeItem('pokemonTD_upgrades'); // Nulování RPG stromu
+            localStorage.removeItem('pokemonTD_upgrades'); 
             localStorage.setItem('pokemonTD_version', CURRENT_VERSION);
             console.log(`Detekována nová verze (${CURRENT_VERSION}). Progres byl resetován.`);
         }
@@ -528,7 +540,7 @@
         // ==========================================
         // 3. ASSETY
         // ==========================================
-        const AUDIO = { gameMusic: new Audio('Pokemon/Sounds/GAME_MUSIC.mp3'), start: new Audio('Pokemon/Sounds/Misc_start.mp3'), end: new Audio('Pokemon/Sounds/Misc_end.mp3'), fanfare: new Audio('Pokemon/Sounds/Misc_fanfare.mp3'), clickShort: new Audio('Pokemon/Sounds/Misc_click.mp3'), clickMiddle: new Audio('Pokemon/Sounds/Misc_click_middle.mp3'), arrive: new Audio('Pokemon/Sounds/Misc_arrive.mp3'), ghostHeal: new Audio('Pokemon/Sounds/Misc_Ghost_heal.mp3'), lichSpell: new Audio('Pokemon/Sounds/Misc-Lich-SpellSound.mp3'), lichVoices: [new Audio('Pokemon/Sounds/Misc-Lich-ComeQuicker.mp3'), new Audio('Pokemon/Sounds/Misc-Lich-Laugh.mp3'), new Audio('Pokemon/Sounds/Misc-Lich-NoMercy.mp3'), new Audio('Pokemon/Sounds/Misc-Lich-SmellFlesh.mp3')], vampireVoices: [new Audio('Pokemon/Sounds/Misc-Vampire-Easy.mp3'), new Audio('Pokemon/Sounds/Misc-Vampire-Foolish.mp3'), new Audio('Pokemon/Sounds/Misc-Vampire-Laugh.mp3'), new Audio('Pokemon/Sounds/Misc-Vampire-WasteTime.mp3')] };
+        const AUDIO = { gameMusic: new Audio('Pokemon/Sounds/GAME_MUSIC.mp3'), start: new Audio('Pokemon/Sounds/Misc_start.mp3'), end: new Audio('Pokemon/Sounds/Misc_end.mp3'), life: new Audio('Pokemon/Sounds/Misc_life.mp3'), fanfare: new Audio('Pokemon/Sounds/Misc_fanfare.mp3'), clickShort: new Audio('Pokemon/Sounds/Misc_click.mp3'), clickMiddle: new Audio('Pokemon/Sounds/Misc_click_middle.mp3'), arrive: new Audio('Pokemon/Sounds/Misc_arrive.mp3'), ghostHeal: new Audio('Pokemon/Sounds/Misc_Ghost_heal.mp3'), lichSpell: new Audio('Pokemon/Sounds/Misc-Lich-SpellSound.mp3'), lichVoices: [new Audio('Pokemon/Sounds/Misc-Lich-ComeQuicker.mp3'), new Audio('Pokemon/Sounds/Misc-Lich-Laugh.mp3'), new Audio('Pokemon/Sounds/Misc-Lich-NoMercy.mp3'), new Audio('Pokemon/Sounds/Misc-Lich-SmellFlesh.mp3')], vampireVoices: [new Audio('Pokemon/Sounds/Misc-Vampire-Easy.mp3'), new Audio('Pokemon/Sounds/Misc-Vampire-Foolish.mp3'), new Audio('Pokemon/Sounds/Misc-Vampire-Laugh.mp3'), new Audio('Pokemon/Sounds/Misc-Vampire-WasteTime.mp3')] };
         AUDIO.gameMusic.loop = true; AUDIO.gameMusic.volume = 0.7;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const loadedAudioBuffers = {}; const loadedImages = {}; const ANIM_DATA = {}; POKEMONS.forEach(p => ANIM_DATA[p.toLowerCase()] = {});
@@ -606,7 +618,7 @@
 
         function initLevel(levelId) {
             const data = LEVEL_DATA.find(l => l.id === levelId); if (!data) return; if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId); muteAllTowers(); hideTooltip();
-            Object.assign(state, { activeLevelId: levelId, gold: data.startingGold, lives: data.lives || 10, maxLives: data.lives || 10, path: smoothPath(data.path, 2), pathB: data.pathB ? smoothPath(data.pathB, 2) : [], slots: data.slots.map(s => ({...s, radius: 25, tower: null})), objects: data.objects || [], levelWaves: data.waves, totalLevelEnemies: data.waves.reduce((s, w) => s + w.count, 0), wavesActive: false, isPaused: false, gameTime: 0, visualTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: false, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null, spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false, winSequenceStarted: false, winTimeoutId: null, usedBonuses: [], selectedBonus: null, activeBonuses: [] });
+            Object.assign(state, { activeLevelId: levelId, gold: data.startingGold, lives: data.lives || 10, maxLives: data.lives || 10, path: smoothPath(data.path, 2), pathB: data.pathB ? smoothPath(data.pathB, 2) : [], slots: data.slots.map(s => ({...s, radius: 25, tower: null})), objects: data.objects || [], levelWaves: data.waves, totalLevelEnemies: data.waves.reduce((s, w) => s + w.count, 0), wavesActive: false, isPaused: false, gameTime: 0, visualTime: 0, currentWaveIndex: 0, enemiesKilled: 0, gameOver: false, gameWon: false, enemies: [], deadEnemies: [], towers: [], projectiles: [], selectedSlot: null, spawnTimer: 0, enemiesToSpawn: 0, isSpawningWave: false, winSequenceStarted: false, lossSequenceStarted: false, winTimeoutId: null, usedBonuses: [], selectedBonus: null, activeBonuses: [] });
             ui.livesDisplay.textContent = state.lives; state.bgImage.src = data.background; if (state.winTimeoutId) clearTimeout(state.winTimeoutId); canvas.classList.remove('bonus-placement');
             ui.header.classList.add('active'); updateGold(0); ui.waveDisplay.textContent = `0/${state.levelWaves.length}`; resetUIButtons(); document.querySelectorAll('.level-btn').forEach(b => b.disabled = true); ui.modal.classList.add('hidden'); ui.towerMenu.classList.add('hidden'); ui.upgradeMenu.classList.add('hidden'); ui.sidebar.classList.add('hidden'); ui.mainMenuBottom.classList.add('hidden'); renderBonusIcons();
             state.lastTime = performance.now(); state.pathCanvas = document.createElement('canvas'); state.pathCanvas.width = canvas.width; state.pathCanvas.height = canvas.height; const pctx = state.pathCanvas.getContext('2d'); pctx.lineJoin = 'round'; pctx.lineCap = 'round';
@@ -617,7 +629,55 @@
             if (state.bgImage.complete) startLoop(); else state.bgImage.onload = startLoop;
         }
 
-        function endGame(isWin) { state.gameOver = true; state.gameWon = isWin; muteAllTowers(); hideTooltip(); AUDIO.gameMusic.pause(); AUDIO.gameMusic.currentTime = 0; ui.modal.classList.remove('hidden'); ui.modalText.textContent = isWin ? 'VÍTĚZSTVÍ!' : 'GAME OVER'; ui.modalText.className = isWin ? 'win' : 'lose'; if (isWin) { let stars = 1; if (state.lives === state.maxLives) stars = 3; else if (state.lives > state.maxLives / 2) stars = 2; if (!levelStats[state.activeLevelId] || levelStats[state.activeLevelId] < stars) { levelStats[state.activeLevelId] = stars; localStorage.setItem('pokemonTD_levelStats', JSON.stringify(levelStats)); } } const unlockContainer = document.getElementById('unlock-container'); unlockContainer.classList.remove('active'); unlockContainer.classList.add('hidden'); ui.restartBtn.classList.add('hidden'); ui.restartBtn.classList.remove('fade-in'); if (isWin && state.activeLevelId < 10) { document.getElementById('unlock-level-num').textContent = state.activeLevelId + 1; unlockContainer.classList.remove('hidden'); void unlockContainer.offsetWidth; unlockContainer.classList.add('active'); setTimeout(() => { ui.restartBtn.textContent = 'Continue'; ui.restartBtn.classList.remove('hidden'); ui.restartBtn.classList.add('fade-in'); }, 1000); } else { unlockContainer.classList.add('hidden'); ui.restartBtn.textContent = isWin ? 'Zpět na výběr levelu' : 'Zkusit znovu'; ui.restartBtn.classList.remove('hidden'); } }
+        function endGame(isWin) { 
+            state.gameOver = true; state.gameWon = isWin; muteAllTowers(); hideTooltip(); AUDIO.gameMusic.pause(); AUDIO.gameMusic.currentTime = 0; 
+            ui.modal.classList.remove('hidden'); ui.modalText.textContent = isWin ? 'VICTORY!' : 'GAME OVER'; ui.modalText.className = isWin ? 'win' : 'lose'; 
+            
+            const unlockContainer = document.getElementById('unlock-container'), earnedStarsCont = document.getElementById('earned-stars'), bonusUnlockCont = document.getElementById('bonus-unlock');
+            
+            unlockContainer.classList.remove('active'); unlockContainer.classList.add('hidden'); earnedStarsCont.classList.remove('active'); earnedStarsCont.classList.add('hidden');
+            bonusUnlockCont.classList.remove('active'); bonusUnlockCont.classList.add('hidden'); ui.restartBtn.classList.add('hidden'); ui.restartBtn.classList.remove('fade-in'); 
+
+            if (isWin) { 
+                let stars = 1; if (state.lives === state.maxLives) stars = 3; else if (state.lives > state.maxLives / 2) stars = 2; 
+                if (!levelStats[state.activeLevelId] || levelStats[state.activeLevelId] < stars) { levelStats[state.activeLevelId] = stars; localStorage.setItem('pokemonTD_levelStats', JSON.stringify(levelStats)); }
+                
+                earnedStarsCont.innerHTML = `<span style="color:#f1c40f">${'★'.repeat(stars)}</span><span style="color:#7f8c8d">${'☆'.repeat(3 - stars)}</span>`;
+                const levelBonuses = ['electrode', 'machamp', 'espeon', 'onix', 'snorlax', 'vaporeon', 'mewtwo'], unlockedBonus = (state.activeLevelId >= 3 && state.activeLevelId - 3 < levelBonuses.length) ? levelBonuses[state.activeLevelId - 3] : null;
+                let delay = 300;
+
+                setTimeout(() => { earnedStarsCont.classList.remove('hidden'); void earnedStarsCont.offsetWidth; earnedStarsCont.classList.add('active'); AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); }, delay);
+                delay += 700;
+
+                if (state.activeLevelId < 10) { 
+                    setTimeout(() => { 
+                        const nextLvl = state.activeLevelId + 1;
+                        document.querySelector('.unlock-text').textContent = `LEVEL ${nextLvl} UNLOCKED`;
+                        unlockContainer.classList.remove('hidden'); void unlockContainer.offsetWidth; unlockContainer.classList.add('active'); 
+                        if (!unlockedBonus) { AUDIO.fanfare.currentTime = 0; AUDIO.fanfare.play().catch(()=>{}); } 
+                        else { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); }
+                    }, delay);
+                    delay += 700;
+                }
+
+                if (unlockedBonus && state.activeLevelId < 10) {
+                    setTimeout(() => { 
+                        const bName = unlockedBonus.charAt(0).toUpperCase() + unlockedBonus.slice(1); 
+                        document.getElementById('bonus-img').style.backgroundImage = `url('Pokemon/Pictures/${bName}.png')`; 
+                        document.getElementById('bonus-name').textContent = bName; 
+                        bonusUnlockCont.classList.remove('hidden'); void bonusUnlockCont.offsetWidth; bonusUnlockCont.classList.add('active'); 
+                        AUDIO.fanfare.currentTime = 0; AUDIO.fanfare.play().catch(()=>{}); 
+                    }, delay);
+                    delay += 900;
+                }
+
+                if (state.activeLevelId === 10) {
+                    setTimeout(() => { AUDIO.fanfare.currentTime = 0; AUDIO.fanfare.play().catch(()=>{}); }, delay);
+                }
+
+                setTimeout(() => { ui.restartBtn.textContent = state.activeLevelId < 10 ? 'Continue' : 'Zpět na výběr levelu'; ui.restartBtn.classList.remove('hidden'); ui.restartBtn.classList.add('fade-in'); }, delay);
+            } else { ui.restartBtn.textContent = 'Zkusit znovu'; ui.restartBtn.classList.remove('hidden'); } 
+        }
 
         // ==========================================
         // 5. TŘÍDY
@@ -784,7 +844,7 @@
             for (let i = state.enemies.length - 1; i >= 0; i--) {
                 const e = state.enemies[i]; const status = e.update(dt);
                 if (status === 'dead') { updateGold(Math.floor(e.goldReward * (getRPGMult('gold_boost', 6) ? (1 + RPG_CONFIG.gold) : 1))); state.enemiesKilled++; e.fadeTimer = 1.0; e.animTime = 0; state.deadEnemies.push(e); state.enemies.splice(i, 1); }
-                else if (status === 'reached_end') { state.lives--; ui.livesDisplay.textContent = Math.max(0, state.lives); state.enemies.splice(i, 1); if (state.lives <= 0) { endGame(false); return; } } 
+                else if (status === 'reached_end') { state.lives--; ui.livesDisplay.textContent = Math.max(0, state.lives); state.enemies.splice(i, 1); if (state.lives > 0) { AUDIO.life.currentTime = 0; AUDIO.life.play().catch(()=>{}); } else if (!state.lossSequenceStarted) { state.lossSequenceStarted = true; AUDIO.gameMusic.pause(); AUDIO.gameMusic.currentTime = 0; muteAllTowers(); AUDIO.end.currentTime = 0; AUDIO.end.play().catch(()=>{}); state.gameOver = true; setTimeout(() => { endGame(false); }, 3000); } }
             }
             
             if (state.wavesActive && state.currentWaveIndex >= state.levelWaves.length && state.enemies.length === 0 && !state.isSpawningWave && !state.winSequenceStarted) { state.winSequenceStarted = true; state.winTimeoutId = setTimeout(() => { endGame(true); }, 1500); }
@@ -805,8 +865,7 @@
                 const b = state.activeBonuses[i]; const st = BONUS_STATS[b.type]; b.life -= dt; b.animTime += dt;
                 state.enemies.forEach(e => { 
                     const dist = Math.hypot(e.x - b.x, e.y - b.y);
-                    if (dist <= st.radius) { if (b.type === 'mewtwo') { const dynamicDps = 10 + 90 * Math.exp(-dist / 40); e.takeDamage(dynamicDps * dt, 'normal'); e.spinAngle += (5 + 25 * Math.pow(1 - dist / st.radius, 2)) * dt; e.mewtwoActive = true; } else { 
-                        if (st.dps > 0) e.takeDamage((st.dps * dt) * (getRPGMult('bonus_dmg', 6) ? (1 + RPG_CONFIG.bonusDmg) : 1), st.element); if (st.stunDuration) e.stunTimer = Math.max(e.stunTimer || 0, st.stunDuration); } }
+                    if (dist <= st.radius) { if (b.type === 'mewtwo') { const bM = getRPGMult('bonus_dmg', 6) ? (1 + RPG_CONFIG.bonusDmg) : 1; const dynamicDps = ((st.dmg * 0.1) + (st.dmg * 0.9) * Math.exp(-dist / 40)) * bM; e.takeDamage(dynamicDps * dt, 'normal'); e.spinAngle += (5 + 25 * Math.pow(1 - dist / st.radius, 2)) * dt; e.mewtwoActive = true; } else { if (st.dmg > 0) e.takeDamage((st.dmg * dt) * (getRPGMult('bonus_dmg', 6) ? (1 + RPG_CONFIG.bonusDmg) : 1), st.element); if (st.stunDuration) e.stunTimer = Math.max(e.stunTimer || 0, st.stunDuration); } }
                     });
                 
                 let animName = 'Hop'; if (b.type === 'machamp') animName = 'Punch'; else if (b.type === 'espeon') animName = 'Attack'; else if (b.type === 'onix' || b.type === 'snorlax') animName = 'Shoot'; else if (b.type === 'vaporeon') animName = 'Swing'; else if (b.type === 'mewtwo') animName = 'Hover';
@@ -866,7 +925,7 @@
         function renderPokemonDex() {
             ui.pokemonDexContent.innerHTML = ''; const t = ['grass', 'water', 'fire', 'electric']; const rw = ['1', '2', '3', '4']; let html = ''; const lc = { '1': '#3498db', '2': '#1abc9c', '3': '#f39c12', '4': '#ffd700', 'bonus': '#a29bfe' };
             rw.forEach(row => { t.forEach(type => { if (row === '4') { const sA = TOWER_STATS[type].levels['4a']; const sB = TOWER_STATS[type].levels['4b']; if (!sA || !sB) return; const iA = getTowerTooltipInfo(type, '4a'); const iB = getTowerTooltipInfo(type, '4b'); const bN = sA.spriteName || sA.name; const pK = bN.toLowerCase(); const fC = pK === 'pichu' ? 8 : (pK === 'bulbasaur' ? 6 : 4); const aW = (ANIM_DATA[pK] && ANIM_DATA[pK]['Walk']) ? ANIM_DATA[pK]['Walk'].width : 64; const dW = aW * 1.25; const sW = dW * fC; html += `<div class="poke-card"><h3 style="color: ${lc['4']}">${bN}</h3><div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dW}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${dW}px; background-image: url('Pokemon/SPRITES/${bN}/Walk-Anim.png'); background-size: ${sW}px auto; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div></div><div class="split-stats-container"><div class="split-stat-block"><div class="split-header">${iA.name.match(/\(([^)]+)\)/)?.[1]||'Cesta A'}</div><div class="poke-stats"><div><strong>🪙:</strong> ${iA.cost}</div><div><strong>⚔️:</strong> <span style="text-transform: capitalize">${iA.attack}</span></div><div><strong>💥:</strong> ${iA.dps}</div>${iA.effects !== 'Žádné' ? `<div class="poke-effects">${iA.effects}</div>` : ''}</div></div><div class="split-stat-block"><div class="split-header">${iB.name.match(/\(([^)]+)\)/)?.[1]||'Cesta B'}</div><div class="poke-stats"><div><strong>🪙:</strong> ${iB.cost}</div><div><strong>⚔️:</strong> <span style="text-transform: capitalize">${iB.attack}</span></div><div><strong>💥:</strong> ${iB.dps}</div>${iB.effects !== 'Žádné' ? `<div class="poke-effects">${iB.effects}</div>` : ''}</div></div></div></div>`; } else { const stats = TOWER_STATS[type].levels[row]; if (!stats) return; const info = getTowerTooltipInfo(type, row); const sN = stats.spriteName || stats.name; const pK = sN.toLowerCase(); const fC = pK === 'pichu' ? 8 : (pK === 'bulbasaur' ? 6 : 4); const aW = (ANIM_DATA[pK] && ANIM_DATA[pK]['Walk']) ? ANIM_DATA[pK]['Walk'].width : 64; const dW = aW * 1.25; const sW = dW * fC; html += `<div class="poke-card"><h3 style="color: ${lc[row]}">${info.name}</h3><div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dW}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${dW}px; background-image: url('Pokemon/SPRITES/${sN}/Walk-Anim.png'); background-size: ${sW}px auto; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div></div><div class="poke-stats"><div><strong>🪙 Cost:</strong> ${info.cost}</div><div><strong>⚔️ Attack:</strong> <span style="text-transform: capitalize">${info.attack}</span></div><div><strong>🎯 Element:</strong> ${info.element}</div><div><strong>💥 DPS:</strong> ${info.dps}</div>${info.effects !== 'Žádné' ? `<div class="poke-effects">${info.effects}</div>` : ''}</div></div>`; } }); }); 
-            Object.keys(BONUS_STATS).forEach(type => { const stats = BONUS_STATS[type]; const bM = getRPGMult('bonus_dmg', 6) ? (1+RPG_CONFIG.bonusDmg) : 1; const sN = type.charAt(0).toUpperCase() + type.slice(1), pK = type.toLowerCase(); let aN = 'Hop'; if (type === 'machamp') aN = 'Punch'; else if (type === 'espeon' || type === 'snorlax') aN = 'Attack'; else if (type === 'onix') aN = 'Shoot'; else if (type === 'vaporeon') aN = 'Rotate'; else if (type === 'mewtwo') aN = 'Hover'; const fC = stats.frames; const ad = (ANIM_DATA[pK] && ANIM_DATA[pK][aN]) ? ANIM_DATA[pK][aN] : {width:64, height:64}; const sc = 1.25, dW = Math.floor(ad.width * sc), dH = Math.floor(ad.height * sc), sW = dW * fC, sH = dH * 8, rO = (stats.row || 0) * dH; let eff = []; if (stats.stunDuration) eff.push(`Stun (${stats.stunDuration}s)`); if (type === 'mewtwo') eff.push('Dynamic vortex damage'); html += `<div class="poke-card" style="border-color: #6c5ce7;"><h3 style="color: ${lc['bonus']}">${sN} (Bonus)</h3><div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dH}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${sH}px; background-image: url('Pokemon/SPRITES/${sN}/${aN}-Anim.png'); background-size: ${sW}px ${sH}px; background-position: left 0 top -${rO}px; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div></div><div class="poke-stats"><div><strong>🎯 Element:</strong> ${stats.element}</div><div><strong>⏳ Trvání:</strong> ${stats.duration}s</div><div><strong>⭕ Dosah:</strong> ${stats.radius}</div><div><strong>💥 DPS:</strong> ${stats.dps > 0 ? (stats.dps * bM).toFixed(1).replace('.0', '') : (type === 'mewtwo' ? '10-100' : '0')}</div>${eff.length > 0 ? `<div class="poke-effects">${eff.join(', ')}</div>` : ''}</div></div>`; });
+            Object.keys(BONUS_STATS).forEach(type => { const stats = BONUS_STATS[type]; const bM = getRPGMult('bonus_dmg', 6) ? (1+RPG_CONFIG.bonusDmg) : 1; const sN = type.charAt(0).toUpperCase() + type.slice(1), pK = type.toLowerCase(); let aN = 'Hop'; if (type === 'machamp') aN = 'Punch'; else if (type === 'espeon') aN = 'Attack'; else if (type === 'onix' || type === 'snorlax') aN = 'Shoot'; else if (type === 'vaporeon') aN = 'Swing'; else if (type === 'mewtwo') aN = 'Hover'; const fC = stats.frames; const ad = (ANIM_DATA[pK] && ANIM_DATA[pK][aN]) ? ANIM_DATA[pK][aN] : {width:64, height:64}; const sc = 1.25, dW = Math.floor(ad.width * sc), dH = Math.floor(ad.height * sc), sW = dW * fC, sH = dH * 8, rO = (stats.row || 0) * dH; const atkName = stats.attack || 'Special Attack'; html += `<div class="poke-card" style="border-color: #6c5ce7;"><h3 style="color: ${lc['bonus']}">${sN} (Bonus)</h3><div class="dex-sprite-viewport" style="width: ${dW}px; height: ${dH}px;"><div class="dex-sprite-strip" style="width: ${sW}px; height: ${sH}px; background-image: url('Pokemon/SPRITES/${sN}/${aN}-Anim.png'); background-size: ${sW}px ${sH}px; background-position: left 0 top -${rO}px; animation: dex-sprite-walk 1s steps(${fC}) infinite;"></div></div><div class="poke-stats"><div><strong>⚔️ Attack:</strong> ${atkName}</div><div><strong>🎯 Element:</strong> ${stats.element}</div><div><strong>⏳ Trvání:</strong> ${stats.duration}s</div><div><strong>⭕ Dosah:</strong> ${stats.radius}</div><div><strong>💥 DPS:</strong> ${stats.dmg > 0 ? ((stats.dmg * stats.duration) * bM).toFixed(1).replace('.0', '') : (type === 'mewtwo' ? `${Math.round(10 * bM)} - ${Math.round(100 * bM)}` : '0')}</div></div></div>`; });
             ui.pokemonDexContent.innerHTML = html;
         }
 
@@ -883,20 +942,20 @@
     window.upgradeState = JSON.parse(localStorage.getItem('pokemonTD_upgrades')) || {};
     const p = (v) => Math.round(v * 100) + '%';
     const RPG_DATA = {
-        dmg_electric: { col: 1, row: 1, max: 3, req: null, bg: 'Pokedex-lightning.jpg', title: `Bleskové poškození`, desc: `Zvyšuje poškození o ${p(RPG_CONFIG.dmg)}.` },
-        dmg_fire: { col: 1, row: 2, max: 3, req: null, bg: 'Pokedex-fire.jpg', title: `Ohnivé poškození`, desc: `Zvyšuje poškození o ${p(RPG_CONFIG.dmg)}.` },
-        dmg_water: { col: 1, row: 3, max: 3, req: null, bg: 'Pokedex-water.jpg', title: `Vodní poškození`, desc: `Zvyšuje poškození o ${p(RPG_CONFIG.dmg)}.` },
-        dmg_grass: { col: 1, row: 4, max: 3, req: null, bg: 'Pokedex-grass.jpg', title: `Trávní poškození`, desc: `Zvyšuje poškození o ${p(RPG_CONFIG.dmg)}.` },
-        rng_electric: { col: 2, row: 1, max: 3, req: 'dmg_electric', bg: 'Pokedex-lightning.jpg', title: `Elektrický dosah`, desc: `Zvyšuje dosah elektrických útoků o ${p(RPG_CONFIG.rng)}.` },
-        rng_fire: { col: 2, row: 2, max: 3, req: 'dmg_fire', bg: 'Pokedex-fire.jpg', title: `Ohnivý dosah`, desc: `Zvyšuje dosah ohnivých útoků o ${p(RPG_CONFIG.rng)}.` },
-        rng_water: { col: 2, row: 3, max: 3, req: 'dmg_water', bg: 'Pokedex-water.jpg', title: `Vodní dosah`, desc: `Zvyšuje dosah vodních útoků o ${p(RPG_CONFIG.rng)}.` },
-        rng_grass: { col: 2, row: 4, max: 3, req: 'dmg_grass', bg: 'Pokedex-grass.jpg', title: `Travní Dosah`, desc: `Zvyšuje dosah trávních útoků o ${p(RPG_CONFIG.rng)}.` },
-        aura_electric: { col: 3, row: 1, max: 3, req: 'rng_electric', bg: 'Pokedex-lightning.jpg', title: 'Elektrický štít', desc: `Srší elektrické výboje. ${RPG_CONFIG.aura.elec.dps} DMG/s × LVL.` },
-        aura_fire: { col: 3, row: 2, max: 3, req: 'rng_fire', bg: 'Pokedex-fire.jpg', title: 'Rotující ohnivá kometa', desc: `Rotující plamínek. ${RPG_CONFIG.aura.fire.dmg} DMG dotykem × LVL.` },
-        aura_water: { col: 3, row: 3, max: 3, req: 'rng_water', bg: 'Pokedex-water.jpg', title: 'Mrazivá mlha', desc: `Zpomalí nepřátele v dosahu o ${p(RPG_CONFIG.aura.water.slow)}.` },
-        aura_grass: { col: 3, row: 4, max: 3, req: 'rng_grass', bg: 'Pokedex-grass.jpg', title: 'Útočné listy', desc: `Střílí ostré řezavé listy. ${RPG_CONFIG.aura.grass.dmg} DMG × LVL.` },
-        bonus_dmg: { col: 4, row: 1, max: 6, req: '5_MAXED', bg: 'Pokedex-multibonus.jpg', title: `Síla extra Pokémonů`, desc: `Zvyšuje poškození bonusových Pokémonů o +${p(RPG_CONFIG.bonusDmg)}` },
-        gold_boost: { col: 4, row: 4, max: 6, req: '5_MAXED', bg: 'Pokedex-money.jpg', title: `Extra zlato`, desc: `Zvyšuje získané zlato z nepřátel o ${p(RPG_CONFIG.gold)}.` }
+        dmg_electric: { col: 1, row: 1, max: 3, req: null, bg: 'Pokedex-lightning.jpg', title: `Electric Damage`, desc: `Increases damage by ${p(RPG_CONFIG.dmg)}.` },
+        dmg_fire: { col: 1, row: 2, max: 3, req: null, bg: 'Pokedex-fire.jpg', title: `Fire Damage`, desc: `Increases damage by ${p(RPG_CONFIG.dmg)}.` },
+        dmg_water: { col: 1, row: 3, max: 3, req: null, bg: 'Pokedex-water.jpg', title: `Water Damage`, desc: `Increases damage by ${p(RPG_CONFIG.dmg)}.` },
+        dmg_grass: { col: 1, row: 4, max: 3, req: null, bg: 'Pokedex-grass.jpg', title: `Grass Damage`, desc: `Increases damage by ${p(RPG_CONFIG.dmg)}.` },
+        rng_electric: { col: 2, row: 1, max: 3, req: 'dmg_electric', bg: 'Pokedex-lightning.jpg', title: `Electric Range`, desc: `Increases range of electric attacks by ${p(RPG_CONFIG.rng)}.` },
+        rng_fire: { col: 2, row: 2, max: 3, req: 'dmg_fire', bg: 'Pokedex-fire.jpg', title: `Fire Range`, desc: `Increases range of fire attacks by ${p(RPG_CONFIG.rng)}.` },
+        rng_water: { col: 2, row: 3, max: 3, req: 'dmg_water', bg: 'Pokedex-water.jpg', title: `Water Range`, desc: `Increases range of water attacks by ${p(RPG_CONFIG.rng)}.` },
+        rng_grass: { col: 2, row: 4, max: 3, req: 'dmg_grass', bg: 'Pokedex-grass.jpg', title: `Grass Range`, desc: `Increases range of grass attacks by ${p(RPG_CONFIG.rng)}.` },
+        aura_electric: { col: 3, row: 1, max: 3, req: 'rng_electric', bg: 'Pokedex-lightning.jpg', title: 'Electric Shield', desc: `Emits electric sparks. ${RPG_CONFIG.aura.elec.dps} DMG/s × LVL.` },
+        aura_fire: { col: 3, row: 2, max: 3, req: 'rng_fire', bg: 'Pokedex-fire.jpg', title: 'Orbiting Fire Comet', desc: `Rotating flame. ${RPG_CONFIG.aura.fire.dmg} DMG on touch × LVL.` },
+        aura_water: { col: 3, row: 3, max: 3, req: 'rng_water', bg: 'Pokedex-water.jpg', title: 'Freezing Mist', desc: `Slows enemies in range by ${p(RPG_CONFIG.aura.water.slow)}.` },
+        aura_grass: { col: 3, row: 4, max: 3, req: 'rng_grass', bg: 'Pokedex-grass.jpg', title: 'Razor Leaves', desc: `Shoots sharp cutting leaves. ${RPG_CONFIG.aura.grass.dmg} DMG × LVL.` },
+        bonus_dmg: { col: 4, row: 1, max: 6, req: '5_MAXED', bg: 'Pokedex-multibonus.jpg', title: `Bonus Pokémon Power`, desc: `Increases damage of bonus Pokémon by +${p(RPG_CONFIG.bonusDmg)}.` },
+        gold_boost: { col: 4, row: 4, max: 6, req: '5_MAXED', bg: 'Pokedex-money.jpg', title: `Extra Gold`, desc: `Increases gold gained from enemies by ${p(RPG_CONFIG.gold)}.` }
     };
     Object.keys(RPG_DATA).forEach(k => { if (window.upgradeState[k] === undefined) window.upgradeState[k] = 0; });
 
@@ -928,7 +987,7 @@
         document.getElementById('main-menu-bottom').appendChild(btn);
         
         const modal = document.createElement('div'); modal.id = 'rpg-modal'; modal.className = 'dex-modal hidden'; modal.setAttribute('role', 'dialog');
-        modal.innerHTML = `<div class="dex-header"><div style="display:flex; align-items:center; gap: 15px;"><span class="stars-head" id="rpg-stars-display">⭐ 0</span><button id="rpg-reset-btn" class="btn-primary" style="background:#e74c3c; font-size: 0.8rem; padding: 4px 8px;">Reset</button></div><button class="close-dex" onclick="document.getElementById('rpg-modal').classList.add('hidden')">❌</button></div><div class="rpg-grid" id="rpg-grid"></div>`; 
+        modal.innerHTML = `<div class="dex-header"><div style="display:flex; align-items:center; gap: 15px;"><span class="stars-head" id="rpg-stars-display">⭐ 0</span><button id="rpg-reset-btn" class="btn-primary" style="background:#7f8c8d; font-size: 0.7rem; padding: 6px 12px; text-transform: uppercase; letter-spacing: 1px;">Reset</button></div><button class="close-dex" onclick="document.getElementById('rpg-modal').classList.add('hidden')">❌</button></div><div class="rpg-grid" id="rpg-grid"></div>`;
         document.getElementById('main-canvas-container').appendChild(modal);
         
         function getStars() { 
