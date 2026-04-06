@@ -2,12 +2,12 @@
 <html lang="cs"> 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=840, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=840, viewport-fit=cover">
     <title>Tower Defense - All Branching Upgrades</title>
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <style>
         :root { --bg-dark: #2c3e50; --panel-bg: #34495e; --text-light: #ecf0f1; --accent: #e74c3c; --canvas-bg: #1a252f; --win-color: #2ecc71; --upgrade-color: #f39c12; --level-menu-bg: #2c3e50; --btn-size: 40px; }
-        body { margin: 0; min-height: 100vh; background-color: var(--bg-dark); font-family: system-ui, -apple-system, sans-serif; color: var(--text-light); display: flex; justify-content: center; align-items: center; overflow: hidden; touch-action: none; }
+        body { margin: 0; min-height: 100vh; background-color: var(--bg-dark); font-family: system-ui, -apple-system, sans-serif; color: var(--text-light); display: flex; justify-content: center; align-items: center; overflow: hidden; touch-action: pinch-zoom; }
         .main-container { display: flex; gap: 20px; }
         .level-sidebar { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: row; gap: 10px; background: rgba(52, 73, 94, 0.2); padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 20; visibility: visible; }
         .game-ui.active ~ .level-sidebar, .level-sidebar.hidden { display: none; }
