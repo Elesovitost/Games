@@ -549,7 +549,7 @@
         // ==========================================
         // 3. ASSETY
         // ==========================================
-        const AUDIO = { gameMusic: new Audio('Pokemon/Sounds/GAME_MUSIC.mp3'), start: new Audio('Pokemon/Sounds/Misc_start.mp3'), end: new Audio('Pokemon/Sounds/Misc_end.mp3'), life: new Audio('Pokemon/Sounds/Misc_life.mp3'), fanfare: new Audio('Pokemon/Sounds/Misc_fanfare.mp3'), clickShort: new Audio('Pokemon/Sounds/Misc_click.mp3'), clickMiddle: new Audio('Pokemon/Sounds/Misc_click_middle.mp3'), arrive: new Audio('Pokemon/Sounds/Misc_arrive.mp3'), ghostHeal: new Audio('Pokemon/Sounds/Misc_Ghost_heal.mp3'), lichSpell: new Audio('Pokemon/Sounds/Misc-Lich-SpellSound.mp3'), lichVoices: [new Audio('Pokemon/Sounds/Misc-Lich-ComeQuicker.mp3'), new Audio('Pokemon/Sounds/Misc-Lich-Laugh.mp3'), new Audio('Pokemon/Sounds/Misc-Lich-NoMercy.mp3'), new Audio('Pokemon/Sounds/Misc-Lich-SmellFlesh.mp3')], vampireVoices: [new Audio('Pokemon/Sounds/Misc-Vampire-Easy.mp3'), new Audio('Pokemon/Sounds/Misc-Vampire-Foolish.mp3'), new Audio('Pokemon/Sounds/Misc-Vampire-Laugh.mp3'), new Audio('Pokemon/Sounds/Misc-Vampire-WasteTime.mp3')] };
+        const AUDIO = { gameMusic: new Audio('Pokemon/Sounds/GAME_MUSIC.mp3'), mainScreenMusic: new Audio('Pokemon/Sounds/Misc_mainscreen.mp3'), start: new Audio('Pokemon/Sounds/Misc_start.mp3'), end: new Audio('Pokemon/Sounds/Misc_end.mp3'), life: new Audio('Pokemon/Sounds/Misc_life.mp3'), fanfare: new Audio('Pokemon/Sounds/Misc_fanfare.mp3'), clickShort: new Audio('Pokemon/Sounds/Misc_click.mp3'), clickMiddle: new Audio('Pokemon/Sounds/Misc_click_middle.mp3'), arrive: new Audio('Pokemon/Sounds/Misc_arrive.mp3'), ghostHeal: new Audio('Pokemon/Sounds/Misc_Ghost_heal.mp3'), lichSpell: new Audio('Pokemon/Sounds/Misc-Lich-SpellSound.mp3'), lichVoices: [new Audio('Pokemon/Sounds/Misc-Lich-ComeQuicker.mp3'), new Audio('Pokemon/Sounds/Misc-Lich-Laugh.mp3'), new Audio('Pokemon/Sounds/Misc-Lich-NoMercy.mp3'), new Audio('Pokemon/Sounds/Misc-Lich-SmellFlesh.mp3')], vampireVoices: [new Audio('Pokemon/Sounds/Misc-Vampire-Easy.mp3'), new Audio('Pokemon/Sounds/Misc-Vampire-Foolish.mp3'), new Audio('Pokemon/Sounds/Misc-Vampire-Laugh.mp3'), new Audio('Pokemon/Sounds/Misc-Vampire-WasteTime.mp3')] };
         AUDIO.gameMusic.loop = true; AUDIO.gameMusic.volume = 0.7;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const loadedAudioBuffers = {}; const loadedImages = {}; const ANIM_DATA = {}; POKEMONS.forEach(p => ANIM_DATA[p.toLowerCase()] = {});
@@ -1119,8 +1119,10 @@
         window.checkUnspentStars();
     })();
 
-        async function initializeGame() { await Promise.all([loadEnemyImages(), loadAnimData()]); renderLevelMenu(); createRadialMenu(); }
+        let mainMusicFading = false; AUDIO.mainScreenMusic.loop = true;
+        async function initializeGame() { await Promise.all([loadEnemyImages(), loadAnimData()]); renderLevelMenu(); createRadialMenu(); AUDIO.mainScreenMusic.play().catch(e => console.warn("Autoplay blokován prohlížečem:", e)); }
         initializeGame();
+        document.addEventListener('click', () => { if (mainMusicFading || AUDIO.mainScreenMusic.paused) return; mainMusicFading = true; let vol = AUDIO.mainScreenMusic.volume; const fade = setInterval(() => { vol -= 0.1; if (vol <= 0) { AUDIO.mainScreenMusic.volume = 0; AUDIO.mainScreenMusic.pause(); clearInterval(fade); } else AUDIO.mainScreenMusic.volume = vol; }, 50); }, { once: true });
     </script>
 </body>
 </html>
