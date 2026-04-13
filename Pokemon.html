@@ -148,6 +148,7 @@
                         <button id="debug-save-btn" class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem;">Uložit</button>
                     </div>
                     <button id="debug-win-btn" class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem; background: #27ae60;">Kompletace</button>
+                    <button id="debug-last-wave-btn" class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem; background: #f39c12;">Poslední vlna</button>
                 </div>
                 <header class="game-ui" id="game-ui-header">
                     <div class="stats">
@@ -859,9 +860,8 @@
             for (let i = state.enemies.length - 1; i >= 0; i--) {
                 const e = state.enemies[i]; const status = e.update(dt);
                 if (status === 'dead') { updateGold(Math.floor(e.goldReward * (getRPGMult('gold_boost', 6) ? (1 + RPG_CONFIG.gold) : 1))); state.enemiesKilled++; e.fadeTimer = 1.0; e.animTime = 0; state.deadEnemies.push(e); state.enemies.splice(i, 1); }
-                else if (status === 'reached_end') { state.lives--; ui.livesDisplay.textContent = Math.max(0, state.lives); state.enemies.splice(i, 1); if (state.lives > 0) { AUDIO.life.currentTime = 0; AUDIO.life.play().catch(()=>{}); } else if (!state.lossSequenceStarted) { state.lossSequenceStarted = true; AUDIO.gameMusic.pause(); AUDIO.gameMusic.currentTime = 0; muteAllTowers(); AUDIO.end.currentTime = 0; AUDIO.end.play().catch(()=>{}); state.gameOver = true; setTimeout(() => { endGame(false); }, 3000); } }
+                else if (status === 'reached_end') { if (((e.type === 'lich' || e.type === 'vampire') && e.level === 3)) { state.lives = 0; state.gameOver = true; state.winSequenceStarted = true; } else state.lives--; ui.livesDisplay.textContent = Math.max(0, state.lives); state.enemies.splice(i, 1); if (state.lives > 0) { AUDIO.life.currentTime = 0; AUDIO.life.play().catch(()=>{}); } else if (!state.lossSequenceStarted) { state.lossSequenceStarted = true; AUDIO.gameMusic.pause(); AUDIO.gameMusic.currentTime = 0; muteAllTowers(); AUDIO.end.currentTime = 0; AUDIO.end.play().catch(()=>{}); state.gameOver = true; setTimeout(() => { endGame(false); }, 3000); } }
             }
-            
             if (state.wavesActive && state.currentWaveIndex >= state.levelWaves.length && state.enemies.length === 0 && !state.isSpawningWave && !state.winSequenceStarted) { state.winSequenceStarted = true; state.winTimeoutId = setTimeout(() => { endGame(true); }, 1500); }
             
             for (let i = state.deadEnemies.length - 1; i >= 0; i--) { 
@@ -1125,6 +1125,18 @@
         async function initializeGame() { await Promise.all([loadEnemyImages(), loadAnimData()]); renderLevelMenu(); createRadialMenu(); AUDIO.mainScreenMusic.play().catch(e => console.warn("Autoplay blokován prohlížečem:", e)); }
         initializeGame();
         document.addEventListener('click', () => { if (mainMusicFading || AUDIO.mainScreenMusic.paused) return; mainMusicFading = true; let vol = AUDIO.mainScreenMusic.volume; const fade = setInterval(() => { vol -= 0.1; if (vol <= 0) { AUDIO.mainScreenMusic.volume = 0; AUDIO.mainScreenMusic.pause(); clearInterval(fade); } else AUDIO.mainScreenMusic.volume = vol; }, 50); }, { once: true });
+    
+        document.getElementById('debug-last-wave-btn').addEventListener('click', () => {
+            if (state.gameOver || !state.activeLevelId) return;
+            state.currentWaveIndex = state.levelWaves.length - 1;
+            state.gameTime = state.levelWaves[state.currentWaveIndex].delay;
+            state.wavesActive = true;
+            state.isSpawningWave = false;
+            ui.iconPlay.classList.add('hidden');
+            ui.iconPause.classList.remove('hidden');
+            ui.waveDisplay.textContent = `${state.currentWaveIndex + 1}/${state.levelWaves.length}`;
+            dbgMenu.classList.add('hidden');
+        });
     </script>
 </body>
 </html>
