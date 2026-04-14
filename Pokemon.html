@@ -860,11 +860,43 @@
 
             for (let i = state.enemies.length - 1; i >= 0; i--) {
                 const e = state.enemies[i]; const status = e.update(dt);
-                if (status === 'dead') { updateGold(Math.floor(e.goldReward * (getRPGMult('gold_boost', 6) ? (1 + RPG_CONFIG.gold) : 1))); state.enemiesKilled++; e.fadeTimer = 1.0; e.animTime = 0; state.deadEnemies.push(e); state.enemies.splice(i, 1); }
-                else if (status === 'reached_end') { if (((e.type === 'lich' || e.type === 'vampire') && e.level === 3)) { state.lives = 0; state.gameOver = true; state.winSequenceStarted = true; } else state.lives--; ui.livesDisplay.textContent = Math.max(0, state.lives); state.enemies.splice(i, 1); if (state.lives > 0) { AUDIO.life.currentTime = 0; AUDIO.life.play().catch(()=>{}); } else if (!state.lossSequenceStarted) { state.lossSequenceStarted = true; AUDIO.gameMusic.pause(); AUDIO.gameMusic.currentTime = 0; muteAllTowers(); AUDIO.end.currentTime = 0; AUDIO.end.play().catch(()=>{}); state.gameOver = true; setTimeout(() => { endGame(false); }, 3000); } }
+                if (status === 'dead') { 
+                    updateGold(Math.floor(e.goldReward * (getRPGMult('gold_boost', 6) ? (1 + RPG_CONFIG.gold) : 1))); 
+                    state.enemiesKilled++; 
+                    e.fadeTimer = 1.0; 
+                    e.animTime = 0; 
+                    state.deadEnemies.push(e); 
+                    state.enemies.splice(i, 1); 
+                }
+                else if (status === 'reached_end') { 
+                    if (((e.type === 'lich' || e.type === 'vampire') && e.level === 3)) { 
+                        state.lives = 0; 
+                    } else {
+                        state.lives--; 
+                    }
+                    ui.livesDisplay.textContent = Math.max(0, state.lives); 
+                    state.enemies.splice(i, 1); 
+                    
+                    if (state.lives > 0) { 
+                        AUDIO.life.currentTime = 0; 
+                        AUDIO.life.play().catch(()=>{}); 
+                    } else if (!state.lossSequenceStarted) { 
+                        state.lossSequenceStarted = true; 
+                        AUDIO.gameMusic.pause(); 
+                        AUDIO.gameMusic.currentTime = 0; 
+                        muteAllTowers(); 
+                        AUDIO.end.currentTime = 0; 
+                        AUDIO.end.play().catch(()=>{}); 
+                        state.gameOver = true; 
+                        setTimeout(() => { endGame(false); }, 3000); 
+                    } 
+                }
             }
-            if (state.wavesActive && state.currentWaveIndex >= state.levelWaves.length && state.enemies.length === 0 && !state.isSpawningWave && !state.winSequenceStarted) { state.winSequenceStarted = true; state.winTimeoutId = setTimeout(() => { endGame(true); }, 1500); }
             
+            if (state.lives > 0 && !state.lossSequenceStarted && state.wavesActive && state.currentWaveIndex >= state.levelWaves.length && state.enemies.length === 0 && !state.isSpawningWave && !state.winSequenceStarted) { 
+                state.winSequenceStarted = true; 
+                state.winTimeoutId = setTimeout(() => { endGame(true); }, 1500); 
+            }
             for (let i = state.deadEnemies.length - 1; i >= 0; i--) { 
                 const de = state.deadEnemies[i]; de.fadeTimer -= dt; de.animTime += dt; 
                 if (de.fadeTimer <= 0) state.deadEnemies.splice(i, 1); 
