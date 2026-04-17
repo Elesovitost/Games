@@ -307,7 +307,7 @@
         ])]
         
         const RPG_CONFIG = {
-            dmg: 0.10, rng: 0.10, bonusDmg: 0.30, gold: 0.15, // Bonusy (0.10 = 10 %)
+            dmg: 0.15, rng: 0.15, bonusDmg: 0.50, gold: 0.25, // Bonusy (0.10 = 10 %)
             aura: {
                 r: 130, 
                 elec: { cd: 3, dps: 7 },
@@ -871,7 +871,7 @@
                 if (getRPGMult(`aura_${this.elementType}`)) {
                     const cfg = RPG_CONFIG.aura; const lvlM = (typeof this.level === 'string') ? 4 : this.level;
                     if (this.elementType === 'electric') { this.auraElecT = (this.auraElecT || 0) + dt; if (this.auraElecT >= cfg.elec.cd) { this.auraElecT = 0; state.projectiles.push({ type: 'aura_spark', x: this.x, y: this.y, life: 0.5, maxLife: 0.5, radius: cfg.r, dps: cfg.elec.dps * lvlM }); } }
-                    else if (this.elementType === 'fire') { this.auraFireA = (this.auraFireA || 0) + dt * Math.PI * 2 * 0.3; const fx = this.x + Math.cos(this.auraFireA) * cfg.r, fy = this.y + Math.sin(this.auraFireA) * cfg.r; if (Math.random() < 0.6) state.projectiles.push({ type: 'particle', shape: Math.random() > 0.5 ? 'spark' : 'circle', x: fx, y: fy, vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15, life: 0.15 + Math.random()*0.2, maxLife: 0.4, color: Math.random() > 0.5 ? '#f39c12' : '#e74c3c', size: 1 + Math.random()*2 }); state.enemies.forEach(e => { if (e.hp > 0 && Math.hypot(e.x - fx, e.y - fy) <= 25) { if (!e.fireAuraDeb || e.fireAuraDeb <= 0) { e.takeDamage(cfg.fire.dmg * lvlM, 'fire'); e.fireAuraDeb = cfg.fire.deb; } } }); } 
+                    else if (this.elementType === 'fire') { this.auraFireA = (this.auraFireA || 0) + dt * Math.PI * 2 * 0.3; const fx = this.x + Math.cos(this.auraFireA) * cfg.r, fy = this.y + Math.sin(this.auraFireA) * cfg.r; if (Math.random() < 0.6) state.projectiles.push({ type: 'particle', shape: Math.random() > 0.5 ? 'spark' : 'circle', x: fx, y: fy, vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15, life: 0.15 + Math.random()*0.2, maxLife: 0.4, color: Math.random() > 0.5 ? '#f39c12' : '#e74c3c', size: 1 + Math.random()*2 }); state.enemies.forEach(e => { if (e.hp > 0 && Math.hypot(e.x - fx, e.y - fy) <= 25) { if (!e.fireAuraDeb || e.fireAuraDeb <= 0) { e.takeDamage(cfg.fire.dmg * lvlM, 'fire'); e.fireAuraDeb = cfg.fire.deb; e.burnTimer = Math.max(e.burnTimer || 0, 1.0); e.burnDps = Math.max(e.burnDps || 0, cfg.fire.dmg * lvlM); } } }); }
                     else if (this.elementType === 'water') { state.enemies.forEach(e => { if (e.hp > 0 && Math.hypot(e.x - this.x, e.y - this.y) <= cfg.r) e.waterAuraT = 0.2; }); }
                     else if (this.elementType === 'grass') { this.auraGrassT = (this.auraGrassT || 0) + dt; if (this.auraGrassT >= cfg.grass.cd) { let tgt = state.enemies.find(e => e.hp > 0 && Math.hypot(e.x - this.x, e.y - this.y) <= cfg.r); if (tgt) { this.auraGrassT = 0; state.projectiles.push({ type: 'tracking_leaf', elementType: 'grass', x1: this.x, y1: this.y, x2: tgt.x + tgt.offsetX, y2: tgt.y + tgt.offsetY, life: 0.4, maxLife: 0.4, damage: cfg.grass.dmg * lvlM, target: tgt, curve: (Math.random() - 0.5) * 120, rot: Math.random() * Math.PI * 2, rotSpd: (Math.random() - 0.5) * 15 }); } } }
                 }
