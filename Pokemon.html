@@ -131,6 +131,12 @@
         #debug-menu { position: absolute; top: 15px; left: 15px; background: var(--panel-bg); border: 2px solid var(--accent); padding: 15px; z-index: 1001; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 10px; }
         #debug-menu label { font-weight: bold; font-size: 0.9rem; color: var(--text-light); }
         #debug-menu input { padding: 5px; border-radius: 4px; border: 1px solid #7f8c8d; background: #2c3e50; color: white; width: 60px; }
+
+        /* Bonusové EXTRA kolo */
+.level-btn.extra { font-weight: bold; font-size: 0.7rem; letter-spacing: 1px; color: #fff; text-shadow: 1px 1px 3px #000; border: 2px solid #fff; background: linear-gradient(124deg, #ff2400, #e8b71d, #1de840, #1ddde8, #2b1de8, #dd00f3, #ff2400); background-size: 400% 400%; animation: rgbPulse 3s linear infinite; }
+.level-btn.extra:hover { transform: scale(1.15); cursor: pointer; }
+.level-btn.extra.completed { background: #27ae60; border-color: #2ecc71; animation: none; box-shadow: 0 0 10px #2ecc71; }
+@keyframes rgbPulse { 0% { background-position: 0% 50%; box-shadow: 0 0 10px #ff2400; } 50% { background-position: 100% 50%; box-shadow: 0 0 30px #1ddde8; } 100% { background-position: 0% 50%; box-shadow: 0 0 10px #ff2400; } }
     </style>
 </head>
 <body>
@@ -253,7 +259,7 @@
                     2: { name: 'Pikachu', cost: 150, range: 160, attackName: 'thunderbolt', damage: 20, cooldown: 1000, paraChance: 0.10, paraDuration: 2.0, paraDps: 5, beamWidth: 5, size: 1.0 },
                     3: { name: 'Raichu', cost: 350, range: 180, attackName: 'thunder', damage: 30, cooldown: 1000, paraChance: 0.30, paraDuration: 2.0, paraDps: 10, beamWidth: 9, size: 1.0 },
                     '4a': { name: 'Raichu (Chain Lightning)', cost: 300, spriteName: 'Raichu', range: 190, attackName: 'chain_lightning', damage: 30, cooldown: 1200, chainCount: 2, chainRange: 70, beamWidth: 6, size: 1.0 },
-                    '4b': { name: 'Raichu (Static Field)', cost: 250, spriteName: 'Raichu', range: 200, attackName: 'static_field', damage: 20, cooldown: 3000, fieldRadius: 100, stunDuration: 1.0, size: 1.0 }
+                    '4b': { name: 'Raichu (Static Field)', cost: 250, spriteName: 'Raichu', range: 200, attackName: 'static_field', damage: 20, cooldown: 3000, fieldRadius: 80, stunDuration: 1.0, size: 1.0 }
                 }
             },
             grass: {
@@ -261,7 +267,7 @@
                     1: { name: 'Bulbasaur', cost: 100, range: 130, attackName: 'vine_whip', damage: 10, cooldown: 1000, size: 1 },
                     2: { name: 'Ivysaur', cost: 150, range: 150, attackName: 'razor_leaf', damage: 6, cooldown: 333, doubleChance: 0.5, doubleMultiplier: 2, size: 1.0 },
                     3: { name: 'Venusaur', cost: 300, range: 180, attackName: 'solar_beam', damage: 20, cooldown: 1000, splashRadius: 40, splashMultiplier: 0.5, size: 1.0 },
-                    '4a': { name: 'Venusaur (Deadly Bloom)', cost: 200, spriteName: 'Venusaur', range: 180, attackName: 'plant_trap', damage: 0, cooldown: 3000, trapRadius: 30, trapDur: 3.0, trapDps: 25, size: 1.0 },
+                    '4a': { name: 'Venusaur (Deadly Bloom)', cost: 200, spriteName: 'Venusaur', range: 180, attackName: 'plant_trap', damage: 0, cooldown: 3000, trapRadius: 40, trapDur: 3.0, trapDps: 25, size: 1.0 },
                     '4b': { name: 'Venusaur (Earthquake)', cost: 350, spriteName: 'Venusaur', range: 160, attackName: 'earthquake', damage: 0, cooldown: 5000, eqDur: 3.0, eqDps: 20, eqRadius: 160, size: 1.0 }
                 }
             },
@@ -506,8 +512,31 @@
             { path: 'A', enemyType: 'vampire', enemyLevel: 3, count: 1, interval: 1, delay: 20 },
             { path: 'A', enemyType: 'lich', enemyLevel: 3, count: 1, interval: 1, delay: 20 }
         ]
+    },
+{
+        id: 11, background: 'Pokemon/Backgrounds/lava.jpg', startingGold: 1200,
+        path: [{ x: 660, y: 780 }, { x: 660, y: 650 }, { x: 670, y: 480 }, { x: 660, y: 350 }, { x: 620, y: 250 }, { x: 530, y: 240 }, { x: 440, y: 230 }, { x: 320, y: 200 }, { x: 200, y: 150 }, { x: 110, y: 190 }, { x: 140, y: 290 }, { x: 190, y: 370 }, { x: 260, y: 440 }, { x: 370, y: 500 }, { x: 470, y: 550 }, { x: 470, y: 640 }, { x: 380, y: 690 }, { x: 280, y: 670 }, { x: 160, y: 680 }, { x: 10, y: 670 }], pathB: [{ x: 790, y: 110 }, { x: 720, y: 170 }, { x: 620, y: 250 }],
+        slots: [{ x: 560, y: 330 }, { x: 530, y: 150 }, { x: 210, y: 240 }, { x: 310, y: 300 }, { x: 410, y: 420 }, { x: 530, y: 500 }, { x: 360, y: 590 }, { x: 170, y: 590 }, { x: 560, y: 630 }],
+        objects: [{ x: 270, y: 720, src: 'Pokemon/Assets/Dark_totem_dark_shadow2.png', scale: 1 }, { x: 270, y: 520, src: 'Pokemon/Assets/Dark_totem_dark_shadow3.png', scale: 1 }, { x: 500, y: 420, src: 'Pokemon/Assets/Dead_tree_shadow1_1.png', scale: 1 }, { x: 100, y: 490, src: 'Pokemon/Assets/Building2_light_shadow.png', scale: 1 }, { x: 90, y: 70, src: 'Pokemon/Assets/bone_monster2_shadow2.png', scale: 1 }, { x: 560, y: 80, src: 'Pokemon/Assets/Bones_grass_shadow2.png', scale: 1 }, { x: 280, y: 70, src: 'Pokemon/Assets/bone_chest_shadow2.png', scale: 1 }, { x: 60, y: 330, src: 'Pokemon/Assets/bone_claws_shadow1.png', scale: 1.2 }, { x: 730, y: 270, src: 'Pokemon/Assets/bone_claws_shadow1.png', scale: 1.2 }, { x: 440, y: 150, src: 'Pokemon/Assets/bone_claws_shadow3.png', scale: 1 }, { x: 140, y: 740, src: 'Pokemon/Assets/bone_claws_shadow1.png', scale: 1 }, { x: 410, y: 340, src: 'Pokemon/Assets/Bones_grass_shadow1.png', scale: 1 }, { x: 750, y: 600, src: 'Pokemon/Assets/scolopendra_tail_shadow1.png', scale: 1 }, { x: 750, y: 710, src: 'Pokemon/Assets/skull_chasm_shadow2.png', scale: 1 }],
+        waves: [
+            { path: 'A', enemyType: 'slime', enemyLevel: 3, count: 10, interval: 1, delay: 5 },
+            { path: 'A', enemyType: 'orc', enemyLevel: 3, count: 10, interval: 1, delay: 0 },
+            { path: 'A', enemyType: 'golem', enemyLevel: 2, count: 10, interval: 2, delay: 0 },
+            { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 10, interval: 1, delay: 0 },
+            { path: 'A', enemyType: 'golem', enemyLevel: 3, count: 5, interval: 2, delay: 0 },
+            { path: 'A', enemyType: 'skeleton', enemyLevel: 2, count: 20, interval: 0.5, delay: 0 },
+            { path: 'A', enemyType: 'ghost', enemyLevel: 2, count: 10, interval: 1, delay: 0 },
+            { path: 'A', enemyType: 'vampire', enemyLevel: 2, count: 5, interval: 1, delay: 0 },
+            { path: 'B', enemyType: 'ghost', enemyLevel: 3, count: 3, interval: 5, delay: 0 },
+            { path: 'A', enemyType: 'vampire', enemyLevel: 2, count: 5, interval: 2, delay: 0 },
+            { path: 'B', enemyType: 'lich', enemyLevel: 2, count: 5, interval: 1, delay: 0 },
+            { path: 'A', enemyType: 'ghost', enemyLevel: 3, count: 10, interval: 4, delay: 0 },
+            { path: 'A', enemyType: 'skeleton', enemyLevel: 3, count: 30, interval: 1, delay: 0 },
+            { path: 'A', enemyType: 'vampire', enemyLevel: 2, count: 10, interval: 2, delay: 0 },
+            { path: 'A', enemyType: 'vampire', enemyLevel: 3, count: 5, interval: 5, delay: 5 },
+            { path: 'A', enemyType: 'lich', enemyLevel: 3, count: 1, interval: 1, delay: 5 }
+        ]
     }
-
 ];
         
         ;
@@ -624,7 +653,86 @@
         function handleBtnMouseEnter(btn, type, level) { const br = btn.getBoundingClientRect(); showTooltip(type, level, br.left + window.scrollX + (br.width / 2), br.top + window.scrollY + (br.height / 2)); }
         function hideTooltip() { ui.tooltip.classList.add('hidden'); }
 
-        function renderLevelMenu() { ui.sidebar.innerHTML = ''; let totalStars = 0; let lvl10Completed = (levelStats[10] && levelStats[10] > 0); for (let i = 1; i <= 10; i++) { if (levelStats[i]) totalStars += levelStats[i]; const wrapper = document.createElement('div'); wrapper.className = 'level-wrapper'; const starsDiv = document.createElement('div'); starsDiv.className = 'level-stars'; const btn = document.createElement('button'); btn.className = 'level-btn'; btn.textContent = i; if (i < maxUnlockedLevel || (i === 10 && lvl10Completed)) { btn.classList.add('completed'); const stars = levelStats[i] || 0; starsDiv.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars); if (stars === 3) btn.classList.add('stars-3'); else if (stars === 2) btn.classList.add('stars-2'); else if (stars === 1) btn.classList.add('stars-1'); btn.title = `Level ${i} (Dokončeno - ${stars}/3 hvězdiček)`; } else if (i === maxUnlockedLevel && !lvl10Completed) { btn.classList.add('unlocked'); btn.title = `Hrát Level ${i}`; starsDiv.textContent = '☆☆☆'; } else { btn.disabled = true; btn.title = `Level ${i} (Uzamčeno)`; starsDiv.textContent = '☆☆☆'; } if (i <= maxUnlockedLevel || (i === 10 && lvl10Completed)) btn.onclick = () => { if (audioCtx.state === 'suspended') audioCtx.resume(); initLevel(i); }; btn.onmouseenter = () => { if (!btn.disabled) { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); } }; wrapper.appendChild(starsDiv); wrapper.appendChild(btn); ui.sidebar.appendChild(wrapper); } const compScreen = document.getElementById('completed-screen'); if (compScreen) { const title = compScreen.querySelector('.comp-title'); const sub = document.getElementById('comp-subtitle'); if (lvl10Completed) { compScreen.classList.remove('hidden'); title.style.display = 'block'; if (totalStars < 20) sub.textContent = 'YOU ARE A GOOD POKEMON TRAINER, BUT YOU CAN STILL IMPROVE.'; else if (totalStars < 30) sub.textContent = 'YOU ARE A GREAT POKEMON TRAINER, BUT YOU CAN STILL IMPROVE A LITTLE.'; else sub.textContent = 'YOU ARE THE BEST POKEMON TRAINER.... A LEGEND.'; } else if (!levelStats[1] || levelStats[1] === 0) { compScreen.classList.remove('hidden'); title.style.display = 'none'; sub.textContent = 'ARE YOU A GOOD POKEMON TRAINER? WE\'LL SEE...'; } else { compScreen.classList.add('hidden'); } } }
+        function renderLevelMenu() {
+            ui.sidebar.innerHTML = '';
+            let totalStars = 0;
+            let allPerfect = true; // Předpokládáme, že je vše perfektní
+
+            // Kontrola všech 10 kol
+            for (let i = 1; i <= 10; i++) {
+                const stars = levelStats[i] || 0;
+                totalStars += stars;
+                if (stars < 3) allPerfect = false; // Pokud má kolo méně než 3 hvězdy, není to perfektní
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'level-wrapper';
+                const starsDiv = document.createElement('div');
+                starsDiv.className = 'level-stars';
+                const btn = document.createElement('button');
+                btn.className = 'level-btn';
+                btn.textContent = i;
+
+                if (i < maxUnlockedLevel || (i === 10 && stars > 0)) {
+                    btn.classList.add('completed');
+                    starsDiv.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+                    if (stars === 3) btn.classList.add('stars-3');
+                    else if (stars === 2) btn.classList.add('stars-2');
+                    else if (stars === 1) btn.classList.add('stars-1');
+                } else if (i === maxUnlockedLevel) {
+                    btn.classList.add('unlocked');
+                    starsDiv.textContent = '☆☆☆';
+                } else {
+                    btn.disabled = true;
+                    starsDiv.textContent = '☆☆☆';
+                }
+
+                if (i <= maxUnlockedLevel || (i === 10 && stars > 0)) {
+                    btn.onclick = () => { if (audioCtx.state === 'suspended') audioCtx.resume(); initLevel(i); };
+                }
+                btn.onmouseenter = () => { if (!btn.disabled) { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(() => { }); } };
+                wrapper.appendChild(starsDiv); wrapper.appendChild(btn); ui.sidebar.appendChild(wrapper);
+            }
+
+            // --- Zobrazení EXTRA pouze při 30 hvězdách (10 kol x 3 hvězdy) ---
+            if (allPerfect) {
+                const extraWrapper = document.createElement('div');
+                extraWrapper.className = 'level-wrapper';
+                extraWrapper.style.cssText = 'position:absolute; top:325px; left:50%; transform:translateX(-50%);';
+
+                const extraStars = document.createElement('div');
+                extraStars.className = 'level-stars';
+                
+                const extraBtn = document.createElement('button');
+                extraBtn.className = 'level-btn extra';
+                extraBtn.textContent = 'EXTRA';
+
+                const stars11 = levelStats[11] || 0;
+                if (stars11 > 0) {
+                    extraBtn.classList.add('completed');
+                    extraStars.textContent = '★'.repeat(stars11) + '☆'.repeat(3 - stars11);
+                    if (stars11 === 3) extraBtn.classList.add('stars-3');
+                } else { extraStars.textContent = '☆☆☆'; }
+
+                extraBtn.onclick = () => { if (audioCtx.state === 'suspended') audioCtx.resume(); initLevel(11); };
+                extraBtn.onmouseenter = () => { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(() => { }); };
+
+                extraWrapper.appendChild(extraStars); extraWrapper.appendChild(extraBtn); ui.sidebar.appendChild(extraWrapper);
+            }
+
+            // Logika pro obrazovku dokončení
+            const compScreen = document.getElementById('completed-screen');
+            if (compScreen) {
+                const title = compScreen.querySelector('.comp-title');
+                const sub = document.getElementById('comp-subtitle');
+                if (levelStats[10] > 0) {
+                    compScreen.classList.remove('hidden');
+                    title.style.display = 'block';
+                    if (totalStars < 20) sub.textContent = 'YOU ARE A GOOD POKEMON TRAINER, BUT YOU CAN STILL IMPROVE.';
+                    else if (totalStars < 30) sub.textContent = 'YOU ARE A GREAT POKEMON TRAINER, BUT YOU CAN STILL IMPROVE A LITTLE.';
+                    else sub.textContent = 'YOU ARE THE BEST POKEMON TRAINER.... A LEGEND.';
+                } else { compScreen.classList.add('hidden'); }
+            }
+        }
         function createRadialMenu() { ui.towerMenu.innerHTML = ''; const types = ['grass', 'water', 'fire', 'electric']; const radius = 60; types.forEach((type, index) => { const angle = (index / types.length) * Math.PI * 2 - Math.PI / 2; const btn = document.createElement('button'); btn.className = 'radial-btn'; btn.dataset.type = type; btn.style.left = `${Math.cos(angle)*radius}px`; btn.style.top = `${Math.sin(angle)*radius}px`; const stats = TOWER_STATS[type].levels[1]; const pokeName = stats.spriteName || stats.name; const icon = document.createElement('div'); icon.className = 'pokemon-menu-icon'; icon.style.backgroundImage = `url('Pokemon/Pictures/${pokeName}.png')`; const price = document.createElement('span'); price.className = 'price-tag'; price.textContent = `${stats.cost} 🪙`; btn.appendChild(icon); btn.appendChild(price); btn.onclick = (e) => { e.stopPropagation(); if (state.selectedSlot && state.gold >= stats.cost) { updateGold(-stats.cost); state.selectedSlot.tower = new Tower(state.selectedSlot.x, state.selectedSlot.y, type); state.towers.push(state.selectedSlot.tower); ui.towerMenu.classList.add('hidden'); hideTooltip(); playPokemonEnterEffect(type, 1, state.selectedSlot.x, state.selectedSlot.y); } }; btn.onmouseenter = () => { if (!btn.disabled) { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); } state.hoveredTowerType = type; handleBtnMouseEnter(btn, type, 1); }; btn.onmouseleave = () => { state.hoveredTowerType = null; hideTooltip(); }; ui.towerMenu.appendChild(btn); }); }
         function createUpgradeButton(tower, nextLevel, offsetX) { const stats = TOWER_STATS[tower.elementType].levels[nextLevel]; const cost = stats.cost; const btn = document.createElement('button'); btn.className = 'radial-btn upgrade'; if (offsetX !== 0) btn.style.left = `${offsetX}px`; const pokeName = stats.spriteName || stats.name; const icon = document.createElement('div'); icon.className = 'pokemon-menu-icon'; icon.style.backgroundImage = `url('Pokemon/Pictures/${pokeName}.png')`; const price = document.createElement('span'); price.className = 'price-tag'; price.textContent = `${cost} 🪙`; btn.appendChild(icon); btn.appendChild(price); btn.disabled = state.gold < cost; btn.onclick = (e) => { e.stopPropagation(); if (state.gold >= cost) { updateGold(-cost); tower.level = nextLevel; tower.timeSinceLastShot = 0; if (tower.currentSound) { try { tower.currentSound.stop(); } catch(e){} tower.currentSound = null; } ui.upgradeMenu.classList.add('hidden'); state.hoveredUpgrade = false; hideTooltip(); playPokemonEnterEffect(tower.elementType, nextLevel, tower.x, tower.y); } }; btn.onmouseenter = () => { if (!btn.disabled) { AUDIO.clickShort.currentTime = 0; AUDIO.clickShort.play().catch(()=>{}); } state.hoveredUpgrade = true; state.hoveredUpgradeLevel = nextLevel; handleBtnMouseEnter(btn, tower.elementType, nextLevel); }; 
         btn.onmouseleave = () => { state.hoveredUpgrade = false; if (state.selectedSlot && state.selectedSlot.tower) { const r = document.getElementById('game-canvas').getBoundingClientRect(); showTooltip(tower.elementType, tower.level, r.left + window.scrollX + (state.selectedSlot.x * (r.width / 800)), r.top + window.scrollY + (state.selectedSlot.y * (r.height / 800))); } else { hideTooltip(); } }; return btn; }
