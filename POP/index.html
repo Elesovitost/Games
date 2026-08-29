@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Populous: The Beginning — prototyp</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <aside id="ui">
+    <h1>Populous</h1>
+    <div class="sub">The Beginning — prototyp</div>
+
+    <div class="play-modes" role="tablist" aria-label="Režim hry">
+      <button type="button" data-play-mode="1p" class="active">1P</button>
+      <button type="button" data-play-mode="mp">MP</button>
+    </div>
+
+    <div id="lobby" class="hidden">
+      <label class="field">
+        <span>Jméno</span>
+        <input id="lobby-name" type="text" maxlength="18" autocomplete="nickname" />
+      </label>
+      <label class="field">
+        <span>Barva</span>
+        <select id="lobby-color"></select>
+      </label>
+      <div class="lobby-actions">
+        <button type="button" id="lobby-create">Založit hru</button>
+        <button type="button" id="lobby-join">Připojit se</button>
+      </div>
+      <label class="field">
+        <span>Kód místnosti</span>
+        <input id="lobby-join-code" type="text" maxlength="4" placeholder="ABCD" autocomplete="off" />
+      </label>
+      <div class="lobby-room">
+        <div>Místnost: <strong id="lobby-code">—</strong></div>
+        <ul id="lobby-roster"></ul>
+        <p id="lobby-status" class="lobby-status"></p>
+        <button type="button" id="lobby-start" class="hidden" disabled>Spustit hru</button>
+        <button type="button" id="lobby-leave" class="ghost">Opustit místnost</button>
+      </div>
+    </div>
+
+    <div id="game-panel">
+      <div id="mode">Režim: <strong>Chůze</strong></div>
+      <div class="spells">
+        <button type="button" data-spell="elevate">⛰️ Elevace</button>
+        <button type="button" data-spell="depress">🕳️ Deprese</button>
+        <button type="button" data-spell="dragon">🐉 Vyvolat draka</button>
+        <button type="button" data-spell="lava">🌋 Láva</button>
+        <button type="button" data-spell="lightning">⚡ Blesk</button>
+        <button type="button" data-spell="fireball">🔥 Ohnivá koule</button>
+      </div>
+      <p class="hint">
+        Kliknutím na pevninu posíláte čaroděje.<br />
+        Šipky otáčejí planetou (jen u tebe).<br />
+        Kouzlo: tlačítko, pak klik na planetu.<br />
+        Esc zruší režim kouzlení.<br />
+        MP funguje hned mezi okny na tomto PC.<br />
+        Po síti: <code>start-mp.bat</code> (nebo <code>python server/server.py</code>).
+      </p>
+    </div>
+  </aside>
+  <div id="toast"></div>
+  <div id="hand-cursor" aria-hidden="true">
+    <svg viewBox="0 0 64 64" width="44" height="44">
+      <path fill="#f0d2b0" stroke="#5a3a28" stroke-width="2.2" stroke-linejoin="round"
+        d="M26 34 V14.5 c0-2.4 1.6-4 3.6-4 s3.6 1.6 3.6 4 V30
+           M33.2 30 V11.5 c0-2.5 1.7-4.2 3.8-4.2 s3.8 1.7 3.8 4.2 V30
+           M40.8 31 V15.2 c0-2.3 1.6-3.9 3.6-3.9 s3.5 1.6 3.5 3.9 V33.5
+           M22.5 34 V22.5 c0-2.2 1.5-3.7 3.4-3.7
+           C22 28 18.5 33 18.2 39.5 c-.4 8.2 5.2 15 13.5 16.8
+           c7.5 1.6 14.8-2.2 17.8-8.8 L54 36.5 c1.4-2.2.4-4.6-1.8-5.4
+           c-2-.7-4 .4-4.8 2.1 l-2.2 4.4 V34 Z"/>
+      <path fill="#e8b890" d="M28 40 c2 8 8 12 14 10 c-4 4-11 4-15-1 c-3-4-3-8-2-10z"/>
+    </svg>
+  </div>
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
