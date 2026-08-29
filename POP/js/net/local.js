@@ -23,9 +23,24 @@ function roomPublic(room) {
       id: p.id,
       name: p.name,
       color: p.color,
-      spawn: i
+      spawn: Number.isInteger(p.spawn) ? p.spawn : i
     }))
   };
+}
+
+function assignRandomSpawns(room, slotCount = 4) {
+  const slots = Array.from({ length: slotCount }, (_, i) => i);
+  for (let i = slots.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    const t = slots[i];
+    slots[i] = slots[j];
+    slots[j] = t;
+  }
+  let i = 0;
+  for (const p of room.players.values()) {
+    p.spawn = slots[i % slotCount];
+    i++;
+  }
 }
 
 /** Jedna záložka drží stav místností a odpovídá ostatním. */
@@ -173,13 +188,18 @@ export class LocalRelayHost {
       }
       if (room.phase !== "lobby") return;
       room.phase = "playing";
-      room.seed = (Math.random() * 0xffffffff) >>> 0;
+      let mapId = Number(msg.mapId);
+      if (!Number.isInteger(mapId) || mapId < 0 || mapId > 9) mapId = 0;
+      room.mapId = mapId;
+      room.seed = mapId;
       room.seq = 0;
+      assignRandomSpawns(room, 4);
       const publicRoom = roomPublic(room);
       for (const id of room.players.keys()) {
         this.#reply(id, {
           type: "started",
-          seed: room.seed,
+          mapId,
+          seed: mapId,
           room: publicRoom,
           you: id
         });

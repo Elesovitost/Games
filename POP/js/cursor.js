@@ -61,17 +61,21 @@ export class Pointer {
     this.north = new THREE.Vector3();
     this.hasHit = false;
     this.inRange = true;
+    this.basis = new THREE.Matrix4();
 
     this.hover = makeGlowDot(0xffe08a, 0.16);
     this.walkMark = makeGlowDot(0x7ec8ff, 0.2);
+    this.forbid = this.#createForbidMark();
     this.reticle = this.#createReticle();
     this.rangeRing = this.#createRangeRing();
     game.planetGroup.add(this.hover);
     game.planetGroup.add(this.walkMark);
+    game.planetGroup.add(this.forbid);
     game.planetGroup.add(this.reticle);
     game.planetGroup.add(this.rangeRing);
     this.hover.visible = false;
     this.walkMark.visible = false;
+    this.forbid.visible = false;
     this.reticle.visible = false;
     this.rangeRing.visible = false;
 
@@ -93,6 +97,29 @@ export class Pointer {
         this.#placeHand();
       });
     }
+  }
+
+  #createForbidMark() {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xff3b3b,
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+      fog: false
+    });
+    const geo = new THREE.BoxGeometry(0.52, 0.055, 0.055);
+    const a = new THREE.Mesh(geo, mat);
+    const b = new THREE.Mesh(geo, mat.clone());
+    a.rotation.y = Math.PI / 4;
+    b.rotation.y = -Math.PI / 4;
+    a.raycast = () => {};
+    b.raycast = () => {};
+    g.add(a, b);
+    g.userData = { a, b };
+    g.renderOrder = 8;
+    g.raycast = () => {};
+    return g;
   }
 
   #createReticle() {
@@ -148,6 +175,19 @@ export class Pointer {
     );
     mesh.renderOrder = 5;
     return mesh;
+  }
+
+  #placeForbid(local, elapsed) {
+    const h = this.#frame(local);
+    const pulse = 1 + Math.sin(elapsed * 6) * 0.04;
+    this.forbid.position.copy(this.up).multiplyScalar(h + 0.1);
+    this.basis.makeBasis(this.east, this.up, this.north);
+    this.forbid.quaternion.setFromRotationMatrix(this.basis);
+    this.forbid.scale.setScalar(pulse);
+    const op = 0.75 + Math.sin(elapsed * 6) * 0.15;
+    this.forbid.userData.a.material.opacity = op;
+    this.forbid.userData.b.material.opacity = op;
+    this.forbid.visible = true;
   }
 
   #placeHand() {
@@ -298,13 +338,18 @@ export class Pointer {
       this.#placeRangeRing(spell, elapsed);
       if (!hit) {
         this.reticle.visible = false;
+        this.forbid.visible = false;
         return;
       }
       const spellDef = SPELLS[spell];
       this.inRange = inSpellRange(this.game, this.game.wizard, hit, spell);
-      if (spellDef) {
-        this.#setReticleColor(this.inRange ? spellDef.color : 0x884444);
+      if (!this.inRange) {
+        this.reticle.visible = false;
+        this.#placeForbid(hit, elapsed);
+        return;
       }
+      this.forbid.visible = false;
+      if (spellDef) this.#setReticleColor(spellDef.color);
       this.#placeReticle(hit, elapsed);
       this.reticle.visible = true;
       return;
@@ -314,8 +359,15 @@ export class Pointer {
     this.reticle.visible = false;
     if (!hit) {
       this.hover.visible = false;
+      this.forbid.visible = false;
       return;
     }
+    if (!this.game.terrain.isLand(hit)) {
+      this.hover.visible = false;
+      this.#placeForbid(hit, elapsed);
+      return;
+    }
+    this.forbid.visible = false;
     this.hover.visible = true;
     this.#placeDot(this.hover, hit, 0.06, elapsed, 4.2, 0.08);
   }

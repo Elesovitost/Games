@@ -291,8 +291,8 @@ export function createSun(world) {
   return sun;
 }
 
-/** @param {THREE.Camera} camera @param {THREE.Vector3|[number,number,number]=} focusDir */
-export function placeCamera(camera, focusDir) {
+/** @param {THREE.Vector3|[number,number,number]} focusDir @param {{ alt?: number }=} opts */
+export function cameraPose(focusDir, opts = {}) {
   let up;
   if (focusDir && typeof focusDir.x === "number") {
     up = new THREE.Vector3(focusDir.x, focusDir.y, focusDir.z).normalize();
@@ -301,15 +301,42 @@ export function placeCamera(camera, focusDir) {
   } else {
     up = new THREE.Vector3(CONFIG.focusDir[0], CONFIG.focusDir[1], CONFIG.focusDir[2]).normalize();
   }
-  const focus = up.clone().multiplyScalar(CONFIG.planetR);
+  const alt = opts.alt || 0;
+  const focus = up.clone().multiplyScalar(CONFIG.planetR + alt);
+  return cameraPoseAt(focus, up);
+}
+
+/** Pose kamery mířící na world bod s daným „nahoru“. */
+export function cameraPoseAt(worldFocus, worldUp) {
+  const up = worldUp.clone().normalize();
   let east = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), up);
   if (east.lengthSq() < 1e-8) east.set(1, 0, 0).cross(up);
   east.normalize();
   const north = new THREE.Vector3().crossVectors(up, east).normalize();
-  camera.position.copy(focus)
+  const position = worldFocus.clone()
     .addScaledVector(up, CONFIG.camHeight)
     .addScaledVector(north, -CONFIG.camBack);
-  camera.up.copy(up);
-  camera.lookAt(focus.clone().addScaledVector(north, CONFIG.camLook));
+  const target = worldFocus.clone().addScaledVector(north, CONFIG.camLook);
+  return { position, up, target };
+}
+
+export function applyCameraPose(camera, pose) {
+  camera.position.copy(pose.position);
+  camera.up.copy(pose.up);
+  camera.lookAt(pose.target);
   camera.updateProjectionMatrix();
+}
+
+export function lerpCameraPose(camera, from, to, t) {
+  const u = t * t * (3 - 2 * t);
+  camera.position.lerpVectors(from.position, to.position, u);
+  camera.up.copy(from.up).lerp(to.up, u).normalize();
+  const target = from.target.clone().lerp(to.target, u);
+  camera.lookAt(target);
+  camera.updateProjectionMatrix();
+}
+
+/** @param {THREE.Camera} camera @param {THREE.Vector3|[number,number,number]=} focusDir @param {{ alt?: number }=} opts */
+export function placeCamera(camera, focusDir, opts = {}) {
+  applyCameraPose(camera, cameraPose(focusDir, opts));
 }

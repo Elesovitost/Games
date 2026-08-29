@@ -9,10 +9,13 @@ import { Dragons } from "./dragons.js";
 import { Fireballs } from "./fireballs.js";
 import { LavaPools } from "./lava.js";
 import { castSpell, inSpellRange } from "./spells.js";
+import { applyLavaDps, COMBAT } from "./combat.js";
 import { UI } from "./ui.js";
 import { Pointer } from "./cursor.js";
 import { MultiplayerSession, loadProfile } from "./net/session.js";
 import { LobbyUI } from "./net/lobby.js";
+import { getMap } from "./maps.js";
+import { SpawnDecor } from "./spawns.js";
 
 class Game {
   constructor() {
@@ -22,6 +25,8 @@ class Game {
     this.clock = new THREE.Clock();
     this.inputEnabled = true;
     this.wizards = new Map();
+    this.mapId = CONFIG.defaultMapId;
+    this.camLocked = false;
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -41,10 +46,12 @@ class Game {
     this.scene.add(new THREE.AmbientLight(0xffe8c8, 0.09));
     createSun(this.planetGroup);
 
-    this.terrain = new Terrain(this.planetGroup, CONFIG.defaultTerrainSeed);
+    this.terrain = new Terrain(this.planetGroup, this.mapId);
     this.water = new Water(this.planetGroup, this.terrain);
     this.sky = new Sky(this.planetGroup);
-    placeCamera(this.camera);
+    this.spawnDecor = new SpawnDecor(this);
+    this.spawnDecor.rebuild(this.mapId);
+    placeCamera(this.camera, getMap(this.mapId).spawnFocus[0]);
 
     this.effects = new Effects(this.planetGroup, this.terrain);
     this.dragons = new Dragons(this);
@@ -54,8 +61,8 @@ class Game {
 
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
-    this.worldY = new THREE.Vector3(0, 1, 0);
-    this.worldX = new THREE.Vector3(1, 0, 0);
+    this.camRight = new THREE.Vector3();
+    this.camUp = new THREE.Vector3();
     this.pointerUi = new Pointer(this);
 
     const profile = loadProfile();
@@ -88,28 +95,46 @@ class Game {
     this.inputEnabled = true;
     this.lobby.render(null);
     const profile = loadProfile();
-    this.#resetWorld(CONFIG.defaultTerrainSeed);
+    this.#resetWorld(this.mapId ?? CONFIG.defaultMapId);
     this.#spawnWizards([{ id: "local", name: profile.name, color: profile.color }], "local");
     this.ui.toast("Režim 1P");
   }
 
-  beginMatch({ seed, players, localId }) {
+  beginMatch({ mapId, players, localId }) {
     this.planetGroup.rotation.set(0, 0, 0);
-    this.#resetWorld(seed);
+    this.#resetWorld(mapId ?? CONFIG.defaultMapId);
     this.#spawnWizards(players, localId);
     this.inputEnabled = true;
     this.ui.setSpell(null);
-    this.ui.toast("Hra začíná · " + players.length + " hráčů");
+    const map = getMap(this.mapId);
+    this.ui.toast("Hra začíná · " + map.name + " · " + players.length + " hráčů");
   }
 
-  #resetWorld(seed) {
+  /** Výběr mapy (0–9). Připraveno pro UI. */
+  setMap(mapId) {
+    this.mapId = getMap(mapId).index;
+    if (!this.session.isPlaying) {
+      this.#resetWorld(this.mapId);
+      const profile = loadProfile();
+      const localId = this.wizard?.id || "local";
+      const players = this.session.isMp && this.session.room
+        ? this.session.room.players
+        : [{ id: localId, name: profile.name, color: profile.color }];
+      this.#spawnWizards(players, localId);
+    }
+    return this.mapId;
+  }
+
+  #resetWorld(mapId = CONFIG.defaultMapId) {
+    this.mapId = getMap(mapId).index;
     this.dragons.clear();
     this.fireballs.clear();
     this.lava.clear();
     this.effects.clear();
     this.pointerUi.clearWalkTarget();
-    this.terrain.rebuild(seed);
+    this.terrain.rebuild(this.mapId);
     this.water.refresh();
+    this.spawnDecor.rebuild(this.mapId);
   }
 
   #clearWizards() {
@@ -120,12 +145,25 @@ class Game {
 
   #spawnWizards(players, localId) {
     this.#clearWizards();
-    // Pořadí ze serveru (host = index 0) → pevné strany planety.
+    const map = getMap(this.mapId);
+    const focuses = map.spawnFocus;
+    const nSlots = focuses.length;
     const list = Array.isArray(players) ? players : [];
+
+    // Náhodné unikátní spawny, pokud je server ještě nepřiřadil.
+    const slots = Array.from({ length: nSlots }, (_, i) => i);
+    for (let i = slots.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      const t = slots[i];
+      slots[i] = slots[j];
+      slots[j] = t;
+    }
+    let auto = 0;
+
     list.forEach((p, i) => {
       const id = String(p.id);
-      const slot = Number.isInteger(p.spawn) ? p.spawn : i;
-      const focusArr = CONFIG.spawnFocus[slot % CONFIG.spawnFocus.length];
+      const slot = Number.isInteger(p.spawn) ? p.spawn % nSlots : slots[auto++ % nSlots];
+      const focusArr = focuses[slot];
       const spawnFocus = new THREE.Vector3(focusArr[0], focusArr[1], focusArr[2]).normalize();
       const w = new Wizard(this, {
         id,
@@ -135,11 +173,14 @@ class Game {
       });
       w.spawnFocus = spawnFocus;
       w.spawnIndex = slot;
+      w.hp = COMBAT.maxHp;
+      w.lives = COMBAT.maxLives;
+      w.state = "alive";
       this.wizards.set(id, w);
     });
     const lid = localId != null ? String(localId) : "";
     this.wizard = this.wizards.get(lid) || null;
-    // Kameru vždy na spawn-slot hráče (ne na odklouznutou pevninu).
+    this.ui?.refreshVitality?.();
     if (this.wizard?.spawnFocus) {
       placeCamera(this.camera, this.wizard.spawnFocus);
     } else if (this.wizard) {
@@ -172,6 +213,7 @@ class Game {
     });
     this.canvas.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 || !this.inputEnabled) return;
+      if (this.wizard && !this.wizard.canControl) return;
       const hit = this.#hitPlanet(e);
       if (!hit) return;
       if (this.currentSpell) {
@@ -182,12 +224,26 @@ class Game {
         if (this.session.requestCast(this.currentSpell, hit.local)) return;
         castSpell(this, this.currentSpell, hit.local);
       } else {
+        if (!this.terrain.isLand(hit.local)) return;
         if (this.session.requestWalk(hit.local)) return;
         if (!this.wizard) return;
-        const ok = this.wizard.walkTo(hit.local, () => this.ui.toast("Čaroděj umí chodit jen po pevnině."));
+        const ok = this.wizard.walkTo(hit.local, () => {});
         if (ok) this.pointerUi.setWalkTarget(hit.local);
       }
     });
+
+    this.canvas.addEventListener(
+      "wheel",
+      (e) => {
+        if (!this.inputEnabled || this.camLocked) return;
+        const tree = this.spawnDecor.pickTreeAt(e.clientX, e.clientY);
+        if (!tree) return;
+        e.preventDefault();
+        const step = e.deltaY < 0 ? 0.045 : -0.045;
+        tree.nudge(step * (e.shiftKey ? 2.2 : 1));
+      },
+      { passive: false }
+    );
   }
 
   #hitPlanet(event) {
@@ -216,11 +272,15 @@ class Game {
   #tick() {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     const elapsed = this.clock.elapsedTime;
-    if (this.inputEnabled) {
-      if (this.keys.ArrowLeft) this.planetGroup.rotateOnWorldAxis(this.worldY, CONFIG.rotSpeed * dt);
-      if (this.keys.ArrowRight) this.planetGroup.rotateOnWorldAxis(this.worldY, -CONFIG.rotSpeed * dt);
-      if (this.keys.ArrowUp) this.planetGroup.rotateOnWorldAxis(this.worldX, CONFIG.rotSpeed * dt);
-      if (this.keys.ArrowDown) this.planetGroup.rotateOnWorldAxis(this.worldX, -CONFIG.rotSpeed * dt);
+    if (this.inputEnabled && !this.camLocked) {
+      // Screen-right / screen-up (ne camera.up = radiála — ta dělala divný twist)
+      this.camRight.setFromMatrixColumn(this.camera.matrixWorld, 0).normalize();
+      this.camUp.setFromMatrixColumn(this.camera.matrixWorld, 1).normalize();
+      const s = CONFIG.rotSpeed * dt;
+      if (this.keys.ArrowLeft) this.planetGroup.rotateOnWorldAxis(this.camUp, s);
+      if (this.keys.ArrowRight) this.planetGroup.rotateOnWorldAxis(this.camUp, -s);
+      if (this.keys.ArrowUp) this.planetGroup.rotateOnWorldAxis(this.camRight, s);
+      if (this.keys.ArrowDown) this.planetGroup.rotateOnWorldAxis(this.camRight, -s);
     }
 
     this.sky.update(dt);
@@ -230,7 +290,9 @@ class Game {
     this.dragons.update(dt, elapsed);
     this.fireballs.update(dt, elapsed);
     this.lava.update(dt);
+    applyLavaDps(this, dt);
     this.effects.update(dt);
+    this.spawnDecor.update(dt, elapsed);
     this.ui.update(dt);
     this.pointerUi.update(elapsed);
     this.renderer.render(this.scene, this.camera);

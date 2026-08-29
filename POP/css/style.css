@@ -36,6 +36,47 @@ html, body {
 #ui { left: 20px; }
 #mp-panel { left: 284px; max-height: calc(100vh - 40px); overflow-y: auto; }
 #mp-panel.hidden { display: none; }
+.mp-close {
+  appearance: none;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--gold-dim);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--gold);
+  font-size: 20px;
+  line-height: 1;
+  font-family: inherit;
+}
+.mp-close:hover {
+  border-color: var(--gold);
+  color: #ffe9b0;
+}
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+.color-swatches button {
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: var(--swatch, #888);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.color-swatches button:hover {
+  border-color: rgba(255, 255, 255, 0.55);
+}
+.color-swatches button.active {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
 #ui *,
 #mp-panel * { cursor: pointer; }
 #ui .hint, #ui .sub, #ui h1, #mode,
@@ -240,7 +281,7 @@ html, body {
 }
 #toast {
   position: fixed;
-  bottom: 28px;
+  bottom: 96px;
   left: 50%;
   transform: translateX(-50%);
   padding: 8px 16px;
@@ -253,6 +294,60 @@ html, body {
   z-index: 11;
 }
 #toast.show { opacity: 1; }
+#vitality {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  width: min(320px, 70vw);
+  padding: 10px 14px 12px;
+  background: var(--panel);
+  border: 1px solid var(--gold-dim);
+  box-shadow: 0 0 0 1px #000, 0 10px 28px rgba(0, 0, 0, 0.45);
+  z-index: 10;
+  pointer-events: none;
+  cursor: default;
+}
+#vitality.hidden { display: none; }
+.vit-lives {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  justify-content: center;
+}
+.vit-lives span {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--gold);
+  background: linear-gradient(180deg, #c41c12, #6a0e08);
+  box-shadow: inset 0 0 6px rgba(255, 180, 80, 0.35);
+}
+.vit-lives span.empty {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(212, 180, 106, 0.35);
+  box-shadow: none;
+}
+.vit-bar {
+  height: 12px;
+  border: 1px solid rgba(212, 180, 106, 0.4);
+  background: rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+#vit-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #8a1a12, #d4a03a 55%, #e8d48a);
+  transform-origin: left center;
+  transition: transform 0.12s linear;
+}
+#vit-label {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  opacity: 0.9;
+}
 #hand-cursor {
   position: fixed;
   left: 0;

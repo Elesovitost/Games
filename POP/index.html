@@ -37,6 +37,7 @@
   </aside>
 
   <aside id="mp-panel" class="hidden" aria-label="Multiplayer">
+    <button type="button" id="mp-close" class="mp-close" aria-label="Zavřít multiplayer">×</button>
     <h2>Multiplayer</h2>
     <div class="sub">Lobby a připojení</div>
 
@@ -53,10 +54,10 @@
         <span>Jméno</span>
         <input id="lobby-name" type="text" maxlength="18" autocomplete="nickname" />
       </label>
-      <label class="field">
+      <div class="field">
         <span>Barva</span>
-        <select id="lobby-color"></select>
-      </label>
+        <div id="lobby-colors" class="color-swatches" role="listbox" aria-label="Barva čaroděje"></div>
+      </div>
 
       <div id="mp-network-fields" class="hidden">
         <label class="field">
@@ -70,10 +71,6 @@
         <button type="button" id="lobby-create">Založit hru</button>
         <button type="button" id="lobby-join">Připojit se</button>
       </div>
-      <label class="field">
-        <span>Kód místnosti</span>
-        <input id="lobby-join-code" type="text" maxlength="4" placeholder="ABCD" autocomplete="off" />
-      </label>
       <div class="lobby-room">
         <div>Místnost: <strong id="lobby-code">—</strong></div>
         <ul id="lobby-roster"></ul>
@@ -85,6 +82,11 @@
   </aside>
 
   <div id="toast"></div>
+  <div id="vitality" aria-label="Vitalita">
+    <div id="vit-lives" class="vit-lives"></div>
+    <div class="vit-bar"><div id="vit-fill"></div></div>
+    <div id="vit-label">100 / 100</div>
+  </div>
   <div id="hand-cursor" aria-hidden="true">
     <svg viewBox="0 0 64 64" width="44" height="44">
       <path fill="#f0d2b0" stroke="#5a3a28" stroke-width="2.2" stroke-linejoin="round"

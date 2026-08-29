@@ -41,7 +41,7 @@ def room_public(room: dict) -> dict:
                 "id": p["id"],
                 "name": p["name"],
                 "color": p["color"],
-                "spawn": i,
+                "spawn": p["spawn"] if "spawn" in p and p["spawn"] is not None else i,
             }
         )
     return {
@@ -50,6 +50,14 @@ def room_public(room: dict) -> dict:
         "phase": room["phase"],
         "players": players,
     }
+
+
+def assign_random_spawns(room: dict, slot_count: int = 4) -> None:
+    """Každý hráč dostane unikátní náhodný spawn slot."""
+    slots = list(range(slot_count))
+    random.shuffle(slots)
+    for i, p in enumerate(room["players"].values()):
+        p["spawn"] = slots[i % slot_count]
 
 
 async def broadcast(room: dict, msg: dict, except_ws=None) -> None:
@@ -190,15 +198,24 @@ async def handler(ws) -> None:
                 if room["phase"] != "lobby":
                     continue
                 room["phase"] = "playing"
-                room["seed"] = random.randint(0, 0xFFFFFFFF)
+                try:
+                    map_id = int(msg.get("mapId", 0))
+                except (TypeError, ValueError):
+                    map_id = 0
+                if map_id < 0 or map_id > 9:
+                    map_id = 0
+                room["mapId"] = map_id
+                room["seed"] = map_id
                 room["seq"] = 0
+                assign_random_spawns(room, 4)
                 public = room_public(room)
                 for p in room["players"].values():
                     await send(
                         p["ws"],
                         {
                             "type": "started",
-                            "seed": room["seed"],
+                            "mapId": map_id,
+                            "seed": map_id,
                             "room": public,
                             "you": p["id"],
                         },

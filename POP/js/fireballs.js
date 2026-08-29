@@ -1,6 +1,7 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tmp, disposeObject } from "./utils.js";
+import { applyRadialDamage, COMBAT } from "./combat.js";
 
 function createFireballModel() {
   const g = new THREE.Group();
@@ -110,6 +111,7 @@ export class Fireballs {
           effects.fireburst(pos);
           terrain.deform(pos, "scorch", CONFIG.scorchRadius);
         }
+        applyRadialDamage(this.game, pos, COMBAT.fireball.radius, COMBAT.fireball.damage);
         planetGroup.remove(b.mesh);
         disposeObject(b.mesh);
         this.list.splice(i, 1);

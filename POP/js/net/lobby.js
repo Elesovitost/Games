@@ -17,21 +17,21 @@ export class LobbyUI {
     this.statusEl = document.getElementById("lobby-status");
     this.startBtn = document.getElementById("lobby-start");
     this.nameInput = document.getElementById("lobby-name");
-    this.colorSelect = document.getElementById("lobby-color");
-    this.joinCodeInput = document.getElementById("lobby-join-code");
+    this.colorsEl = document.getElementById("lobby-colors");
     this.hostInput = document.getElementById("lobby-host");
+    this.selectedColor = WIZARD_COLORS[0].hex;
 
     const profile = loadProfile();
     const prefs = loadMpPrefs();
     this.nameInput.value = profile.name;
     this.hostInput.value = prefs.host;
-    for (const c of WIZARD_COLORS) {
-      const opt = document.createElement("option");
-      opt.value = String(c.hex);
-      opt.textContent = c.label;
-      if (c.hex === profile.color) opt.selected = true;
-      this.colorSelect.appendChild(opt);
-    }
+    this.selectedColor = profile.color;
+    this.#buildColorSwatches();
+
+    document.getElementById("mp-close").addEventListener("click", () => {
+      session.setMode("1p");
+      this.#syncChrome();
+    });
 
     document.querySelectorAll("[data-play-mode]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -70,12 +70,14 @@ export class LobbyUI {
       if (session.mpTransport === "network") {
         await session.setTransport("network", this.hostInput.value);
       }
-      const { name, color } = this.#profile();
-      const code = this.joinCodeInput.value.trim().toUpperCase();
+      const raw = window.prompt("Zadej kód místnosti (4 znaky):", "");
+      if (raw == null) return;
+      const code = String(raw).trim().toUpperCase();
       if (!code) {
         game.ui.toast("Zadej kód místnosti.");
         return;
       }
+      const { name, color } = this.#profile();
       session.join(code, name, color);
     });
 
@@ -87,22 +89,43 @@ export class LobbyUI {
       this.statusEl.textContent = "Opustil jsi místnost.";
     });
 
-    const persist = () => {
+    this.nameInput.addEventListener("change", () => {
       const { name, color } = this.#profile();
       saveProfile(name, color);
       session.updateProfile(name, color);
-    };
-    this.nameInput.addEventListener("change", persist);
-    this.colorSelect.addEventListener("change", persist);
+    });
 
     this.#syncChrome();
     this.render(null);
   }
 
+  #buildColorSwatches() {
+    this.colorsEl.innerHTML = "";
+    for (const c of WIZARD_COLORS) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.title = c.label;
+      btn.setAttribute("aria-label", c.label);
+      btn.style.setProperty("--swatch", "#" + (c.hex >>> 0).toString(16).padStart(6, "0"));
+      btn.dataset.color = String(c.hex);
+      if (c.hex === this.selectedColor) btn.classList.add("active");
+      btn.addEventListener("click", () => {
+        this.selectedColor = c.hex;
+        this.colorsEl.querySelectorAll("button").forEach((b) => {
+          b.classList.toggle("active", b.dataset.color === String(c.hex));
+        });
+        const { name, color } = this.#profile();
+        saveProfile(name, color);
+        this.session.updateProfile(name, color);
+      });
+      this.colorsEl.appendChild(btn);
+    }
+  }
+
   #profile() {
     return {
       name: (this.nameInput.value || "Hráč").trim().slice(0, 18),
-      color: Number(this.colorSelect.value) || WIZARD_COLORS[0].hex
+      color: this.selectedColor || WIZARD_COLORS[0].hex
     };
   }
 

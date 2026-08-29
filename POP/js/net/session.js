@@ -138,7 +138,7 @@ export class MultiplayerSession {
   }
 
   startMatch() {
-    this.net.send({ type: "start" });
+    this.net.send({ type: "start", mapId: this.game.mapId ?? 0 });
   }
 
   leave() {
@@ -156,6 +156,9 @@ export class MultiplayerSession {
   /** @returns {boolean} true if handled by network (caller should not apply locally) */
   requestWalk(localTarget) {
     if (!this.isPlaying) return false;
+    const w = this.game.wizard;
+    if (!w?.canControl) return true;
+    if (!this.game.terrain.isLand(localTarget)) return true;
     this.net.send({
       type: "intent",
       intent: {
@@ -172,7 +175,8 @@ export class MultiplayerSession {
   requestCast(spellId, localPos) {
     if (!this.isPlaying) return false;
     const w = this.game.wizard;
-    if (!w || !inSpellRange(this.game, w, localPos, spellId)) {
+    if (!w?.canControl) return true;
+    if (!inSpellRange(this.game, w, localPos, spellId)) {
       this.game.ui.toast("Mimo dosah kouzla.");
       return true;
     }
@@ -222,7 +226,7 @@ export class MultiplayerSession {
       this.lastSeq = 0;
       if (msg.you) this.net.playerId = String(msg.you);
       this.game.beginMatch({
-        seed: msg.seed,
+        mapId: msg.mapId != null ? msg.mapId : 0,
         players: msg.room.players,
         localId: msg.you != null ? String(msg.you) : String(this.net.playerId || "")
       });
@@ -255,6 +259,7 @@ export class MultiplayerSession {
     if (!wizard) return;
 
     if (intent.kind === "walk") {
+      if (!wizard.canControl) return;
       const target = new THREE.Vector3(intent.x, intent.y, intent.z);
       const ok = wizard.walkTo(target, () => {});
       if (ok && msg.from === this.localId) {
@@ -264,6 +269,7 @@ export class MultiplayerSession {
     }
 
     if (intent.kind === "cast") {
+      if (!wizard.canControl) return;
       const pos = new THREE.Vector3(intent.x, intent.y, intent.z);
       if (!inSpellRange(this.game, wizard, pos, intent.spell)) return;
       castSpell(this.game, intent.spell, pos, {

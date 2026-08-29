@@ -3,13 +3,16 @@ import { CONFIG } from "./config.js";
 import { lerp3, tmp } from "./utils.js";
 import { createNoise } from "./noise.js";
 import { createIcosphereGeometry } from "./icosphere.js";
+import { generateMapHeights, getDefaultMap, getMap } from "./maps.js";
 
 export class Terrain {
-  constructor(planetGroup, seed = CONFIG.defaultTerrainSeed) {
+  constructor(planetGroup, mapId = CONFIG.defaultMapId) {
     this.group = planetGroup;
     this.jobs = [];
     this.trees = null;
-    this.seed = seed >>> 0;
+    this.map = getMap(mapId);
+    this.mapId = this.map.index;
+    this.seed = this.map.seed >>> 0;
     this.noise = createNoise(this.seed);
     this.geometry = createIcosphereGeometry(CONFIG.planetR, CONFIG.icoSubdiv);
     this.#sculpt();
@@ -28,9 +31,11 @@ export class Terrain {
     this.#scatterTrees();
   }
 
-  rebuild(seed = CONFIG.defaultTerrainSeed) {
+  rebuild(mapId = CONFIG.defaultMapId) {
     this.jobs = [];
-    this.seed = seed >>> 0;
+    this.map = getMap(mapId);
+    this.mapId = this.map.index;
+    this.seed = this.map.seed >>> 0;
     this.noise = createNoise(this.seed);
     if (this.trees) {
       this.group.remove(this.trees);
@@ -44,6 +49,11 @@ export class Terrain {
     this.mesh.geometry = this.geometry;
     this.#buildGrid();
     this.#scatterTrees();
+  }
+
+  getSpawnFocus(slot = 0) {
+    const list = this.map?.spawnFocus || getDefaultMap().spawnFocus;
+    return list[slot % list.length];
   }
 
   colorFromHeight(h, n, out, x, y, z) {
@@ -277,34 +287,10 @@ export class Terrain {
   }
 
   #sculpt() {
-    const noise = this.noise;
     const pos = this.geometry.attributes.position;
     const idx = this.geometry.index;
     const heights = new Float32Array(pos.count);
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const y = pos.getY(i);
-      const z = pos.getZ(i);
-      const nx = x / CONFIG.planetR;
-      const ny = y / CONFIG.planetR;
-      const nz = z / CONFIG.planetR;
-      const n = noise.fbm(nx * 3.2, ny * 3.2, nz * 3.2);
-      const n2 = noise.fbm(nx * 8.4 + 11, ny * 8.4, nz * 8.4);
-      const n3 = noise.fbm(nx * 24.0 + 40, ny * 24.0, nz * 24.0);
-      const coast = noise.fbm(nx * 1.7 + 5, ny * 1.7, nz * 1.7);
-      const beach = noise.fbm(nx * 9.2 + 19, ny * 9.2, nz * 9.2);
-      const raw = CONFIG.planetR + n * 2.6 + n2 * 0.85 + n3 * 0.22;
-      const shore = CONFIG.waterLevel + coast * 0.1;
-      const beachH = 0.52 + beach * 0.3 + coast * 0.08;
-      if (raw <= shore) {
-        heights[i] = CONFIG.waterLevel;
-      } else if (raw < shore + beachH) {
-        const u = (raw - shore) / beachH;
-        heights[i] = CONFIG.waterLevel + 0.025 + smoothFalloff(u) * Math.max(0.24, beachH * 0.72);
-      } else {
-        heights[i] = raw;
-      }
-    }
+    generateMapHeights(this.map || getDefaultMap(), heights, pos, this.noise);
     this.#smoothCoast(heights, idx, pos.count);
     const colors = new Float32Array(pos.count * 3);
     const col = tmp.col;
