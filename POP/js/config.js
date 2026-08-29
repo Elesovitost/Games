@@ -34,9 +34,17 @@ export const CONFIG = {
     [0, 0.2, -1],
     [-1, 0.2, 0]
   ],
-  netUrl: (typeof location !== "undefined"
-    ? `ws://${location.hostname || "localhost"}:2567`
-    : "ws://localhost:2567"),
+  netPort: 2567,
+  defaultNetHost: "localhost",
+  netUrlFor(host) {
+    const h = String(host || this.defaultNetHost).trim() || this.defaultNetHost;
+    return `ws://${h}:${this.netPort}`;
+  },
+  get netUrl() {
+    return this.netUrlFor(
+      typeof location !== "undefined" ? location.hostname || this.defaultNetHost : this.defaultNetHost
+    );
+  },
   defaultTerrainSeed: 20260829,
   landColor: [0.26, 0.52, 0.16],
   waterColor: [0.05, 0.18, 0.52],

@@ -5,6 +5,8 @@ import * as THREE from "../three.js";
 
 const LS_NAME = "populous.playerName";
 const LS_COLOR = "populous.wizardColor";
+const LS_TRANSPORT = "populous.mpTransport";
+const LS_HOST = "populous.mpHost";
 
 export const WIZARD_COLORS = [
   { id: "red", hex: 0xc41c12, label: "Červená" },
@@ -28,10 +30,25 @@ export function saveProfile(name, color) {
   localStorage.setItem(LS_COLOR, String(color));
 }
 
+export function loadMpPrefs() {
+  const transport = localStorage.getItem(LS_TRANSPORT) === "network" ? "network" : "local";
+  const host = localStorage.getItem(LS_HOST) || CONFIG.defaultNetHost;
+  return { transport, host };
+}
+
+export function saveMpPrefs(transport, host) {
+  localStorage.setItem(LS_TRANSPORT, transport === "network" ? "network" : "local");
+  if (host != null) localStorage.setItem(LS_HOST, String(host).trim() || CONFIG.defaultNetHost);
+}
+
 export class MultiplayerSession {
   constructor(game) {
+    const prefs = loadMpPrefs();
     this.game = game;
-    this.net = new NetClient(CONFIG.netUrl);
+    this.net = new NetClient(CONFIG.netUrlFor(prefs.host));
+    this.net.setPrefer(prefs.transport);
+    this.mpTransport = prefs.transport;
+    this.mpHost = prefs.host;
     this.mode = "1p";
     this.room = null;
     this.playing = false;
@@ -59,6 +76,7 @@ export class MultiplayerSession {
     if (mode === this.mode) return;
     if (mode === "1p") {
       this.leave();
+      this.disconnect();
       this.mode = "1p";
       this.playing = false;
       this.room = null;
@@ -67,18 +85,47 @@ export class MultiplayerSession {
     }
     this.mode = "mp";
     this.playing = false;
+    this.#applyNetConfig();
     this.net.connect();
     this.game.enterLobby();
   }
 
+  async setTransport(transport, host) {
+    const next = transport === "network" ? "network" : "local";
+    const nextHost = (host != null ? String(host).trim() : this.mpHost) || CONFIG.defaultNetHost;
+    const changed = next !== this.mpTransport || nextHost !== this.mpHost || !this.net.connected;
+
+    this.mpTransport = next;
+    this.mpHost = nextHost;
+    saveMpPrefs(next, nextHost);
+
+    if (!changed && this.mode === "mp") return;
+
+    this.leave();
+    this.room = null;
+    this.playing = false;
+    this.#applyNetConfig();
+    if (this.mode === "mp") {
+      await this.net.reconnect();
+      this.game.onMpRoom(null);
+    }
+  }
+
+  #applyNetConfig() {
+    this.net.setPrefer(this.mpTransport);
+    this.net.setUrl(CONFIG.netUrlFor(this.mpHost));
+  }
+
   create(name, color) {
     saveProfile(name, color);
+    this.#applyNetConfig();
     this.net.connect();
     this.net.send({ type: "create", name, color });
   }
 
   join(code, name, color) {
     saveProfile(name, color);
+    this.#applyNetConfig();
     this.net.connect();
     this.net.send({ type: "join", code, name, color });
   }
@@ -148,6 +195,9 @@ export class MultiplayerSession {
     });
     this.net.on("error", (msg) => {
       if (msg.message) this.game.ui.toast(msg.message);
+    });
+    this.net.on("open", () => {
+      this.game.onMpRoom(this.room);
     });
     this.net.on("close", () => {
       if (this.mode === "mp" && this.net.transport === "ws") {

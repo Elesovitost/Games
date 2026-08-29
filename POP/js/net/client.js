@@ -1,12 +1,14 @@
 import { LocalNetClient } from "./local.js";
 
 /**
- * Zkusí WebSocket (python relay). Když nejde, spadne na BroadcastChannel
- * (funguje hned mezi okny stejného prohlížeče — bez serveru).
+ * prefer: "local" | "network"
+ * local = BroadcastChannel (okna na stejném PC)
+ * network = WebSocket relay (server.py / start-mp.bat)
  */
 export class NetClient {
   constructor(url) {
     this.url = url;
+    this.prefer = "local";
     this.handlers = Object.create(null);
     this.playerId = null;
     this.connected = false;
@@ -21,19 +23,40 @@ export class NetClient {
     this.handlers[type] = fn;
   }
 
+  setPrefer(prefer) {
+    this.prefer = prefer === "network" ? "network" : "local";
+  }
+
+  setUrl(url) {
+    this.url = url;
+  }
+
   connect() {
     if (this.connected) return Promise.resolve();
     if (this._connecting) return this._connecting;
-    this._connecting = this.#connectAuto().finally(() => {
+    this._connecting = this.#connectPreferred().finally(() => {
       this._connecting = null;
     });
     return this._connecting;
   }
 
-  async #connectAuto() {
-    const wsOk = await this.#tryWebSocket(700);
-    if (wsOk) return;
-    await this.#useLocal();
+  /** Odpojí a znovu připojí podle aktuálního prefer / url. */
+  async reconnect() {
+    this.disconnect();
+    await this.connect();
+  }
+
+  async #connectPreferred() {
+    if (this.prefer === "local") {
+      await this.#useLocal();
+      return;
+    }
+    const wsOk = await this.#tryWebSocket(2500);
+    if (!wsOk) {
+      this.#emit("error", {
+        message: "Nelze se připojit k relay (" + this.url + "). Spusť start-mp.bat na hostiteli."
+      });
+    }
   }
 
   #tryWebSocket(timeoutMs) {
@@ -104,9 +127,7 @@ export class NetClient {
     this.transport = "local";
     for (const msg of this.queue) this.local.send(msg);
     this.queue.length = 0;
-    this.#emit("info", {
-      message: "Lokální MP (okna na tomto PC). Pro hru po síti: start-mp.bat"
-    });
+    this.#emit("open", { transport: "local" });
   }
 
   disconnect() {

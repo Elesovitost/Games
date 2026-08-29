@@ -1,10 +1,17 @@
-import { loadProfile, saveProfile, WIZARD_COLORS } from "./session.js";
+import { loadProfile, saveProfile, WIZARD_COLORS, loadMpPrefs } from "./session.js";
+
+const HINTS = {
+  local: "Stejný prohlížeč, více oken — bez serveru.",
+  network: "LAN / Wi‑Fi — všichni se připojí k IP PC s běžícím relay."
+};
 
 export class LobbyUI {
   constructor(game, session) {
     this.game = game;
     this.session = session;
-    this.root = document.getElementById("lobby");
+    this.panel = document.getElementById("mp-panel");
+    this.networkFields = document.getElementById("mp-network-fields");
+    this.transportHint = document.getElementById("mp-transport-hint");
     this.rosterEl = document.getElementById("lobby-roster");
     this.codeEl = document.getElementById("lobby-code");
     this.statusEl = document.getElementById("lobby-status");
@@ -12,9 +19,12 @@ export class LobbyUI {
     this.nameInput = document.getElementById("lobby-name");
     this.colorSelect = document.getElementById("lobby-color");
     this.joinCodeInput = document.getElementById("lobby-join-code");
+    this.hostInput = document.getElementById("lobby-host");
 
     const profile = loadProfile();
+    const prefs = loadMpPrefs();
     this.nameInput.value = profile.name;
+    this.hostInput.value = prefs.host;
     for (const c of WIZARD_COLORS) {
       const opt = document.createElement("option");
       opt.value = String(c.hex);
@@ -27,16 +37,39 @@ export class LobbyUI {
       btn.addEventListener("click", () => {
         const mode = btn.dataset.playMode;
         session.setMode(mode);
-        this.#syncModeTabs();
+        this.#syncChrome();
       });
     });
 
-    document.getElementById("lobby-create").addEventListener("click", () => {
+    document.querySelectorAll("[data-mp-transport]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const transport = btn.dataset.mpTransport;
+        session.setTransport(transport, this.hostInput.value).then(() => {
+          this.#syncChrome();
+          this.render(session.room);
+        });
+      });
+    });
+
+    this.hostInput.addEventListener("change", () => {
+      if (session.mpTransport !== "network") return;
+      session.setTransport("network", this.hostInput.value).then(() => {
+        this.render(session.room);
+      });
+    });
+
+    document.getElementById("lobby-create").addEventListener("click", async () => {
+      if (session.mpTransport === "network") {
+        await session.setTransport("network", this.hostInput.value);
+      }
       const { name, color } = this.#profile();
       session.create(name, color);
     });
 
-    document.getElementById("lobby-join").addEventListener("click", () => {
+    document.getElementById("lobby-join").addEventListener("click", async () => {
+      if (session.mpTransport === "network") {
+        await session.setTransport("network", this.hostInput.value);
+      }
       const { name, color } = this.#profile();
       const code = this.joinCodeInput.value.trim().toUpperCase();
       if (!code) {
@@ -62,7 +95,7 @@ export class LobbyUI {
     this.nameInput.addEventListener("change", persist);
     this.colorSelect.addEventListener("change", persist);
 
-    this.#syncModeTabs();
+    this.#syncChrome();
     this.render(null);
   }
 
@@ -73,17 +106,25 @@ export class LobbyUI {
     };
   }
 
-  #syncModeTabs() {
+  #syncChrome() {
     document.querySelectorAll("[data-play-mode]").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.playMode === this.session.mode);
     });
+
     const mp = this.session.mode === "mp";
-    this.root.classList.toggle("hidden", !mp);
+    this.panel.classList.toggle("hidden", !mp);
     document.getElementById("game-panel").classList.toggle("dimmed", mp && !this.session.playing);
+
+    const transport = this.session.mpTransport;
+    document.querySelectorAll("[data-mp-transport]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.mpTransport === transport);
+    });
+    this.networkFields.classList.toggle("hidden", transport !== "network");
+    this.transportHint.textContent = HINTS[transport] || HINTS.local;
   }
 
   render(room) {
-    this.#syncModeTabs();
+    this.#syncChrome();
     if (!room) {
       this.codeEl.textContent = "—";
       this.rosterEl.innerHTML = "";
@@ -91,12 +132,17 @@ export class LobbyUI {
       this.startBtn.classList.add("hidden");
       if (this.session.mode === "mp") {
         const t = this.session.net.transport;
-        this.statusEl.textContent =
-          t === "local"
-            ? "Lokální MP — založ hru, druhé okno ať se připojí kódem."
-            : t === "ws"
-              ? "Připojeno k relay — založ hru nebo se připoj kódem."
-              : "Připojuji…";
+        const prefer = this.session.mpTransport;
+        if (prefer === "local") {
+          this.statusEl.textContent =
+            t === "local"
+              ? "Lokální MP připraveno — založ hru, druhé okno ať se připojí kódem."
+              : "Připojuji lokální MP…";
+        } else if (t === "ws") {
+          this.statusEl.textContent = "Připojeno k relay — založ hru nebo se připoj kódem.";
+        } else {
+          this.statusEl.textContent = "Čekám na relay… zkontroluj IP a start-mp.bat.";
+        }
       }
       return;
     }

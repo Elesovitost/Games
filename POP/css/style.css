@@ -20,10 +20,10 @@ html, body {
   height: 100%;
   cursor: none;
 }
-#ui {
+#ui,
+#mp-panel {
   position: fixed;
   top: 20px;
-  left: 20px;
   width: 248px;
   padding: 18px 16px 16px;
   background: var(--panel);
@@ -33,28 +33,38 @@ html, body {
   pointer-events: auto;
   cursor: default;
 }
-#ui * { cursor: pointer; }
-#ui .hint, #ui .sub, #ui h1, #mode, #lobby-status, #lobby-code { cursor: default; }
-#ui h1 {
+#ui { left: 20px; }
+#mp-panel { left: 284px; max-height: calc(100vh - 40px); overflow-y: auto; }
+#mp-panel.hidden { display: none; }
+#ui *,
+#mp-panel * { cursor: pointer; }
+#ui .hint, #ui .sub, #ui h1, #mode,
+#mp-panel .sub, #mp-panel h2, #mp-panel .mp-hint,
+#lobby-status, #lobby-code { cursor: default; }
+#ui h1,
+#mp-panel h2 {
   font-size: 13px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--gold);
   margin-bottom: 4px;
 }
-#ui .sub {
+#ui .sub,
+#mp-panel .sub {
   font-size: 11px;
   opacity: 0.65;
   margin-bottom: 10px;
   font-style: italic;
 }
-.play-modes {
+.play-modes,
+.mp-transport {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin-bottom: 12px;
 }
-.play-modes button {
+.play-modes button,
+.mp-transport button {
   appearance: none;
   padding: 8px 10px;
   background: linear-gradient(180deg, #2a2418, #16130e);
@@ -64,17 +74,27 @@ html, body {
   font-size: 13px;
   letter-spacing: 0.12em;
 }
-.play-modes button.active {
+.play-modes button.active,
+.mp-transport button.active {
   border-color: var(--gold);
   color: #ffe9b0;
   box-shadow: inset 0 0 12px rgba(212, 180, 106, 0.22);
 }
-#lobby {
-  margin-bottom: 14px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(212, 180, 106, 0.2);
+.mp-hint {
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.7;
+  margin: -4px 0 12px;
 }
-#lobby.hidden { display: none; }
+.mp-hint code {
+  font-family: Consolas, monospace;
+  font-size: 10px;
+  color: var(--gold);
+}
+#mp-network-fields.hidden { display: none; }
+#lobby {
+  margin-bottom: 0;
+}
 .field {
   display: flex;
   flex-direction: column;
