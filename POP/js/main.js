@@ -8,7 +8,7 @@ import { Wizard } from "./wizard.js";
 import { Dragons } from "./dragons.js";
 import { Fireballs } from "./fireballs.js";
 import { LavaPools } from "./lava.js";
-import { castSpell } from "./spells.js";
+import { castSpell, inSpellRange } from "./spells.js";
 import { UI } from "./ui.js";
 import { Pointer } from "./cursor.js";
 import { MultiplayerSession, loadProfile } from "./net/session.js";
@@ -120,21 +120,31 @@ class Game {
 
   #spawnWizards(players, localId) {
     this.#clearWizards();
-    // Stejné pořadí na všech klientech → stejné startovní sloty.
-    const ordered = [...players].sort((a, b) => String(a.id).localeCompare(String(b.id)));
-    ordered.forEach((p, i) => {
-      const focusArr = CONFIG.spawnFocus[i % CONFIG.spawnFocus.length];
+    // Pořadí ze serveru (host = index 0) → pevné strany planety.
+    const list = Array.isArray(players) ? players : [];
+    list.forEach((p, i) => {
+      const id = String(p.id);
+      const slot = Number.isInteger(p.spawn) ? p.spawn : i;
+      const focusArr = CONFIG.spawnFocus[slot % CONFIG.spawnFocus.length];
+      const spawnFocus = new THREE.Vector3(focusArr[0], focusArr[1], focusArr[2]).normalize();
       const w = new Wizard(this, {
-        id: p.id,
+        id,
         name: p.name,
         color: p.color,
-        focus: new THREE.Vector3(...focusArr)
+        focus: spawnFocus.clone()
       });
-      this.wizards.set(p.id, w);
+      w.spawnFocus = spawnFocus;
+      w.spawnIndex = slot;
+      this.wizards.set(id, w);
     });
-    this.wizard = this.wizards.get(localId) || this.wizards.get(ordered[0]?.id) || null;
-    // Každý hráč kouká na svého čaroděje.
-    if (this.wizard) placeCamera(this.camera, this.wizard.dir);
+    const lid = localId != null ? String(localId) : "";
+    this.wizard = this.wizards.get(lid) || null;
+    // Kameru vždy na spawn-slot hráče (ne na odklouznutou pevninu).
+    if (this.wizard?.spawnFocus) {
+      placeCamera(this.camera, this.wizard.spawnFocus);
+    } else if (this.wizard) {
+      placeCamera(this.camera, this.wizard.dir);
+    }
   }
 
   start() {
@@ -165,6 +175,10 @@ class Game {
       const hit = this.#hitPlanet(e);
       if (!hit) return;
       if (this.currentSpell) {
+        if (!this.wizard || !inSpellRange(this, this.wizard, hit.local, this.currentSpell)) {
+          this.ui.toast("Mimo dosah kouzla.");
+          return;
+        }
         if (this.session.requestCast(this.currentSpell, hit.local)) return;
         castSpell(this, this.currentSpell, hit.local);
       } else {

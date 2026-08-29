@@ -86,14 +86,6 @@ export class NetClient {
       };
       const timer = setTimeout(() => done(false), timeoutMs);
 
-      ws.addEventListener("open", () => {
-        this.connected = true;
-        this.transport = "ws";
-        this.#emit("open", { transport: "ws" });
-        for (const msg of this.queue) ws.send(JSON.stringify(msg));
-        this.queue.length = 0;
-        done(true);
-      });
       ws.addEventListener("error", () => {
         if (!this.connected) done(false);
       });
@@ -110,7 +102,17 @@ export class NetClient {
         } catch {
           return;
         }
-        if (msg.type === "welcome") this.playerId = msg.playerId;
+        if (msg.type === "welcome") {
+          this.playerId = String(msg.playerId);
+          if (!this.connected) {
+            this.connected = true;
+            this.transport = "ws";
+            for (const queued of this.queue) ws.send(JSON.stringify(queued));
+            this.queue.length = 0;
+            this.#emit("open", { transport: "ws" });
+            done(true);
+          }
+        }
         this.#emit(msg.type, msg);
       });
     });

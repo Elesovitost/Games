@@ -77,3 +77,13 @@ export function frameAt(localPos, terrain, east, north, upOut) {
   const h = terrain.height(up);
   return h;
 }
+
+/** Vzdálenost po povrchu (oblouk × průměrná výška terénu). */
+export function surfaceDistance(terrain, fromDir, toLocal) {
+  tmp.dir.copy(fromDir).normalize();
+  tmp.dir2.copy(toLocal).normalize();
+  const ang = tmp.dir.angleTo(tmp.dir2);
+  const h0 = terrain.height(tmp.dir);
+  const h1 = terrain.height(tmp.dir2);
+  return ang * (h0 + h1) * 0.5;
+}

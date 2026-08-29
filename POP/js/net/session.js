@@ -1,6 +1,6 @@
 import { NetClient } from "./client.js";
 import { CONFIG } from "../config.js";
-import { castSpell } from "../spells.js";
+import { castSpell, inSpellRange } from "../spells.js";
 import * as THREE from "../three.js";
 
 const LS_NAME = "populous.playerName";
@@ -172,6 +172,10 @@ export class MultiplayerSession {
   requestCast(spellId, localPos) {
     if (!this.isPlaying) return false;
     const w = this.game.wizard;
+    if (!w || !inSpellRange(this.game, w, localPos, spellId)) {
+      this.game.ui.toast("Mimo dosah kouzla.");
+      return true;
+    }
     this.net.send({
       type: "intent",
       intent: {
@@ -216,10 +220,11 @@ export class MultiplayerSession {
       this.room = msg.room;
       this.playing = true;
       this.lastSeq = 0;
+      if (msg.you) this.net.playerId = String(msg.you);
       this.game.beginMatch({
         seed: msg.seed,
         players: msg.room.players,
-        localId: this.net.playerId
+        localId: msg.you != null ? String(msg.you) : String(this.net.playerId || "")
       });
       this.game.onMpRoom(msg.room);
     });
@@ -260,11 +265,13 @@ export class MultiplayerSession {
 
     if (intent.kind === "cast") {
       const pos = new THREE.Vector3(intent.x, intent.y, intent.z);
+      if (!inSpellRange(this.game, wizard, pos, intent.spell)) return;
       castSpell(this.game, intent.spell, pos, {
         wizard,
         fromDir: new THREE.Vector3(intent.fromX, intent.fromY, intent.fromZ),
         seed: intent.seed,
-        clearSpellUi: msg.from === this.localId
+        clearSpellUi: msg.from === this.localId,
+        skipRangeCheck: true
       });
     }
   }

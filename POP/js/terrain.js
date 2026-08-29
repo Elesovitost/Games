@@ -254,7 +254,7 @@ export class Terrain {
     const f = focus.clone().normalize();
     let bestScore = -Infinity;
     const dir = f.clone();
-    // Preferuj pevninu blízko požadovaného směru (stejná hemisféra).
+    // Drž pevninu u spawnového slotu — ať se hráči nerozjíždí na stejný kontinent.
     for (let i = 0; i < pos.count; i++) {
       v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
       const len = v.length();
@@ -263,30 +263,17 @@ export class Terrain {
       const ny = v.y / len;
       const nz = v.z / len;
       const align = nx * f.x + ny * f.y + nz * f.z;
-      if (align < 0.35) continue;
+      if (align < 0.72) continue;
       const elev = len - CONFIG.waterLevel;
-      const score = align * 2 + Math.min(elev, 3) * 0.05;
+      const score = align * 3 + Math.min(elev, 4) * 0.04;
       if (score > bestScore) {
         bestScore = score;
         dir.set(nx, ny, nz);
       }
     }
     if (bestScore > -Infinity) return dir;
-    // Žádná pevnina u slotu — vezmi nejbližší pevninu vůbec.
-    for (let i = 0; i < pos.count; i++) {
-      v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
-      const len = v.length();
-      if (len < CONFIG.waterLevel + 0.35) continue;
-      const nx = v.x / len;
-      const ny = v.y / len;
-      const nz = v.z / len;
-      const score = nx * f.x + ny * f.y + nz * f.z;
-      if (score > bestScore) {
-        bestScore = score;
-        dir.set(nx, ny, nz);
-      }
-    }
-    return dir;
+    // Žádná pevnina ve slotu — zůstaň ve směru slotu (i nad vodou).
+    return f;
   }
 
   #sculpt() {

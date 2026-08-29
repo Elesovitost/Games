@@ -10,7 +10,7 @@ export const CONFIG = {
   wizardR: 0.16,
   wizardHeight: 0.82,
   wizardSpeed: 0.038,
-  rotSpeed: 0.12,
+  rotSpeed: 0.18,
   spellRadius: 8,
   swampRadius: 2,
   lavaRadius: 2.6,

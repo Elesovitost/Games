@@ -19,10 +19,11 @@ function roomPublic(room) {
     code: room.code,
     hostId: room.hostId,
     phase: room.phase,
-    players: [...room.players.values()].map((p) => ({
+    players: [...room.players.values()].map((p, i) => ({
       id: p.id,
       name: p.name,
-      color: p.color
+      color: p.color,
+      spawn: i
     }))
   };
 }
@@ -174,7 +175,15 @@ export class LocalRelayHost {
       room.phase = "playing";
       room.seed = (Math.random() * 0xffffffff) >>> 0;
       room.seq = 0;
-      this.#broadcast(room, { type: "started", seed: room.seed, room: roomPublic(room) });
+      const publicRoom = roomPublic(room);
+      for (const id of room.players.keys()) {
+        this.#reply(id, {
+          type: "started",
+          seed: room.seed,
+          room: publicRoom,
+          you: id
+        });
+      }
       return;
     }
 

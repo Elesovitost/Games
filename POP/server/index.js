@@ -32,10 +32,11 @@ function roomPublic(room) {
     code: room.code,
     hostId: room.hostId,
     phase: room.phase,
-    players: [...room.players.values()].map((p) => ({
+    players: [...room.players.values()].map((p, i) => ({
       id: p.id,
       name: p.name,
-      color: p.color
+      color: p.color,
+      spawn: i
     }))
   };
 }
@@ -176,12 +177,15 @@ wss.on("connection", (ws) => {
       room.phase = "playing";
       room.seed = (Math.random() * 0xffffffff) >>> 0;
       room.seq = 0;
-      const payload = {
-        type: "started",
-        seed: room.seed,
-        room: roomPublic(room)
-      };
-      broadcast(room, payload);
+      const publicRoom = roomPublic(room);
+      for (const p of room.players.values()) {
+        send(p.ws, {
+          type: "started",
+          seed: room.seed,
+          room: publicRoom,
+          you: p.id
+        });
+      }
       return;
     }
 

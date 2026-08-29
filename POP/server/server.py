@@ -34,14 +34,21 @@ async def send(ws, msg: dict) -> None:
 
 
 def room_public(room: dict) -> dict:
+    players = []
+    for i, p in enumerate(room["players"].values()):
+        players.append(
+            {
+                "id": p["id"],
+                "name": p["name"],
+                "color": p["color"],
+                "spawn": i,
+            }
+        )
     return {
         "code": room["code"],
         "hostId": room["hostId"],
         "phase": room["phase"],
-        "players": [
-            {"id": p["id"], "name": p["name"], "color": p["color"]}
-            for p in room["players"].values()
-        ],
+        "players": players,
     }
 
 
@@ -185,10 +192,17 @@ async def handler(ws) -> None:
                 room["phase"] = "playing"
                 room["seed"] = random.randint(0, 0xFFFFFFFF)
                 room["seq"] = 0
-                await broadcast(
-                    room,
-                    {"type": "started", "seed": room["seed"], "room": room_public(room)},
-                )
+                public = room_public(room)
+                for p in room["players"].values():
+                    await send(
+                        p["ws"],
+                        {
+                            "type": "started",
+                            "seed": room["seed"],
+                            "room": public,
+                            "you": p["id"],
+                        },
+                    )
                 continue
 
             if mtype == "intent":

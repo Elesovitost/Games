@@ -1,6 +1,7 @@
 import * as THREE from "./three.js";
-import { SPELLS } from "./spells.js";
+import { SPELLS, inSpellRange, spellRange } from "./spells.js";
 import { tangentFrame, tmp } from "./utils.js";
+import { CONFIG } from "./config.js";
 import { createSurfaceRingMesh, drapeRing, sampleGround } from "./surface.js";
 
 function makeGlowDot(color, size = 0.14) {
@@ -59,31 +60,39 @@ export class Pointer {
     this.east = new THREE.Vector3();
     this.north = new THREE.Vector3();
     this.hasHit = false;
+    this.inRange = true;
 
     this.hover = makeGlowDot(0xffe08a, 0.16);
     this.walkMark = makeGlowDot(0x7ec8ff, 0.2);
     this.reticle = this.#createReticle();
+    this.rangeRing = this.#createRangeRing();
     game.planetGroup.add(this.hover);
     game.planetGroup.add(this.walkMark);
     game.planetGroup.add(this.reticle);
+    game.planetGroup.add(this.rangeRing);
     this.hover.visible = false;
     this.walkMark.visible = false;
     this.reticle.visible = false;
+    this.rangeRing.visible = false;
 
     window.addEventListener("pointermove", (e) => {
       this.clientX = e.clientX;
       this.clientY = e.clientY;
-      this.overUi = !!e.target.closest("#ui, #toast");
+      this.overUi = !!e.target.closest("#ui, #mp-panel, #toast");
       this.#placeHand();
     });
-    document.getElementById("ui")?.addEventListener("pointerenter", () => {
-      this.overUi = true;
-      this.#placeHand();
-    });
-    document.getElementById("ui")?.addEventListener("pointerleave", () => {
-      this.overUi = false;
-      this.#placeHand();
-    });
+    for (const id of ["ui", "mp-panel"]) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.addEventListener("pointerenter", () => {
+        this.overUi = true;
+        this.#placeHand();
+      });
+      el.addEventListener("pointerleave", () => {
+        this.overUi = false;
+        this.#placeHand();
+      });
+    }
   }
 
   #createReticle() {
@@ -123,6 +132,22 @@ export class Pointer {
     g.renderOrder = 8;
     g.raycast = () => {};
     return g;
+  }
+
+  #createRangeRing() {
+    const mesh = createSurfaceRingMesh(
+      new THREE.MeshBasicMaterial({
+        color: 0xffe29a,
+        transparent: true,
+        opacity: 0.7,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        fog: false
+      }),
+      96
+    );
+    mesh.renderOrder = 5;
+    return mesh;
   }
 
   #placeHand() {
@@ -200,14 +225,49 @@ export class Pointer {
     drapeRing(this.reticle.userData.outer.geometry, terrain, this.up, this.east, this.north, 0.55 * pulse, 0.78 * pulse, 0.08);
     drapeRing(this.reticle.userData.mid.geometry, terrain, this.up, this.east, this.north, 0.32 * pulse, 0.45 * pulse, 0.09);
     drapeRing(this.reticle.userData.inner.geometry, terrain, this.up, this.east, this.north, 0.05 * breath, 0.16 * breath, 0.1);
-    this.reticle.userData.outer.material.opacity = 0.45 + Math.sin(elapsed * 5.5) * 0.35;
-    this.reticle.userData.mid.material.opacity = 0.35 + Math.sin(elapsed * 5.5 + 1) * 0.25;
+    const base = this.inRange ? 0.45 : 0.22;
+    this.reticle.userData.outer.material.opacity = base + Math.sin(elapsed * 5.5) * 0.35;
+    this.reticle.userData.mid.material.opacity = (this.inRange ? 0.35 : 0.15) + Math.sin(elapsed * 5.5 + 1) * 0.25;
     const spin = elapsed * 0.6;
     for (const bar of this.reticle.userData.cross) {
       const a = bar.userData.ang + spin;
       sampleGround(terrain, this.up, this.east, this.north, Math.cos(a) * 0.95 * pulse, Math.sin(a) * 0.95 * pulse, 0.1, tmp.center);
       bar.position.copy(tmp.center);
+      bar.material.opacity = this.inRange ? 0.9 : 0.35;
     }
+  }
+
+  #placeRangeRing(spellId, elapsed) {
+    const wizard = this.game.wizard;
+    if (!wizard) {
+      this.rangeRing.visible = false;
+      return;
+    }
+    const spell = SPELLS[spellId];
+    const range = spellRange(spellId);
+    this.up.copy(wizard.dir).normalize();
+    tangentFrame(this.up, this.east, this.north);
+    const h = this.game.terrain.height(this.up);
+    // Stejné jednotky jako surfaceDistance: oblouk ≈ range → tečný poloměr.
+    const ang = Math.min(range / Math.max(h, 1), Math.PI * 0.45);
+    const r = CONFIG.planetR * Math.tan(ang);
+    const pulse = 1 + Math.sin(elapsed * 2.4) * 0.01;
+    const rr = r * pulse;
+    const half = Math.max(0.08, rr * 0.006);
+    drapeRing(
+      this.rangeRing.geometry,
+      this.game.terrain,
+      this.up,
+      this.east,
+      this.north,
+      rr - half,
+      rr + half,
+      0.14
+    );
+    const col = spell?.color ?? 0xffe29a;
+    this.rangeRing.material.color.setHex(col);
+    this.rangeRing.material.opacity = 0.55 + Math.sin(elapsed * 2.4) * 0.15;
+    this.rangeRing.visible = true;
   }
 
   setWalkTarget(localPos) {
@@ -235,17 +295,22 @@ export class Pointer {
 
     if (spell) {
       this.hover.visible = false;
+      this.#placeRangeRing(spell, elapsed);
       if (!hit) {
         this.reticle.visible = false;
         return;
       }
       const spellDef = SPELLS[spell];
-      if (spellDef) this.#setReticleColor(spellDef.color);
+      this.inRange = inSpellRange(this.game, this.game.wizard, hit, spell);
+      if (spellDef) {
+        this.#setReticleColor(this.inRange ? spellDef.color : 0x884444);
+      }
       this.#placeReticle(hit, elapsed);
       this.reticle.visible = true;
       return;
     }
 
+    this.rangeRing.visible = false;
     this.reticle.visible = false;
     if (!hit) {
       this.hover.visible = false;
