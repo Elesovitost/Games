@@ -223,7 +223,9 @@ export class Pointer {
   update(elapsed) {
     this.#placeHand();
 
-    if (this.walkMark.visible && !this.game.wizard.move.active) this.clearWalkTarget();
+    if (this.walkMark.visible && this.game.wizard && !this.game.wizard.move.active) {
+      this.clearWalkTarget();
+    }
     if (this.walkMark.visible && this.walkMark.userData.anchor) {
       this.#placeDot(this.walkMark, this.walkMark.userData.anchor, 0.07, elapsed, 3.4, 0.12);
     }

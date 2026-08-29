@@ -94,10 +94,10 @@ class Game {
   }
 
   beginMatch({ seed, players, localId }) {
+    this.planetGroup.rotation.set(0, 0, 0);
     this.#resetWorld(seed);
     this.#spawnWizards(players, localId);
     this.inputEnabled = true;
-    this.planetGroup.rotation.set(0, 0, 0);
     this.ui.setSpell(null);
     this.ui.toast("Hra začíná · " + players.length + " hráčů");
   }
@@ -120,7 +120,9 @@ class Game {
 
   #spawnWizards(players, localId) {
     this.#clearWizards();
-    players.forEach((p, i) => {
+    // Stejné pořadí na všech klientech → stejné startovní sloty.
+    const ordered = [...players].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    ordered.forEach((p, i) => {
       const focusArr = CONFIG.spawnFocus[i % CONFIG.spawnFocus.length];
       const w = new Wizard(this, {
         id: p.id,
@@ -130,7 +132,9 @@ class Game {
       });
       this.wizards.set(p.id, w);
     });
-    this.wizard = this.wizards.get(localId) || this.wizards.values().next().value;
+    this.wizard = this.wizards.get(localId) || this.wizards.get(ordered[0]?.id) || null;
+    // Každý hráč kouká na svého čaroděje.
+    if (this.wizard) placeCamera(this.camera, this.wizard.dir);
   }
 
   start() {
@@ -165,6 +169,7 @@ class Game {
         castSpell(this, this.currentSpell, hit.local);
       } else {
         if (this.session.requestWalk(hit.local)) return;
+        if (!this.wizard) return;
         const ok = this.wizard.walkTo(hit.local, () => this.ui.toast("Čaroděj umí chodit jen po pevnině."));
         if (ok) this.pointerUi.setWalkTarget(hit.local);
       }

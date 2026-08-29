@@ -251,8 +251,10 @@ export class Terrain {
   pickStartDir(focus) {
     const v = tmp.v;
     const pos = this.geometry.attributes.position;
+    const f = focus.clone().normalize();
     let bestScore = -Infinity;
-    const dir = new THREE.Vector3(0, 0.35, 1);
+    const dir = f.clone();
+    // Preferuj pevninu blízko požadovaného směru (stejná hemisféra).
     for (let i = 0; i < pos.count; i++) {
       v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
       const len = v.length();
@@ -260,7 +262,25 @@ export class Terrain {
       const nx = v.x / len;
       const ny = v.y / len;
       const nz = v.z / len;
-      const score = nx * focus.x + ny * focus.y + nz * focus.z;
+      const align = nx * f.x + ny * f.y + nz * f.z;
+      if (align < 0.35) continue;
+      const elev = len - CONFIG.waterLevel;
+      const score = align * 2 + Math.min(elev, 3) * 0.05;
+      if (score > bestScore) {
+        bestScore = score;
+        dir.set(nx, ny, nz);
+      }
+    }
+    if (bestScore > -Infinity) return dir;
+    // Žádná pevnina u slotu — vezmi nejbližší pevninu vůbec.
+    for (let i = 0; i < pos.count; i++) {
+      v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+      const len = v.length();
+      if (len < CONFIG.waterLevel + 0.35) continue;
+      const nx = v.x / len;
+      const ny = v.y / len;
+      const nz = v.z / len;
+      const score = nx * f.x + ny * f.y + nz * f.z;
       if (score > bestScore) {
         bestScore = score;
         dir.set(nx, ny, nz);

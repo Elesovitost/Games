@@ -291,10 +291,15 @@ export function createSun(world) {
   return sun;
 }
 
-export function placeCamera(camera) {
-  const up = new THREE.Vector3(...CONFIG.focusDir).normalize();
+/** @param {THREE.Camera} camera @param {THREE.Vector3|[number,number,number]=} focusDir */
+export function placeCamera(camera, focusDir) {
+  const up = focusDir?.isVector3
+    ? focusDir.clone().normalize()
+    : new THREE.Vector3(...(focusDir || CONFIG.focusDir)).normalize();
   const focus = up.clone().multiplyScalar(CONFIG.planetR);
-  const east = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), up).normalize();
+  let east = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), up);
+  if (east.lengthSq() < 1e-8) east.set(1, 0, 0).cross(up);
+  east.normalize();
   const north = new THREE.Vector3().crossVectors(up, east).normalize();
   camera.position.copy(focus)
     .addScaledVector(up, CONFIG.camHeight)
