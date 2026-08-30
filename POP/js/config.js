@@ -45,5 +45,6 @@ export const CONFIG = {
   waterColor: [0.05, 0.18, 0.52],
   sandColor: [0.9, 0.76, 0.46],
   swampColor: [0.22, 0.08, 0.16],
+  netPort: 2567,
   defaultMapSeed: 20260829
 };

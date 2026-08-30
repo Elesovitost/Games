@@ -210,7 +210,8 @@ export function strikeLightning(sys, targetDir) {
     dir,
     SPELLS.lightning.damageRadius,
     SPELLS.lightning.damageCenter,
-    SPELLS.lightning.damageEdge
+    SPELLS.lightning.damageEdge,
+    sys._castOwnerId
   );
 }
 

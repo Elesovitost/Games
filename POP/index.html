@@ -16,6 +16,10 @@
   <canvas id="c"></canvas>
   <aside id="ui">
     <h1>Populous</h1>
+    <div class="play-modes" role="tablist" aria-label="Režim">
+      <button type="button" data-play-mode="1p" class="active">1P</button>
+      <button type="button" data-play-mode="mp">MP</button>
+    </div>
     <p class="hint" id="spell-hint">Vyber kouzlo, nebo klikni na pevninu pro chůzi.</p>
     <div id="spells" class="spells" role="toolbar" aria-label="Kouzla">
       <button type="button" class="spell" data-spell="elevate" title="Elevace">
@@ -41,6 +45,46 @@
     </div>
     <p class="hint muted">WASD · šipky · Esc zruší kouzlo</p>
   </aside>
+
+  <aside id="mp-panel" class="hidden" aria-label="Multiplayer">
+    <button type="button" id="mp-close" class="mp-close" aria-label="Zavřít">×</button>
+    <h2>Multiplayer</h2>
+    <p class="mp-hint">Host spustí <code>start-mp.bat</code> (port 2567), založí hru a pošle IP + kód.</p>
+
+    <label class="field">
+      <span>Jméno</span>
+      <input id="lobby-name" type="text" maxlength="18" autocomplete="nickname" />
+    </label>
+    <div class="field">
+      <span>Barva</span>
+      <div id="lobby-colors" class="color-swatches"></div>
+    </div>
+
+    <div class="lobby-actions">
+      <button type="button" id="lobby-create">Založit hru (host)</button>
+    </div>
+
+    <label class="field">
+      <span>IP hostitele</span>
+      <input id="lobby-host" type="text" maxlength="64" placeholder="192.168.1.10" autocomplete="off" />
+    </label>
+    <label class="field">
+      <span>Kód místnosti (volitelné)</span>
+      <input id="lobby-join-code" type="text" maxlength="8" placeholder="auto = jediná lobby" autocomplete="off" />
+    </label>
+    <div class="lobby-actions">
+      <button type="button" id="lobby-join">Připojit se</button>
+    </div>
+
+    <div class="lobby-room">
+      <div>Místnost: <strong id="lobby-code">—</strong></div>
+      <ul id="lobby-roster"></ul>
+      <p id="lobby-status" class="lobby-status"></p>
+      <button type="button" id="lobby-start" class="hidden" disabled>Spustit hru</button>
+      <button type="button" id="lobby-leave" class="ghost">Opustit</button>
+    </div>
+  </aside>
+
   <div id="health" aria-label="Zdraví">
     <span class="health-label">HP</span>
     <div class="health-track">

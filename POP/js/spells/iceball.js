@@ -53,7 +53,8 @@ export function launchIceball(sys, targetDir) {
     maxTravel: SPELLS.iceball.travel,
     life: 12,
     roll: 0,
-    hitWizard: false
+    hitWizard: false,
+    ownerId: sys.wizard?.id ?? null
   });
 }
 
@@ -74,11 +75,17 @@ export function updateIceball(sys, p, dt) {
   p.ball.position.copy(p.dir).multiplyScalar(h + p.radius);
   p.traveled += step;
 
-  if (!p.hitWizard && p.traveled > 2.5 && sys.wizard && !sys.wizard.dead) {
+  if (!p.hitWizard && p.traveled > 2.5) {
     const touchR = p.radius + 0.45;
-    if (surfaceDist(p.dir, sys.wizard.dir) <= touchR) {
-      p.hitWizard = true;
-      sys.wizard.takeDamage(SPELLS.iceball.contactDamage);
+    const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
+    for (const w of list) {
+      if (!w || w.dead) continue;
+      if (p.ownerId && w.id === p.ownerId) continue;
+      if (surfaceDist(p.dir, w.dir) <= touchR) {
+        p.hitWizard = true;
+        w.takeDamage(SPELLS.iceball.contactDamage);
+        break;
+      }
     }
   }
 

@@ -9,10 +9,12 @@ import { launchIceball as doLaunchIceball, updateIceball } from "./iceball.js";
 import { strikeLightning as doStrikeLightning, updateBolts } from "./lightning.js";
 
 export class SpellSystem {
-  constructor(planetGroup, terrain, wizard) {
+  constructor(planetGroup, terrain, wizard, getWizards = null) {
     this.planetGroup = planetGroup;
     this.terrain = terrain;
     this.wizard = wizard;
+    this.getWizards = getWizards || (() => (wizard ? [wizard] : []));
+    this._castOwnerId = wizard?.id ?? null;
     this.rangeRing = new RangeRing(planetGroup, terrain);
     this.aim = new AimReticle(planetGroup, terrain);
     this.spirals = [];
@@ -108,6 +110,48 @@ export class SpellSystem {
 
   launchIceball(targetDir) {
     doLaunchIceball(this, targetDir);
+  }
+
+  /** Provede efekt jako daný caster (MP remote). */
+  castAs(wizard, spellId, targetDir, onDone = null) {
+    if (!wizard || wizard.dead) return;
+    const def = SPELLS[spellId];
+    if (!def) return;
+    const prev = this.wizard;
+    const prevOwner = this._castOwnerId;
+    this.wizard = wizard;
+    this._castOwnerId = wizard.id;
+    const target = targetDir.clone().normalize();
+    const spiral = this.startSpiral(target, spellId);
+
+    const finishFx = () => {
+      this.clearSpiral(spiral);
+      if (spellId === "lightning") this.strikeLightning(target);
+      else if (spellId === "fireball") this.launchFireball(target);
+      else if (spellId === "iceball") this.launchIceball(target);
+      this.wizard = prev;
+      this._castOwnerId = prevOwner;
+      onDone?.();
+    };
+
+    if (spellId === "elevate" || spellId === "depress") {
+      const sign = spellId === "elevate" ? 1 : -1;
+      if (!this.terrain.beginMorph(target, sign)) {
+        this.clearSpiral(spiral);
+        this.wizard = prev;
+        this._castOwnerId = prevOwner;
+        return;
+      }
+      wizard.startCast(target, def.castTime, () => {
+        this.clearSpiral(spiral);
+        this.wizard = prev;
+        this._castOwnerId = prevOwner;
+        onDone?.();
+      });
+      return;
+    }
+
+    wizard.startCast(target, def.castTime, finishFx);
   }
 
   #updateProjectiles(dt) {

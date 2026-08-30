@@ -240,3 +240,151 @@ html, body {
   font-size: 0.9rem;
   color: var(--ink);
 }
+
+.play-modes {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.play-modes button {
+  flex: 1;
+  font: inherit;
+  padding: 6px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--gold-dim);
+  color: var(--ink);
+}
+.play-modes button.active {
+  border-color: var(--gold);
+  background: rgba(212, 180, 106, 0.18);
+}
+
+#mp-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 280px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--gold-dim);
+  z-index: 20;
+  cursor: default;
+}
+#mp-panel.hidden { display: none; }
+#mp-panel h2 {
+  color: var(--gold);
+  font-weight: normal;
+  font-size: 1.15rem;
+  margin-bottom: 8px;
+}
+.mp-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--ink);
+  font-size: 1.4rem;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.mp-hint {
+  font-size: 0.8rem;
+  opacity: 0.75;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+.mp-hint code {
+  color: var(--gold);
+  font-size: 0.85em;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+}
+.field input {
+  font: inherit;
+  padding: 7px 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--gold-dim);
+  color: var(--ink);
+}
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.color-swatch.active {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px var(--gold);
+}
+.lobby-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.lobby-actions button,
+#lobby-start,
+#lobby-leave {
+  font: inherit;
+  padding: 8px 10px;
+  cursor: pointer;
+  background: rgba(212, 180, 106, 0.15);
+  border: 1px solid var(--gold-dim);
+  color: var(--ink);
+  width: 100%;
+}
+.lobby-actions button:hover,
+#lobby-start:hover {
+  border-color: var(--gold);
+}
+#lobby-leave.ghost {
+  background: transparent;
+  margin-top: 8px;
+  opacity: 0.8;
+}
+.lobby-room {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(212, 180, 106, 0.25);
+  font-size: 0.88rem;
+}
+#lobby-roster {
+  list-style: none;
+  margin: 8px 0;
+}
+#lobby-roster li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.roster-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.lobby-status {
+  opacity: 0.8;
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+  min-height: 1.2em;
+}
+#lobby-start.hidden { display: none; }
+#lobby-start:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+

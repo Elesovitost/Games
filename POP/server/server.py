@@ -148,9 +148,24 @@ async def handler(ws) -> None:
 
             if mtype == "join":
                 code = str(msg.get("code") or "").upper().strip()
-                room = rooms.get(code)
+                room = rooms.get(code) if code else None
+                if not room and not code:
+                    for r in rooms.values():
+                        if r["phase"] == "lobby":
+                            room = r
+                            break
                 if not room:
-                    await send(ws, {"type": "error", "message": "Místnost neexistuje."})
+                    await send(
+                        ws,
+                        {
+                            "type": "error",
+                            "message": (
+                                "Místnost neexistuje."
+                                if code
+                                else "Žádná otevřená lobby. Host musí nejdřív založit hru."
+                            ),
+                        },
+                    )
                     continue
                 if room["phase"] != "lobby":
                     await send(ws, {"type": "error", "message": "Hra už běží."})
@@ -169,7 +184,7 @@ async def handler(ws) -> None:
                     "color": color,
                     "ws": ws,
                 }
-                meta["roomCode"] = code
+                meta["roomCode"] = room["code"]
                 await broadcast(room, {"type": "room", "room": room_public(room)})
                 continue
 

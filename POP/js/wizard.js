@@ -24,9 +24,11 @@ function box(w, h, d, color, x, y, z) {
 }
 
 /** Minecraft-style blokový kouzelník (lokální Y = nahoru od povrchu, +Z = obličej). */
-export function createWizardMesh() {
+export function createWizardMesh(robeColor = ROBE) {
   const root = new THREE.Group();
   const body = new THREE.Group();
+  const robe = Number(robeColor) || ROBE;
+  const robeDark = new THREE.Color(robe).multiplyScalar(0.55).getHex();
 
   const leftLeg = new THREE.Group();
   leftLeg.position.set(-0.18, 0.7, 0);
@@ -38,26 +40,26 @@ export function createWizardMesh() {
   rightLeg.add(box(0.28, 0.55, 0.28, PANTS, 0, -0.275, 0));
   rightLeg.add(box(0.3, 0.18, 0.32, BOOTS, 0, -0.62, 0.02));
 
-  body.add(box(0.58, 0.72, 0.36, ROBE, 0, 1.05, 0));
-  body.add(box(0.62, 0.22, 0.4, ROBE_DARK, 0, 1.42, 0));
-  body.add(box(0.7, 0.55, 0.12, ROBE_DARK, 0, 1.0, -0.22));
+  body.add(box(0.58, 0.72, 0.36, robe, 0, 1.05, 0));
+  body.add(box(0.62, 0.22, 0.4, robeDark, 0, 1.42, 0));
+  body.add(box(0.7, 0.55, 0.12, robeDark, 0, 1.0, -0.22));
 
   body.add(box(0.48, 0.48, 0.48, SKIN, 0, 1.7, 0));
 
-  body.add(box(0.72, 0.1, 0.72, HAT, 0, 1.98, 0));
+  body.add(box(0.72, 0.1, 0.72, robeDark, 0, 1.98, 0));
   body.add(box(0.5, 0.12, 0.5, HAT_BAND, 0, 2.08, 0));
-  body.add(box(0.36, 0.28, 0.36, HAT, 0, 2.28, 0));
-  body.add(box(0.22, 0.28, 0.22, HAT, 0, 2.52, 0));
-  body.add(box(0.12, 0.22, 0.12, HAT, 0, 2.72, 0));
+  body.add(box(0.36, 0.28, 0.36, robeDark, 0, 2.28, 0));
+  body.add(box(0.22, 0.28, 0.22, robeDark, 0, 2.52, 0));
+  body.add(box(0.12, 0.22, 0.12, robeDark, 0, 2.72, 0));
 
   const leftArm = new THREE.Group();
   leftArm.position.set(-0.42, 1.35, 0);
-  leftArm.add(box(0.22, 0.55, 0.22, ROBE, 0, -0.22, 0));
+  leftArm.add(box(0.22, 0.55, 0.22, robe, 0, -0.22, 0));
   leftArm.add(box(0.2, 0.16, 0.2, SKIN, 0, -0.52, 0));
 
   const rightArm = new THREE.Group();
   rightArm.position.set(0.42, 1.35, 0);
-  rightArm.add(box(0.22, 0.55, 0.22, ROBE, 0, -0.22, 0));
+  rightArm.add(box(0.22, 0.55, 0.22, robe, 0, -0.22, 0));
   rightArm.add(box(0.2, 0.16, 0.2, SKIN, 0, -0.52, 0));
 
   const staffPivot = new THREE.Group();
@@ -195,12 +197,16 @@ class MoveMarker {
 }
 
 export class Wizard {
-  constructor(planetGroup, terrain, spawnDir) {
+  constructor(planetGroup, terrain, spawnDir, opts = {}) {
     this.planetGroup = planetGroup;
     this.terrain = terrain;
-    this.mesh = createWizardMesh();
+    this.id = opts.id || "local";
+    this.name = opts.name || "Čaroděj";
+    this.color = Number(opts.color) || ROBE;
+    this.remote = !!opts.remote;
+    this.mesh = createWizardMesh(this.color);
     this.planetGroup.add(this.mesh);
-    this.marker = new MoveMarker(planetGroup, terrain);
+    this.marker = this.remote ? null : new MoveMarker(planetGroup, terrain);
 
     this.dir = new THREE.Vector3().fromArray(spawnDir).normalize();
     this.facing = new THREE.Vector3();
@@ -235,7 +241,42 @@ export class Wizard {
     tangentFrame(this.dir, tmp.east, tmp.north);
     this.facing.copy(tmp.north);
     this.#applyPose();
-    this.#syncHealthUi();
+    if (!this.remote) this.#syncHealthUi();
+  }
+
+  dispose() {
+    this.planetGroup.remove(this.mesh);
+    this.mesh.traverse((ch) => {
+      ch.geometry?.dispose();
+      if (ch.material) {
+        if (Array.isArray(ch.material)) ch.material.forEach((m) => m.dispose());
+        else ch.material.dispose();
+      }
+    });
+    if (this.marker) {
+      this.planetGroup.remove(this.marker.group);
+      this.marker.core.geometry.dispose();
+      this.marker.mat.dispose();
+    }
+    if (this.ghost) {
+      this.planetGroup.remove(this.ghost);
+      for (const m of this._ghostMats) m.dispose();
+    }
+  }
+
+  /** Vzdálený hráč — snap / hladká pozice ze sítě. */
+  applyNetPose(dirArr, facingArr, flags = {}) {
+    if (!this.remote) return;
+    this.dir.set(dirArr[0], dirArr[1], dirArr[2]).normalize();
+    if (facingArr) {
+      this.facing.set(facingArr[0], facingArr[1], facingArr[2]);
+    }
+    this.moving = !!flags.moving;
+    if (typeof flags.hp === "number" && !this.dead) {
+      this.hp = flags.hp;
+    }
+    this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
+    this.#applyPose();
   }
 
   get isBusy() {
@@ -250,6 +291,7 @@ export class Wizard {
   }
 
   #syncHealthUi() {
+    if (this.remote) return;
     const fill = document.getElementById("health-fill");
     const text = document.getElementById("health-text");
     const pct = (this.hp / this.maxHp) * 100;
@@ -317,7 +359,7 @@ export class Wizard {
 
   #clearTarget() {
     this.hasTarget = false;
-    this.marker.hide();
+    this.marker?.hide();
   }
 
   setDestination(localPoint) {
@@ -326,7 +368,7 @@ export class Wizard {
     if (!this.#isWalkable(this._trial)) return false;
     this.targetDir.copy(this._trial);
     this.hasTarget = true;
-    this.marker.show(this.targetDir);
+    this.marker?.show(this.targetDir);
     return true;
   }
 
@@ -425,11 +467,19 @@ export class Wizard {
   }
 
   update(dt, keys, camRight) {
+    if (this.remote) {
+      this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
+      this.#applyPose();
+      this.#animate(dt);
+      if (this.dead) this.#updateGhost(dt);
+      return;
+    }
+
     if (this.dead) {
       this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
       this.#applyPose();
       this.#updateGhost(dt);
-      this.marker.update(dt);
+      this.marker?.update(dt);
       return;
     }
 
@@ -496,7 +546,7 @@ export class Wizard {
 
     this.#applyPose();
     this.#animate(dt);
-    this.marker.update(dt);
+    this.marker?.update(dt);
   }
 
   #updateGhost(dt) {

@@ -9,6 +9,8 @@ import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
 import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./visibility.js";
 import { tmp } from "./utils.js";
+import { MultiplayerSession } from "./net/session.js";
+import { LobbyUI } from "./net/lobby.js";
 
 class Game {
   constructor() {
@@ -20,6 +22,8 @@ class Game {
     this._hitLocal = new THREE.Vector3();
     this.selectedSpell = null;
     this._shoreRefreshAt = 0;
+    this.wizards = new Map();
+    this.inputEnabled = true;
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
@@ -47,15 +51,21 @@ class Game {
     this.water = new Water(this.planetGroup, this.terrain);
     this.sky = new Sky(this.planetGroup);
 
-    // 4 pevné spawny (tetraedr) — vždy stejné, maximálně od sebe
     this.landSpawns = resolveLandSpawns(this.terrain, SPAWN_SEEDS);
     this.spawnMarkers = new SpawnMarkers(this.planetGroup, this.terrain, this.landSpawns);
-    const start = pickRandomSpawn(this.landSpawns);
 
-    this.wizard = new Wizard(this.planetGroup, this.terrain, start);
-    this.spells = new SpellSystem(this.planetGroup, this.terrain, this.wizard);
+    this.wizard = null;
+    this.spells = new SpellSystem(
+      this.planetGroup,
+      this.terrain,
+      null,
+      () => [...this.wizards.values()]
+    );
 
-    placeCamera(this.camera, start);
+    this.session = new MultiplayerSession(this);
+    this.lobby = new LobbyUI(this, this.session);
+
+    this.enterSolo();
 
     this.camRight = new THREE.Vector3();
     this.camUp = new THREE.Vector3();
@@ -66,6 +76,83 @@ class Game {
     window.addEventListener("resize", () => this.#applyRendererSize());
     this.#hideLoader();
     this.#loop();
+  }
+
+  #clearWizards() {
+    for (const w of this.wizards.values()) w.dispose();
+    this.wizards.clear();
+    this.wizard = null;
+    this.spells.wizard = null;
+  }
+
+  enterSolo() {
+    this.inputEnabled = true;
+    this.planetGroup.rotation.set(0, 0, 0);
+    this.#clearWizards();
+    const start = pickRandomSpawn(this.landSpawns);
+    const w = new Wizard(this.planetGroup, this.terrain, start, {
+      id: "local",
+      name: "Ty",
+      color: 0x4a2d7a
+    });
+    this.wizards.set(w.id, w);
+    this.wizard = w;
+    this.spells.wizard = w;
+    this.spells._castOwnerId = w.id;
+    placeCamera(this.camera, start);
+    this.#selectSpell(null);
+  }
+
+  beginMatch({ players, localId }) {
+    this.inputEnabled = true;
+    this.planetGroup.rotation.set(0, 0, 0);
+    this.#clearWizards();
+
+    const list = Array.isArray(players) ? players : [];
+    for (const p of list) {
+      const slot = Number.isInteger(p.spawn) ? p.spawn % this.landSpawns.length : 0;
+      const spawn = this.landSpawns[slot];
+      const isLocal = String(p.id) === String(localId);
+      const w = new Wizard(this.planetGroup, this.terrain, spawn, {
+        id: String(p.id),
+        name: p.name,
+        color: p.color,
+        remote: !isLocal
+      });
+      this.wizards.set(w.id, w);
+      if (isLocal) {
+        this.wizard = w;
+        this.spells.wizard = w;
+        this.spells._castOwnerId = w.id;
+        placeCamera(this.camera, spawn);
+      }
+    }
+    this.#selectSpell(null);
+    this.lobby?.hide();
+  }
+
+  applyRemoteIntent(fromId, intent) {
+    if (!intent || !intent.kind) return;
+    const w = this.wizards.get(String(fromId));
+    if (!w) return;
+
+    if (intent.kind === "pose") {
+      w.applyNetPose(intent.dir, intent.facing, intent);
+      return;
+    }
+    if (intent.kind === "walk") {
+      const dir = new THREE.Vector3(intent.dir[0], intent.dir[1], intent.dir[2]);
+      w.setDestination(dir);
+      return;
+    }
+    if (intent.kind === "cast") {
+      const target = new THREE.Vector3(
+        intent.target[0],
+        intent.target[1],
+        intent.target[2]
+      );
+      this.spells.castAs(w, intent.spell, target);
+    }
   }
 
   #pixelRatio() {
@@ -97,7 +184,7 @@ class Game {
       if (!btn) return;
       e.preventDefault();
       e.stopPropagation();
-      if (this.wizard.isBusy) return;
+      if (!this.inputEnabled || !this.wizard || this.wizard.isBusy) return;
       const id = btn.getAttribute("data-spell");
       if (this.selectedSpell === id) this.#selectSpell(null);
       else this.#selectSpell(id);
@@ -116,7 +203,7 @@ class Game {
         ? def.hint
         : "Vyber kouzlo, nebo klikni na pevninu pro chůzi.";
     }
-    if (def) this.spells.showRange(id);
+    if (def && this.wizard) this.spells.showRange(id);
     else this.spells.hideRange();
   }
 
@@ -132,7 +219,7 @@ class Game {
         e.preventDefault();
         return;
       }
-      if (!track(e.code)) return;
+      if (!this.inputEnabled || !track(e.code)) return;
       this.keys[e.code] = true;
       e.preventDefault();
     });
@@ -159,7 +246,7 @@ class Game {
   }
 
   #onPointerMove(e) {
-    if (!this.selectedSpell || this.wizard.isBusy) return;
+    if (!this.inputEnabled || !this.selectedSpell || !this.wizard || this.wizard.isBusy) return;
     const hit = this.#pickTerrain(e);
     if (hit) this.spells.updateAim(hit);
     else this.spells.aim.hide();
@@ -167,8 +254,8 @@ class Game {
 
   #onPointerDown(e) {
     if (e.button !== 0) return;
-    if (e.target.closest?.("#ui")) return;
-    if (this.wizard.isBusy) return;
+    if (e.target.closest?.("#ui") || e.target.closest?.("#mp-panel")) return;
+    if (!this.inputEnabled || !this.wizard || this.wizard.isBusy) return;
 
     const hit = this.#pickTerrain(e);
     if (!hit) return;
@@ -178,11 +265,16 @@ class Game {
       return;
     }
 
-    this.wizard.setDestination(hit);
+    if (this.wizard.setDestination(hit)) {
+      this.session.sendIntent({
+        kind: "walk",
+        dir: [this.wizard.targetDir.x, this.wizard.targetDir.y, this.wizard.targetDir.z]
+      });
+    }
   }
 
   #castSpell(spellId, localPoint) {
-    if (this.wizard.isBusy) return;
+    if (!this.wizard || this.wizard.isBusy) return;
     const def = SPELLS[spellId];
     if (!def) return;
 
@@ -194,46 +286,13 @@ class Game {
     }
 
     const target = dir.clone();
-    const spiral = this.spells.startSpiral(target, spellId);
-
-    if (spellId === "elevate" || spellId === "depress") {
-      const sign = spellId === "elevate" ? 1 : -1;
-      if (!this.terrain.beginMorph(target, sign)) {
-        this.spells.clearSpiral(spiral);
-        return;
-      }
-      this.wizard.startCast(target, def.castTime, () => {
-        this.spells.clearSpiral(spiral);
-      });
-      this.#selectSpell(null);
-      return;
-    }
-
-    if (spellId === "lightning") {
-      this.wizard.startCast(target, def.castTime, () => {
-        this.spells.clearSpiral(spiral);
-        this.spells.strikeLightning(target);
-      });
-      this.#selectSpell(null);
-      return;
-    }
-
-    if (spellId === "fireball") {
-      this.wizard.startCast(target, def.castTime, () => {
-        this.spells.clearSpiral(spiral);
-        this.spells.launchFireball(target);
-      });
-      this.#selectSpell(null);
-      return;
-    }
-
-    if (spellId === "iceball") {
-      this.wizard.startCast(target, def.castTime, () => {
-        this.spells.clearSpiral(spiral);
-        this.spells.launchIceball(target);
-      });
-      this.#selectSpell(null);
-    }
+    this.session.sendIntent({
+      kind: "cast",
+      spell: spellId,
+      target: [target.x, target.y, target.z]
+    });
+    this.spells.castAs(this.wizard, spellId, target);
+    this.#selectSpell(null);
   }
 
   #loop() {
@@ -241,12 +300,14 @@ class Game {
 
     this.camRight.setFromMatrixColumn(this.camera.matrixWorld, 0).normalize();
     this.camUp.setFromMatrixColumn(this.camera.matrixWorld, 1).normalize();
-    const rs = CONFIG.rotSpeed * dt;
-    const rsSide = rs * 2;
-    if (this.keys.ArrowLeft) this.planetGroup.rotateOnWorldAxis(this.camUp, rsSide);
-    if (this.keys.ArrowRight) this.planetGroup.rotateOnWorldAxis(this.camUp, -rsSide);
-    if (this.keys.ArrowUp) this.planetGroup.rotateOnWorldAxis(this.camRight, rs);
-    if (this.keys.ArrowDown) this.planetGroup.rotateOnWorldAxis(this.camRight, -rs);
+    if (this.inputEnabled) {
+      const rs = CONFIG.rotSpeed * dt;
+      const rsSide = rs * 2;
+      if (this.keys.ArrowLeft) this.planetGroup.rotateOnWorldAxis(this.camUp, rsSide);
+      if (this.keys.ArrowRight) this.planetGroup.rotateOnWorldAxis(this.camUp, -rsSide);
+      if (this.keys.ArrowUp) this.planetGroup.rotateOnWorldAxis(this.camRight, rs);
+      if (this.keys.ArrowDown) this.planetGroup.rotateOnWorldAxis(this.camRight, -rs);
+    }
 
     const morphing = this.terrain.updateMorphs(dt);
     if (this.terrain.consumeMorphDirty()) {
@@ -257,10 +318,13 @@ class Game {
       }
     }
 
-    this.wizard.update(dt, this.keys, this.camRight);
+    for (const w of this.wizards.values()) {
+      w.update(dt, this.keys, this.camRight);
+    }
     this.spells.update(dt);
     this.spawnMarkers.update(dt);
     this.water.update(dt);
+    this.session.tickPose(dt);
 
     const viewAxis = getPlanetViewAxis(this.camera, this.planetGroup, tmp.v);
     this.terrain.setViewAxis(viewAxis);

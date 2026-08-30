@@ -142,10 +142,23 @@ wss.on("connection", (ws) => {
     }
 
     if (msg.type === "join") {
-      const code = String(msg.code || "").toUpperCase().trim();
-      const room = rooms.get(code);
+      let code = String(msg.code || "").toUpperCase().trim();
+      let room = code ? rooms.get(code) : null;
+      if (!room && !code) {
+        for (const r of rooms.values()) {
+          if (r.phase === "lobby") {
+            room = r;
+            break;
+          }
+        }
+      }
       if (!room) {
-        send(ws, { type: "error", message: "Místnost neexistuje." });
+        send(ws, {
+          type: "error",
+          message: code
+            ? "Místnost neexistuje."
+            : "Žádná otevřená lobby. Host musí nejdřív založit hru."
+        });
         return;
       }
       if (room.phase !== "lobby") {
@@ -161,7 +174,7 @@ wss.on("connection", (ws) => {
       const name = String(msg.name || "Hráč").slice(0, 18);
       const color = Number(msg.color) || 0xc41c12;
       room.players.set(playerId, { id: playerId, name, color, ws });
-      meta.roomCode = code;
+      meta.roomCode = room.code;
       broadcast(room, { type: "room", room: roomPublic(room) });
       return;
     }
@@ -230,6 +243,6 @@ wss.on("connection", (ws) => {
   });
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`Populous MP relay on ws://localhost:${PORT}`);
+httpServer.listen(PORT, "0.0.0.0", () => {
+  console.log(`Populous MP relay on ws://0.0.0.0:${PORT} (LAN OK)`);
 });

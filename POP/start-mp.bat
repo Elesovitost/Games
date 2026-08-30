@@ -1,10 +1,16 @@
 @echo off
 cd /d "%~dp0"
-echo Spoustim MP relay na portu 2567...
-start "Populous MP" /MIN py -3 server\server.py
+echo Spoustim MP relay na portu 2567 (0.0.0.0 — LAN)...
+where node >nul 2>&1
+if %ERRORLEVEL%==0 (
+  start "Populous MP" /MIN cmd /c "npm run server"
+) else (
+  start "Populous MP" /MIN py -3 server\server.py
+)
 timeout /t 1 /nobreak >nul
-start "" "http://localhost:5500/"
 echo.
-echo Pokud se hra neotevre, spusť Live Server a otevři index.html.
-echo Relay bezi na ws://localhost:2567
+echo Server bezi na ws://TVA_IP:2567
+echo Otevri POP/index.html (Live Server) a v MP zaloz hru.
+echo Ostatni: vypln tvou IP, pripadne kod mistnosti, a Pripojit.
+echo.
 pause

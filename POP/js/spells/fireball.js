@@ -12,7 +12,8 @@ function explodeFireball(sys, pos, dir) {
     dir,
     SPELLS.fireball.damageRadius,
     SPELLS.fireball.damageCenter,
-    SPELLS.fireball.damageEdge
+    SPELLS.fireball.damageEdge,
+    sys._castOwnerId
   );
 }
 

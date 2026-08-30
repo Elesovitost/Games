@@ -7,13 +7,17 @@ export function surfaceDist(a, b) {
   return Math.acos(d) * CONFIG.planetR;
 }
 
-export function applyAoeDamage(sys, centerDir, radiusM, dmgCenter, dmgEdge) {
-  if (!sys.wizard || sys.wizard.dead) return;
-  const dist = surfaceDist(centerDir, sys.wizard.dir);
-  if (dist >= radiusM) return;
-  const t = dist / radiusM;
-  const dmg = dmgCenter + (dmgEdge - dmgCenter) * t;
-  sys.wizard.takeDamage(dmg);
+export function applyAoeDamage(sys, centerDir, radiusM, dmgCenter, dmgEdge, exceptId = null) {
+  const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
+  for (const w of list) {
+    if (!w || w.dead) continue;
+    if (exceptId != null && w.id === exceptId) continue;
+    const dist = surfaceDist(centerDir, w.dir);
+    if (dist >= radiusM) continue;
+    const t = dist / radiusM;
+    const dmg = dmgCenter + (dmgEdge - dmgCenter) * t;
+    w.takeDamage(dmg);
+  }
 }
 
 export function spawnBurst(sys, pos, up, color, life = 0.45) {
