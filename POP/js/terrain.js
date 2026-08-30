@@ -5,16 +5,22 @@ import { createNoise } from "./noise.js";
 import { createIcosphereGeometry } from "./icosphere.js";
 import { generateMapHeights, getDefaultMap, getMap } from "./maps.js";
 
+const DEFAULT_TERRAIN_OPTS = {
+  icoSubdiv: CONFIG.icoSubdiv,
+  treeShadows: true
+};
+
 export class Terrain {
-  constructor(planetGroup, mapId = CONFIG.defaultMapId) {
+  constructor(planetGroup, mapId = CONFIG.defaultMapId, opts = {}) {
     this.group = planetGroup;
     this.jobs = [];
     this.trees = null;
+    this.#setOpts(opts);
     this.map = getMap(mapId);
     this.mapId = this.map.index;
     this.seed = this.map.seed >>> 0;
     this.noise = createNoise(this.seed);
-    this.geometry = createIcosphereGeometry(CONFIG.planetR, CONFIG.icoSubdiv);
+    this.geometry = createIcosphereGeometry(CONFIG.planetR, this.icoSubdiv);
     this.#sculpt();
     this.mesh = new THREE.Mesh(
       this.geometry,
@@ -31,8 +37,9 @@ export class Terrain {
     this.#scatterTrees();
   }
 
-  rebuild(mapId = CONFIG.defaultMapId) {
+  rebuild(mapId = CONFIG.defaultMapId, opts = {}) {
     this.jobs = [];
+    if (opts.icoSubdiv != null || opts.treeShadows != null) this.#setOpts(opts);
     this.map = getMap(mapId);
     this.mapId = this.map.index;
     this.seed = this.map.seed >>> 0;
@@ -44,11 +51,18 @@ export class Terrain {
       this.trees = null;
     }
     this.geometry.dispose();
-    this.geometry = createIcosphereGeometry(CONFIG.planetR, CONFIG.icoSubdiv);
+    this.geometry = createIcosphereGeometry(CONFIG.planetR, this.icoSubdiv);
     this.#sculpt();
     this.mesh.geometry = this.geometry;
+    this.mesh.castShadow = true;
+    this.mesh.receiveShadow = true;
     this.#buildGrid();
     this.#scatterTrees();
+  }
+
+  #setOpts(opts) {
+    this.icoSubdiv = opts.icoSubdiv ?? DEFAULT_TERRAIN_OPTS.icoSubdiv;
+    this.treeShadows = opts.treeShadows ?? DEFAULT_TERRAIN_OPTS.treeShadows;
   }
 
   getSpawnFocus(slot = 0) {
@@ -471,8 +485,8 @@ export class Terrain {
     );
     for (let i = 0; i < matrices.length; i++) trees.setMatrixAt(i, matrices[i]);
     trees.instanceMatrix.needsUpdate = true;
-    trees.castShadow = true;
-    trees.receiveShadow = true;
+    trees.castShadow = this.treeShadows;
+    trees.receiveShadow = this.treeShadows;
     trees.raycast = function () {};
     this.trees = trees;
     this.group.add(trees);

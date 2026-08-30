@@ -63,8 +63,10 @@ function makeGoldLeaf(intensity = 0.55) {
  * Local +Y = radiála od středu planety.
  */
 export class GoldenTree {
-  constructor(seed = 0) {
+  constructor(seed = 0, opts = {}) {
     this.seed = seed;
+    this.maxMistPuffs = opts.mistPuffs ?? 18;
+    this.useOmniLight = opts.treeOmniLight !== false;
     this.growth = 0;
     this.displayGrowth = 0;
     this.root = new THREE.Group();
@@ -103,6 +105,7 @@ export class GoldenTree {
     this.omniLight = new THREE.PointLight(0xffe4b8, 0.35, 6, 2);
     this.omniLight.position.set(0, 0.08, 0);
     this.root.add(this.omniLight);
+    if (!this.useOmniLight) this.omniLight.intensity = 0;
 
     this.root.traverse((ch) => {
       if (!ch.isMesh) return;
@@ -165,6 +168,10 @@ export class GoldenTree {
 
   /** Jemné dýchání omni světla u kmene. */
   #updateLighting(elapsed) {
+    if (!this.useOmniLight) {
+      this.omniLight.intensity = 0;
+      return;
+    }
     const g = this.displayGrowth;
     const t = elapsed * 0.28 + this.seed * 0.2;
     const pulse = 0.92 + Math.sin(t) * 0.06 + Math.sin(t * 0.4) * 0.03;
@@ -178,7 +185,7 @@ export class GoldenTree {
   /** Nehomogenní mlha — drobné puffy, ne jedna koule. */
   #buildMist(rnd) {
     const geo = new THREE.IcosahedronGeometry(1, 0);
-    const count = 16 + (this.seed % 5);
+    const count = Math.min(this.maxMistPuffs, 16 + (this.seed % 5));
     for (let i = 0; i < count; i++) {
       const warm = rnd() > 0.55 ? 0xf6f2ea : 0xeeeae4;
       const mat = new THREE.MeshBasicMaterial({

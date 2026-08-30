@@ -1,5 +1,15 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
+import { disposeObject } from "./utils.js";
+
+const DEFAULT_SKY_OPTS = {
+  cloudCount: 42,
+  cloudCastShadow: true,
+  skyDome: [40, 24],
+  atmSphere: [48, 32],
+  cloudShell: [48, 28],
+  proceduralCloudShell: true
+};
 
 const SKY_VERT = `
 varying vec3 vDir;
@@ -157,12 +167,37 @@ function mulberry(seed) {
 }
 
 export class Sky {
-  constructor(world) {
-    this.time = 0;
+  constructor(world, opts = {}) {
     this.world = world;
+    this.time = 0;
+    this.opts = { ...DEFAULT_SKY_OPTS, ...opts };
     this.cloudRoot = new THREE.Group();
     world.add(this.cloudRoot);
+    this.meshes = [];
+    this.shell = null;
+    this.#initMaterials();
+    this.#addDome();
+    this.#addAtmosphere();
+    this.#addCloudShell();
+    this.#spawnClouds();
+  }
 
+  rebuild(opts = {}) {
+    this.dispose();
+    this.opts = { ...DEFAULT_SKY_OPTS, ...opts };
+    this.time = 0;
+    this.cloudRoot = new THREE.Group();
+    this.world.add(this.cloudRoot);
+    this.meshes = [];
+    this.shell = null;
+    this.#initMaterials();
+    this.#addDome();
+    this.#addAtmosphere();
+    this.#addCloudShell();
+    this.#spawnClouds();
+  }
+
+  #initMaterials() {
     this.skyMat = new THREE.ShaderMaterial({
       vertexShader: SKY_VERT,
       fragmentShader: SKY_FRAG,
@@ -170,11 +205,6 @@ export class Sky {
       depthWrite: false,
       fog: false
     });
-    const skyDome = new THREE.Mesh(new THREE.SphereGeometry(380, 40, 24), this.skyMat);
-    skyDome.renderOrder = -10;
-    skyDome.raycast = () => {};
-    world.add(skyDome);
-
     this.atmMat = new THREE.ShaderMaterial({
       vertexShader: ATM_VERT,
       fragmentShader: ATM_FRAG,
@@ -184,11 +214,6 @@ export class Sky {
       blending: THREE.AdditiveBlending,
       fog: false
     });
-    const atm = new THREE.Mesh(new THREE.SphereGeometry(116, 48, 32), this.atmMat);
-    atm.renderOrder = -5;
-    atm.raycast = () => {};
-    world.add(atm);
-
     this.shellMat = new THREE.ShaderMaterial({
       uniforms: { uTime: { value: 0 } },
       vertexShader: SHELL_VERT,
@@ -198,12 +223,50 @@ export class Sky {
       side: THREE.BackSide,
       fog: false
     });
-    const shell = new THREE.Mesh(new THREE.SphereGeometry(148, 48, 28), this.shellMat);
-    shell.renderOrder = -4;
-    shell.raycast = () => {};
-    world.add(shell);
+  }
 
-    this.#spawnClouds();
+  dispose() {
+    if (this.cloudRoot) {
+      this.world.remove(this.cloudRoot);
+      disposeObject(this.cloudRoot);
+    }
+    for (const m of this.meshes) {
+      this.world.remove(m);
+      disposeObject(m);
+    }
+    this.meshes.length = 0;
+    this.shell = null;
+    this.skyMat?.dispose();
+    this.atmMat?.dispose();
+    this.shellMat?.dispose();
+  }
+
+  #addDome() {
+    const [w, h] = this.opts.skyDome;
+    const skyDome = new THREE.Mesh(new THREE.SphereGeometry(380, w, h), this.skyMat);
+    skyDome.renderOrder = -10;
+    skyDome.raycast = () => {};
+    this.world.add(skyDome);
+    this.meshes.push(skyDome);
+  }
+
+  #addAtmosphere() {
+    const [w, h] = this.opts.atmSphere;
+    const atm = new THREE.Mesh(new THREE.SphereGeometry(116, w, h), this.atmMat);
+    atm.renderOrder = -5;
+    atm.raycast = () => {};
+    this.world.add(atm);
+    this.meshes.push(atm);
+  }
+
+  #addCloudShell() {
+    if (!this.opts.proceduralCloudShell) return;
+    const [w, h] = this.opts.cloudShell;
+    this.shell = new THREE.Mesh(new THREE.SphereGeometry(148, w, h), this.shellMat);
+    this.shell.renderOrder = -4;
+    this.shell.raycast = () => {};
+    this.world.add(this.shell);
+    this.meshes.push(this.shell);
   }
 
   #spawnClouds() {
@@ -211,7 +274,8 @@ export class Sky {
     const geo = new THREE.PlaneGeometry(1, 1);
     const rng = mulberry(20260829);
     const zAxis = new THREE.Vector3(0, 0, 1);
-    const count = 42;
+    const count = this.opts.cloudCount;
+    const allowShadow = this.opts.cloudCastShadow;
 
     for (let i = 0; i < count; i++) {
       const dir = randomDir(rng);
@@ -237,13 +301,14 @@ export class Sky {
           side: THREE.DoubleSide,
           fog: false
         });
-        const depthMat = new THREE.MeshDepthMaterial({
-          depthPacking: THREE.RGBADepthPacking,
-          map: tex,
-          alphaTest: 0.72
-        });
         const puff = new THREE.Mesh(geo, mat);
-        puff.customDepthMaterial = depthMat;
+        if (allowShadow) {
+          puff.customDepthMaterial = new THREE.MeshDepthMaterial({
+            depthPacking: THREE.RGBADepthPacking,
+            map: tex,
+            alphaTest: 0.72
+          });
+        }
         const sx = base * (0.65 + rng() * 0.75);
         const sy = base * (0.45 + rng() * 0.45);
         puff.scale.set(sx, sy, 1);
@@ -253,7 +318,7 @@ export class Sky {
           (rng() - 0.5) * base * 0.4
         );
         puff.rotation.z = (rng() - 0.5) * 1.1;
-        puff.castShadow = big && rng() > 0.55;
+        puff.castShadow = allowShadow && big && rng() > 0.55;
         puff.receiveShadow = false;
         puff.raycast = () => {};
         cluster.add(puff);
@@ -265,20 +330,27 @@ export class Sky {
 
   update(dt) {
     this.time += dt;
-    this.shellMat.uniforms.uTime.value = this.time;
+    if (this.shell) this.shellMat.uniforms.uTime.value = this.time;
     this.cloudRoot.rotation.y += dt * 0.0035;
   }
 }
 
-export function createSun(world) {
+export function applySunQuality(sun, opts = {}) {
+  if (!sun) return;
+  sun.castShadow = !!opts.shadows;
+  if (!opts.shadows) return;
+  const size = opts.shadowMapSize || 2048;
+  sun.shadow.mapSize.set(size, size);
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.08;
+  sun.shadow.radius = opts.shadowRadius ?? 2;
+}
+
+export function createSun(world, opts = {}) {
   const sun = new THREE.DirectionalLight(0xfff1c8, 2.05);
   sun.position.set(220, 180, -70);
   sun.target.position.set(0, 0, 0);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(4096, 4096);
-  sun.shadow.bias = -0.0004;
-  sun.shadow.normalBias = 0.08;
-  sun.shadow.radius = 6;
+  applySunQuality(sun, opts);
   const cam = sun.shadow.camera;
   cam.near = 40;
   cam.far = 520;

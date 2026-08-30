@@ -61,40 +61,60 @@ void main() {
 `;
 
 export class Water {
-  constructor(planetGroup, terrain) {
+  constructor(planetGroup, terrain, opts = {}) {
     this.time = 0;
     this.terrain = terrain;
-    const geo = createIcosphereGeometry(CONFIG.waterLevel, 6);
-    this.#fillShore(geo, terrain);
+    this.planetGroup = planetGroup;
+    this.waterSubdiv = opts.waterSubdiv ?? 6;
+    this.mesh = null;
+    this.material = null;
+    this.#buildMesh();
+  }
 
-    this.material = new THREE.ShaderMaterial({
-      uniforms: {
-        uTime: { value: 0 },
-        uLevel: { value: CONFIG.waterLevel },
-        uColor: {
-          value: new THREE.Color(
-            CONFIG.waterColor[0] * 1.15,
-            CONFIG.waterColor[1] * 1.15,
-            CONFIG.waterColor[2] * 1.05
-          )
-        }
-      },
-      vertexShader: WATER_VERT,
-      fragmentShader: WATER_FRAG,
-      transparent: true,
-      depthWrite: false,
-      side: THREE.FrontSide,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2
-    });
+  #buildMesh() {
+    if (this.mesh) {
+      this.planetGroup.remove(this.mesh);
+      this.mesh.geometry.dispose();
+    }
+
+    const geo = createIcosphereGeometry(CONFIG.waterLevel, this.waterSubdiv);
+    this.#fillShore(geo, this.terrain);
+
+    if (!this.material) {
+      this.material = new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 },
+          uLevel: { value: CONFIG.waterLevel },
+          uColor: {
+            value: new THREE.Color(
+              CONFIG.waterColor[0] * 1.15,
+              CONFIG.waterColor[1] * 1.15,
+              CONFIG.waterColor[2] * 1.05
+            )
+          }
+        },
+        vertexShader: WATER_VERT,
+        fragmentShader: WATER_FRAG,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.FrontSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2
+      });
+    }
 
     this.mesh = new THREE.Mesh(geo, this.material);
     this.mesh.renderOrder = 1;
     this.mesh.receiveShadow = true;
     this.mesh.castShadow = false;
     this.mesh.raycast = () => {};
-    planetGroup.add(this.mesh);
+    this.planetGroup.add(this.mesh);
+  }
+
+  rebuild(terrain) {
+    this.terrain = terrain;
+    this.#buildMesh();
   }
 
   refresh() {

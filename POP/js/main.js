@@ -16,6 +16,7 @@ import { MultiplayerSession, loadProfile } from "./net/session.js";
 import { LobbyUI } from "./net/lobby.js";
 import { getMap } from "./maps.js";
 import { SpawnDecor } from "./spawns.js";
+import { QualityManager } from "./quality.js";
 
 class Game {
   constructor() {
@@ -28,12 +29,17 @@ class Game {
     this.mapId = CONFIG.defaultMapId;
     this.camLocked = false;
 
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.quality = new QualityManager(this);
+    const q = this.quality.current;
+
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: q.antialias });
+    this.renderer.setPixelRatio(this.quality.pixelRatio());
     this.renderer.setClearColor(0x8ebce6, 1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.enabled = q.shadows;
+    this.renderer.shadowMap.type = q.shadowType === "pcfsoft"
+      ? THREE.PCFSoftShadowMap
+      : THREE.BasicShadowMap;
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x5a8fc8);
@@ -44,11 +50,11 @@ class Game {
     this.scene.add(this.planetGroup);
     this.scene.add(new THREE.HemisphereLight(0x9ec8f5, 0x6a5030, 0.28));
     this.scene.add(new THREE.AmbientLight(0xffe8c8, 0.09));
-    createSun(this.planetGroup);
+    this.sun = createSun(this.planetGroup, q);
 
-    this.terrain = new Terrain(this.planetGroup, this.mapId);
-    this.water = new Water(this.planetGroup, this.terrain);
-    this.sky = new Sky(this.planetGroup);
+    this.terrain = new Terrain(this.planetGroup, this.mapId, this.quality.terrainOpts());
+    this.water = new Water(this.planetGroup, this.terrain, this.quality.waterOpts());
+    this.sky = new Sky(this.planetGroup, this.quality.skyOpts());
     this.spawnDecor = new SpawnDecor(this);
     this.spawnDecor.rebuild(this.mapId);
     placeCamera(this.camera, getMap(this.mapId).spawnFocus[0]);
@@ -71,9 +77,12 @@ class Game {
     this.session = new MultiplayerSession(this);
     this.lobby = new LobbyUI(this, this.session);
 
+    this.quality.initUI();
+    this.quality.apply();
+
     this.#bindInput();
-    this.#resize();
-    window.addEventListener("resize", () => this.#resize());
+    this.resize();
+    window.addEventListener("resize", () => this.resize());
   }
 
   getWizard(id) {
@@ -135,8 +144,8 @@ class Game {
     this.lava.clear();
     this.effects.clear();
     this.pointerUi.clearWalkTarget();
-    this.terrain.rebuild(this.mapId);
-    this.water.refresh();
+    this.terrain.rebuild(this.mapId, this.quality.terrainOpts());
+    this.water.rebuild(this.terrain);
     this.spawnDecor.rebuild(this.mapId);
   }
 
@@ -189,6 +198,7 @@ class Game {
     } else if (this.wizard) {
       placeCamera(this.camera, this.wizard.dir);
     }
+    this.quality?.applyEntityShadows?.();
   }
 
   start() {
@@ -264,12 +274,17 @@ class Game {
     };
   }
 
-  #resize() {
+  resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
+    this.renderer.setPixelRatio(this.quality.pixelRatio());
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+  }
+
+  #resize() {
+    this.resize();
   }
 
   #tick() {
