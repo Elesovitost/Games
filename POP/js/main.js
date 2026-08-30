@@ -11,6 +11,7 @@ import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./vi
 import { tmp } from "./utils.js";
 import { MultiplayerSession } from "./net/session.js";
 import { LobbyUI } from "./net/lobby.js";
+import { mountGameVersion } from "./game-version.js";
 
 class Game {
   constructor() {
@@ -24,6 +25,8 @@ class Game {
     this._shoreRefreshAt = 0;
     this.wizards = new Map();
     this.inputEnabled = true;
+
+    mountGameVersion(document.getElementById("game-version"));
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,

@@ -195,6 +195,19 @@ html, body {
 .spell-label {
   letter-spacing: 0.02em;
 }
+#game-version {
+  position: fixed;
+  right: 10px;
+  bottom: 8px;
+  z-index: 4;
+  font-size: 0.62rem;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: rgba(232, 220, 196, 0.42);
+  pointer-events: none;
+  user-select: none;
+}
 #health {
   position: fixed;
   left: 50%;
