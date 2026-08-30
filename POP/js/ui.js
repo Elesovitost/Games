@@ -12,6 +12,7 @@ export class UI {
     this.vitFill = document.getElementById("vit-fill");
     this.vitLabel = document.getElementById("vit-label");
     this.vitLives = document.getElementById("vit-lives");
+    this._vitCache = "";
 
     document.querySelectorAll(".spells button").forEach((btn) => {
       btn.addEventListener("click", (e) => {
@@ -51,6 +52,9 @@ export class UI {
     const maxHp = COMBAT.maxHp;
     const hp = Math.max(0, Math.round(w.hp));
     const pct = Math.max(0, Math.min(1, w.hp / maxHp));
+    const key = hp + "|" + w.lives + "|" + pct.toFixed(3);
+    if (key === this._vitCache) return;
+    this._vitCache = key;
     this.vitFill.style.transform = `scaleX(${pct})`;
     this.vitLabel.textContent = hp + " / " + maxHp;
     const maxL = COMBAT.maxLives;
@@ -68,9 +72,9 @@ export class UI {
   }
 
   update(dt) {
-    this.refreshVitality();
-    if (this.toastTimer <= 0) return;
-    this.toastTimer -= dt;
-    if (this.toastTimer <= 0) this.toastEl.classList.remove("show");
+    if (this.toastTimer > 0) {
+      this.toastTimer -= dt;
+      if (this.toastTimer <= 0) this.toastEl.classList.remove("show");
+    }
   }
 }

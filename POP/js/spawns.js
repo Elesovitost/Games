@@ -14,9 +14,8 @@ const _toCenter = new THREE.Vector3();
 const _basis = new THREE.Matrix4();
 const _quat = new THREE.Quaternion();
 
-function createRuneStone(opts = {}) {
+function createRuneStone() {
   const g = new THREE.Group();
-  const castShadow = opts.decorShadows !== false;
   const rock = new THREE.MeshStandardMaterial({
     color: 0x3a3548,
     roughness: 0.82,
@@ -50,13 +49,11 @@ function createRuneStone(opts = {}) {
   rune.position.z = 0.08;
   g.add(rune);
 
-  if (opts.decorPointLights !== false) {
-    g.add(new THREE.PointLight(0xffcc66, 0.55, 4.2));
-  }
+  g.add(new THREE.PointLight(0xffcc66, 0.55, 4.2));
   g.traverse((ch) => {
     if (ch.isMesh) {
-      ch.castShadow = castShadow;
-      ch.receiveShadow = castShadow;
+      ch.castShadow = true;
+      ch.receiveShadow = true;
       ch.raycast = () => {};
     }
   });
@@ -136,8 +133,6 @@ export class SpawnDecor {
 
   #placeRuneCircle(centerDir, seed) {
     const terrain = this.game.terrain;
-    const decor = this.game.quality?.decorOpts?.() || {};
-    const ringSegs = decor.runeRingSegs ?? 64;
     const up = centerDir.clone().normalize();
     const east0 = new THREE.Vector3();
     const north0 = new THREE.Vector3();
@@ -153,7 +148,7 @@ export class SpawnDecor {
       fog: false,
       blending: THREE.AdditiveBlending
     });
-    const glowRing = createSurfaceRingMesh(ringMat, ringSegs);
+    const glowRing = createSurfaceRingMesh(ringMat, 64);
     drapeRing(glowRing.geometry, terrain, up, east0, north0, radius - 0.18, radius + 0.18, 0.1);
     this.root.add(glowRing);
     this.rings.push({
@@ -173,7 +168,7 @@ export class SpawnDecor {
         .addScaledVector(east0, Math.cos(a) * radius)
         .addScaledVector(north0, Math.sin(a) * radius)
         .normalize();
-      const stone = createRuneStone(decor);
+      const stone = createRuneStone();
       stone.scale.setScalar(0.85 + ((i + seed * 3) % 5) * 0.04);
       stone.userData._h = terrain.height(dir);
       stone.userData.faceCenter = up;
@@ -220,8 +215,7 @@ export class SpawnDecor {
       treeDir = tmp.dir.clone();
     }
 
-    const treeOpts = this.game.quality?.treeOpts?.() || {};
-    const tree = new GoldenTree(seed, treeOpts);
+    const tree = new GoldenTree(seed);
     const h = Math.max(terrain.height(treeDir), CONFIG.waterLevel + 0.15);
     tree.placeRadial(treeDir.clone().multiplyScalar(h), treeDir);
     this.root.add(tree.root);
@@ -245,7 +239,7 @@ export class SpawnDecor {
   }
 
   update(dt, elapsed) {
-    this.#snapToTerrain();
+    if (this.game.quality?.shouldSnapDecor?.()) this.#snapToTerrain();
     for (const r of this.rings) {
       r.mesh.material.opacity = 0.4 + Math.sin(elapsed * 2.2) * 0.18;
     }

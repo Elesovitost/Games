@@ -2,6 +2,7 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tmp, disposeObject } from "./utils.js";
 import { applyRadialDamage, COMBAT } from "./combat.js";
+import { isSurfaceDirVisible } from "./visibility.js";
 
 const Y_UP = new THREE.Vector3(0, 1, 0);
 
@@ -368,34 +369,39 @@ export class Dragons {
 
       const beam = d.mesh.userData.beam;
       const glow = d.mesh.userData.muzzleGlow;
+      const onScreen = isSurfaceDirVisible(this.game.camera, planetGroup, d.mesh.position, 22);
+
       if (d.breathOn) {
-        d.mesh.updateMatrixWorld(true);
-        // Tlama ve world → local planet
-        d._from.copy(d.mesh.userData.mouthLocal).applyMatrix4(d.mesh.matrixWorld);
-        planetGroup.worldToLocal(d._from);
-        // Země pod drakem (směr k povrchu)
         tmp.dir.copy(d.mesh.position).normalize();
         const gh = terrain.height(tmp.dir);
         d._to.copy(tmp.dir).multiplyScalar(gh + 0.04);
 
-        d._dir.copy(d._to).sub(d._from);
-        const dist = Math.max(d._dir.length(), 0.5);
-        d._dir.multiplyScalar(1 / dist);
+        if (onScreen) {
+          d.mesh.updateMatrixWorld(true);
+          d._from.copy(d.mesh.userData.mouthLocal).applyMatrix4(d.mesh.matrixWorld);
+          planetGroup.worldToLocal(d._from);
+          d._dir.copy(d._to).sub(d._from);
+          const dist = Math.max(d._dir.length(), 0.5);
+          d._dir.multiplyScalar(1 / dist);
 
-        beam.visible = true;
-        beam.position.copy(d._from);
-        beam.quaternion.setFromUnitVectors(Y_UP, d._dir);
-        beam.scale.set(1.1 + Math.sin(elapsed * 20) * 0.15, dist, 1.1 + Math.sin(elapsed * 17) * 0.12);
-        if (glow) glow.intensity = 3.5 + Math.sin(elapsed * 22) * 0.8;
+          beam.visible = true;
+          beam.position.copy(d._from);
+          beam.quaternion.setFromUnitVectors(Y_UP, d._dir);
+          beam.scale.set(1.1 + Math.sin(elapsed * 20) * 0.15, dist, 1.1 + Math.sin(elapsed * 17) * 0.12);
+          if (glow) glow.intensity = 3.5 + Math.sin(elapsed * 22) * 0.8;
 
-        // Spálené čárky podél letu
-        d.scorchAcc += dt;
-        if (d.scorchAcc >= 0.09) {
-          d.scorchAcc = 0;
-          if (terrain.isLand(d._to)) {
-            terrain.deform(d._to, "scorch", scorchR);
+          d.scorchAcc += dt;
+          if (d.scorchAcc >= 0.09) {
+            d.scorchAcc = 0;
+            if (terrain.isLand(d._to)) {
+              terrain.deform(d._to, "scorch", scorchR);
+            }
           }
+        } else {
+          if (beam) beam.visible = false;
+          if (glow) glow.intensity = 0;
         }
+
         d.damageAcc += dt;
         if (d.damageAcc >= 0.35) {
           d.damageAcc = 0;

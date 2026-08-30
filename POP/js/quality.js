@@ -1,86 +1,68 @@
 import * as THREE from "./three.js";
 import { applySunQuality } from "./sky.js";
+import { focusShadowOnView } from "./visibility.js";
 
 const LS_QUALITY = "populous.quality";
+const LS_SHOW_FPS = "populous.showFps";
 
+/**
+ * Presety nemění vzhled světa — jen strategii výkonu:
+ * rozlišení renderu, stínovou mapu nad viditelnou oblastí, méně práce mimo obrazovku.
+ */
 export const QUALITY_PRESETS = {
   low: {
     id: "low",
-    label: "Nízká",
-    hint: "Pro slabší počítače — méně detailů, bez stínů.",
-    icoSubdiv: 5,
-    waterSubdiv: 4,
-    pixelRatioMax: 1,
+    label: "Plynulá",
+    hint: "Nižší rozlišení renderu, stíny jen nad hráčem, méně práce mimo obrazovku.",
+    pixelRatioMax: 1.25,
+    resolutionScale: 0.72,
     antialias: false,
-    shadows: false,
-    shadowMapSize: 1024,
+    shadows: true,
+    shadowMapSize: 1536,
     shadowType: "basic",
     shadowRadius: 2,
-    cloudCount: 10,
+    shadowFrustumHalf: 46,
+    shadowFollowView: true,
+    decorSnapInterval: 3,
+    adaptiveResolution: true,
     cloudCastShadow: false,
-    terrainTreeShadows: false,
-    characterShadows: false,
-    decorShadows: false,
-    skyDome: [24, 12],
-    atmSphere: [24, 14],
-    cloudShell: [24, 12],
-    proceduralCloudShell: false,
-    mistPuffs: 6,
-    decorPointLights: false,
-    treeOmniLight: false,
-    runeRingSegs: 32
+    terrainTreeShadows: true
   },
   medium: {
     id: "medium",
-    label: "Střední",
-    hint: "Vyvážená kvalita — doporučeno pro většinu notebooků.",
-    icoSubdiv: 6,
-    waterSubdiv: 5,
-    pixelRatioMax: 1.25,
-    antialias: false,
+    label: "Vyvážená",
+    hint: "Doporučeno pro notebooky — stejná grafika, chytřejší stíny a render.",
+    pixelRatioMax: 1.5,
+    resolutionScale: 0.88,
+    antialias: true,
     shadows: true,
     shadowMapSize: 2048,
     shadowType: "basic",
     shadowRadius: 3,
-    cloudCount: 22,
+    shadowFrustumHalf: 58,
+    shadowFollowView: true,
+    decorSnapInterval: 2,
+    adaptiveResolution: true,
     cloudCastShadow: false,
-    terrainTreeShadows: false,
-    characterShadows: true,
-    decorShadows: false,
-    skyDome: [32, 18],
-    atmSphere: [32, 20],
-    cloudShell: [32, 18],
-    proceduralCloudShell: true,
-    mistPuffs: 10,
-    decorPointLights: true,
-    treeOmniLight: true,
-    runeRingSegs: 48
+    terrainTreeShadows: true
   },
   high: {
     id: "high",
-    label: "Vysoká",
-    hint: "Plná kvalita — pro výkonné PC.",
-    icoSubdiv: 7,
-    waterSubdiv: 6,
+    label: "Krásná",
+    hint: "Plné rozlišení a jemnější stíny — pro výkonné PC.",
     pixelRatioMax: 2,
+    resolutionScale: 1,
     antialias: true,
     shadows: true,
-    shadowMapSize: 4096,
+    shadowMapSize: 2048,
     shadowType: "pcfsoft",
-    shadowRadius: 6,
-    cloudCount: 42,
-    cloudCastShadow: true,
-    terrainTreeShadows: true,
-    characterShadows: true,
-    decorShadows: true,
-    skyDome: [40, 24],
-    atmSphere: [48, 32],
-    cloudShell: [48, 28],
-    proceduralCloudShell: true,
-    mistPuffs: 18,
-    decorPointLights: true,
-    treeOmniLight: true,
-    runeRingSegs: 64
+    shadowRadius: 4,
+    shadowFrustumHalf: 72,
+    shadowFollowView: true,
+    decorSnapInterval: 1,
+    adaptiveResolution: false,
+    cloudCastShadow: false,
+    terrainTreeShadows: true
   }
 };
 
@@ -109,11 +91,26 @@ export function saveQualityId(id) {
   localStorage.setItem(LS_QUALITY, id);
 }
 
+export function loadShowFps() {
+  return localStorage.getItem(LS_SHOW_FPS) === "1";
+}
+
+export function saveShowFps(on) {
+  localStorage.setItem(LS_SHOW_FPS, on ? "1" : "0");
+}
+
 export class QualityManager {
   constructor(game) {
     this.game = game;
     this.id = loadQualityId();
     this.current = QUALITY_PRESETS[this.id];
+    this.dynamicScale = 1;
+    this.fpsAccum = 0;
+    this.fpsFrames = 0;
+    this.avgFps = 60;
+    this.displayFps = 0;
+    this.showFps = loadShowFps();
+    this._fpsText = "";
   }
 
   get currentId() {
@@ -127,15 +124,26 @@ export class QualityManager {
         if (id && QUALITY_PRESETS[id]) this.set(id);
       });
     });
+    this.fpsToggleBtn = document.getElementById("fps-toggle");
+    this.fpsValueEl = document.getElementById("fps-value");
+    if (this.fpsToggleBtn) {
+      this.fpsToggleBtn.addEventListener("click", () => {
+        this.showFps = !this.showFps;
+        saveShowFps(this.showFps);
+        this.#syncFpsUI();
+      });
+    }
     this.#syncUI();
+    this.#syncFpsUI();
   }
 
   set(id) {
     if (!QUALITY_PRESETS[id] || id === this.id) return;
     this.id = id;
     this.current = QUALITY_PRESETS[id];
+    this.dynamicScale = 1;
     saveQualityId(id);
-    this.apply({ rebuildWorld: true });
+    this.apply();
     this.#syncUI();
     this.game.ui?.toast?.("Grafika: " + this.current.label);
   }
@@ -148,60 +156,93 @@ export class QualityManager {
     if (hint) hint.textContent = this.current.hint || "";
   }
 
-  terrainOpts() {
-    const q = this.current;
-    return {
-      icoSubdiv: q.icoSubdiv,
-      treeShadows: q.shadows && q.terrainTreeShadows
-    };
-  }
-
-  waterOpts() {
-    return { waterSubdiv: this.current.waterSubdiv };
-  }
-
-  skyOpts() {
-    const q = this.current;
-    return {
-      cloudCount: q.cloudCount,
-      cloudCastShadow: q.shadows && q.cloudCastShadow,
-      skyDome: q.skyDome,
-      atmSphere: q.atmSphere,
-      cloudShell: q.cloudShell,
-      proceduralCloudShell: q.proceduralCloudShell
-    };
-  }
-
-  treeOpts() {
-    const q = this.current;
-    return {
-      mistPuffs: q.mistPuffs,
-      treeOmniLight: q.treeOmniLight
-    };
-  }
-
-  decorOpts() {
-    const q = this.current;
-    return {
-      decorPointLights: q.decorPointLights,
-      decorShadows: q.shadows && q.decorShadows,
-      runeRingSegs: q.runeRingSegs
-    };
+  #syncFpsUI() {
+    if (this.fpsToggleBtn) {
+      this.fpsToggleBtn.classList.toggle("active", this.showFps);
+      this.fpsToggleBtn.setAttribute("aria-pressed", this.showFps ? "true" : "false");
+    }
+    if (!this.fpsValueEl) return;
+    this.fpsValueEl.classList.toggle("hidden", !this.showFps);
+    this.fpsValueEl.setAttribute("aria-hidden", this.showFps ? "false" : "true");
+    if (!this.showFps) {
+      this._fpsText = "";
+      return;
+    }
+    const text = this.displayFps > 0 ? Math.round(this.displayFps) + " FPS" : "—";
+    this.fpsValueEl.textContent = text;
+    this._fpsText = text;
   }
 
   pixelRatio() {
-    return Math.min(window.devicePixelRatio || 1, this.current.pixelRatioMax);
+    const q = this.current;
+    const base = Math.min(window.devicePixelRatio || 1, q.pixelRatioMax);
+    const scale = (q.resolutionScale ?? 1) * (q.adaptiveResolution ? this.dynamicScale : 1);
+    return Math.max(0.55, base * scale);
+  }
+
+  shouldSnapDecor() {
+    const n = this.current.decorSnapInterval || 1;
+    if (n <= 1) return true;
+    const f = this.game._frame || 0;
+    return f % n === 0 || (this.game.terrain?.jobs?.length > 0);
   }
 
   applyEntityShadows() {
     this.#applySceneShadows();
   }
 
-  apply({ rebuildWorld = false } = {}) {
+  apply() {
     this.#applyRenderer();
     this.#applySun();
-    if (rebuildWorld) this.#rebuildWorld();
-    else this.#applySceneShadows();
+    this.#applySceneShadows();
+    this.#updateShadowFocus();
+  }
+
+  tick(dt) {
+    this.#trackFps(dt);
+    this.#sampleFps(dt);
+    this.#updateFpsDisplay();
+    this.#updateShadowFocus();
+  }
+
+  #trackFps(dt) {
+    if (dt <= 0) return;
+    const instant = 1 / dt;
+    this.displayFps = this.displayFps > 0 ? this.displayFps * 0.88 + instant * 0.12 : instant;
+  }
+
+  #updateFpsDisplay() {
+    if (!this.showFps || !this.fpsValueEl) return;
+    const text = Math.round(this.displayFps) + " FPS";
+    if (text === this._fpsText) return;
+    this._fpsText = text;
+    this.fpsValueEl.textContent = text;
+  }
+
+  #sampleFps(dt) {
+    if (!this.current.adaptiveResolution) return;
+    this.fpsAccum += dt;
+    this.fpsFrames++;
+    if (this.fpsAccum < 1.2) return;
+    this.avgFps = this.fpsFrames / this.fpsAccum;
+    this.fpsAccum = 0;
+    this.fpsFrames = 0;
+
+    let next = this.dynamicScale;
+    if (this.avgFps < 24) next = Math.max(0.68, this.dynamicScale - 0.06);
+    else if (this.avgFps < 32) next = Math.max(0.78, this.dynamicScale - 0.03);
+    else if (this.avgFps > 52) next = Math.min(1, this.dynamicScale + 0.04);
+
+    if (Math.abs(next - this.dynamicScale) > 0.01) {
+      this.dynamicScale = next;
+      this.#applyRenderer();
+    }
+  }
+
+  #updateShadowFocus() {
+    const q = this.current;
+    if (!q.shadowFollowView || !this.game.sun) return;
+    focusShadowOnView(this.game, this.game.sun, q.shadowFrustumHalf);
   }
 
   #applyRenderer() {
@@ -215,17 +256,6 @@ export class QualityManager {
 
   #applySun() {
     if (this.game.sun) applySunQuality(this.game.sun, this.current);
-  }
-
-  #rebuildWorld() {
-    const game = this.game;
-    const mapId = game.mapId;
-    game.terrain.rebuild(mapId, this.terrainOpts());
-    game.water.rebuild(game.terrain);
-    game.sky.rebuild(this.skyOpts());
-    game.spawnDecor.rebuild(mapId);
-    for (const w of game.wizards.values()) w.place();
-    this.#applySceneShadows();
   }
 
   #applySceneShadows() {
@@ -244,7 +274,7 @@ export class QualityManager {
     for (const w of wizards.values()) {
       w.mesh.traverse((ch) => {
         if (!ch.isMesh) return;
-        ch.castShadow = q.shadows && q.characterShadows;
+        ch.castShadow = q.shadows;
         ch.receiveShadow = q.shadows;
       });
     }
@@ -252,7 +282,7 @@ export class QualityManager {
     for (const d of dragons.list) {
       d.mesh.traverse((ch) => {
         if (!ch.isMesh) return;
-        ch.castShadow = q.shadows && q.characterShadows;
+        ch.castShadow = q.shadows;
         ch.receiveShadow = q.shadows;
       });
     }

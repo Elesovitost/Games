@@ -52,9 +52,9 @@ class Game {
     this.scene.add(new THREE.AmbientLight(0xffe8c8, 0.09));
     this.sun = createSun(this.planetGroup, q);
 
-    this.terrain = new Terrain(this.planetGroup, this.mapId, this.quality.terrainOpts());
-    this.water = new Water(this.planetGroup, this.terrain, this.quality.waterOpts());
-    this.sky = new Sky(this.planetGroup, this.quality.skyOpts());
+    this.terrain = new Terrain(this.planetGroup, this.mapId);
+    this.water = new Water(this.planetGroup, this.terrain);
+    this.sky = new Sky(this.planetGroup);
     this.spawnDecor = new SpawnDecor(this);
     this.spawnDecor.rebuild(this.mapId);
     placeCamera(this.camera, getMap(this.mapId).spawnFocus[0]);
@@ -144,8 +144,8 @@ class Game {
     this.lava.clear();
     this.effects.clear();
     this.pointerUi.clearWalkTarget();
-    this.terrain.rebuild(this.mapId, this.quality.terrainOpts());
-    this.water.rebuild(this.terrain);
+    this.terrain.rebuild(this.mapId);
+    this.water.refresh();
     this.spawnDecor.rebuild(this.mapId);
   }
 
@@ -315,7 +315,9 @@ class Game {
     this.spawnDecor.update(dt, elapsed);
     this.ui.update(dt);
     this.pointerUi.update(elapsed);
+    this.quality.tick(dt);
     this.renderer.render(this.scene, this.camera);
+    this._frame = (this._frame || 0) + 1;
   }
 }
 

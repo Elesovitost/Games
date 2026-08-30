@@ -4,7 +4,7 @@ import { disposeObject } from "./utils.js";
 
 const DEFAULT_SKY_OPTS = {
   cloudCount: 42,
-  cloudCastShadow: true,
+  cloudCastShadow: false,
   skyDome: [40, 24],
   atmSphere: [48, 32],
   cloudShell: [48, 28],
@@ -337,27 +337,30 @@ export class Sky {
 
 export function applySunQuality(sun, opts = {}) {
   if (!sun) return;
-  sun.castShadow = !!opts.shadows;
+  sun.castShadow = opts.shadows !== false;
   if (!opts.shadows) return;
   const size = opts.shadowMapSize || 2048;
   sun.shadow.mapSize.set(size, size);
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.08;
   sun.shadow.radius = opts.shadowRadius ?? 2;
+  const half = opts.shadowFrustumHalf ?? 72;
+  const cam = sun.shadow.camera;
+  cam.left = -half;
+  cam.right = half;
+  cam.top = half;
+  cam.bottom = -half;
+  cam.updateProjectionMatrix();
 }
 
 export function createSun(world, opts = {}) {
   const sun = new THREE.DirectionalLight(0xfff1c8, 2.05);
   sun.position.set(220, 180, -70);
   sun.target.position.set(0, 0, 0);
-  applySunQuality(sun, opts);
   const cam = sun.shadow.camera;
   cam.near = 40;
   cam.far = 520;
-  cam.left = -150;
-  cam.right = 150;
-  cam.top = 150;
-  cam.bottom = -150;
+  applySunQuality(sun, opts);
   world.add(sun);
   world.add(sun.target);
   return sun;

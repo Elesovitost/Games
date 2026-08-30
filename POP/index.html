@@ -20,11 +20,15 @@
     <div class="field quality-field">
       <span>Grafika</span>
       <div class="quality-modes" role="tablist" aria-label="Kvalita grafiky">
-        <button type="button" data-quality="low">Nízká</button>
-        <button type="button" data-quality="medium">Střední</button>
-        <button type="button" data-quality="high">Vysoká</button>
+        <button type="button" data-quality="low">Plynulá</button>
+        <button type="button" data-quality="medium">Vyvážená</button>
+        <button type="button" data-quality="high">Krásná</button>
       </div>
       <p id="quality-hint" class="quality-hint"></p>
+      <div class="fps-row">
+        <button type="button" id="fps-toggle" class="fps-toggle">FPS</button>
+        <span id="fps-value" class="fps-value hidden" aria-hidden="true">—</span>
+      </div>
     </div>
 
     <div id="game-panel">
