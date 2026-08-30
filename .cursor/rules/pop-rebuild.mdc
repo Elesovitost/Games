@@ -1,0 +1,51 @@
+---
+description: POP3 browser hra — architektura, fáze vývoje, anti-patterns
+globs: POP/**
+alwaysApply: false
+---
+
+# POP Rebuild — pravidla projektu
+
+## Cíl
+Multiplayerová browser hra ve stylu Populous 3: kulatá planeta, kouzelníci, kouzla, morph terénu.
+**Jedno grafické nastavení** — hezké + plynulé na PC i MacBook Air. Žádné quality presety.
+
+## Architektura terénu (KRITICKÉ)
+- **Jedna geometrie = logika + render** (icosphere subdiv 6–7).
+- Height, morph, raycast, stíny na stejné mesh.
+- Viditelná **horní čtvrtina** směrem ke kameře: shader cap clip (`uViewAxis`, `uVisibleDot`).
+- **Zákaz:** dual mesh, terrain-chunks, sync textur, více quality presetů.
+
+## Světla a stíny
+- Sun (DirectionalLight) v `planetGroup`, target `(0,0,0)`.
+- Shadow frustum **celá planeta** (`shadowFrustumHalf ≈ 128`).
+- `shadowMap.autoUpdate = true` pokud `receiveShadow = true`.
+- Shadow map 1024, BasicShadowMap.
+
+## Výkon (jeden CONFIG)
+- `pixelRatioMax` 1.35, `resolutionScale` 0.92
+- Cap clip ~25 % povrchu render
+- Žádné instanced stromy po planetě
+- Spell VFX nesmí měnit vzhled kvůli optimalizaci
+
+## Fáze
+1. Planeta + světla + stíny + rotace
+2. Kouzelník + kouzla
+3. Multiplayer
+4. Boj + polish
+
+## MP sync checklist (fáze 3+)
+- Host autorita pro terén a combat
+- Sync: pozice, kouzla (intent), morph, HP/lives/state
+
+## Anti-patterns
+- Dva meshe pro terén
+- Chunk systém bez testu stínů
+- Malý shadow frustum + receiveShadow
+- Optimalizace měnící vzhled kouzel
+
+## Před merge
+- [ ] Terén osvětlený, ne tmavý
+- [ ] Stíny stabilní při rotaci
+- [ ] Cap clip bez seamů
+- [ ] Konzole bez chyb

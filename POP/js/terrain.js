@@ -3,157 +3,95 @@ import { CONFIG } from "./config.js";
 import { lerp3, tmp } from "./utils.js";
 import { createNoise } from "./noise.js";
 import { createIcosphereGeometry } from "./icosphere.js";
-import { generateMapHeights, getDefaultMap, getMap } from "./maps.js";
-import { getCachedHeights } from "./map-heights-cache.js";
-import { buildTerrainChunks, updateChunkVisibility } from "./terrain-chunks.js";
-import {
-  extractDirections,
-  syncAllChunksFromMaster,
-  syncChunksNear
-} from "./terrain-render.js";
-
-const DEFAULT_TERRAIN_OPTS = {
-  icoSubdiv: CONFIG.icoSubdiv
-};
+import { generateHeights } from "./maps.js";
+import { applyCapClip, createCapUniforms } from "./cap-material.js";
 
 export class Terrain {
-  constructor(planetGroup, mapId = CONFIG.defaultMapId, opts = {}) {
+  constructor(planetGroup) {
     this.group = planetGroup;
-    this.jobs = [];
-    this.#setOpts(opts);
-    this.map = getMap(mapId);
-    this.mapId = this.map.index;
-    this.seed = this.map.seed >>> 0;
+    this.seed = CONFIG.defaultMapSeed >>> 0;
     this.noise = createNoise(this.seed);
-    this.geometry = createIcosphereGeometry(CONFIG.planetR, this.icoSubdiv);
+    this.capUniforms = createCapUniforms();
+    this.geometry = createIcosphereGeometry(CONFIG.planetR, CONFIG.icoSubdiv);
     this.#sculpt();
-    this.#buildGrid();
     this.material = new THREE.MeshStandardMaterial({
       vertexColors: true,
       roughness: 0.88,
       metalness: 0.02
     });
-    this.renderChunks = [];
-    this.renderMesh = null;
-    this.renderMode = "chunked";
-    this.capCull = true;
-    this.qualityOpts = null;
+    applyCapClip(this.material, this.capUniforms);
+    this.mesh = new THREE.Mesh(this.geometry, this.material);
+    this.mesh.castShadow = true;
+    this.mesh.receiveShadow = true;
+    this.mesh.frustumCulled = false;
+    this.group.add(this.mesh);
+    this.#buildGrid();
   }
 
-  applyQuality(q) {
-    const next = {
-      renderIcoSubdiv: q.renderIcoSubdiv ?? CONFIG.renderIcoSubdiv,
-      terrainChunked: q.terrainChunked !== false,
-      visibleCapDot: q.visibleCapDot ?? CONFIG.visibleCapDot
-    };
-    const changed =
-      !this.qualityOpts ||
-      this.qualityOpts.renderIcoSubdiv !== next.renderIcoSubdiv ||
-      this.qualityOpts.terrainChunked !== next.terrainChunked;
-    this.qualityOpts = next;
-    this.capCull = next.visibleCapDot != null && next.terrainChunked;
-    if (changed || !this.renderChunks.length) this.#buildRender();
-  }
-
-  get mesh() {
-    return this.renderChunks[0]?.mesh ?? this.renderMesh ?? null;
-  }
-
-  updateVisibility(viewAxis) {
-    if (!this.capCull || this.renderMode === "full") {
-      for (const c of this.renderChunks) c.mesh.visible = true;
-      return;
-    }
-    updateChunkVisibility(
-      this.renderChunks,
-      viewAxis,
-      this.qualityOpts?.visibleCapDot ?? CONFIG.visibleCapDot
-    );
+  setViewAxis(viewAxis) {
+    this.capUniforms.uViewAxis.value.copy(viewAxis);
   }
 
   intersectPick(raycaster) {
-    const out = [];
-    for (const c of this.renderChunks) {
-      if (!c.mesh.visible) continue;
-      const hits = raycaster.intersectObject(c.mesh, false);
-      if (hits.length) out.push(hits[0]);
-    }
-    out.sort((a, b) => a.distance - b.distance);
-    return out;
+    return raycaster.intersectObject(this.mesh, false);
   }
 
-  rebuild(mapId = CONFIG.defaultMapId, opts = {}) {
-    this.jobs = [];
-    if (opts.icoSubdiv != null) this.#setOpts(opts);
-    this.map = getMap(mapId);
-    this.mapId = this.map.index;
-    this.seed = this.map.seed >>> 0;
-    this.noise = createNoise(this.seed);
-    this.geometry.dispose();
-    this.geometry = createIcosphereGeometry(CONFIG.planetR, this.icoSubdiv);
-    this.#sculpt();
-    this.#buildGrid();
-    this.#buildRender();
+  isLand(localPoint) {
+    return localPoint.length() > CONFIG.waterLevel + 0.05;
   }
 
-  #buildRender() {
+  height(dir) {
     if (!this.buckets) this.#buildGrid();
-    this.#disposeRender();
-
-    const chunked = this.qualityOpts?.terrainChunked !== false;
-    if (!chunked) {
-      this.renderMode = "full";
-      this.renderMesh = new THREE.Mesh(this.geometry, this.material);
-      this.renderMesh.castShadow = true;
-      this.renderMesh.receiveShadow = true;
-      this.renderMesh.frustumCulled = false;
-      this.group.add(this.renderMesh);
-      this.renderChunks = [{ mesh: this.renderMesh, geometry: this.geometry }];
-      return;
+    const p = this.geometry.attributes.position;
+    const nlen = Math.hypot(dir.x, dir.y, dir.z) || 1;
+    const dx = dir.x / nlen;
+    const dy = dir.y / nlen;
+    const dz = dir.z / nlen;
+    const key = this.#dirToGrid(dx, dy, dz);
+    const iv = (key / CONFIG.heightGrid) | 0;
+    const iu = key - iv * CONFIG.heightGrid;
+    let d1 = -Infinity;
+    let d2 = -Infinity;
+    let d3 = -Infinity;
+    let l1 = CONFIG.planetR;
+    let l2 = CONFIG.planetR;
+    let l3 = CONFIG.planetR;
+    for (let dv = -1; dv <= 1; dv++) {
+      const jv = iv + dv;
+      if (jv < 0 || jv >= CONFIG.heightGrid) continue;
+      for (let du = -1; du <= 1; du++) {
+        let ju = iu + du;
+        if (ju < 0) ju += CONFIG.heightGrid;
+        else if (ju >= CONFIG.heightGrid) ju -= CONFIG.heightGrid;
+        const bucket = this.buckets[jv * CONFIG.heightGrid + ju];
+        if (!bucket) continue;
+        for (let b = 0; b < bucket.length; b++) {
+          const vi = bucket[b];
+          const x = p.getX(vi);
+          const y = p.getY(vi);
+          const z = p.getZ(vi);
+          const vl = Math.hypot(x, y, z) || 1;
+          const dot = (x * dx + y * dy + z * dz) / vl;
+          if (dot > d1) {
+            d3 = d2; l3 = l2;
+            d2 = d1; l2 = l1;
+            d1 = dot; l1 = vl;
+          } else if (dot > d2) {
+            d3 = d2; l3 = l2;
+            d2 = dot; l2 = vl;
+          } else if (dot > d3) {
+            d3 = dot; l3 = vl;
+          }
+        }
+      }
     }
-
-    this.renderMode = "chunked";
-    const subdiv = this.qualityOpts?.renderIcoSubdiv ?? CONFIG.renderIcoSubdiv;
-    this.renderBaseGeo = createIcosphereGeometry(CONFIG.planetR, subdiv);
-    this.renderDirections = extractDirections(this.renderBaseGeo);
-    this.renderChunks = buildTerrainChunks(this.renderBaseGeo, this.material);
-    for (const c of this.renderChunks) {
-      c.mesh.castShadow = true;
-      c.mesh.receiveShadow = true;
-      c.mesh.frustumCulled = false;
-      this.group.add(c.mesh);
-    }
-    syncAllChunksFromMaster(this.renderChunks, this, this.renderDirections);
+    const w1 = 1 / Math.max(1e-5, 1 - d1);
+    const w2 = 1 / Math.max(1e-5, 1 - d2);
+    const w3 = 1 / Math.max(1e-5, 1 - d3);
+    return (w1 * l1 + w2 * l2 + w3 * l3) / (w1 + w2 + w3);
   }
 
-  #disposeRender() {
-    if (this.renderMode === "full" && this.renderMesh) {
-      this.group.remove(this.renderMesh);
-      this.renderMesh = null;
-      this.renderChunks = [];
-      return;
-    }
-    if (!this.renderChunks?.length) return;
-    for (const c of this.renderChunks) {
-      this.group.remove(c.mesh);
-      c.geometry.dispose();
-    }
-    this.renderChunks = [];
-    this.renderBaseGeo?.dispose();
-    this.renderBaseGeo = null;
-    this.renderDirections = null;
-  }
-
-  #setOpts(opts) {
-    this.icoSubdiv = opts.icoSubdiv ?? DEFAULT_TERRAIN_OPTS.icoSubdiv;
-  }
-
-  getSpawnFocus(slot = 0) {
-    const list = this.map?.spawnFocus || getDefaultMap().spawnFocus;
-    return list[slot % list.length];
-  }
-
-  colorFromHeight(h, n, out, x, y, z) {
+  colorFromHeight(h, out, x, y, z) {
     const elev = h - CONFIG.waterLevel;
     if (elev <= 0.02) {
       out[0] = CONFIG.waterColor[0];
@@ -161,7 +99,7 @@ export class Terrain {
       out[2] = CONFIG.waterColor[2];
       return out;
     }
-    let beachN = n || 0;
+    let beachN = 0;
     let grain = 0;
     if (x !== undefined) {
       const inv = 1 / (Math.hypot(x, y, z) || 1);
@@ -187,243 +125,12 @@ export class Terrain {
     return out;
   }
 
-  isLand(localPoint) {
-    return localPoint.length() > CONFIG.waterLevel + 0.05;
-  }
-
-  height(dir) {
-    return this.#queryNearest(dir).height;
-  }
-
-  nearestVertexIndex(dir) {
-    return this.#queryNearest(dir).nearest;
-  }
-
-  #queryNearest(dir) {
-    if (!this.buckets) this.#buildGrid();
-    const p = this.geometry.attributes.position;
-    const nlen = Math.hypot(dir.x, dir.y, dir.z) || 1;
-    const dx = dir.x / nlen;
-    const dy = dir.y / nlen;
-    const dz = dir.z / nlen;
-    const key = this.#dirToGrid(dx, dy, dz);
-    const iv = (key / CONFIG.heightGrid) | 0;
-    const iu = key - iv * CONFIG.heightGrid;
-    let d1 = -Infinity;
-    let d2 = -Infinity;
-    let d3 = -Infinity;
-    let v1 = -1;
-    let v2 = -1;
-    let v3 = -1;
-    let l1 = CONFIG.planetR;
-    let l2 = CONFIG.planetR;
-    let l3 = CONFIG.planetR;
-    for (let dv = -1; dv <= 1; dv++) {
-      const jv = iv + dv;
-      if (jv < 0 || jv >= CONFIG.heightGrid) continue;
-      for (let du = -1; du <= 1; du++) {
-        let ju = iu + du;
-        if (ju < 0) ju += CONFIG.heightGrid;
-        else if (ju >= CONFIG.heightGrid) ju -= CONFIG.heightGrid;
-        const bucket = this.buckets[jv * CONFIG.heightGrid + ju];
-        if (!bucket) continue;
-        for (let b = 0; b < bucket.length; b++) {
-          const vi = bucket[b];
-          const x = p.getX(vi);
-          const y = p.getY(vi);
-          const z = p.getZ(vi);
-          const vl = Math.hypot(x, y, z) || 1;
-          const dot = (x * dx + y * dy + z * dz) / vl;
-          if (dot > d1) {
-            d3 = d2; v3 = v2; l3 = l2;
-            d2 = d1; v2 = v1; l2 = l1;
-            d1 = dot; v1 = vi; l1 = vl;
-          } else if (dot > d2) {
-            d3 = d2; v3 = v2; l3 = l2;
-            d2 = dot; v2 = vi; l2 = vl;
-          } else if (dot > d3) {
-            d3 = dot; v3 = vi; l3 = vl;
-          }
-        }
-      }
-    }
-    const hit = this.#radialHit(dx, dy, dz, v1, v2, v3);
-    if (hit > 0) return { height: hit, nearest: v1 };
-    const w1 = 1 / Math.max(1e-5, 1 - d1);
-    const w2 = 1 / Math.max(1e-5, 1 - d2);
-    const w3 = 1 / Math.max(1e-5, 1 - d3);
-    return {
-      height: (w1 * l1 + w2 * l2 + w3 * l3) / (w1 + w2 + w3),
-      nearest: v1
-    };
-  }
-
-  forEachNear(centerLocal, radius, fn) {
-    if (!this.buckets) this.#buildGrid();
-    const p = this.geometry.attributes.position;
-    const cx = centerLocal.x;
-    const cy = centerLocal.y;
-    const cz = centerLocal.z;
-    const key = this.#dirToGrid(cx, cy, cz);
-    const iv = (key / CONFIG.heightGrid) | 0;
-    const iu = key - iv * CONFIG.heightGrid;
-    const cellAng = Math.PI / CONFIG.heightGrid;
-    const ang = radius / Math.max(Math.hypot(cx, cy, cz), CONFIG.planetR) + cellAng;
-    const span = Math.max(1, Math.ceil(ang / cellAng) + 1);
-    for (let dv = -span; dv <= span; dv++) {
-      const jv = iv + dv;
-      if (jv < 0 || jv >= CONFIG.heightGrid) continue;
-      for (let du = -span; du <= span; du++) {
-        let ju = ((iu + du) % CONFIG.heightGrid + CONFIG.heightGrid) % CONFIG.heightGrid;
-        const bucket = this.buckets[jv * CONFIG.heightGrid + ju];
-        for (let b = 0; b < bucket.length; b++) {
-          const i = bucket[b];
-          const x = p.getX(i);
-          const y = p.getY(i);
-          const z = p.getZ(i);
-          const dist = Math.hypot(x - cx, y - cy, z - cz);
-          if (dist <= radius) fn(i, x, y, z, dist);
-        }
-      }
-    }
-  }
-
-  deform(centerLocal, mode, radius) {
-    const positions = this.geometry.attributes.position;
-    const colorAttr = this.geometry.attributes.color;
-    const amount = mode === "swamp" ? 0.18 : CONFIG.spellAmount;
-    const rad = radius || CONFIG.spellRadius;
-    const col = tmp.col;
-    const colorOnly = mode === "scorch";
-
-    this.forEachNear(centerLocal, rad, (i, x, y, z, dist) => {
-      const falloff = smoothFalloff(1 - dist / rad);
-      const len0 = Math.hypot(x, y, z) || 1;
-      const inv = 1 / len0;
-      let len = len0;
-      if (mode === "elevate" || mode === "depress") {
-        this.colorFromHeight(len, 0, col, x, y, z);
-        colorAttr.setXYZ(i, col[0], col[1], col[2]);
-      } else if (mode === "swamp") {
-        len = Math.max(CONFIG.waterLevel, len - amount * falloff);
-        colorAttr.setXYZ(
-          i,
-          CONFIG.swampColor[0] * (0.75 + falloff * 0.2),
-          CONFIG.swampColor[1] * (0.75 + falloff * 0.2),
-          CONFIG.swampColor[2] * (0.75 + falloff * 0.2)
-        );
-      } else if (mode === "scorch") {
-        if (len0 <= CONFIG.waterLevel + 0.08) return;
-        colorAttr.setXYZ(
-          i,
-          colorAttr.getX(i) * (1 - falloff) + 0.03 * falloff,
-          colorAttr.getY(i) * (1 - falloff) + 0.025 * falloff,
-          colorAttr.getZ(i) * (1 - falloff) + 0.02 * falloff
-        );
-      }
-      if (!colorOnly) {
-        positions.setXYZ(i, x * inv * len, y * inv * len, z * inv * len);
-      }
-    });
-
-    positions.needsUpdate = !colorOnly;
-    colorAttr.needsUpdate = true;
-    if (!colorOnly) this.geometry.computeVertexNormals();
-    if (this.renderMode === "chunked") {
-      syncChunksNear(this.renderChunks, this, this.renderDirections, centerLocal, rad);
-    }
-  }
-
-  startMorph(centerLocal, mode) {
-    const indices = [];
-    const falloff = [];
-    this.forEachNear(centerLocal, CONFIG.spellRadius, (i, x, y, z, dist) => {
-      const u = 1 - dist / CONFIG.spellRadius;
-      indices.push(i);
-      falloff.push(smoothFalloff(u));
-    });
-    this.jobs.push({
-      mode,
-      centerLocal: centerLocal.clone(),
-      indices,
-      falloff,
-      elapsed: 0,
-      duration: CONFIG.spellDuration,
-      amount: CONFIG.spellAmount
-    });
-  }
-
-  update(dt) {
-    if (!this.jobs.length) return;
-    const positions = this.geometry.attributes.position;
-    const colorAttr = this.geometry.attributes.color;
-    let changed = false;
-    const syncCenters = [];
-    for (let i = this.jobs.length - 1; i >= 0; i--) {
-      const job = this.jobs[i];
-      const prev = job.elapsed;
-      job.elapsed = Math.min(job.elapsed + dt, job.duration);
-      const deltaAmt = job.amount * (job.elapsed / job.duration - prev / job.duration);
-      if (deltaAmt !== 0) {
-        this.#applyMorphDelta(job, deltaAmt);
-        changed = true;
-      }
-      syncCenters.push(job.centerLocal);
-      if (job.elapsed >= job.duration) this.jobs.splice(i, 1);
-    }
-    if (!changed) return;
-    positions.needsUpdate = true;
-    colorAttr.needsUpdate = true;
-    for (const center of syncCenters) {
-      if (this.renderMode !== "chunked") continue;
-      syncChunksNear(
-        this.renderChunks,
-        this,
-        this.renderDirections,
-        center,
-        CONFIG.spellRadius
-      );
-    }
-    if (!this.jobs.length) this.geometry.computeVertexNormals();
-  }
-
-  pickStartDir(focus) {
-    const v = tmp.v;
-    const pos = this.geometry.attributes.position;
-    const f = focus.clone().normalize();
-    let bestScore = -Infinity;
-    const dir = f.clone();
-    for (let i = 0; i < pos.count; i++) {
-      v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
-      const len = v.length();
-      if (len < CONFIG.waterLevel + 0.35) continue;
-      const nx = v.x / len;
-      const ny = v.y / len;
-      const nz = v.z / len;
-      const align = nx * f.x + ny * f.y + nz * f.z;
-      if (align < 0.72) continue;
-      const elev = len - CONFIG.waterLevel;
-      const score = align * 3 + Math.min(elev, 4) * 0.04;
-      if (score > bestScore) {
-        bestScore = score;
-        dir.set(nx, ny, nz);
-      }
-    }
-    if (bestScore > -Infinity) return dir;
-    return f;
-  }
-
   #sculpt() {
     const pos = this.geometry.attributes.position;
     const idx = this.geometry.index;
     const count = pos.count;
     const heights = new Float32Array(count);
-    const cached = getCachedHeights(this.mapId);
-    if (cached) {
-      heights.set(cached);
-    } else {
-      generateMapHeights(this.map || getDefaultMap(), heights, pos, this.noise);
-    }
+    generateHeights(heights, pos, this.noise);
     this.#smoothCoast(heights, idx, count);
     const colors = new Float32Array(count * 3);
     const col = tmp.col;
@@ -434,7 +141,7 @@ export class Terrain {
       const dirLen = Math.hypot(x, y, z) || 1;
       const h = heights[i];
       pos.setXYZ(i, (x / dirLen) * h, (y / dirLen) * h, (z / dirLen) * h);
-      this.colorFromHeight(h, 0, col, x, y, z);
+      this.colorFromHeight(h, col, x, y, z);
       colors[i * 3] = col[0];
       colors[i * 3 + 1] = col[1];
       colors[i * 3 + 2] = col[2];
@@ -494,122 +201,9 @@ export class Terrain {
     for (let i = 0; i < p.count; i++) {
       this.buckets[this.#dirToGrid(p.getX(i), p.getY(i), p.getZ(i))].push(i);
     }
-    const idx = this.geometry.index;
-    const counts = new Uint8Array(p.count);
-    for (let f = 0; f < idx.count; f += 3) {
-      counts[idx.getX(f)]++;
-      counts[idx.getX(f + 1)]++;
-      counts[idx.getX(f + 2)]++;
-    }
-    const offsets = new Uint32Array(p.count);
-    let total = 0;
-    for (let i = 0; i < p.count; i++) {
-      offsets[i] = total;
-      total += counts[i];
-    }
-    const adj = new Uint32Array(total);
-    const write = new Uint8Array(p.count);
-    for (let f = 0; f < idx.count; f += 3) {
-      for (let k = 0; k < 3; k++) {
-        const v = idx.getX(f + k);
-        adj[offsets[v] + write[v]++] = f;
-      }
-    }
-    this.faceAdj = adj;
-    this.faceAdjOff = offsets;
-    this.faceAdjCount = counts;
-  }
-
-  #radialHit(dx, dy, dz, v1, v2, v3) {
-    const p = this.geometry.attributes.position;
-    const idx = this.geometry.index;
-    let bestT = 0;
-    let bestScore = -1;
-    const tryVert = (vi) => {
-      if (vi < 0) return;
-      const n = this.faceAdjCount[vi];
-      const off = this.faceAdjOff[vi];
-      for (let i = 0; i < n; i++) {
-        const f = this.faceAdj[off + i];
-        const ia = idx.getX(f);
-        const ib = idx.getX(f + 1);
-        const ic = idx.getX(f + 2);
-        const hit = rayTriangle(
-          dx, dy, dz,
-          p.getX(ia), p.getY(ia), p.getZ(ia),
-          p.getX(ib), p.getY(ib), p.getZ(ib),
-          p.getX(ic), p.getY(ic), p.getZ(ic)
-        );
-        if (!hit) continue;
-        if (hit.inside) {
-          bestT = hit.t;
-          bestScore = 1;
-          return true;
-        }
-        if (hit.score > bestScore) {
-          bestScore = hit.score;
-          bestT = hit.t;
-        }
-      }
-      return false;
-    };
-    if (tryVert(v1) || tryVert(v2) || tryVert(v3)) return bestT;
-    return bestScore > -0.2 ? bestT : 0;
-  }
-
-  #applyMorphDelta(job, deltaAmt) {
-    const positions = this.geometry.attributes.position;
-    const colorAttr = this.geometry.attributes.color;
-    const sign = job.mode === "elevate" ? 1 : -1;
-    const col = tmp.col;
-    for (let k = 0; k < job.indices.length; k++) {
-      const i = job.indices[k];
-      const x = positions.getX(i);
-      const y = positions.getY(i);
-      const z = positions.getZ(i);
-      const len0 = Math.sqrt(x * x + y * y + z * z);
-      const inv = 1 / Math.max(len0, 1e-6);
-      let len = len0 + sign * deltaAmt * job.falloff[k];
-      if (len < CONFIG.waterLevel) len = CONFIG.waterLevel;
-      if (len > CONFIG.maxR) len = CONFIG.maxR;
-      positions.setXYZ(i, x * inv * len, y * inv * len, z * inv * len);
-      this.colorFromHeight(len, 0, col, x, y, z);
-      colorAttr.setXYZ(i, col[0], col[1], col[2]);
-    }
   }
 }
 
 function smoothFalloff(t) {
   return t * t * (3 - 2 * t);
-}
-
-function rayTriangle(dx, dy, dz, ax, ay, az, bx, by, bz, cx, cy, cz) {
-  const e1x = bx - ax;
-  const e1y = by - ay;
-  const e1z = bz - az;
-  const e2x = cx - ax;
-  const e2y = cy - ay;
-  const e2z = cz - az;
-  const px = dy * e2z - dz * e2y;
-  const py = dz * e2x - dx * e2z;
-  const pz = dx * e2y - dy * e2x;
-  const det = e1x * px + e1y * py + e1z * pz;
-  if (det > -1e-12 && det < 1e-12) return null;
-  const inv = 1 / det;
-  const sx = -ax;
-  const sy = -ay;
-  const sz = -az;
-  const u = (sx * px + sy * py + sz * pz) * inv;
-  const qx = sy * e1z - sz * e1y;
-  const qy = sz * e1x - sx * e1z;
-  const qz = sx * e1y - sy * e1x;
-  const v = (dx * qx + dy * qy + dz * qz) * inv;
-  const t = (e2x * qx + e2y * qy + e2z * qz) * inv;
-  if (t <= 0) return null;
-  const eps = 0.02;
-  return {
-    t,
-    inside: u >= -eps && v >= -eps && u + v <= 1 + eps,
-    score: Math.min(u, v, 1 - u - v)
-  };
 }
