@@ -4,17 +4,16 @@ import { lerp3, tmp } from "./utils.js";
 import { createNoise } from "./noise.js";
 import { createIcosphereGeometry } from "./icosphere.js";
 import { generateMapHeights, getDefaultMap, getMap } from "./maps.js";
+import { getCachedHeights } from "./map-heights-cache.js";
 
 const DEFAULT_TERRAIN_OPTS = {
-  icoSubdiv: CONFIG.icoSubdiv,
-  treeShadows: true
+  icoSubdiv: CONFIG.icoSubdiv
 };
 
 export class Terrain {
   constructor(planetGroup, mapId = CONFIG.defaultMapId, opts = {}) {
     this.group = planetGroup;
     this.jobs = [];
-    this.trees = null;
     this.#setOpts(opts);
     this.map = getMap(mapId);
     this.mapId = this.map.index;
@@ -22,47 +21,39 @@ export class Terrain {
     this.noise = createNoise(this.seed);
     this.geometry = createIcosphereGeometry(CONFIG.planetR, this.icoSubdiv);
     this.#sculpt();
-    this.mesh = new THREE.Mesh(
-      this.geometry,
-      new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.88,
-        metalness: 0.02
-      })
-    );
+    this.material = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.88,
+      metalness: 0.02
+    });
+    this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
-    planetGroup.add(this.mesh);
+    this.mesh.frustumCulled = false;
+    this.group.add(this.mesh);
     this.#buildGrid();
-    this.#scatterTrees();
+  }
+
+  intersectPick(raycaster) {
+    return raycaster.intersectObject(this.mesh, false);
   }
 
   rebuild(mapId = CONFIG.defaultMapId, opts = {}) {
     this.jobs = [];
-    if (opts.icoSubdiv != null || opts.treeShadows != null) this.#setOpts(opts);
+    if (opts.icoSubdiv != null) this.#setOpts(opts);
     this.map = getMap(mapId);
     this.mapId = this.map.index;
     this.seed = this.map.seed >>> 0;
     this.noise = createNoise(this.seed);
-    if (this.trees) {
-      this.group.remove(this.trees);
-      this.trees.geometry.dispose();
-      this.trees.material.dispose();
-      this.trees = null;
-    }
     this.geometry.dispose();
     this.geometry = createIcosphereGeometry(CONFIG.planetR, this.icoSubdiv);
     this.#sculpt();
     this.mesh.geometry = this.geometry;
-    this.mesh.castShadow = true;
-    this.mesh.receiveShadow = true;
     this.#buildGrid();
-    this.#scatterTrees();
   }
 
   #setOpts(opts) {
     this.icoSubdiv = opts.icoSubdiv ?? DEFAULT_TERRAIN_OPTS.icoSubdiv;
-    this.treeShadows = opts.treeShadows ?? DEFAULT_TERRAIN_OPTS.treeShadows;
   }
 
   getSpawnFocus(slot = 0) {
@@ -197,6 +188,7 @@ export class Terrain {
     const amount = mode === "swamp" ? 0.18 : CONFIG.spellAmount;
     const rad = radius || CONFIG.spellRadius;
     const col = tmp.col;
+    const colorOnly = mode === "scorch";
 
     this.forEachNear(centerLocal, rad, (i, x, y, z, dist) => {
       const falloff = smoothFalloff(1 - dist / rad);
@@ -223,12 +215,14 @@ export class Terrain {
           colorAttr.getZ(i) * (1 - falloff) + 0.02 * falloff
         );
       }
-      positions.setXYZ(i, x * inv * len, y * inv * len, z * inv * len);
+      if (!colorOnly) {
+        positions.setXYZ(i, x * inv * len, y * inv * len, z * inv * len);
+      }
     });
 
-    positions.needsUpdate = true;
+    positions.needsUpdate = !colorOnly;
     colorAttr.needsUpdate = true;
-    if (mode !== "scorch") this.geometry.computeVertexNormals();
+    if (!colorOnly) this.geometry.computeVertexNormals();
   }
 
   startMorph(centerLocal, mode) {
@@ -265,11 +259,10 @@ export class Terrain {
       }
       if (job.elapsed >= job.duration) this.jobs.splice(i, 1);
     }
-    if (changed) {
-      positions.needsUpdate = true;
-      colorAttr.needsUpdate = true;
-      if (!this.jobs.length) this.geometry.computeVertexNormals();
-    }
+    if (!changed) return;
+    positions.needsUpdate = true;
+    colorAttr.needsUpdate = true;
+    if (!this.jobs.length) this.geometry.computeVertexNormals();
   }
 
   pickStartDir(focus) {
@@ -278,7 +271,6 @@ export class Terrain {
     const f = focus.clone().normalize();
     let bestScore = -Infinity;
     const dir = f.clone();
-    // Drž pevninu u spawnového slotu — ať se hráči nerozjíždí na stejný kontinent.
     for (let i = 0; i < pos.count; i++) {
       v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
       const len = v.length();
@@ -296,19 +288,24 @@ export class Terrain {
       }
     }
     if (bestScore > -Infinity) return dir;
-    // Žádná pevnina ve slotu — zůstaň ve směru slotu (i nad vodou).
     return f;
   }
 
   #sculpt() {
     const pos = this.geometry.attributes.position;
     const idx = this.geometry.index;
-    const heights = new Float32Array(pos.count);
-    generateMapHeights(this.map || getDefaultMap(), heights, pos, this.noise);
-    this.#smoothCoast(heights, idx, pos.count);
-    const colors = new Float32Array(pos.count * 3);
+    const count = pos.count;
+    const heights = new Float32Array(count);
+    const cached = getCachedHeights(this.mapId);
+    if (cached) {
+      heights.set(cached);
+    } else {
+      generateMapHeights(this.map || getDefaultMap(), heights, pos, this.noise);
+    }
+    this.#smoothCoast(heights, idx, count);
+    const colors = new Float32Array(count * 3);
     const col = tmp.col;
-    for (let i = 0; i < pos.count; i++) {
+    for (let i = 0; i < count; i++) {
       const x = pos.getX(i);
       const y = pos.getY(i);
       const z = pos.getZ(i);
@@ -457,39 +454,6 @@ export class Terrain {
       this.colorFromHeight(len, 0, col, x, y, z);
       colorAttr.setXYZ(i, col[0], col[1], col[2]);
     }
-  }
-
-  #scatterTrees() {
-    const dummy = new THREE.Object3D();
-    const yAxis = new THREE.Vector3(0, 1, 0);
-    const v = tmp.v;
-    const pos = this.geometry.attributes.position;
-    const matrices = [];
-    for (let i = 0; i < pos.count; i++) {
-      if ((i * 13 + 7) % 401 !== 0) continue;
-      v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
-      const h = v.length();
-      if (h < CONFIG.waterLevel + 0.7) continue;
-      v.normalize();
-      dummy.position.copy(v).multiplyScalar(h + 0.45);
-      dummy.quaternion.setFromUnitVectors(yAxis, v);
-      dummy.scale.setScalar(0.75 + ((i * 17) % 10) * 0.04);
-      dummy.updateMatrix();
-      matrices.push(dummy.matrix.clone());
-    }
-    if (!matrices.length) return;
-    const trees = new THREE.InstancedMesh(
-      new THREE.ConeGeometry(0.32, 1.05, 6),
-      new THREE.MeshStandardMaterial({ color: 0x2f6b2a, roughness: 0.9, flatShading: true }),
-      matrices.length
-    );
-    for (let i = 0; i < matrices.length; i++) trees.setMatrixAt(i, matrices[i]);
-    trees.instanceMatrix.needsUpdate = true;
-    trees.castShadow = this.treeShadows;
-    trees.receiveShadow = this.treeShadows;
-    trees.raycast = function () {};
-    this.trees = trees;
-    this.group.add(trees);
   }
 }
 

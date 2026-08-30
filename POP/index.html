@@ -7,6 +7,14 @@
   <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
+  <div id="loader" class="loader" aria-live="polite" aria-busy="true">
+    <div class="loader-card">
+      <h2>Populous</h2>
+      <p id="loader-label">Načítání…</p>
+      <div class="loader-track"><div id="loader-bar" class="loader-bar"></div></div>
+      <span id="loader-pct" class="loader-pct">0%</span>
+    </div>
+  </div>
   <canvas id="c"></canvas>
   <aside id="ui">
     <h1>Populous</h1>

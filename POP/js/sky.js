@@ -1,6 +1,7 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { disposeObject } from "./utils.js";
+import { PLANET_SHADOW_HALF } from "./visibility.js";
 
 const DEFAULT_SKY_OPTS = {
   cloudCount: 42,
@@ -20,6 +21,7 @@ void main() {
 `;
 
 const SKY_FRAG = `
+uniform vec3 uSunDir;
 varying vec3 vDir;
 void main() {
   float h = clamp(vDir.y * 0.78 + 0.22, 0.0, 1.0);
@@ -30,6 +32,11 @@ void main() {
   col = mix(col, zenith, smoothstep(0.28, 0.98, h));
   float glow = pow(1.0 - abs(vDir.y), 5.0) * 0.22;
   col += vec3(1.0, 0.78, 0.42) * glow;
+  vec3 sd = normalize(uSunDir);
+  vec3 dir = normalize(vDir);
+  float sunDot = max(dot(dir, sd), 0.0);
+  col += vec3(1.0, 0.94, 0.72) * pow(sunDot, 96.0) * 0.9;
+  col += vec3(1.0, 0.82, 0.45) * pow(sunDot, 6.0) * 0.28;
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -166,6 +173,8 @@ function mulberry(seed) {
   };
 }
 
+const _sunLocal = new THREE.Vector3();
+
 export class Sky {
   constructor(world, opts = {}) {
     this.world = world;
@@ -198,7 +207,9 @@ export class Sky {
   }
 
   #initMaterials() {
+    this._sunDir = new THREE.Vector3(0.58, 0.47, -0.18).normalize();
     this.skyMat = new THREE.ShaderMaterial({
+      uniforms: { uSunDir: { value: this._sunDir.clone() } },
       vertexShader: SKY_VERT,
       fragmentShader: SKY_FRAG,
       side: THREE.BackSide,
@@ -333,37 +344,65 @@ export class Sky {
     if (this.shell) this.shellMat.uniforms.uTime.value = this.time;
     this.cloudRoot.rotation.y += dt * 0.0035;
   }
+
+  /** Směr ke slunci v local space oblohy (planetGroup). */
+  setSunDirection(sun) {
+    if (!sun || !this.skyMat?.uniforms?.uSunDir) return;
+    _sunLocal.copy(sun.position).normalize();
+    this.skyMat.uniforms.uSunDir.value.copy(_sunLocal);
+  }
 }
 
 export function applySunQuality(sun, opts = {}) {
   if (!sun) return;
+  sun.intensity = 2.05;
+  sun.visible = true;
   sun.castShadow = opts.shadows !== false;
   sun.target.position.set(0, 0, 0);
   if (!opts.shadows) return;
+
   const size = opts.shadowMapSize || 2048;
-  sun.shadow.mapSize.set(size, size);
-  sun.shadow.bias = -0.0004;
-  sun.shadow.normalBias = 0.08;
+  if (sun.shadow.mapSize.x !== size || sun.shadow.mapSize.y !== size) {
+    resetSunShadowMap(sun);
+    sun.shadow.mapSize.set(size, size);
+  }
+
+  sun.shadow.bias = -0.00015;
+  sun.shadow.normalBias = 0.02;
   sun.shadow.radius = opts.shadowRadius ?? 2;
-  const half = opts.shadowFrustumHalf ?? 72;
+  const half = Math.max(opts.shadowFrustumHalf ?? PLANET_SHADOW_HALF, PLANET_SHADOW_HALF);
   const cam = sun.shadow.camera;
   cam.left = -half;
   cam.right = half;
   cam.top = half;
   cam.bottom = -half;
+  cam.near = 20;
+  cam.far = 560;
   cam.updateProjectionMatrix();
+  sun.shadow.needsUpdate = true;
 }
 
-export function createSun(world, opts = {}) {
+/** Uvolní stínovou texturu — nutné po změně kvality / velikosti mapy. */
+export function resetSunShadowMap(sun) {
+  if (!sun?.shadow) return;
+  if (sun.shadow.map) {
+    sun.shadow.map.dispose();
+    sun.shadow.map = null;
+  }
+  sun.shadow.needsUpdate = true;
+}
+
+/** Slunce v planetGroup — stejný prostor jako terén, cíl ve středu planety. */
+export function createSun(planetGroup, opts = {}) {
   const sun = new THREE.DirectionalLight(0xfff1c8, 2.05);
   sun.position.set(220, 180, -70);
   sun.target.position.set(0, 0, 0);
   const cam = sun.shadow.camera;
-  cam.near = 40;
-  cam.far = 520;
+  cam.near = 20;
+  cam.far = 560;
   applySunQuality(sun, opts);
-  world.add(sun);
-  world.add(sun.target);
+  planetGroup.add(sun);
+  planetGroup.add(sun.target);
   return sun;
 }
 

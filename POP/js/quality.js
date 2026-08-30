@@ -1,6 +1,6 @@
 import * as THREE from "./three.js";
 import { applySunQuality } from "./sky.js";
-import { configureShadowFrustum } from "./visibility.js";
+import { configureShadowFrustum, updateSunShadow } from "./visibility.js";
 
 const LS_QUALITY = "populous.quality";
 const LS_SHOW_FPS = "populous.showFps";
@@ -18,17 +18,16 @@ export const QUALITY_PRESETS = {
     resolutionScale: 0.68,
     antialias: false,
     shadows: true,
-    shadowMapSize: 1280,
+    shadowMapSize: 1024,
     shadowType: "basic",
     shadowRadius: 2,
-    shadowFrustumHalf: 62,
+    shadowFrustumHalf: 128,
     decorSnapInterval: 3,
-    shadowUpdateInterval: 2,
+    shadowUpdateInterval: 1,
     skyUpdateInterval: 2,
     waterUpdateInterval: 2,
     adaptiveResolution: true,
     dynamicPointLights: false,
-    terrainTreeShadows: false,
     effectsOffscreenSkip: true
   },
   medium: {
@@ -39,17 +38,16 @@ export const QUALITY_PRESETS = {
     resolutionScale: 0.82,
     antialias: true,
     shadows: true,
-    shadowMapSize: 1792,
+    shadowMapSize: 2048,
     shadowType: "basic",
-    shadowRadius: 3,
-    shadowFrustumHalf: 68,
+    shadowRadius: 2,
+    shadowFrustumHalf: 128,
     decorSnapInterval: 2,
     shadowUpdateInterval: 1,
     skyUpdateInterval: 1,
     waterUpdateInterval: 1,
     adaptiveResolution: true,
     dynamicPointLights: false,
-    terrainTreeShadows: true,
     effectsOffscreenSkip: true
   },
   high: {
@@ -62,15 +60,14 @@ export const QUALITY_PRESETS = {
     shadows: true,
     shadowMapSize: 2048,
     shadowType: "pcfsoft",
-    shadowRadius: 4,
-    shadowFrustumHalf: 78,
+    shadowRadius: 3,
+    shadowFrustumHalf: 128,
     decorSnapInterval: 1,
     shadowUpdateInterval: 1,
     skyUpdateInterval: 1,
     waterUpdateInterval: 1,
     adaptiveResolution: false,
     dynamicPointLights: true,
-    terrainTreeShadows: true,
     effectsOffscreenSkip: false
   }
 };
@@ -191,9 +188,10 @@ export class QualityManager {
 
   shouldSnapDecor() {
     const n = this.current.decorSnapInterval || 1;
-    if (n <= 1) return true;
     const f = this.game._frame || 0;
-    return f % n === 0 || (this.game.terrain?.jobs?.length > 0);
+    const morphing = this.game.terrain?.jobs?.length > 0;
+    if (morphing) return f % Math.max(n, 4) === 0;
+    return f % n === 0;
   }
 
   shouldUpdateSky() {
@@ -210,9 +208,16 @@ export class QualityManager {
     return { skipOffscreen: !!this.current.effectsOffscreenSkip };
   }
 
-  beforeRender(frame) {
-    const interval = this.current.shadowUpdateInterval || 1;
-    this.game.renderer.shadowMap.autoUpdate = frame % interval === 0;
+  beforeRender() {
+    const { renderer, sun, planetGroup, sky } = this.game;
+    if (!sun) return;
+    sun.visible = true;
+    updateSunShadow(sun, planetGroup);
+    sky?.setSunDirection?.(sun);
+    if (!this.current.shadows) return;
+    renderer.shadowMap.autoUpdate = true;
+    renderer.shadowMap.needsUpdate = true;
+    sun.shadow.needsUpdate = true;
   }
 
   applyEntityShadows() {
@@ -277,6 +282,16 @@ export class QualityManager {
     configureShadowFrustum(this.game.sun, this.current.shadowFrustumHalf);
   }
 
+  #applyRenderer() {
+    const { renderer } = this.game;
+    const q = this.current;
+    renderer.setPixelRatio(this.pixelRatio());
+    renderer.shadowMap.enabled = q.shadows;
+    renderer.shadowMap.type = SHADOW_TYPES[q.shadowType] || THREE.BasicShadowMap;
+    if (q.shadows) renderer.shadowMap.needsUpdate = true;
+    if (typeof this.game.resize === "function") this.game.resize();
+  }
+
   #applyDynamicLights() {
     const on = this.current.dynamicPointLights !== false;
     this.game.spawnDecor?.applyDynamicLights?.(on);
@@ -284,15 +299,15 @@ export class QualityManager {
 
   #applySceneShadows() {
     const q = this.current;
-    const { terrain, wizards, dragons } = this.game;
+    const { terrain, wizards, dragons, water } = this.game;
 
     if (terrain?.mesh) {
       terrain.mesh.castShadow = q.shadows;
       terrain.mesh.receiveShadow = q.shadows;
     }
-    if (terrain?.trees) {
-      terrain.trees.castShadow = q.shadows && q.terrainTreeShadows;
-      terrain.trees.receiveShadow = q.shadows;
+    if (water?.mesh) {
+      water.mesh.castShadow = false;
+      water.mesh.receiveShadow = q.shadows;
     }
 
     for (const w of wizards.values()) {
@@ -310,14 +325,5 @@ export class QualityManager {
         ch.receiveShadow = q.shadows;
       });
     }
-  }
-
-  #applyRenderer() {
-    const { renderer } = this.game;
-    const q = this.current;
-    renderer.setPixelRatio(this.pixelRatio());
-    renderer.shadowMap.enabled = q.shadows;
-    renderer.shadowMap.type = SHADOW_TYPES[q.shadowType] || THREE.BasicShadowMap;
-    if (typeof this.game.resize === "function") this.game.resize();
   }
 }

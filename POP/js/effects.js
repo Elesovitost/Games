@@ -3,6 +3,7 @@ import { CONFIG } from "./config.js";
 import { tangentFrame, disposeObject, tmp } from "./utils.js";
 import { createSurfaceRingMesh, drapeRing, sampleGround } from "./surface.js";
 import { isWorldPointVisible } from "./visibility.js";
+import { SharedResources } from "./resources.js";
 
 const Y_UP = new THREE.Vector3(0, 1, 0);
 const fireMat = (color, opacity) => new THREE.MeshBasicMaterial({
@@ -45,17 +46,36 @@ export class Effects {
     const group = new THREE.Group();
     const rings = [];
     for (let i = 0; i < 3; i++) {
-      const ring = createSurfaceRingMesh(
-        new THREE.MeshBasicMaterial({
-          color: i === 1 ? 0xfff4c8 : color,
-          transparent: true,
-          opacity: 0.8 - i * 0.15,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-          fog: false
-        }),
-        40
-      );
+      const ringGeo = SharedResources.spellRingGeo
+        ? SharedResources.spellRingGeo.clone()
+        : undefined;
+      const ring = ringGeo
+        ? new THREE.Mesh(
+            ringGeo,
+            new THREE.MeshBasicMaterial({
+              color: i === 1 ? 0xfff4c8 : color,
+              transparent: true,
+              opacity: 0.8 - i * 0.15,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+              fog: false
+            })
+          )
+        : createSurfaceRingMesh(
+            new THREE.MeshBasicMaterial({
+              color: i === 1 ? 0xfff4c8 : color,
+              transparent: true,
+              opacity: 0.8 - i * 0.15,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+              fog: false
+            }),
+            32
+          );
+      if (ringGeo) {
+        ring.renderOrder = 6;
+        ring.raycast = () => {};
+      }
       ring.userData.baseScale = scaleMul;
       ring.userData.rIn = (0.12 + i * 0.05) * scaleMul;
       ring.userData.rOut = (0.18 + i * 0.05) * scaleMul;

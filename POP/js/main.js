@@ -17,6 +17,8 @@ import { LobbyUI } from "./net/lobby.js";
 import { getMap } from "./maps.js";
 import { SpawnDecor } from "./spawns.js";
 import { QualityManager } from "./quality.js";
+import { LoadingScreen, preloadGame } from "./preload.js";
+import { initSharedResources } from "./resources.js";
 
 class Game {
   constructor() {
@@ -60,7 +62,6 @@ class Game {
     this.water = new Water(this.planetGroup, this.terrain);
     this.sky = new Sky(this.planetGroup);
     this.spawnDecor = new SpawnDecor(this);
-    this.spawnDecor.rebuild(this.mapId);
     placeCamera(this.camera, getMap(this.mapId).spawnFocus[0]);
 
     this.effects = new Effects(this.planetGroup, this.terrain);
@@ -82,11 +83,18 @@ class Game {
     this.lobby = new LobbyUI(this, this.session);
 
     this.quality.initUI();
-    this.quality.apply();
-
     this.#bindInput();
     this.resize();
     window.addEventListener("resize", () => this.resize());
+  }
+
+  async bootstrap() {
+    initSharedResources();
+    const loader = new LoadingScreen();
+    loader.setProgress(0, "Inicializace…");
+    await preloadGame(this, loader);
+    loader.hide();
+    this.start();
   }
 
   getWizard(id) {
@@ -270,7 +278,7 @@ class Game {
     this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
     this.raycaster.firstHitOnly = true;
-    const hits = this.raycaster.intersectObject(this.terrain.mesh, false);
+    const hits = this.terrain.intersectPick(this.raycaster);
     this.raycaster.firstHitOnly = false;
     if (!hits.length) return null;
     return {
@@ -326,10 +334,10 @@ class Game {
     this.pointerUi.update(elapsed);
     this.quality.tick(dt);
     const frame = this._frame || 0;
-    this.quality.beforeRender(frame);
+    this.quality.beforeRender();
     this.renderer.render(this.scene, this.camera);
     this._frame = frame + 1;
   }
 }
 
-new Game().start();
+new Game().bootstrap();

@@ -213,7 +213,7 @@ export class Pointer {
     this.game.pointer.y = -((this.clientY - rect.top) / rect.height) * 2 + 1;
     this.game.raycaster.setFromCamera(this.game.pointer, this.game.camera);
     this.game.raycaster.firstHitOnly = true;
-    const hits = this.game.raycaster.intersectObject(this.game.terrain.mesh, false);
+    const hits = this.game.terrain.intersectPick(this.game.raycaster);
     this.game.raycaster.firstHitOnly = false;
     if (!hits.length) {
       this.hasHit = false;

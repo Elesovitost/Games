@@ -225,17 +225,23 @@ export class SpawnDecor {
   /** Přilepí runy, kruhy i stromy na aktuální výšku terénu. */
   #snapToTerrain() {
     const terrain = this.game.terrain;
+    const morphing = terrain.jobs?.length > 0;
+    const frame = this.game._frame || 0;
+
     for (const s of this.stones) {
       s.mesh.userData._h = terrain.height(s.dir);
       snapOnSurface(s.mesh, s.dir, s.mesh.userData.faceCenter);
     }
-    // Záře kruhu jen při morphu terénu (jinak zbytečně drahé)
-    if (terrain.jobs?.length) {
+
+    if (morphing && frame % 4 === 0) {
       for (const r of this.rings) {
         drapeRing(r.mesh.geometry, terrain, r.up, r.east, r.north, r.rIn, r.rOut, r.lift);
       }
     }
-    for (const t of this.trees) t.snapToGround(terrain);
+
+    if (!morphing || frame % 2 === 0) {
+      for (const t of this.trees) t.snapToGround(terrain);
+    }
   }
 
   update(dt, elapsed) {
