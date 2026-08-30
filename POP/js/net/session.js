@@ -53,6 +53,7 @@ export class MultiplayerSession {
     this.room = null;
     this.playing = false;
     this.lastSeq = 0;
+    this.vitalsSyncAcc = 0;
     this.#bindNet();
   }
 
@@ -197,6 +198,40 @@ export class MultiplayerSession {
     return true;
   }
 
+  /** Odešle hp/lives/state kouzelníka — vlastník nebo host (láva/regen/drak). */
+  broadcastVitality(wizard, force = false) {
+    if (!this.isPlaying || !wizard) return;
+    if (wizard.id !== this.localId && !this.isHost) return;
+    const intent = {
+      kind: "vitals",
+      wizardId: wizard.id,
+      hp: Math.round(wizard.hp * 100) / 100,
+      lives: wizard.lives,
+      state: wizard.state
+    };
+    const key = intent.hp + "|" + intent.lives + "|" + intent.state;
+    if (!force && wizard._lastVitalsSent === key) return;
+    wizard._lastVitalsSent = key;
+    this.net.send({ type: "intent", intent });
+  }
+
+  /** Host po startu a periodicky — plná synchronizace všech kouzelníků. */
+  syncAllVitality(force = false) {
+    if (!this.isPlaying || !this.isHost) return;
+    for (const w of this.game.wizards.values()) {
+      if (force) w._lastVitalsSent = null;
+      this.broadcastVitality(w, force);
+    }
+  }
+
+  tickVitalitySync(dt) {
+    if (!this.isPlaying || !this.isHost) return;
+    this.vitalsSyncAcc += dt;
+    if (this.vitalsSyncAcc < 2) return;
+    this.vitalsSyncAcc = 0;
+    this.syncAllVitality(true);
+  }
+
   #bindNet() {
     this.net.on("info", (msg) => {
       if (msg.message) this.game.ui.toast(msg.message);
@@ -255,6 +290,15 @@ export class MultiplayerSession {
 
     const intent = msg.intent;
     if (!intent) return;
+
+    if (intent.kind === "vitals") {
+      if (msg.from === this.localId && intent.wizardId === this.localId) return;
+      const target = this.game.getWizard(intent.wizardId || msg.from);
+      if (!target) return;
+      target.syncVitalityFromNetwork(intent);
+      return;
+    }
+
     const wizard = this.game.getWizard(msg.from);
     if (!wizard) return;
 
@@ -279,6 +323,7 @@ export class MultiplayerSession {
         clearSpellUi: msg.from === this.localId,
         skipRangeCheck: true
       });
+      return;
     }
   }
 }

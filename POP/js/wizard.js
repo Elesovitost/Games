@@ -230,10 +230,13 @@ export class Wizard {
   }
 
   takeDamage(amount) {
-    if (this.state !== "alive" || amount <= 0) return;
+    if (this._applyingRemoteVitals || this.state !== "alive" || amount <= 0) return;
     this.hp = Math.max(0, this.hp - amount);
     if (this.id === this.game.wizard?.id) this.game.ui?.refreshVitality?.();
-    if (this.hp > 0) return;
+    if (this.hp > 0) {
+      this.#notifyVitalityChange();
+      return;
+    }
     this.lives = Math.max(0, this.lives - 1);
     this.move.active = false;
     if (this.lives <= 0) {
@@ -247,6 +250,75 @@ export class Wizard {
       else this.game.ui.toast("Padl jsi");
       this.game.ui.setSpell(null);
     }
+    this.#notifyVitalityChange();
+  }
+
+  heal(amount) {
+    if (this._applyingRemoteVitals || this.state !== "alive" || amount <= 0 || this.hp >= COMBAT.maxHp) return;
+    const before = this.hp;
+    this.hp = Math.min(COMBAT.maxHp, this.hp + amount);
+    if (this.hp === before) return;
+    if (this.id === this.game.wizard?.id) this.game.ui?.refreshVitality?.();
+    this.#notifyVitalityChange();
+  }
+
+  /** Autoritativní stav z MP — hp, lives, state (alive|ghost|dead). */
+  syncVitalityFromNetwork({ hp, lives, state }) {
+    if (this._applyingRemoteVitals) return;
+    this._applyingRemoteVitals = true;
+    try {
+      const prev = this.state;
+      const nhp = THREE.MathUtils.clamp(Number(hp) || 0, 0, COMBAT.maxHp);
+      const nlives = THREE.MathUtils.clamp(Number(lives) || 0, 0, COMBAT.maxLives);
+      const nstate = state === "ghost" || state === "dead" ? state : "alive";
+
+      if (nstate === prev && nstate === "alive") {
+        this.hp = nhp;
+        this.lives = nlives;
+        if (this.#isLocal()) this.game.ui?.refreshVitality?.();
+        return;
+      }
+
+      if (nstate === "alive" && prev === "ghost") {
+        this.lives = nlives;
+        this.#respawn();
+        this.hp = nhp;
+        if (this.#isLocal()) this.game.ui?.refreshVitality?.();
+        return;
+      }
+
+      if (nstate === "ghost" && prev !== "ghost") {
+        this.hp = nhp;
+        this.lives = nlives;
+        this.move.active = false;
+        if (prev === "dead") {
+          this.#setGhostLook(false);
+          this.#removeGrave();
+        }
+        this.#startGhost();
+        return;
+      }
+
+      if (nstate === "dead" && prev !== "dead") {
+        this.lives = nlives;
+        this.hp = 0;
+        this.move.active = false;
+        this.#finalDeath();
+        if (this.#isLocal()) this.game.ui?.refreshVitality?.();
+        return;
+      }
+
+      this.hp = nhp;
+      this.lives = nlives;
+      this.state = nstate;
+      if (this.#isLocal()) this.game.ui?.refreshVitality?.();
+    } finally {
+      this._applyingRemoteVitals = false;
+    }
+  }
+
+  #notifyVitalityChange() {
+    this.game.session?.broadcastVitality?.(this);
   }
 
   #startGhost() {
@@ -490,12 +562,15 @@ export class Wizard {
     if (this.move.active) {
       const curH = this.game.terrain.height(this.dir);
       const remain = Math.max(this.dir.angleTo(this.move.to), 1e-4);
-      slerpDirection(tmp.peek, this.dir, this.move.to, Math.min(1, 0.014 / remain));
+      // Výhled po cestě (~0.5 m) — méně šumu na mírném terénu
+      const avgR = curH;
+      const lookAng = THREE.MathUtils.clamp(0.55 / avgR, 0.045, Math.min(remain, 0.2));
+      slerpDirection(tmp.peek, this.dir, this.move.to, lookAng / remain);
       const nextH = this.game.terrain.height(tmp.peek);
-      const ds = Math.max(this.dir.angleTo(tmp.peek) * (curH + nextH) * 0.5, 1e-4);
+      const ds = Math.max(lookAng * avgR, 0.08);
       const slope = (nextH - curH) / ds;
-      this.walkMul = THREE.MathUtils.clamp(Math.exp(-slope * 1.6), 0.2, 2.45);
-      if (slope < 0) this.walkMul *= 0.5;
+      const targetMul = this.#slopeWalkMul(slope);
+      this.walkMul = THREE.MathUtils.lerp(this.walkMul, targetMul, Math.min(1, dt * 10));
       this.move.t += dt * (CONFIG.wizardSpeed * this.walkMul) / this.move.ang;
       const u = Math.min(this.move.t, 1);
       slerpDirection(this.dir, this.move.from, this.move.to, u * u * (3 - 2 * u));
@@ -508,6 +583,15 @@ export class Wizard {
     }
     this.place();
     this.#animateIdle(dt, elapsed, this.move.active ? 1 : 0);
+  }
+
+  /** Rychlost chůze podle sklonu — rovina ≈ 1, zpomalení hlavně ve strmých kopcích. */
+  #slopeWalkMul(slope) {
+    const flat = 0.09; // ~5° — prakticky stejná rychlost
+    if (slope <= flat) return 1;
+    const rise = slope - flat;
+    const mul = 1 / (1 + rise * rise * 5.5 + rise * 1.4);
+    return THREE.MathUtils.clamp(mul, 0.2, 1);
   }
 
   #animateIdle(dt, elapsed, walking) {

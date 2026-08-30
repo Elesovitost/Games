@@ -94,44 +94,19 @@ export class GoldenTree {
 
     const rnd = mulberry32(0x9e3779b9 ^ (seed * 0x85ebca6b));
     this.#build(rnd);
+    this.mistPuffs = [];
+    this.mistRoot = new THREE.Group();
+    this.root.add(this.mistRoot);
+    this.#buildMist(rnd);
 
-    this.light = new THREE.PointLight(0xffd27a, 0.45, 10);
-    this.light.position.y = 0.95;
-    this.root.add(this.light);
-
-    // Mihotavá záře kolem stromu (sílí s růstem)
-    const auraMat = new THREE.MeshBasicMaterial({
-      color: 0xffe08a,
-      transparent: true,
-      opacity: 0.22,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      fog: false,
-      side: THREE.DoubleSide
-    });
-    this.aura = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12), auraMat);
-    this.aura.position.y = 0.75;
-    this.aura.renderOrder = 5;
-    this.aura.raycast = () => {};
-    this.aura.castShadow = false;
-    this.aura.receiveShadow = false;
-    this.root.add(this.aura);
-
-    this.auraOuter = new THREE.Mesh(
-      new THREE.SphereGeometry(0.85, 12, 10),
-      auraMat.clone()
-    );
-    this.auraOuter.material.opacity = 0.1;
-    this.auraOuter.position.y = 0.7;
-    this.auraOuter.renderOrder = 4;
-    this.auraOuter.raycast = () => {};
-    this.auraOuter.castShadow = false;
-    this.auraOuter.receiveShadow = false;
-    this.root.add(this.auraOuter);
+    // Omni světlo u paty kmene — osvětlí zem a okolí do všech stran
+    this.omniLight = new THREE.PointLight(0xffe4b8, 0.35, 6, 2);
+    this.omniLight.position.set(0, 0.08, 0);
+    this.root.add(this.omniLight);
 
     this.root.traverse((ch) => {
       if (!ch.isMesh) return;
-      if (ch === this.aura || ch === this.auraOuter) return;
+      if (ch.userData.isMist) return;
       ch.receiveShadow = true;
       ch.castShadow = false;
     });
@@ -184,35 +159,85 @@ export class GoldenTree {
         this.#applyGrowth(false);
       }
     }
-    this.#flickerAura(elapsed);
+    this.#updateMist(elapsed);
+    this.#updateLighting(elapsed);
   }
 
-  #flickerAura(elapsed) {
+  /** Jemné dýchání omni světla u kmene. */
+  #updateLighting(elapsed) {
     const g = this.displayGrowth;
-    const pulse =
-      0.72 +
-      Math.sin(elapsed * 4.8) * 0.14 +
-      Math.sin(elapsed * 11.3) * 0.08 +
-      Math.sin(elapsed * 19.7 + this.seed) * 0.06;
-    const strength = 0.35 + g * 1.65;
-    const flick = pulse * strength;
+    const t = elapsed * 0.28 + this.seed * 0.2;
+    const pulse = 0.92 + Math.sin(t) * 0.06 + Math.sin(t * 0.4) * 0.03;
+    const power = 0.28 + g * 1.55;
 
-    if (this.light) {
-      this.light.intensity = flick * (0.9 + g * 1.8);
-      this.light.distance = 6 + g * 28;
-      this.light.position.y = 0.55 + g * 0.9;
+    this.omniLight.intensity = power * pulse;
+    this.omniLight.distance = 3.5 + g * 14;
+    this.omniLight.position.y = 0.06 + g * 0.05;
+  }
+
+  /** Nehomogenní mlha — drobné puffy, ne jedna koule. */
+  #buildMist(rnd) {
+    const geo = new THREE.IcosahedronGeometry(1, 0);
+    const count = 16 + (this.seed % 5);
+    for (let i = 0; i < count; i++) {
+      const warm = rnd() > 0.55 ? 0xf6f2ea : 0xeeeae4;
+      const mat = new THREE.MeshBasicMaterial({
+        color: warm,
+        transparent: true,
+        opacity: 0.018 + rnd() * 0.022,
+        depthWrite: false,
+        fog: true,
+        side: THREE.DoubleSide
+      });
+      const puff = new THREE.Mesh(geo, mat);
+      puff.userData.isMist = true;
+      puff.raycast = () => {};
+      puff.castShadow = false;
+      puff.receiveShadow = false;
+      puff.renderOrder = 3;
+
+      const y = 0.08 + rnd() * 0.82;
+      const ang = rnd() * Math.PI * 2;
+      const rad = 0.08 + rnd() * 0.38;
+      const sx = 0.1 + rnd() * 0.2;
+      const sy = 0.04 + rnd() * 0.1;
+      const sz = 0.09 + rnd() * 0.18;
+      puff.position.set(Math.cos(ang) * rad, y, Math.sin(ang) * rad);
+      puff.scale.set(sx, sy, sz);
+      puff.rotation.set(rnd() * Math.PI, rnd() * Math.PI, rnd() * Math.PI);
+
+      puff.userData.baseX = puff.position.x;
+      puff.userData.baseY = y;
+      puff.userData.baseZ = puff.position.z;
+      puff.userData.sx = sx;
+      puff.userData.sy = sy;
+      puff.userData.sz = sz;
+      puff.userData.baseOpacity = mat.opacity;
+      puff.userData.phase = rnd() * Math.PI * 2;
+      puff.userData.drift = 0.012 + rnd() * 0.018;
+
+      this.mistPuffs.push(puff);
+      this.mistRoot.add(puff);
     }
-    if (this.aura) {
-      const s = (0.7 + g * 1.8) * (0.92 + Math.sin(elapsed * 6.2) * 0.1);
-      this.aura.scale.setScalar(s);
-      this.aura.material.opacity = (0.12 + g * 0.38) * pulse;
-      this.aura.position.y = 0.55 + g * 0.5;
-    }
-    if (this.auraOuter) {
-      const s = (1.1 + g * 2.6) * (0.95 + Math.sin(elapsed * 3.7 + 1) * 0.08);
-      this.auraOuter.scale.setScalar(s);
-      this.auraOuter.material.opacity = (0.05 + g * 0.2) * pulse;
-      this.auraOuter.position.y = 0.5 + g * 0.45;
+  }
+
+  #updateMist(elapsed) {
+    const g = this.displayGrowth;
+    const grow = 0.9 + g * 0.85;
+    const density = 0.35 + g * 0.65;
+    const t = elapsed * 0.22 + this.seed * 0.17;
+
+    for (const puff of this.mistPuffs) {
+      const u = puff.userData;
+      const breathe =
+        0.78 +
+        Math.sin(t * 0.9 + u.phase) * 0.14 +
+        Math.sin(t * 0.35 + u.phase * 1.7) * 0.08;
+      puff.material.opacity = u.baseOpacity * density * breathe;
+      puff.position.x = u.baseX * grow + Math.sin(t * 0.55 + u.phase) * u.drift;
+      puff.position.z = u.baseZ * grow + Math.cos(t * 0.48 + u.phase * 1.3) * u.drift;
+      puff.position.y = u.baseY * grow + Math.sin(t * 0.25 + u.phase) * 0.012;
+      puff.scale.set(u.sx * grow, u.sy * grow, u.sz * grow);
     }
   }
 

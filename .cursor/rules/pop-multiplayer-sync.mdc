@@ -1,0 +1,51 @@
+---
+description: POP — každá změna musí počítat s multiplayerem a synchronním stavem světa
+globs: POP/**
+alwaysApply: false
+---
+
+# POP — multiplayer a synchronizace světa
+
+**Každá nová nebo upravená herní logika musí počítat s tím, že hra běží i v MP.** Všichni hráči musí mít stejné informace o světě — jinak dojde k desynchronizaci.
+
+## Základní princip
+
+Klienti nesmí nezávisle měnit sdílený stav (HP, životy, terén, efekty, spawn objektů…). Buď:
+
+1. **Deterministická replikace** — všichni klienti aplikují stejný intent se stejným vstupem (seed, pozice, hráč) a dostanou stejný výsledek, nebo
+2. **Autoritativní hostitel** — změnu počítá jen host a ostatní ji dostanou přes síť.
+
+Nikdy nepředpokládej, že „u nás lokálně stačí“ — v MP musí být stejný stav u všech.
+
+## Co synchronizovat
+
+- **Hráči / kouzelníci** — pozice (walk intent), kouzla (cast intent), HP, životy, stav (`alive` / `ghost` / `dead`) přes `vitals` intent
+- **Terén** — morph z kouzel musí být deterministický nebo broadcastovaný
+- **Efekty s gameplay dopadem** — láva, poškození draka, fireball explozi, spawn entit
+- **Pravidelný snapshot** — host občas pošle plný stav vitality (viz `session.syncAllVitality`)
+
+## Vzor v kódu
+
+| Typ změny | Kde | MP chování |
+|-----------|-----|------------|
+| Kouzlo / walk | `net/session.js` → intent | Broadcast intent, všichni aplikují `#applyIntent` |
+| Poškození z kouzla | `combat.applyRadialDamage` | V MP každý klient jen **svého** kouzelníka |
+| Láva, regen ve spawnu | `combat.applyLavaDps`, `applySpawnRegen` | Jen **host**, pak `broadcastVitality` |
+| Dech draka | `dragons.js` | `hostOnly: true` |
+| Změna HP/lives | `wizard.takeDamage`, `heal` | `session.broadcastVitality(wizard)` |
+
+## Checklist před merge / dokončením úkolu
+
+- [ ] Mění to stav světa nebo hráče? Pokud ano — funguje to v MP?
+- [ ] Běží logika na všech klientech stejně, nebo jen u hostitele?
+- [ ] Používá náhodu? Je seed sdílený v intentu?
+- [ ] Mění to `hp`, `lives`, terén, entity? Posílá se sync?
+- [ ] Otestováno aspoň v hlavě: 2 klienti, stejná mapa, stejný výsledek?
+
+## Co nepřidávat
+
+- Lokální-only změny gameplay stavu bez síťové cesty v MP
+- Per-frame akumulaci (DPS, regen) na všech klientech bez host autority
+- Různé výsledky `Math.random()` bez sdíleného seedu
+
+Referenční soubory: `POP/js/net/session.js`, `POP/js/combat.js`, `POP/js/wizard.js`.

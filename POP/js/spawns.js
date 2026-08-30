@@ -6,6 +6,7 @@ import { getMap } from "./maps.js";
 import { GoldenTree } from "./tree.js";
 
 const RUNE_RADIUS = 3.4;
+export { RUNE_RADIUS };
 const Y_UP = new THREE.Vector3(0, 1, 0);
 const _east = new THREE.Vector3();
 const _north = new THREE.Vector3();

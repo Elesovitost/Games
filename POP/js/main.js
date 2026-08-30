@@ -9,7 +9,7 @@ import { Dragons } from "./dragons.js";
 import { Fireballs } from "./fireballs.js";
 import { LavaPools } from "./lava.js";
 import { castSpell, inSpellRange } from "./spells.js";
-import { applyLavaDps, COMBAT } from "./combat.js";
+import { applyLavaDps, applySpawnRegen, COMBAT } from "./combat.js";
 import { UI } from "./ui.js";
 import { Pointer } from "./cursor.js";
 import { MultiplayerSession, loadProfile } from "./net/session.js";
@@ -108,6 +108,9 @@ class Game {
     this.ui.setSpell(null);
     const map = getMap(this.mapId);
     this.ui.toast("Hra začíná · " + map.name + " · " + players.length + " hráčů");
+    if (this.session.isHost) {
+      requestAnimationFrame(() => this.session.syncAllVitality(true));
+    }
   }
 
   /** Výběr mapy (0–9). Připraveno pro UI. */
@@ -291,6 +294,8 @@ class Game {
     this.fireballs.update(dt, elapsed);
     this.lava.update(dt);
     applyLavaDps(this, dt);
+    applySpawnRegen(this, dt);
+    this.session.tickVitalitySync(dt);
     this.effects.update(dt);
     this.spawnDecor.update(dt, elapsed);
     this.ui.update(dt);

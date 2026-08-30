@@ -399,7 +399,7 @@ export class Dragons {
         d.damageAcc += dt;
         if (d.damageAcc >= 0.35) {
           d.damageAcc = 0;
-          applyRadialDamage(this.game, d._to, COMBAT.dragonBreath.radius * 0.55, COMBAT.dragonBreath.damage * 0.35);
+          applyRadialDamage(this.game, d._to, COMBAT.dragonBreath.radius * 0.55, COMBAT.dragonBreath.damage * 0.35, { hostOnly: true });
         }
       } else {
         if (beam) beam.visible = false;
