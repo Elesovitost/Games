@@ -2,10 +2,13 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { createIcosphereGeometry } from "./icosphere.js";
 import { tangentFrame, tmp } from "./utils.js";
+import { VISIBLE_CAP_DOT } from "./visibility.js";
 
 const WATER_VERT = `
 uniform float uTime;
 uniform float uLevel;
+uniform vec3 uViewAxis;
+uniform float uVisibleDot;
 attribute float aShore;
 attribute float aMask;
 varying vec3 vN;
@@ -15,6 +18,10 @@ varying float vMask;
 
 void main() {
   vec3 dir = normalize(position);
+  if (dot(dir, normalize(uViewAxis)) < uVisibleDot) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    return;
+  }
   float t = uTime * 0.7;
   float w =
     sin(dir.x * 52.0 + dir.z * 41.0 + t * 1.1) * 0.006
@@ -65,9 +72,9 @@ export class Water {
     this.time = 0;
     this.terrain = terrain;
     this.planetGroup = planetGroup;
-    this.waterSubdiv = opts.waterSubdiv ?? 6;
-    this.mesh = null;
-    this.material = null;
+    this.waterSubdiv = opts.waterSubdiv ?? CONFIG.waterSubdiv ?? 5;
+    this.viewAxis = new THREE.Vector3(0, 1, 0);
+    this.capCull = true;
     this.#buildMesh();
   }
 
@@ -85,6 +92,8 @@ export class Water {
         uniforms: {
           uTime: { value: 0 },
           uLevel: { value: CONFIG.waterLevel },
+          uViewAxis: { value: this.viewAxis.clone() },
+          uVisibleDot: { value: VISIBLE_CAP_DOT },
           uColor: {
             value: new THREE.Color(
               CONFIG.waterColor[0] * 1.15,
@@ -163,6 +172,28 @@ export class Water {
     geo.setAttribute("aShore", new THREE.BufferAttribute(shore, 1));
     geo.setAttribute("aMask", new THREE.BufferAttribute(mask, 1));
     geo.computeVertexNormals();
+  }
+
+  applyQuality(q) {
+    const subdiv = q.waterSubdiv ?? CONFIG.waterSubdiv ?? 5;
+    const capDot = q.visibleCapDot;
+    this.capCull = capDot != null && q.terrainChunked !== false;
+    if (this.material?.uniforms?.uVisibleDot) {
+      this.material.uniforms.uVisibleDot.value = this.capCull ? capDot : -2;
+    }
+    if (subdiv === this.waterSubdiv && this.mesh) return;
+    this.waterSubdiv = subdiv;
+    this.#buildMesh();
+    if (this.material?.uniforms?.uVisibleDot) {
+      this.material.uniforms.uVisibleDot.value = this.capCull ? capDot : -2;
+    }
+  }
+
+  setViewAxis(viewAxis) {
+    this.viewAxis.copy(viewAxis);
+    if (this.material?.uniforms?.uViewAxis) {
+      this.material.uniforms.uViewAxis.value.copy(viewAxis);
+    }
   }
 
   update(dt) {

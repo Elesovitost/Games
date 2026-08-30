@@ -1,4 +1,5 @@
 import * as THREE from "./three.js";
+import { VISIBLE_CAP_DOT } from "./visibility.js";
 
 /** Počet chunků = CHUNK_LON × CHUNK_LAT */
 export const CHUNK_LON = 8;
@@ -76,9 +77,15 @@ export function buildTerrainChunks(masterGeo, material) {
       positions[i * 3] = mPos.getX(mi);
       positions[i * 3 + 1] = mPos.getY(mi);
       positions[i * 3 + 2] = mPos.getZ(mi);
-      colors[i * 3] = mCol.getX(mi);
-      colors[i * 3 + 1] = mCol.getY(mi);
-      colors[i * 3 + 2] = mCol.getZ(mi);
+      if (mCol) {
+        colors[i * 3] = mCol.getX(mi);
+        colors[i * 3 + 1] = mCol.getY(mi);
+        colors[i * 3 + 2] = mCol.getZ(mi);
+      } else {
+        colors[i * 3] = 1;
+        colors[i * 3 + 1] = 1;
+        colors[i * 3 + 2] = 1;
+      }
     }
 
     const geo = new THREE.BufferGeometry();
@@ -89,10 +96,38 @@ export function buildTerrainChunks(masterGeo, material) {
     geo.computeBoundingSphere();
 
     const mesh = new THREE.Mesh(geo, material);
-    mesh.frustumCulled = true;
-    chunks.push({ id, mesh, geometry: geo, masterIndices: bucket.masterIndices });
+    mesh.frustumCulled = false;
+    let sx = 0;
+    let sy = 0;
+    let sz = 0;
+    for (let i = 0; i < n; i++) {
+      sx += positions[i * 3];
+      sy += positions[i * 3 + 1];
+      sz += positions[i * 3 + 2];
+    }
+    const centroidDir = new THREE.Vector3(sx / n, sy / n, sz / n).normalize();
+    chunks.push({
+      id,
+      mesh,
+      geometry: geo,
+      masterIndices: bucket.masterIndices,
+      centroidDir
+    });
   }
   return chunks;
+}
+
+/** Viditelná čtvrtina planety směrem ke kameře — zbytek se nerenderuje. */
+export function updateChunkVisibility(chunks, viewAxis, dotThreshold = VISIBLE_CAP_DOT) {
+  let any = false;
+  for (const c of chunks) {
+    const vis = c.centroidDir.dot(viewAxis) >= dotThreshold;
+    c.mesh.visible = vis;
+    if (vis) any = true;
+  }
+  if (!any && chunks.length) {
+    for (const c of chunks) c.mesh.visible = true;
+  }
 }
 
 /** master vert → indexy chunků v poli chunks. */

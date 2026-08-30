@@ -1,6 +1,6 @@
 import * as THREE from "./three.js";
 import { applySunQuality } from "./sky.js";
-import { configureShadowFrustum, updateSunShadow } from "./visibility.js";
+import { configureShadowFrustum, updateSunShadow, PLANET_SHADOW_HALF } from "./visibility.js";
 
 const LS_QUALITY = "populous.quality";
 const LS_SHOW_FPS = "populous.showFps";
@@ -21,34 +21,40 @@ export const QUALITY_PRESETS = {
     shadowMapSize: 1024,
     shadowType: "basic",
     shadowRadius: 2,
-    shadowFrustumHalf: 128,
+    shadowFrustumHalf: PLANET_SHADOW_HALF,
+    renderIcoSubdiv: 5,
+    terrainChunked: true,
+    visibleCapDot: 0.5,
+    waterSubdiv: 5,
     decorSnapInterval: 3,
     shadowUpdateInterval: 1,
     skyUpdateInterval: 2,
     waterUpdateInterval: 2,
     adaptiveResolution: true,
-    dynamicPointLights: false,
-    effectsOffscreenSkip: true
+    dynamicPointLights: false
   },
   medium: {
     id: "medium",
     label: "Vyvážená",
     hint: "Doporučeno pro MacBook — stejný svět, chytřejší render mimo záběr.",
-    pixelRatioMax: 1.4,
-    resolutionScale: 0.82,
-    antialias: true,
+    pixelRatioMax: 1.0,
+    resolutionScale: 0.75,
+    antialias: false,
     shadows: true,
-    shadowMapSize: 2048,
+    shadowMapSize: 1024,
     shadowType: "basic",
     shadowRadius: 2,
-    shadowFrustumHalf: 128,
+    shadowFrustumHalf: PLANET_SHADOW_HALF,
+    renderIcoSubdiv: 6,
+    terrainChunked: true,
+    visibleCapDot: 0.5,
+    waterSubdiv: 5,
     decorSnapInterval: 2,
     shadowUpdateInterval: 1,
     skyUpdateInterval: 1,
     waterUpdateInterval: 1,
     adaptiveResolution: true,
-    dynamicPointLights: false,
-    effectsOffscreenSkip: true
+    dynamicPointLights: false
   },
   high: {
     id: "high",
@@ -61,14 +67,17 @@ export const QUALITY_PRESETS = {
     shadowMapSize: 2048,
     shadowType: "pcfsoft",
     shadowRadius: 3,
-    shadowFrustumHalf: 128,
+    shadowFrustumHalf: PLANET_SHADOW_HALF,
+    renderIcoSubdiv: 7,
+    terrainChunked: false,
+    visibleCapDot: null,
+    waterSubdiv: 6,
     decorSnapInterval: 1,
     shadowUpdateInterval: 1,
     skyUpdateInterval: 1,
     waterUpdateInterval: 1,
     adaptiveResolution: false,
-    dynamicPointLights: true,
-    effectsOffscreenSkip: false
+    dynamicPointLights: true
   }
 };
 
@@ -205,7 +214,7 @@ export class QualityManager {
   }
 
   effectsOpts() {
-    return { skipOffscreen: !!this.current.effectsOffscreenSkip };
+    return { skipOffscreen: false };
   }
 
   beforeRender() {
@@ -232,6 +241,8 @@ export class QualityManager {
   apply() {
     this.#applyRenderer();
     this.#applySun();
+    this.game.terrain?.applyQuality?.(this.current);
+    this.game.water?.applyQuality?.(this.current);
     this.#applySceneShadows();
     this.#applyDynamicLights();
   }
@@ -301,7 +312,13 @@ export class QualityManager {
     const q = this.current;
     const { terrain, wizards, dragons, water } = this.game;
 
-    if (terrain?.mesh) {
+    if (terrain?.renderChunks) {
+      for (const c of terrain.renderChunks) {
+        c.mesh.castShadow = q.shadows;
+        c.mesh.receiveShadow = q.shadows;
+        c.mesh.frustumCulled = false;
+      }
+    } else if (terrain?.mesh) {
       terrain.mesh.castShadow = q.shadows;
       terrain.mesh.receiveShadow = q.shadows;
     }

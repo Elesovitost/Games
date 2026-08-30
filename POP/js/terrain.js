@@ -5,6 +5,12 @@ import { createNoise } from "./noise.js";
 import { createIcosphereGeometry } from "./icosphere.js";
 import { generateMapHeights, getDefaultMap, getMap } from "./maps.js";
 import { getCachedHeights } from "./map-heights-cache.js";
+import { buildTerrainChunks, updateChunkVisibility } from "./terrain-chunks.js";
+import {
+  extractDirections,
+  syncAllChunksFromMaster,
+  syncChunksNear
+} from "./terrain-render.js";
 
 const DEFAULT_TERRAIN_OPTS = {
   icoSubdiv: CONFIG.icoSubdiv
@@ -21,21 +27,59 @@ export class Terrain {
     this.noise = createNoise(this.seed);
     this.geometry = createIcosphereGeometry(CONFIG.planetR, this.icoSubdiv);
     this.#sculpt();
+    this.#buildGrid();
     this.material = new THREE.MeshStandardMaterial({
       vertexColors: true,
       roughness: 0.88,
       metalness: 0.02
     });
-    this.mesh = new THREE.Mesh(this.geometry, this.material);
-    this.mesh.castShadow = true;
-    this.mesh.receiveShadow = true;
-    this.mesh.frustumCulled = false;
-    this.group.add(this.mesh);
-    this.#buildGrid();
+    this.renderChunks = [];
+    this.renderMesh = null;
+    this.renderMode = "chunked";
+    this.capCull = true;
+    this.qualityOpts = null;
+  }
+
+  applyQuality(q) {
+    const next = {
+      renderIcoSubdiv: q.renderIcoSubdiv ?? CONFIG.renderIcoSubdiv,
+      terrainChunked: q.terrainChunked !== false,
+      visibleCapDot: q.visibleCapDot ?? CONFIG.visibleCapDot
+    };
+    const changed =
+      !this.qualityOpts ||
+      this.qualityOpts.renderIcoSubdiv !== next.renderIcoSubdiv ||
+      this.qualityOpts.terrainChunked !== next.terrainChunked;
+    this.qualityOpts = next;
+    this.capCull = next.visibleCapDot != null && next.terrainChunked;
+    if (changed || !this.renderChunks.length) this.#buildRender();
+  }
+
+  get mesh() {
+    return this.renderChunks[0]?.mesh ?? this.renderMesh ?? null;
+  }
+
+  updateVisibility(viewAxis) {
+    if (!this.capCull || this.renderMode === "full") {
+      for (const c of this.renderChunks) c.mesh.visible = true;
+      return;
+    }
+    updateChunkVisibility(
+      this.renderChunks,
+      viewAxis,
+      this.qualityOpts?.visibleCapDot ?? CONFIG.visibleCapDot
+    );
   }
 
   intersectPick(raycaster) {
-    return raycaster.intersectObject(this.mesh, false);
+    const out = [];
+    for (const c of this.renderChunks) {
+      if (!c.mesh.visible) continue;
+      const hits = raycaster.intersectObject(c.mesh, false);
+      if (hits.length) out.push(hits[0]);
+    }
+    out.sort((a, b) => a.distance - b.distance);
+    return out;
   }
 
   rebuild(mapId = CONFIG.defaultMapId, opts = {}) {
@@ -48,8 +92,56 @@ export class Terrain {
     this.geometry.dispose();
     this.geometry = createIcosphereGeometry(CONFIG.planetR, this.icoSubdiv);
     this.#sculpt();
-    this.mesh.geometry = this.geometry;
     this.#buildGrid();
+    this.#buildRender();
+  }
+
+  #buildRender() {
+    if (!this.buckets) this.#buildGrid();
+    this.#disposeRender();
+
+    const chunked = this.qualityOpts?.terrainChunked !== false;
+    if (!chunked) {
+      this.renderMode = "full";
+      this.renderMesh = new THREE.Mesh(this.geometry, this.material);
+      this.renderMesh.castShadow = true;
+      this.renderMesh.receiveShadow = true;
+      this.renderMesh.frustumCulled = false;
+      this.group.add(this.renderMesh);
+      this.renderChunks = [{ mesh: this.renderMesh, geometry: this.geometry }];
+      return;
+    }
+
+    this.renderMode = "chunked";
+    const subdiv = this.qualityOpts?.renderIcoSubdiv ?? CONFIG.renderIcoSubdiv;
+    this.renderBaseGeo = createIcosphereGeometry(CONFIG.planetR, subdiv);
+    this.renderDirections = extractDirections(this.renderBaseGeo);
+    this.renderChunks = buildTerrainChunks(this.renderBaseGeo, this.material);
+    for (const c of this.renderChunks) {
+      c.mesh.castShadow = true;
+      c.mesh.receiveShadow = true;
+      c.mesh.frustumCulled = false;
+      this.group.add(c.mesh);
+    }
+    syncAllChunksFromMaster(this.renderChunks, this, this.renderDirections);
+  }
+
+  #disposeRender() {
+    if (this.renderMode === "full" && this.renderMesh) {
+      this.group.remove(this.renderMesh);
+      this.renderMesh = null;
+      this.renderChunks = [];
+      return;
+    }
+    if (!this.renderChunks?.length) return;
+    for (const c of this.renderChunks) {
+      this.group.remove(c.mesh);
+      c.geometry.dispose();
+    }
+    this.renderChunks = [];
+    this.renderBaseGeo?.dispose();
+    this.renderBaseGeo = null;
+    this.renderDirections = null;
   }
 
   #setOpts(opts) {
@@ -100,6 +192,15 @@ export class Terrain {
   }
 
   height(dir) {
+    return this.#queryNearest(dir).height;
+  }
+
+  nearestVertexIndex(dir) {
+    return this.#queryNearest(dir).nearest;
+  }
+
+  #queryNearest(dir) {
+    if (!this.buckets) this.#buildGrid();
     const p = this.geometry.attributes.position;
     const nlen = Math.hypot(dir.x, dir.y, dir.z) || 1;
     const dx = dir.x / nlen;
@@ -125,6 +226,7 @@ export class Terrain {
         if (ju < 0) ju += CONFIG.heightGrid;
         else if (ju >= CONFIG.heightGrid) ju -= CONFIG.heightGrid;
         const bucket = this.buckets[jv * CONFIG.heightGrid + ju];
+        if (!bucket) continue;
         for (let b = 0; b < bucket.length; b++) {
           const vi = bucket[b];
           const x = p.getX(vi);
@@ -146,14 +248,18 @@ export class Terrain {
       }
     }
     const hit = this.#radialHit(dx, dy, dz, v1, v2, v3);
-    if (hit > 0) return hit;
+    if (hit > 0) return { height: hit, nearest: v1 };
     const w1 = 1 / Math.max(1e-5, 1 - d1);
     const w2 = 1 / Math.max(1e-5, 1 - d2);
     const w3 = 1 / Math.max(1e-5, 1 - d3);
-    return (w1 * l1 + w2 * l2 + w3 * l3) / (w1 + w2 + w3);
+    return {
+      height: (w1 * l1 + w2 * l2 + w3 * l3) / (w1 + w2 + w3),
+      nearest: v1
+    };
   }
 
   forEachNear(centerLocal, radius, fn) {
+    if (!this.buckets) this.#buildGrid();
     const p = this.geometry.attributes.position;
     const cx = centerLocal.x;
     const cy = centerLocal.y;
@@ -223,6 +329,9 @@ export class Terrain {
     positions.needsUpdate = !colorOnly;
     colorAttr.needsUpdate = true;
     if (!colorOnly) this.geometry.computeVertexNormals();
+    if (this.renderMode === "chunked") {
+      syncChunksNear(this.renderChunks, this, this.renderDirections, centerLocal, rad);
+    }
   }
 
   startMorph(centerLocal, mode) {
@@ -235,6 +344,7 @@ export class Terrain {
     });
     this.jobs.push({
       mode,
+      centerLocal: centerLocal.clone(),
       indices,
       falloff,
       elapsed: 0,
@@ -248,6 +358,7 @@ export class Terrain {
     const positions = this.geometry.attributes.position;
     const colorAttr = this.geometry.attributes.color;
     let changed = false;
+    const syncCenters = [];
     for (let i = this.jobs.length - 1; i >= 0; i--) {
       const job = this.jobs[i];
       const prev = job.elapsed;
@@ -257,11 +368,22 @@ export class Terrain {
         this.#applyMorphDelta(job, deltaAmt);
         changed = true;
       }
+      syncCenters.push(job.centerLocal);
       if (job.elapsed >= job.duration) this.jobs.splice(i, 1);
     }
     if (!changed) return;
     positions.needsUpdate = true;
     colorAttr.needsUpdate = true;
+    for (const center of syncCenters) {
+      if (this.renderMode !== "chunked") continue;
+      syncChunksNear(
+        this.renderChunks,
+        this,
+        this.renderDirections,
+        center,
+        CONFIG.spellRadius
+      );
+    }
     if (!this.jobs.length) this.geometry.computeVertexNormals();
   }
 

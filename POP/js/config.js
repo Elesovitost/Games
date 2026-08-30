@@ -4,6 +4,13 @@ export const CONFIG = {
   planetR: PLANET_R,
   waterLevel: PLANET_R + 0.35,
   icoSubdiv: 7,
+  /** GPU mesh — méně vrcholů, sync z logiky. */
+  renderIcoSubdiv: 5,
+  /** cos(60°) — viditelná čtvrtina koule směrem ke kameře. */
+  visibleCapDot: 0.5,
+  /** Ortho stín — celá planeta (bez tmavých ploch mimo frustum). */
+  shadowCapHalf: 128,
+  waterSubdiv: 5,
   heightGrid: 64,
   minR: PLANET_R * 0.72,
   maxR: PLANET_R * 1.42,

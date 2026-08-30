@@ -19,6 +19,8 @@ import { SpawnDecor } from "./spawns.js";
 import { QualityManager } from "./quality.js";
 import { LoadingScreen, preloadGame } from "./preload.js";
 import { initSharedResources } from "./resources.js";
+import { getPlanetViewAxis } from "./visibility.js";
+import { tmp } from "./utils.js";
 
 class Game {
   constructor() {
@@ -59,7 +61,9 @@ class Game {
     this.sun = createSun(this.planetGroup, q);
 
     this.terrain = new Terrain(this.planetGroup, this.mapId);
+    this.terrain.applyQuality(q);
     this.water = new Water(this.planetGroup, this.terrain);
+    this.water.applyQuality(q);
     this.sky = new Sky(this.planetGroup);
     this.spawnDecor = new SpawnDecor(this);
     placeCamera(this.camera, getMap(this.mapId).spawnFocus[0]);
@@ -334,6 +338,9 @@ class Game {
     this.pointerUi.update(elapsed);
     this.quality.tick(dt);
     const frame = this._frame || 0;
+    const viewAxis = getPlanetViewAxis(this.camera, this.planetGroup, tmp.v);
+    this.terrain.updateVisibility(viewAxis);
+    this.water.setViewAxis(viewAxis);
     this.quality.beforeRender();
     this.renderer.render(this.scene, this.camera);
     this._frame = frame + 1;
