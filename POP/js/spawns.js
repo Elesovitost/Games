@@ -245,4 +245,14 @@ export class SpawnDecor {
     }
     for (const t of this.trees) t.update(dt, elapsed);
   }
+
+  /** Bodová světla u run a stromů — vypnuta v úsporných režimech (emissive zůstává). */
+  applyDynamicLights(on) {
+    for (const s of this.stones) {
+      s.mesh.traverse((ch) => {
+        if (ch.isPointLight) ch.intensity = on ? 0.55 : 0;
+      });
+    }
+    for (const t of this.trees) t.setDynamicLight(on);
+  }
 }

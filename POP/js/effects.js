@@ -2,6 +2,7 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, disposeObject, tmp } from "./utils.js";
 import { createSurfaceRingMesh, drapeRing, sampleGround } from "./surface.js";
+import { isWorldPointVisible } from "./visibility.js";
 
 const Y_UP = new THREE.Vector3(0, 1, 0);
 const fireMat = (color, opacity) => new THREE.MeshBasicMaterial({
@@ -422,9 +423,24 @@ export class Effects {
     this.add({ mesh: group, light, age: 0, life: 0.84, type: "lightning" });
   }
 
-  update(dt) {
+  update(dt, opts = {}) {
+    const camera = opts.camera;
+    const skipOff = opts.skipOffscreen && camera;
+    const _pos = new THREE.Vector3();
     for (let i = this.items.length - 1; i >= 0; i--) {
       const f = this.items[i];
+      if (skipOff) {
+        f.mesh.getWorldPosition(_pos);
+        if (!isWorldPointVisible(camera, _pos, 10)) {
+          f.age += dt;
+          if (f.age >= f.life) {
+            this.group.remove(f.mesh);
+            disposeObject(f.mesh);
+            this.items.splice(i, 1);
+          }
+          continue;
+        }
+      }
       f.age += dt;
       const u = Math.min(1, f.age / f.life);
       const handlers = {

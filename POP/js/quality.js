@@ -1,6 +1,6 @@
 import * as THREE from "./three.js";
 import { applySunQuality } from "./sky.js";
-import { focusShadowOnView } from "./visibility.js";
+import { configureShadowFrustum } from "./visibility.js";
 
 const LS_QUALITY = "populous.quality";
 const LS_SHOW_FPS = "populous.showFps";
@@ -13,38 +13,44 @@ export const QUALITY_PRESETS = {
   low: {
     id: "low",
     label: "Plynulá",
-    hint: "Nižší rozlišení renderu, stíny jen nad hráčem, méně práce mimo obrazovku.",
-    pixelRatioMax: 1.25,
-    resolutionScale: 0.72,
+    hint: "Nižší rozlišení renderu, méně práce mimo obrazovku, stabilní stíny.",
+    pixelRatioMax: 1.15,
+    resolutionScale: 0.68,
     antialias: false,
     shadows: true,
-    shadowMapSize: 1536,
+    shadowMapSize: 1280,
     shadowType: "basic",
     shadowRadius: 2,
-    shadowFrustumHalf: 46,
-    shadowFollowView: true,
+    shadowFrustumHalf: 62,
     decorSnapInterval: 3,
+    shadowUpdateInterval: 2,
+    skyUpdateInterval: 2,
+    waterUpdateInterval: 2,
     adaptiveResolution: true,
-    cloudCastShadow: false,
-    terrainTreeShadows: true
+    dynamicPointLights: false,
+    terrainTreeShadows: false,
+    effectsOffscreenSkip: true
   },
   medium: {
     id: "medium",
     label: "Vyvážená",
-    hint: "Doporučeno pro notebooky — stejná grafika, chytřejší stíny a render.",
-    pixelRatioMax: 1.5,
-    resolutionScale: 0.88,
+    hint: "Doporučeno pro MacBook — stejný svět, chytřejší render mimo záběr.",
+    pixelRatioMax: 1.4,
+    resolutionScale: 0.82,
     antialias: true,
     shadows: true,
-    shadowMapSize: 2048,
+    shadowMapSize: 1792,
     shadowType: "basic",
     shadowRadius: 3,
-    shadowFrustumHalf: 58,
-    shadowFollowView: true,
+    shadowFrustumHalf: 68,
     decorSnapInterval: 2,
+    shadowUpdateInterval: 1,
+    skyUpdateInterval: 1,
+    waterUpdateInterval: 1,
     adaptiveResolution: true,
-    cloudCastShadow: false,
-    terrainTreeShadows: true
+    dynamicPointLights: false,
+    terrainTreeShadows: true,
+    effectsOffscreenSkip: true
   },
   high: {
     id: "high",
@@ -57,12 +63,15 @@ export const QUALITY_PRESETS = {
     shadowMapSize: 2048,
     shadowType: "pcfsoft",
     shadowRadius: 4,
-    shadowFrustumHalf: 72,
-    shadowFollowView: true,
+    shadowFrustumHalf: 78,
     decorSnapInterval: 1,
+    shadowUpdateInterval: 1,
+    skyUpdateInterval: 1,
+    waterUpdateInterval: 1,
     adaptiveResolution: false,
-    cloudCastShadow: false,
-    terrainTreeShadows: true
+    dynamicPointLights: true,
+    terrainTreeShadows: true,
+    effectsOffscreenSkip: false
   }
 };
 
@@ -187,7 +196,31 @@ export class QualityManager {
     return f % n === 0 || (this.game.terrain?.jobs?.length > 0);
   }
 
+  shouldUpdateSky() {
+    const n = this.current.skyUpdateInterval || 1;
+    return (this.game._frame || 0) % n === 0;
+  }
+
+  shouldUpdateWater() {
+    const n = this.current.waterUpdateInterval || 1;
+    return (this.game._frame || 0) % n === 0;
+  }
+
+  effectsOpts() {
+    return { skipOffscreen: !!this.current.effectsOffscreenSkip };
+  }
+
+  beforeRender(frame) {
+    const interval = this.current.shadowUpdateInterval || 1;
+    this.game.renderer.shadowMap.autoUpdate = frame % interval === 0;
+  }
+
   applyEntityShadows() {
+    this.#applySceneShadows();
+  }
+
+  refreshSceneLights() {
+    this.#applyDynamicLights();
     this.#applySceneShadows();
   }
 
@@ -195,14 +228,13 @@ export class QualityManager {
     this.#applyRenderer();
     this.#applySun();
     this.#applySceneShadows();
-    this.#updateShadowFocus();
+    this.#applyDynamicLights();
   }
 
   tick(dt) {
     this.#trackFps(dt);
     this.#sampleFps(dt);
     this.#updateFpsDisplay();
-    this.#updateShadowFocus();
   }
 
   #trackFps(dt) {
@@ -239,23 +271,15 @@ export class QualityManager {
     }
   }
 
-  #updateShadowFocus() {
-    const q = this.current;
-    if (!q.shadowFollowView || !this.game.sun) return;
-    focusShadowOnView(this.game, this.game.sun, q.shadowFrustumHalf);
-  }
-
-  #applyRenderer() {
-    const { renderer } = this.game;
-    const q = this.current;
-    renderer.setPixelRatio(this.pixelRatio());
-    renderer.shadowMap.enabled = q.shadows;
-    renderer.shadowMap.type = SHADOW_TYPES[q.shadowType] || THREE.BasicShadowMap;
-    if (typeof this.game.resize === "function") this.game.resize();
-  }
-
   #applySun() {
-    if (this.game.sun) applySunQuality(this.game.sun, this.current);
+    if (!this.game.sun) return;
+    applySunQuality(this.game.sun, this.current);
+    configureShadowFrustum(this.game.sun, this.current.shadowFrustumHalf);
+  }
+
+  #applyDynamicLights() {
+    const on = this.current.dynamicPointLights !== false;
+    this.game.spawnDecor?.applyDynamicLights?.(on);
   }
 
   #applySceneShadows() {
@@ -286,5 +310,14 @@ export class QualityManager {
         ch.receiveShadow = q.shadows;
       });
     }
+  }
+
+  #applyRenderer() {
+    const { renderer } = this.game;
+    const q = this.current;
+    renderer.setPixelRatio(this.pixelRatio());
+    renderer.shadowMap.enabled = q.shadows;
+    renderer.shadowMap.type = SHADOW_TYPES[q.shadowType] || THREE.BasicShadowMap;
+    if (typeof this.game.resize === "function") this.game.resize();
   }
 }

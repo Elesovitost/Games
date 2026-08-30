@@ -2,6 +2,7 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tmp, disposeObject } from "./utils.js";
 import { applyRadialDamage, COMBAT } from "./combat.js";
+import { isObjectVisible } from "./visibility.js";
 
 function createFireballModel() {
   const g = new THREE.Group();
@@ -82,10 +83,13 @@ export class Fireballs {
     this.list.length = 0;
   }
 
-  update(dt, elapsed) {
+  update(dt, elapsed, opts = {}) {
     const { terrain, effects, planetGroup } = this.game;
+    const camera = this.game.camera;
+    const skipVis = opts.skipOffscreen && camera;
     for (let i = this.list.length - 1; i >= 0; i--) {
       const b = this.list[i];
+      const onScreen = !skipVis || isObjectVisible(camera, b.mesh, 12);
       const move = CONFIG.fireballSpeed * dt;
       const steps = Math.max(1, Math.ceil(move / 0.1));
       const step = move / steps;
@@ -120,15 +124,17 @@ export class Fireballs {
 
       const t = b.travel / b.dist;
       b.mesh.position.lerpVectors(b.start, b.end, t);
-      const flicker = 0.88 + Math.sin(elapsed * 28 + t * 12) * 0.14;
-      b.mesh.scale.setScalar(flicker);
-      if (b.mesh.userData.core) {
-        b.mesh.userData.core.scale.setScalar(0.9 + Math.sin(elapsed * 36) * 0.18);
-      }
-      b.spark -= dt;
-      if (b.spark <= 0) {
-        b.spark = 0.045;
-        effects.ember(b.mesh.position);
+      if (onScreen) {
+        const flicker = 0.88 + Math.sin(elapsed * 28 + t * 12) * 0.14;
+        b.mesh.scale.setScalar(flicker);
+        if (b.mesh.userData.core) {
+          b.mesh.userData.core.scale.setScalar(0.9 + Math.sin(elapsed * 36) * 0.18);
+        }
+        b.spark -= dt;
+        if (b.spark <= 0) {
+          b.spark = 0.045;
+          effects.ember(b.mesh.position);
+        }
       }
     }
   }

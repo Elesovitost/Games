@@ -103,6 +103,7 @@ export class GoldenTree {
     this.omniLight = new THREE.PointLight(0xffe4b8, 0.35, 6, 2);
     this.omniLight.position.set(0, 0.08, 0);
     this.root.add(this.omniLight);
+    this.dynamicLight = true;
 
     this.root.traverse((ch) => {
       if (!ch.isMesh) return;
@@ -147,6 +148,11 @@ export class GoldenTree {
     this._settled = false;
   }
 
+  setDynamicLight(on) {
+    this.dynamicLight = on;
+    if (!on) this.omniLight.intensity = 0;
+  }
+
   update(dt, elapsed = 0) {
     if (!this._settled) {
       const diff = this.growth - this.displayGrowth;
@@ -165,6 +171,10 @@ export class GoldenTree {
 
   /** Jemné dýchání omni světla u kmene. */
   #updateLighting(elapsed) {
+    if (!this.dynamicLight) {
+      this.omniLight.intensity = 0;
+      return;
+    }
     const g = this.displayGrowth;
     const t = elapsed * 0.28 + this.seed * 0.2;
     const pulse = 0.92 + Math.sin(t) * 0.06 + Math.sin(t * 0.4) * 0.03;

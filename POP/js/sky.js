@@ -338,6 +338,7 @@ export class Sky {
 export function applySunQuality(sun, opts = {}) {
   if (!sun) return;
   sun.castShadow = opts.shadows !== false;
+  sun.target.position.set(0, 0, 0);
   if (!opts.shadows) return;
   const size = opts.shadowMapSize || 2048;
   sun.shadow.mapSize.set(size, size);

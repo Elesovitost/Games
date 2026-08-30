@@ -32,7 +32,11 @@ class Game {
     this.quality = new QualityManager(this);
     const q = this.quality.current;
 
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: q.antialias });
+    this.renderer = new THREE.WebGLRenderer({
+      canvas: this.canvas,
+      antialias: q.antialias,
+      powerPreference: "high-performance"
+    });
     this.renderer.setPixelRatio(this.quality.pixelRatio());
     this.renderer.setClearColor(0x8ebce6, 1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -147,6 +151,7 @@ class Game {
     this.terrain.rebuild(this.mapId);
     this.water.refresh();
     this.spawnDecor.rebuild(this.mapId);
+    this.quality?.refreshSceneLights?.();
   }
 
   #clearWizards() {
@@ -301,23 +306,29 @@ class Game {
       if (this.keys.ArrowDown) this.planetGroup.rotateOnWorldAxis(this.camRight, -s);
     }
 
-    this.sky.update(dt);
+    if (this.quality.shouldUpdateSky()) this.sky.update(dt);
     this.terrain.update(dt);
-    this.water.update(dt);
+    if (this.quality.shouldUpdateWater()) this.water.update(dt);
     for (const w of this.wizards.values()) w.update(dt, elapsed);
     this.dragons.update(dt, elapsed);
-    this.fireballs.update(dt, elapsed);
-    this.lava.update(dt);
+    const fxOpts = {
+      ...this.quality.effectsOpts(),
+      camera: this.camera
+    };
+    this.fireballs.update(dt, elapsed, fxOpts);
+    this.lava.update(dt, fxOpts);
     applyLavaDps(this, dt);
     applySpawnRegen(this, dt);
     this.session.tickVitalitySync(dt);
-    this.effects.update(dt);
+    this.effects.update(dt, fxOpts);
     this.spawnDecor.update(dt, elapsed);
     this.ui.update(dt);
     this.pointerUi.update(elapsed);
     this.quality.tick(dt);
+    const frame = this._frame || 0;
+    this.quality.beforeRender(frame);
     this.renderer.render(this.scene, this.camera);
-    this._frame = (this._frame || 0) + 1;
+    this._frame = frame + 1;
   }
 }
 

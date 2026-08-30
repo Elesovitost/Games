@@ -34,23 +34,23 @@ export function isSurfaceDirVisible(camera, planetGroup, dir, radius = 8) {
   return isWorldPointVisible(camera, _world, radius);
 }
 
-const _shadowTarget = new THREE.Vector3();
+export function isObjectVisible(camera, obj, radius = 6) {
+  if (!obj) return true;
+  obj.getWorldPosition(_world);
+  return isWorldPointVisible(camera, _world, radius);
+}
 
-/** Stíny jen nad oblastí, kterou hráč vidí — vyšší rozlišení stínové mapy tam, kde záleží. */
-export function focusShadowOnView(game, sun, frustumHalf = 58) {
+/**
+ * Menší stínová mapa nad planetou — cíl slunce zůstává ve středu,
+ * aby stíny neplavaly s hráčem.
+ */
+export function configureShadowFrustum(sun, frustumHalf = 72) {
   if (!sun?.castShadow) return;
-  const w = game.wizard;
-  if (w?.mesh) {
-    _shadowTarget.copy(w.mesh.position);
-  } else {
-    _shadowTarget.set(0, CONFIG.planetR, 0);
-  }
-  sun.target.position.copy(_shadowTarget);
+  sun.target.position.set(0, 0, 0);
   const cam = sun.shadow.camera;
-  const half = frustumHalf;
-  cam.left = -half;
-  cam.right = half;
-  cam.top = half;
-  cam.bottom = -half;
+  cam.left = -frustumHalf;
+  cam.right = frustumHalf;
+  cam.top = frustumHalf;
+  cam.bottom = -frustumHalf;
   cam.updateProjectionMatrix();
 }

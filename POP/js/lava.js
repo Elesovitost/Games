@@ -1,6 +1,7 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, disposeObject, tmp } from "./utils.js";
+import { isPlanetPointVisible } from "./visibility.js";
 
 const LAVA_VERT = `
 attribute float aEdge;
@@ -241,10 +242,21 @@ export class LavaPools {
     this.seed = 1;
   }
 
-  update(dt) {
+  update(dt, opts = {}) {
+    const skipOff = opts.skipOffscreen && this.game.camera;
     for (let i = this.list.length - 1; i >= 0; i--) {
       const p = this.list[i];
       p.age += dt;
+      if (p.age >= p.life) {
+        this.game.planetGroup.remove(p.group);
+        disposeObject(p.group);
+        this.list.splice(i, 1);
+        continue;
+      }
+      if (skipOff && !isPlanetPointVisible(this.game.camera, this.game.planetGroup, p.up, p.rad * 1.4)) {
+        continue;
+      }
+
       const remain = p.life - p.age;
       let fade = 1;
       if (remain <= p.fadeTime) fade = Math.max(0, remain / p.fadeTime);
@@ -271,12 +283,6 @@ export class LavaPools {
         b.visible = fade > 0.08;
         b.scale.setScalar(b.userData.size * pop * (0.7 + fade * 0.3));
         b.material.opacity = (u < 0.75 ? 0.9 : 1.4 * (1 - u)) * fade;
-      }
-
-      if (p.age >= p.life) {
-        this.game.planetGroup.remove(p.group);
-        disposeObject(p.group);
-        this.list.splice(i, 1);
       }
     }
   }
