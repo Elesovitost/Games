@@ -20,7 +20,7 @@ Multiplayerová browser hra ve stylu Populous 3: kulatá planeta, kouzelníci, k
 - Sun (DirectionalLight) v `planetGroup`, target `(0,0,0)`.
 - Shadow frustum **celá planeta** (`shadowFrustumHalf ≈ 128`).
 - `shadowMap.autoUpdate = true` pokud `receiveShadow = true`.
-- Shadow map 1024, BasicShadowMap.
+- Shadow map 1024, PCFShadowMap; normalBias ~0.08 (bez acne čárek).
 
 ## Výkon (jeden CONFIG)
 - `pixelRatioMax` 1.35, `resolutionScale` 0.92

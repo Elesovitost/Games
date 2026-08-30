@@ -61,13 +61,15 @@ export function createSun(planetGroup) {
   sun.position.set(220, 180, -70);
   sun.castShadow = true;
   sun.shadow.mapSize.set(CONFIG.shadowMapSize, CONFIG.shadowMapSize);
-  sun.shadow.bias = -0.00015;
-  sun.shadow.normalBias = 0.02;
-  sun.shadow.radius = 2;
+  // Vyšší normalBias + mírný bias: méně acne / čárkování na svazích.
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.08;
   sun.target.position.set(0, 0, 0);
   const cam = sun.shadow.camera;
-  cam.near = 20;
-  cam.far = 560;
+  const sunDist = sun.position.length();
+  const extent = CONFIG.shadowFrustumHalf + 8;
+  cam.near = Math.max(1, sunDist - extent);
+  cam.far = sunDist + extent;
   planetGroup.add(sun);
   planetGroup.add(sun.target);
   return sun;

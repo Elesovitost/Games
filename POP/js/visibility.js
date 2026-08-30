@@ -23,8 +23,10 @@ export function configureShadowFrustum(sun, half = CONFIG.shadowFrustumHalf) {
   cam.right = half;
   cam.top = half;
   cam.bottom = -half;
-  cam.near = 20;
-  cam.far = 560;
+  const sunDist = sun.position.length();
+  const extent = half + 8;
+  cam.near = Math.max(1, sunDist - extent);
+  cam.far = sunDist + extent;
   cam.updateProjectionMatrix();
 }
 

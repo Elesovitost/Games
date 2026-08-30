@@ -16,8 +16,38 @@
   <canvas id="c"></canvas>
   <aside id="ui">
     <h1>Populous</h1>
-    <p class="hint">Šipky otáčejí planetou.<br />Fáze 1 — planeta, světla, stíny.</p>
+    <p class="hint" id="spell-hint">Vyber kouzlo, nebo klikni na pevninu pro chůzi.</p>
+    <div id="spells" class="spells" role="toolbar" aria-label="Kouzla">
+      <button type="button" class="spell" data-spell="elevate" title="Elevace">
+        <span class="spell-icon elevate" aria-hidden="true"></span>
+        <span class="spell-label">Kopec</span>
+      </button>
+      <button type="button" class="spell" data-spell="depress" title="Deprese">
+        <span class="spell-icon depress" aria-hidden="true"></span>
+        <span class="spell-label">Proláklina</span>
+      </button>
+      <button type="button" class="spell" data-spell="lightning" title="Blesk">
+        <span class="spell-icon lightning" aria-hidden="true"></span>
+        <span class="spell-label">Blesk</span>
+      </button>
+      <button type="button" class="spell" data-spell="fireball" title="Ohnivá koule">
+        <span class="spell-icon fireball" aria-hidden="true"></span>
+        <span class="spell-label">Fireball</span>
+      </button>
+      <button type="button" class="spell" data-spell="iceball" title="Ledová koule">
+        <span class="spell-icon iceball" aria-hidden="true"></span>
+        <span class="spell-label">Led</span>
+      </button>
+    </div>
+    <p class="hint muted">WASD · šipky · Esc zruší kouzlo</p>
   </aside>
+  <div id="health" aria-label="Zdraví">
+    <span class="health-label">HP</span>
+    <div class="health-track">
+      <div id="health-fill" class="health-fill"></div>
+    </div>
+    <span id="health-text">100</span>
+  </div>
   <script type="module" src="./js/main.js"></script>
 </body>
 </html>

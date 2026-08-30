@@ -123,6 +123,15 @@ export class Water {
     this.material.uniforms.uTime.value = this.time;
   }
 
+  /** Po morphu pevniny — obnov masku vody / pobřeží. */
+  refreshShore() {
+    if (!this.mesh) return;
+    this.#fillShore(this.mesh.geometry);
+    this.mesh.geometry.attributes.aShore.needsUpdate = true;
+    this.mesh.geometry.attributes.aMask.needsUpdate = true;
+    this.mesh.geometry.attributes.position.needsUpdate = true;
+  }
+
   #fillShore(geo) {
     const pos = geo.attributes.position;
     const shore = new Float32Array(pos.count);

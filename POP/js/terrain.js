@@ -132,6 +132,7 @@ export class Terrain {
     const heights = new Float32Array(count);
     generateHeights(heights, pos, this.noise);
     this.#smoothCoast(heights, idx, count);
+    this.dirs = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const col = tmp.col;
     for (let i = 0; i < count; i++) {
@@ -139,9 +140,15 @@ export class Terrain {
       const y = pos.getY(i);
       const z = pos.getZ(i);
       const dirLen = Math.hypot(x, y, z) || 1;
+      const dx = x / dirLen;
+      const dy = y / dirLen;
+      const dz = z / dirLen;
+      this.dirs[i * 3] = dx;
+      this.dirs[i * 3 + 1] = dy;
+      this.dirs[i * 3 + 2] = dz;
       const h = heights[i];
-      pos.setXYZ(i, (x / dirLen) * h, (y / dirLen) * h, (z / dirLen) * h);
-      this.colorFromHeight(h, col, x, y, z);
+      pos.setXYZ(i, dx * h, dy * h, dz * h);
+      this.colorFromHeight(h, col, dx, dy, dz);
       colors[i * 3] = col[0];
       colors[i * 3 + 1] = col[1];
       colors[i * 3 + 2] = col[2];
@@ -149,6 +156,153 @@ export class Terrain {
     this.geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     this.geometry.computeVertexNormals();
     this.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), CONFIG.maxR);
+    this.morphs = [];
+    this._morphDirty = false;
+    this.scorchMask = new Float32Array(count);
+  }
+
+  /** Spálená zem v radiu (m). irregular = nepravidelný okraj. */
+  scorch(centerDir, radiusMeters, irregular = false) {
+    const clen = Math.hypot(centerDir.x, centerDir.y, centerDir.z) || 1;
+    const ndx = centerDir.x / clen;
+    const ndy = centerDir.y / clen;
+    const ndz = centerDir.z / clen;
+    const pos = this.geometry.attributes.position;
+    const colAttr = this.geometry.attributes.color;
+    const col = tmp.col;
+    let any = false;
+
+    for (let i = 0; i < pos.count; i++) {
+      const dx = this.dirs[i * 3];
+      const dy = this.dirs[i * 3 + 1];
+      const dz = this.dirs[i * 3 + 2];
+      const dot = Math.min(1, Math.max(-1, dx * ndx + dy * ndy + dz * ndz));
+      const dist = Math.acos(dot) * CONFIG.planetR;
+
+      let rEff = radiusMeters;
+      if (irregular) {
+        // Nepravidelný okraj podle směru od středu úderu
+        const px = dx - ndx;
+        const py = dy - ndy;
+        const pz = dz - ndz;
+        const n =
+          Math.sin(px * 37.1 + py * 19.7 + pz * 53.3) * 0.5 +
+          Math.sin(px * 71.3 - py * 41.9 + pz * 13.1) * 0.5;
+        const u = n * 0.5 + 0.5;
+        rEff = radiusMeters * (0.55 + u * 0.55);
+      }
+      if (dist > rEff) continue;
+
+      const t = 1 - dist / Math.max(rEff, 1e-5);
+      const w = t * t * (3 - 2 * t);
+      this.scorchMask[i] = Math.min(1, Math.max(this.scorchMask[i], w * 0.95));
+      const h = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
+      this.#writeColor(i, h, col);
+      colAttr.setXYZ(i, col[0], col[1], col[2]);
+      any = true;
+    }
+    if (any) colAttr.needsUpdate = true;
+  }
+
+  #writeColor(i, h, col) {
+    const dx = this.dirs[i * 3];
+    const dy = this.dirs[i * 3 + 1];
+    const dz = this.dirs[i * 3 + 2];
+    this.colorFromHeight(h, col, dx, dy, dz);
+    const s = this.scorchMask[i];
+    if (s > 0.001) {
+      col[0] = col[0] * (1 - s) + 0.18 * s;
+      col[1] = col[1] * (1 - s) + 0.14 * s;
+      col[2] = col[2] * (1 - s) + 0.11 * s;
+    }
+  }
+
+  /**
+   * Elevace (+1) nebo deprese (−1) kolem bodu — plynulý morph ~spellDuration.
+   * @returns {boolean}
+   */
+  beginMorph(centerDir, sign) {
+    const cx = centerDir.x;
+    const cy = centerDir.y;
+    const cz = centerDir.z;
+    const clen = Math.hypot(cx, cy, cz) || 1;
+    const ndx = cx / clen;
+    const ndy = cy / clen;
+    const ndz = cz / clen;
+
+    const cosR = Math.cos(CONFIG.spellRadius / CONFIG.planetR);
+    const pos = this.geometry.attributes.position;
+    const indices = [];
+    const startH = [];
+    const deltaH = [];
+
+    for (let i = 0; i < pos.count; i++) {
+      const dx = this.dirs[i * 3];
+      const dy = this.dirs[i * 3 + 1];
+      const dz = this.dirs[i * 3 + 2];
+      const dot = dx * ndx + dy * ndy + dz * ndz;
+      if (dot < cosR) continue;
+      const t = (dot - cosR) / Math.max(1e-5, 1 - cosR);
+      const w = t * t * (3 - 2 * t);
+      const h0 = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
+      let d = sign * CONFIG.spellAmount * w;
+      const h1 = Math.min(CONFIG.maxR * 0.98, Math.max(CONFIG.minR, h0 + d));
+      d = h1 - h0;
+      if (Math.abs(d) < 1e-4) continue;
+      indices.push(i);
+      startH.push(h0);
+      deltaH.push(d);
+    }
+    if (!indices.length) return false;
+
+    this.morphs.push({
+      indices,
+      startH,
+      deltaH,
+      duration: CONFIG.spellDuration,
+      elapsed: 0
+    });
+    return true;
+  }
+
+  /** @returns {boolean} true pokud ještě běží nějaký morph */
+  updateMorphs(dt) {
+    if (!this.morphs.length) return false;
+    const pos = this.geometry.attributes.position;
+    const colAttr = this.geometry.attributes.color;
+    const col = tmp.col;
+    let any = false;
+
+    for (let m = this.morphs.length - 1; m >= 0; m--) {
+      const morph = this.morphs[m];
+      morph.elapsed += dt;
+      const u = Math.min(1, morph.elapsed / morph.duration);
+      const s = u * u * (3 - 2 * u);
+      for (let k = 0; k < morph.indices.length; k++) {
+        const i = morph.indices[k];
+        const h = morph.startH[k] + morph.deltaH[k] * s;
+        const dx = this.dirs[i * 3];
+        const dy = this.dirs[i * 3 + 1];
+        const dz = this.dirs[i * 3 + 2];
+        pos.setXYZ(i, dx * h, dy * h, dz * h);
+        this.#writeColor(i, h, col);
+        colAttr.setXYZ(i, col[0], col[1], col[2]);
+      }
+      if (u >= 1) this.morphs.splice(m, 1);
+      else any = true;
+    }
+
+    pos.needsUpdate = true;
+    colAttr.needsUpdate = true;
+    this.geometry.computeVertexNormals();
+    this._morphDirty = true;
+    return any || this.morphs.length > 0;
+  }
+
+  consumeMorphDirty() {
+    const d = this._morphDirty;
+    this._morphDirty = false;
+    return d;
   }
 
   #smoothCoast(heights, idx, count) {
