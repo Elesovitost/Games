@@ -93,7 +93,7 @@ export class SpellSystem {
   }
 
   update(dt) {
-    this.rangeRing.update(this.wizard.dir);
+    if (this.wizard) this.rangeRing.update(this.wizard.dir);
     for (const s of this.spirals) s.update(dt);
     updateBolts(this, dt);
     this.#updateProjectiles(dt);
@@ -124,13 +124,17 @@ export class SpellSystem {
     const target = targetDir.clone().normalize();
     const spiral = this.startSpiral(target, spellId);
 
+    const restore = () => {
+      this.wizard = prev;
+      this._castOwnerId = prevOwner;
+    };
+
     const finishFx = () => {
       this.clearSpiral(spiral);
       if (spellId === "lightning") this.strikeLightning(target);
       else if (spellId === "fireball") this.launchFireball(target);
       else if (spellId === "iceball") this.launchIceball(target);
-      this.wizard = prev;
-      this._castOwnerId = prevOwner;
+      restore();
       onDone?.();
     };
 
@@ -138,20 +142,24 @@ export class SpellSystem {
       const sign = spellId === "elevate" ? 1 : -1;
       if (!this.terrain.beginMorph(target, sign)) {
         this.clearSpiral(spiral);
-        this.wizard = prev;
-        this._castOwnerId = prevOwner;
+        restore();
         return;
       }
-      wizard.startCast(target, def.castTime, () => {
+      if (!wizard.startCast(target, def.castTime, () => {
         this.clearSpiral(spiral);
-        this.wizard = prev;
-        this._castOwnerId = prevOwner;
+        restore();
         onDone?.();
-      });
+      })) {
+        this.clearSpiral(spiral);
+        restore();
+      }
       return;
     }
 
-    wizard.startCast(target, def.castTime, finishFx);
+    if (!wizard.startCast(target, def.castTime, finishFx)) {
+      this.clearSpiral(spiral);
+      restore();
+    }
   }
 
   #updateProjectiles(dt) {

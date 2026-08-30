@@ -408,7 +408,7 @@ export class Wizard {
 
   /** Začni vizuální show kouzlení směrem k cíli. onComplete po skončení. */
   startCast(targetDir, duration = CONFIG.spellDuration, onComplete = null) {
-    if (this.casting || this.dead) return;
+    if (this.casting || this.dead) return false;
     this.#clearTarget();
     this.casting = true;
     this.castT = 0;
@@ -421,6 +421,7 @@ export class Wizard {
     }
     const parts = this.mesh.userData.parts;
     if (parts?.castFx) parts.castFx.visible = true;
+    return true;
   }
 
   #placeOnLand(preferred) {
@@ -468,6 +469,10 @@ export class Wizard {
 
   update(dt, keys, camRight) {
     if (this.remote) {
+      if (this.casting) {
+        this.castT += dt;
+        if (this.castT >= this.castDuration) this.#endCast();
+      }
       this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
       this.#applyPose();
       this.#animate(dt);
