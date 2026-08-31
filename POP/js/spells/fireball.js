@@ -155,14 +155,17 @@ function disposeFireball(sys, p) {
   if (p.light) p.ball.remove(p.light);
 }
 
-/** Ohnivá koule: přímka ze středu kouzelníka na bod na povrchu. */
+/** Ohnivá koule: vystřel z hlavy kouzelníka směrem k cíli. */
 export function launchFireball(sys, targetDir) {
+  const w = sys.wizard;
+  if (!w) return;
+
   const target = targetDir.clone().normalize();
   const th = sys.terrain.height(target);
   const aim = target.clone().multiplyScalar(th);
 
-  const centerH = CONFIG.wizardHeightM * 0.5;
-  const from = sys.wizard.mesh.position.clone().addScaledVector(sys.wizard.dir, centerH);
+  const headLift = CONFIG.wizardHeightM - 0.12;
+  const from = w.mesh.position.clone().addScaledVector(w.dir, headLift);
 
   sys._vel.copy(aim).sub(from);
   const dist = sys._vel.length();
@@ -247,8 +250,8 @@ export function launchFireball(sys, targetDir) {
     aim,
     radius: r,
     traveled: 0,
-    maxDist: dist + 2,
-    life: 5,
+    maxDist: dist + headLift + 6,
+    life: 6,
     smokeAcc: 0,
     burnT: 0
   });
@@ -273,7 +276,6 @@ export function updateFireball(sys, p, dt) {
     const onWater = terrainH < CONFIG.waterLevel + 0.06;
     const surface = onWater ? CONFIG.waterLevel : terrainH;
     if (len - p.radius <= surface + 0.05) hit = true;
-    if (pos.distanceToSquared(p.aim) < (p.radius + 0.35) ** 2) hit = true;
 
     if (!hit) {
       if (p.smokeAcc >= 0.022) {
