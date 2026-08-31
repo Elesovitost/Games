@@ -96,6 +96,19 @@ class Game {
     this.spawnMarkers?.refresh();
   }
 
+  #wireWizardNet(w) {
+    if (!w || w.remote) return;
+    w.onKnockdown = (kd) => {
+      this.session.sendIntent({
+        kind: "knock",
+        amt: kd.amount,
+        from: [kd.fromDir.x, kd.fromDir.y, kd.fromDir.z],
+        seq: kd.seq,
+        hp: w.hp
+      });
+    };
+  }
+
   enterSolo() {
     this.inputEnabled = true;
     this.planetGroup.rotation.set(0, 0, 0);
@@ -110,6 +123,7 @@ class Game {
     this.wizard = w;
     this.spells.wizard = w;
     this.spells._castOwnerId = w.id;
+    this.#wireWizardNet(w);
     placeCamera(this.camera, start);
     this.spawnMarkers?.show();
     this.#selectSpell(null);
@@ -140,6 +154,7 @@ class Game {
         this.wizard = w;
         this.spells.wizard = w;
         this.spells._castOwnerId = w.id;
+        this.#wireWizardNet(w);
         placeCamera(this.camera, spawn);
       }
     }
@@ -157,6 +172,13 @@ class Game {
 
     if (intent.kind === "pose") {
       w.applyNetPose(intent.dir, intent.facing, intent);
+      return;
+    }
+    if (intent.kind === "knock") {
+      w.applyKnockdown(intent.amt, intent.from, {
+        seq: intent.seq,
+        hp: intent.hp
+      });
       return;
     }
     if (intent.kind === "walk") {

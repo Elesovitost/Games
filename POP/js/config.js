@@ -60,5 +60,17 @@ export const CONFIG = {
   netPoseInterval: 0.05,
   /** Zpoždění interpolace vzdáleného hráče (s) — vyhlazuje skoky mezi snímky */
   netPoseInterpDelay: 0.08,
+  /** Min. damage pro knockdown */
+  wizardKnockMinDamage: 10,
+  wizardKnockFallDur: 0.16,
+  wizardKnockRiseDur: 0.45,
+  wizardKnockSlideImpulse: 10,
+  wizardKnockSlideFriction: 3.2,
+  wizardKnockDistMin: 2,
+  wizardKnockDistMax: 10,
+  wizardKnockMinRotations: 1,
+  /** Po plném zásahu (≈ max HP) */
+  wizardKnockMaxRotations: 4,
+  wizardKnockRollRadius: 0.2,
   defaultMapSeed: 20260829
 };

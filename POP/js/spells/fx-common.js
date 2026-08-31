@@ -16,7 +16,7 @@ export function applyAoeDamage(sys, centerDir, radiusM, dmgCenter, dmgEdge) {
     if (dist >= radiusM) continue;
     const t = dist / radiusM;
     const dmg = dmgCenter + (dmgEdge - dmgCenter) * t;
-    w.takeDamage(dmg);
+    w.takeDamage(dmg, { fromDir: centerDir });
   }
 }
 

@@ -281,6 +281,10 @@ export class Wizard {
     this._godGlow = [];
     this._godLight = null;
     this._godGlowT = 0;
+    this.knockdown = null;
+    this._knockSeq = 0;
+    /** MP — po knockdownu pošle intent (nastaví main.js). */
+    this.onKnockdown = null;
 
     this.mesh.traverse((ch) => {
       if (!ch.isMesh || !ch.material) return;
@@ -346,6 +350,7 @@ export class Wizard {
     else snap.facing.copy(snap.dir);
     snap.moving = !!flags.moving;
     if (typeof flags.hp === "number") snap.hp = flags.hp;
+    snap.knock = flags.knock || null;
     snap.time = t;
 
     const buf = this._netBuf;
@@ -355,6 +360,7 @@ export class Wizard {
       last.facing.copy(snap.facing);
       last.moving = snap.moving;
       last.hp = snap.hp;
+      last.knock = snap.knock;
       last.time = t;
       this._netPool.push(snap);
     } else {
@@ -378,6 +384,13 @@ export class Wizard {
     const latest = buf[buf.length - 1];
     if (typeof latest.hp === "number" && !this.dead) this.hp = latest.hp;
 
+    if (latest.knock && (!this.knockdown || latest.knock.seq !== this.knockdown.seq)) {
+      this.applyKnockdown(latest.knock.amt, latest.knock.from, {
+        seq: latest.knock.seq,
+        hp: latest.hp
+      });
+    }
+
     if (buf.length === 1) {
       this.dir.copy(buf[0].dir);
       this.facing.copy(buf[0].facing);
@@ -400,7 +413,19 @@ export class Wizard {
   }
 
   get isBusy() {
-    return this.casting || this.dead;
+    return this.casting || this.dead || !!this.knockdown;
+  }
+
+  /** Spustí pád a kotrmelce (MP / lokální sim). */
+  applyKnockdown(amount, fromDirArr, opts = {}) {
+    if (this.godMode || this.dead || amount <= 0) return;
+    if (typeof opts.hp === "number") this.hp = opts.hp;
+    const from =
+      fromDirArr instanceof THREE.Vector3
+        ? fromDirArr
+        : new THREE.Vector3(fromDirArr[0], fromDirArr[1], fromDirArr[2]);
+    if (from.lengthSq() < 1e-8) return;
+    this.#startKnockdown(amount, from, opts.seq);
   }
 
   /** Testovací GOD MODE — nesmrtelnost, 3× rychlost, záře. */
@@ -451,11 +476,175 @@ export class Wizard {
     if (this._godLight) this._godLight.intensity = 1.1 + pulse * 1.4;
   }
 
-  takeDamage(amount) {
+  takeDamage(amount, opts = {}) {
     if (this.godMode || this.dead || amount <= 0) return;
     this.hp = Math.max(0, this.hp - amount);
     this.#syncHealthUi();
+
+    const fromDir = opts.fromDir;
+    const canKnock =
+      opts.knock !== false &&
+      fromDir &&
+      amount >= CONFIG.wizardKnockMinDamage &&
+      this.hp > 0;
+    if (canKnock) {
+      this.#startKnockdown(amount, fromDir);
+    }
+
     if (this.hp <= 0) this.#die();
+  }
+
+  #computeKnockRollDir(fromDir, out) {
+    out.copy(this.dir).addScaledVector(fromDir, -this.dir.dot(fromDir));
+    if (out.lengthSq() < 1e-8) tangentFrame(this.dir, tmp.east, out);
+    else out.normalize();
+  }
+
+  #knockRollRadius() {
+    return CONFIG.wizardHeightM * CONFIG.wizardKnockRollRadius;
+  }
+
+  /** Výška při kotoulu — kontakt se zemí */
+  #knockLift(kd) {
+    if (!kd) return 0;
+    const r = this.#knockRollRadius();
+    const onSide = kd.sideZ >= Math.PI * 0.4;
+    if (onSide) return r * (0.4 + 0.6 * Math.abs(Math.sin(kd.barrelY)));
+    return r * Math.sin(Math.min(kd.sideZ, Math.PI * 0.5));
+  }
+
+  #knockMove(kd, step) {
+    if (this.remote || step <= 1e-5) return;
+    this._trial.copy(this.mesh.position).addScaledVector(kd.rollDir, step);
+    if (this._trial.lengthSq() > 1e-8) {
+      this._trial.normalize();
+      if (this.#isWalkable(this._trial)) {
+        this.#snap(this._trial);
+        this.facing.copy(kd.rollDir);
+      }
+    }
+  }
+
+  #startKnockdown(amount, fromDir, seq = null) {
+    const nextSeq = seq ?? ++this._knockSeq;
+    if (this.knockdown?.seq === nextSeq) return;
+
+    this.#clearTarget();
+    if (this.casting) this.#endCast();
+    this.wantsWalk = false;
+    this.moving = false;
+
+    const ratio = Math.min(1, amount / this.maxHp);
+    const imp = 0.65 + ratio * 2.4;
+    const rollDir = new THREE.Vector3();
+    this.#computeKnockRollDir(fromDir, rollDir);
+    this.facing.copy(rollDir);
+
+    const rotCount =
+      CONFIG.wizardKnockMinRotations +
+      ratio * (CONFIG.wizardKnockMaxRotations - CONFIG.wizardKnockMinRotations);
+    const rollR = this.#knockRollRadius();
+    const minRot = Math.PI * 2 * rotCount;
+    const rollDist = minRot * rollR;
+
+    this.knockdown = {
+      seq: nextSeq,
+      phase: "fall",
+      t: 0,
+      fallT: 0,
+      amount,
+      fromDir: fromDir.clone().normalize(),
+      rollDir,
+      sideZ: 0,
+      barrelY: 0,
+      slideVel: imp * CONFIG.wizardKnockSlideImpulse * (0.9 + rotCount * 0.05),
+      slideDist: 0,
+      rollDist,
+      minRot,
+      riseDur: CONFIG.wizardKnockRiseDur
+    };
+
+    if (!this.remote && this.onKnockdown) this.onKnockdown(this.knockdown);
+  }
+
+  #updateKnockdown(dt) {
+    const kd = this.knockdown;
+    if (!kd) return;
+
+    kd.t += dt;
+    const r = this.#knockRollRadius();
+    const fallEnd = Math.PI * 0.5;
+
+    if (kd.phase === "fall") {
+      kd.fallT += dt;
+      const u = Math.min(1, kd.fallT / CONFIG.wizardKnockFallDur);
+      const ease = 1 - (1 - u) ** 2;
+      kd.sideZ = ease * fallEnd;
+      kd.barrelY = 0;
+      const step = kd.slideVel * dt * 0.15;
+      kd.slideDist += step;
+      this.#knockMove(kd, step);
+      if (u >= 1) {
+        kd.phase = "roll";
+        kd.sideZ = fallEnd;
+        kd.t = 0;
+      }
+      return;
+    }
+
+    if (kd.phase === "roll") {
+      kd.sideZ = fallEnd;
+      kd.slideVel *= Math.exp(-CONFIG.wizardKnockSlideFriction * dt);
+      const step = kd.slideVel * dt;
+      kd.slideDist += step;
+      kd.barrelY += step / Math.max(r, 0.08);
+      this.#knockMove(kd, step);
+
+      const slowed = kd.slideVel < 0.28;
+      const rotOk = kd.barrelY >= kd.minRot * 0.88;
+      const distOk = kd.slideDist >= kd.rollDist * 0.88;
+      if ((slowed && (rotOk || distOk)) || kd.t > 5) {
+        kd.phase = "rise";
+        kd.t = 0;
+      }
+      return;
+    }
+
+    if (kd.phase === "rise") {
+      const u = Math.min(1, kd.t / kd.riseDur);
+      const e = u * u * (3 - 2 * u);
+      const full = Math.PI * 2;
+      const barrelTarget = Math.round(kd.barrelY / full) * full;
+      kd.barrelY += (barrelTarget - kd.barrelY) * Math.min(1, dt * (6 + e * 10));
+      kd.sideZ *= 1 - Math.min(1, dt * (5 + e * 8));
+      if (u >= 1) {
+        kd.sideZ = 0;
+        kd.barrelY = barrelTarget;
+        this.knockdown = null;
+      }
+    }
+  }
+
+  #applyKnockPose(parts) {
+    const kd = this.knockdown;
+    if (!kd || !parts) return;
+
+    parts.body.position.set(0, 0, 0);
+    parts.body.rotation.order = "ZYX";
+    parts.body.rotation.set(0, kd.barrelY, -kd.sideZ);
+
+    parts.leftLeg.rotation.set(0, 0, 0);
+    parts.rightLeg.rotation.set(0, 0, 0);
+    parts.leftArm.rotation.set(0, 0, 0);
+    parts.rightArm.rotation.set(0, 0, 0);
+
+    if (kd.phase === "roll") {
+      const tuck = 0.32 * Math.sin(kd.barrelY * 2);
+      parts.leftLeg.rotation.x = tuck;
+      parts.rightLeg.rotation.x = tuck;
+    }
+
+    if (parts.castFx) parts.castFx.visible = false;
   }
 
   #syncHealthUi() {
@@ -474,6 +663,7 @@ export class Wizard {
   #die() {
     if (this.dead || this.godMode) return;
     this.dead = true;
+    this.knockdown = null;
     this.#clearTarget();
     this.casting = false;
     this._onCastComplete = null;
@@ -549,7 +739,7 @@ export class Wizard {
   }
 
   setDestination(localPoint) {
-    if (this.casting || this.dead) return false;
+    if (this.isBusy) return false;
     this._trial.copy(localPoint).normalize();
     if (!this.#isWalkable(this._trial)) return false;
     this.targetDir.copy(this._trial);
@@ -595,7 +785,7 @@ export class Wizard {
 
   /** Začni vizuální show kouzlení směrem k cíli. onComplete po skončení. */
   startCast(targetDir, duration = CONFIG.spellDuration, onComplete = null) {
-    if (this.casting || this.dead) return false;
+    if (this.isBusy) return false;
     this.#clearTarget();
     this.wantsWalk = false;
     this.casting = true;
@@ -662,7 +852,13 @@ export class Wizard {
         if (this.castT >= this.castDuration) this.#endCast();
       }
       this.#updateNetPose();
-      this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
+      if (this.knockdown) this.#updateKnockdown(dt);
+      if (this.knockdown) {
+        const lift = this.#knockLift(this.knockdown);
+        this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir) + lift);
+      } else {
+        this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
+      }
       this.#applyPose();
       this.#updateWalkBlend(dt);
       this.#animate(dt);
@@ -674,6 +870,20 @@ export class Wizard {
       this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
       this.#applyPose();
       this.#updateGhost(dt);
+      this.marker?.update(dt);
+      return;
+    }
+
+    if (this.knockdown) {
+      this.#updateKnockdown(dt);
+    }
+    if (this.knockdown) {
+      const lift = this.#knockLift(this.knockdown);
+      this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir) + lift);
+      this.#applyPose();
+      this.#updateWalkBlend(dt);
+      this.#updateGodGlow(dt);
+      this.#animate(dt);
       this.marker?.update(dt);
       return;
     }
@@ -761,7 +971,8 @@ export class Wizard {
 
   /** Plynulý rozjezd / dojezd chůze (0 = stojí, 1 = plná chůze). */
   #updateWalkBlend(dt) {
-    const target = this.casting || this.dead ? 0 : (this.wantsWalk ? 1 : 0);
+    const target =
+      this.casting || this.dead || this.knockdown ? 0 : this.wantsWalk ? 1 : 0;
     const rate = target > this.walkBlend ? 3.2 : 5;
     this.walkBlend += (target - this.walkBlend) * Math.min(1, dt * rate);
     if (this.walkBlend < 0.003 && target === 0) this.walkBlend = 0;
@@ -771,7 +982,16 @@ export class Wizard {
     const parts = this.mesh.userData.parts;
     if (!parts) return;
 
+    if (this.knockdown) {
+      this.#applyKnockPose(parts);
+      return;
+    }
+
     if (this.casting) {
+      if (parts.body) {
+        parts.body.rotation.set(0, 0, 0);
+        parts.body.position.y = 0;
+      }
       const t = this.castT;
       const pulse = 0.5 + 0.5 * Math.sin(t * 10);
       const circle = t * 2.4;
@@ -816,7 +1036,10 @@ export class Wizard {
     parts.leftArm.rotation.set(0, 0, 0);
     parts.leftLeg.rotation.set(0, 0, 0);
     parts.rightLeg.rotation.set(0, 0, 0);
-    if (parts.body) parts.body.position.y = 0;
+    if (parts.body) {
+      parts.body.rotation.set(0, 0, 0);
+      parts.body.position.y = 0;
+    }
 
     const b = this.walkBlend;
     if (b < 0.001) return;

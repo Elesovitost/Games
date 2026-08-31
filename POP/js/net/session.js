@@ -91,7 +91,18 @@ export class MultiplayerSession {
       facing: [w.facing.x, w.facing.y, w.facing.z],
       moving: !!w.moving,
       casting: !!w.casting,
-      hp: w.hp
+      hp: w.hp,
+      knock: w.knockdown
+        ? {
+            seq: w.knockdown.seq,
+            amt: w.knockdown.amount,
+            from: [
+              w.knockdown.fromDir.x,
+              w.knockdown.fromDir.y,
+              w.knockdown.fromDir.z
+            ]
+          }
+        : null
     });
   }
 
