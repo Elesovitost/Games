@@ -339,7 +339,7 @@ function applyTornadoPull(sys, dt) {
     if (dist > def.pullRadius) continue;
 
     if (dist <= captureR) {
-      w.beginTornadoCapture(t.dir, t);
+      if (!w.remote) w.beginTornadoCapture(t.dir, t);
       continue;
     }
 
@@ -512,6 +512,7 @@ export function updateTornadoVictims(sys, dt) {
   for (const w of list) {
     const td = w.tornado;
     if (!td) continue;
+    if (w.remote) continue;
     if (td.phase === "air" || td.phase === "lie" || td.phase === "rise") {
       updateCapturedWizard(w, td.centerDir, 0, 0, dt, null);
     }
@@ -589,6 +590,7 @@ export function updateTornados(sys, dt) {
     }
 
     for (const w of list) {
+      if (w.remote) continue;
       if (w.tornado?.source === t) {
         updateCapturedWizard(w, t.dir, t.pathT, t.visual.bendPhase, dt, t);
       }

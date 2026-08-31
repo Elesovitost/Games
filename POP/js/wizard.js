@@ -357,6 +357,7 @@ export class Wizard {
     snap.moving = !!flags.moving;
     if (typeof flags.hp === "number") snap.hp = flags.hp;
     snap.knock = flags.knock || null;
+    snap.tornado = flags.tornado || null;
     snap.time = t;
 
     const buf = this._netBuf;
@@ -367,6 +368,7 @@ export class Wizard {
       last.moving = snap.moving;
       last.hp = snap.hp;
       last.knock = snap.knock;
+      last.tornado = snap.tornado;
       last.time = t;
       this._netPool.push(snap);
     } else {
@@ -374,6 +376,63 @@ export class Wizard {
     }
 
     while (buf.length > 24) this._netPool.push(buf.shift());
+  }
+
+  #applyNetTornado(a, b, alpha) {
+    const ta = a?.tornado;
+    const tb = b?.tornado;
+    const td = tb || ta;
+    if (!td) {
+      if (this.tornado) this.endTornadoCapture();
+      return;
+    }
+
+    let px, py, pz, spinY, sideZ, preAmp, bodyRoll, phase;
+    if (ta?.pos && tb?.pos) {
+      px = ta.pos[0] + (tb.pos[0] - ta.pos[0]) * alpha;
+      py = ta.pos[1] + (tb.pos[1] - ta.pos[1]) * alpha;
+      pz = ta.pos[2] + (tb.pos[2] - ta.pos[2]) * alpha;
+      spinY = ta.spinY + (tb.spinY - ta.spinY) * alpha;
+      sideZ = ta.sideZ + (tb.sideZ - ta.sideZ) * alpha;
+      preAmp = ta.preAmp + (tb.preAmp - ta.preAmp) * alpha;
+      bodyRoll = ta.bodyRoll + (tb.bodyRoll - ta.bodyRoll) * alpha;
+      phase = alpha >= 0.5 ? tb.phase : ta.phase;
+    } else {
+      px = td.pos[0];
+      py = td.pos[1];
+      pz = td.pos[2];
+      spinY = td.spinY;
+      sideZ = td.sideZ;
+      preAmp = td.preAmp;
+      bodyRoll = td.bodyRoll;
+      phase = td.phase;
+    }
+
+    if (!this.tornado) {
+      this.tornado = {
+        phase,
+        t: 0,
+        centerDir: this.dir.clone(),
+        spinY,
+        sideZ,
+        preAmp,
+        bodyRoll,
+        orbitAng: 0,
+        height: 0,
+        wallU: 0
+      };
+    } else {
+      this.tornado.phase = phase;
+      this.tornado.spinY = spinY;
+      this.tornado.sideZ = sideZ;
+      this.tornado.preAmp = preAmp;
+      this.tornado.bodyRoll = bodyRoll;
+    }
+
+    this.mesh.position.set(px, py, pz);
+    if (this.mesh.position.lengthSq() > 1e-8) {
+      this.dir.copy(this.mesh.position).normalize();
+    }
   }
 
   /** Interpolace mezi síťovými snímky (~80 ms zpět v čase). */
@@ -403,6 +462,7 @@ export class Wizard {
       this.dir.copy(buf[0].dir);
       this.facing.copy(buf[0].facing);
       this.moving = buf[0].moving;
+      this.#applyNetTornado(buf[0], buf[0], 1);
     } else {
       const a = buf[0];
       const b = buf[1];
@@ -416,6 +476,7 @@ export class Wizard {
       slerpDirection(this.dir, a.dir, b.dir, alpha);
       slerpDirection(this.facing, a.facing, b.facing, alpha);
       this.moving = alpha >= 0.5 ? b.moving : a.moving;
+      this.#applyNetTornado(a, b, alpha);
     }
     this.wantsWalk = this.moving;
   }

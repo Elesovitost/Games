@@ -102,6 +102,16 @@ export class MultiplayerSession {
               w.knockdown.fromDir.z
             ]
           }
+        : null,
+      tornado: w.tornado
+        ? {
+            phase: w.tornado.phase,
+            spinY: w.tornado.spinY,
+            sideZ: w.tornado.sideZ ?? 0,
+            bodyRoll: w.tornado.bodyRoll || 0,
+            preAmp: w.tornado.preAmp || 0,
+            pos: [w.mesh.position.x, w.mesh.position.y, w.mesh.position.z]
+          }
         : null
     });
   }
