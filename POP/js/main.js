@@ -221,7 +221,7 @@ class Game {
     if (hint) {
       hint.textContent = def
         ? def.hint
-        : "Vyber kouzlo v liště, cíl levým na mapě · chůze pravým.";
+        : "Levý klik = chůze · vyber kouzlo a levým sesílej · pravý klik zruší kouzlo.";
     }
     if (def && this.wizard) this.spells.showRange(id);
     else this.spells.hideRange();
@@ -335,23 +335,27 @@ class Game {
     if (e.target.closest?.("#ui") || e.target.closest?.("#mp-panel")) return;
     if (!this.inputEnabled || !this.wizard || this.wizard.isBusy) return;
 
-    const hit = this.#pickTerrain(e);
-
     if (e.button === 2) {
-      if (!hit) return;
-      if (this.wizard.setDestination(hit)) {
-        this.session.sendIntent({
-          kind: "walk",
-          dir: [this.wizard.targetDir.x, this.wizard.targetDir.y, this.wizard.targetDir.z]
-        });
-      }
+      if (this.selectedSpell) this.#selectSpell(null);
       return;
     }
 
     if (e.button !== 0) return;
-    if (!this.selectedSpell || !hit) return;
 
-    this.#castSpell(this.selectedSpell, hit);
+    const hit = this.#pickTerrain(e);
+    if (!hit) return;
+
+    if (this.selectedSpell) {
+      this.#castSpell(this.selectedSpell, hit);
+      return;
+    }
+
+    if (this.wizard.setDestination(hit)) {
+      this.session.sendIntent({
+        kind: "walk",
+        dir: [this.wizard.targetDir.x, this.wizard.targetDir.y, this.wizard.targetDir.z]
+      });
+    }
   }
 
   #castSpell(spellId, localPoint) {
@@ -374,6 +378,7 @@ class Game {
     });
     this.spells.aim.hide();
     this.spells.castAs(this.wizard, spellId, target);
+    this.#selectSpell(null);
   }
 
   #loop() {
@@ -404,10 +409,14 @@ class Game {
     this.spells.prepareTornadoEffects(dt);
     for (const w of this.wizards.values()) {
       w.update(dt, this.keys, this.camRight);
+      if (this.spawnMarkers?.isInSpawnZone(w.dir)) {
+        w.heal(CONFIG.spawnHealPerSec * dt);
+      }
     }
     this.spells.update(dt);
     this.spawnMarkers.update(dt);
     this.water.update(dt);
+    this.sky.update(dt);
     this.session.tickPose(dt);
 
     const viewAxis = getPlanetViewAxis(this.camera, this.planetGroup, tmp.v);

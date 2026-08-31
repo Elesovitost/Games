@@ -1,7 +1,9 @@
 import * as THREE from "./three.js";
+import { CONFIG } from "./config.js";
 import { tangentFrame } from "./utils.js";
 
-const RING_RADIUS = 2;
+export const SPAWN_ZONE_RADIUS = 2;
+const RING_RADIUS = SPAWN_ZONE_RADIUS;
 const MUSHROOM_COUNT = 14;
 const SURFACE_LIFT = 0.02;
 const POOL_RADIUS = 0.38;
@@ -80,6 +82,9 @@ export class SpawnMarkers {
     this._pN = new THREE.Vector3();
     this._n = new THREE.Vector3();
     this._yUp = new THREE.Vector3(0, 1, 0);
+    this.spawnCenters = spawnDirs.map((d) =>
+      new THREE.Vector3(d[0], d[1], d[2]).normalize()
+    );
 
     const colors = [0x66ffc8, 0xa8f0ff, 0xffd080, 0xe8a0ff];
     for (let s = 0; s < spawnDirs.length; s++) {
@@ -141,6 +146,16 @@ export class SpawnMarkers {
     mush.position.copy(this._p0).addScaledVector(this._n, SURFACE_LIFT);
     mush.quaternion.setFromUnitVectors(this._yUp, this._n);
     mush.scale.setScalar(scale);
+  }
+
+  /** Je kouzelník uvnitř některého spawn kruhu? */
+  isInSpawnZone(wizardDir) {
+    this._dir.copy(wizardDir).normalize();
+    for (const center of this.spawnCenters) {
+      const dot = Math.min(1, Math.max(-1, this._dir.dot(center)));
+      if (Math.acos(dot) * CONFIG.planetR <= SPAWN_ZONE_RADIUS) return true;
+    }
+    return false;
   }
 
   /** Přepočítá pozice hub podle aktuálního terénu (po morphu / resetu). */

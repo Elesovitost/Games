@@ -9,6 +9,8 @@ export const CONFIG = {
   /** Referenční výška kouzelníka (m) */
   wizardHeightM: 2,
   wizardMaxHp: 100,
+  /** Regenerace HP ve spawn kruhu (HP/s) */
+  spawnHealPerSec: 5,
   waterLevel: PLANET_R + 0.35,
   icoSubdiv: 6,
   waterSubdiv: 5,

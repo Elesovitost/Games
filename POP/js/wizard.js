@@ -447,6 +447,12 @@ export class Wizard {
     if (this.hp <= 0) this.#die();
   }
 
+  heal(amount) {
+    if (this.dead || this.godMode || amount <= 0 || this.hp >= this.maxHp) return;
+    this.hp = Math.min(this.maxHp, this.hp + amount);
+    this.#syncHealthUi();
+  }
+
   #computeKnockRollDir(fromDir, out) {
     out.copy(this.dir).addScaledVector(fromDir, -this.dir.dot(fromDir));
     if (out.lengthSq() < 1e-8) tangentFrame(this.dir, tmp.east, out);
