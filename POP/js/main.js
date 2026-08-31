@@ -221,7 +221,7 @@ class Game {
     if (hint) {
       hint.textContent = def
         ? def.hint
-        : "Vyber kouzlo, nebo klikni na pevninu pro chůzi.";
+        : "Vyber kouzlo v liště, cíl levým na mapě · chůze pravým.";
     }
     if (def && this.wizard) this.spells.showRange(id);
     else this.spells.hideRange();
@@ -295,6 +295,8 @@ class Game {
 
     this.canvas.addEventListener("pointerdown", (e) => this.#onPointerDown(e));
     this.canvas.addEventListener("pointermove", (e) => this.#onPointerMove(e));
+    this.canvas.addEventListener("pointerleave", () => this.#onPointerLeave());
+    window.addEventListener("contextmenu", (e) => e.preventDefault());
   }
 
   #pickTerrain(e) {
@@ -310,31 +312,46 @@ class Game {
   }
 
   #onPointerMove(e) {
-    if (!this.inputEnabled || !this.selectedSpell || !this.wizard || this.wizard.isBusy) return;
+    if (!this.inputEnabled || !this.wizard || this.wizard.isBusy) return;
     const hit = this.#pickTerrain(e);
-    if (hit) this.spells.updateAim(hit);
-    else this.spells.aim.hide();
+
+    if (this.selectedSpell) {
+      if (hit) this.spells.updateAim(hit, this.camera);
+      else this.spells.aim.hide();
+      return;
+    }
+
+    if (this.wizard.hasTarget) return;
+    if (hit) this.wizard.previewWalk(hit);
+    else this.wizard.hideWalkPreview();
+  }
+
+  #onPointerLeave() {
+    if (!this.wizard || this.wizard.hasTarget || this.selectedSpell) return;
+    this.wizard.hideWalkPreview();
   }
 
   #onPointerDown(e) {
-    if (e.button !== 0) return;
     if (e.target.closest?.("#ui") || e.target.closest?.("#mp-panel")) return;
     if (!this.inputEnabled || !this.wizard || this.wizard.isBusy) return;
 
     const hit = this.#pickTerrain(e);
-    if (!hit) return;
 
-    if (this.selectedSpell) {
-      this.#castSpell(this.selectedSpell, hit);
+    if (e.button === 2) {
+      if (!hit) return;
+      if (this.wizard.setDestination(hit)) {
+        this.session.sendIntent({
+          kind: "walk",
+          dir: [this.wizard.targetDir.x, this.wizard.targetDir.y, this.wizard.targetDir.z]
+        });
+      }
       return;
     }
 
-    if (this.wizard.setDestination(hit)) {
-      this.session.sendIntent({
-        kind: "walk",
-        dir: [this.wizard.targetDir.x, this.wizard.targetDir.y, this.wizard.targetDir.z]
-      });
-    }
+    if (e.button !== 0) return;
+    if (!this.selectedSpell || !hit) return;
+
+    this.#castSpell(this.selectedSpell, hit);
   }
 
   #castSpell(spellId, localPoint) {
@@ -355,8 +372,8 @@ class Game {
       spell: spellId,
       target: [target.x, target.y, target.z]
     });
+    this.spells.aim.hide();
     this.spells.castAs(this.wizard, spellId, target);
-    this.#selectSpell(null);
   }
 
   #loop() {

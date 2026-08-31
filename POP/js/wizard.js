@@ -6,6 +6,7 @@ import {
   applyKnockFromSnapshot,
   poseSnapshotFromIntent
 } from "./net/wizard-sync.js";
+import { WalkFootprints } from "./spells/fx-aim.js";
 
 const ROBE = 0x1a2848;
 const ROBE_DARK = 0x0c1424;
@@ -166,78 +167,6 @@ export function createWizardMesh(robeColor = ROBE) {
   return root;
 }
 
-const MARKER_LIFT = 0.2;
-
-/** Malá pulzující kulička na místě kliknutí. */
-class MoveMarker {
-  constructor(planetGroup, terrain) {
-    this.terrain = terrain;
-    this.group = new THREE.Group();
-    this.group.visible = false;
-
-    this.mat = new THREE.MeshBasicMaterial({
-      color: 0xffe566,
-      transparent: true,
-      opacity: 0.9,
-      depthWrite: false
-    });
-    this.core = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), this.mat);
-    this.core.frustumCulled = false;
-    this.core.renderOrder = 2;
-    this.group.add(this.core);
-    planetGroup.add(this.group);
-
-    this.dir = new THREE.Vector3(0, 1, 0);
-    this.t = 0;
-    this._east = new THREE.Vector3();
-    this._north = new THREE.Vector3();
-    this._tmp = new THREE.Vector3();
-    this._tmp2 = new THREE.Vector3();
-    this._n = new THREE.Vector3();
-    this._p0 = new THREE.Vector3();
-    this._pE = new THREE.Vector3();
-    this._pN = new THREE.Vector3();
-  }
-
-  #place() {
-    const h = this.terrain.height(this.dir);
-    this._p0.copy(this.dir).multiplyScalar(h);
-
-    tangentFrame(this.dir, this._east, this._north);
-    const eps = 0.035;
-    this._tmp.copy(this.dir).addScaledVector(this._east, eps).normalize();
-    this._pE.copy(this._tmp).multiplyScalar(this.terrain.height(this._tmp));
-    this._tmp2.copy(this.dir).addScaledVector(this._north, eps).normalize();
-    this._pN.copy(this._tmp2).multiplyScalar(this.terrain.height(this._tmp2));
-    this._n.crossVectors(this._pE.sub(this._p0), this._pN.sub(this._p0));
-    if (this._n.lengthSq() < 1e-10) this._n.copy(this.dir);
-    else this._n.normalize();
-    if (this._n.dot(this.dir) < 0) this._n.negate();
-
-    this.group.position.copy(this._p0).addScaledVector(this._n, MARKER_LIFT);
-  }
-
-  show(dir) {
-    this.dir.copy(dir).normalize();
-    this.#place();
-    this.group.visible = true;
-    this.t = 0;
-  }
-
-  hide() {
-    this.group.visible = false;
-  }
-
-  update(dt) {
-    if (!this.group.visible) return;
-    this.t += dt;
-    this.#place();
-    const pulse = 0.5 + 0.5 * Math.sin(this.t * 5.5);
-    this.core.scale.setScalar(0.85 + pulse * 0.3);
-    this.mat.opacity = 0.55 + pulse * 0.35;
-  }
-}
-
 export class Wizard {
   constructor(planetGroup, terrain, spawnDir, opts = {}) {
     this.planetGroup = planetGroup;
@@ -248,7 +177,7 @@ export class Wizard {
     this.remote = !!opts.remote;
     this.mesh = createWizardMesh(this.color);
     this.planetGroup.add(this.mesh);
-    this.marker = this.remote ? null : new MoveMarker(planetGroup, terrain);
+    this.footprints = this.remote ? null : new WalkFootprints(planetGroup, terrain);
 
     this.dir = new THREE.Vector3().fromArray(spawnDir).normalize();
     this.facing = new THREE.Vector3();
@@ -329,10 +258,11 @@ export class Wizard {
         else ch.material.dispose();
       }
     });
-    if (this.marker) {
-      this.planetGroup.remove(this.marker.group);
-      this.marker.core.geometry.dispose();
-      this.marker.mat.dispose();
+    if (this.footprints) {
+      this.planetGroup.remove(this.footprints.group);
+      this.footprints.leftFoot.geometry.dispose();
+      this.footprints.rightFoot.geometry.dispose();
+      this.footprints.mat.dispose();
     }
     if (this.ghost) {
       this.planetGroup.remove(this.ghost);
@@ -797,7 +727,7 @@ export class Wizard {
 
   #clearTarget() {
     this.hasTarget = false;
-    this.marker?.hide();
+    this.footprints?.hide();
   }
 
   setDestination(localPoint) {
@@ -806,8 +736,23 @@ export class Wizard {
     if (!this.#isWalkable(this._trial)) return false;
     this.targetDir.copy(this._trial);
     this.hasTarget = true;
-    this.marker?.show(this.targetDir);
+    this.footprints?.show(this.targetDir, this.dir);
     return true;
+  }
+
+  /** Náhled cíle chůze pod kurzorem — jen dokud není kliknuto. */
+  previewWalk(localPoint) {
+    if (this.isBusy || this.hasTarget) return;
+    this._trial.copy(localPoint).normalize();
+    if (!this.#isWalkable(this._trial)) {
+      this.footprints?.hide();
+      return;
+    }
+    this.footprints?.show(this._trial, this.dir);
+  }
+
+  hideWalkPreview() {
+    if (!this.hasTarget) this.footprints?.hide();
   }
 
   /** Rychlost podle sklonu: do kopce zpomalí, z kopce lehce zrychlí. */
@@ -929,7 +874,7 @@ export class Wizard {
       this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
       this.#applyPose();
       this.#updateGhost(dt);
-      this.marker?.update(dt);
+      this.footprints?.update(dt);
       return;
     }
 
@@ -943,7 +888,7 @@ export class Wizard {
       this.#updateWalkBlend(dt);
       this.#updateGodGlow(dt);
       this.#animate(dt);
-      this.marker?.update(dt);
+      this.footprints?.update(dt);
       return;
     }
 
@@ -952,7 +897,7 @@ export class Wizard {
       this.#updateWalkBlend(dt);
       this.#updateGodGlow(dt);
       this.#animate(dt);
-      this.marker?.update(dt);
+      this.footprints?.update(dt);
       return;
     }
 
@@ -1021,7 +966,7 @@ export class Wizard {
     this.#updateWalkBlend(dt);
     this.#updateGodGlow(dt);
     this.#animate(dt);
-    this.marker?.update(dt);
+    this.footprints?.update(dt);
   }
 
   #updateGhost(dt) {

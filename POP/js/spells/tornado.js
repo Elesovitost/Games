@@ -2,6 +2,7 @@ import * as THREE from "../three.js";
 import { CONFIG } from "../config.js";
 import { SPELLS } from "./defs.js";
 import { surfaceDist } from "./fx-common.js";
+import { isWaterAt } from "./water-fx.js";
 import { tangentFrame, tmp } from "../utils.js";
 
 export function dirSeed(d) {
@@ -22,11 +23,13 @@ const HEIGHT = 9.2;
 const TOP_HEIGHT = HEIGHT * 0.96;
 const R_BOTTOM = 0.15;
 const R_TOP = 3.85;
-const RINGS = 40;
-const SEGS = 12;
-const SPIRAL_STEPS = TURNS * 10;
+const RINGS = 44;
+const SEGS = 16;
+const SPIRAL_STEPS = TURNS * 14;
+const MAIN_SPIRALS = 4;
+const BLUR_SPIRALS = 3;
 const FADE_DUR = 1.15;
-const DUST_COLORS = [0x8a7a62, 0x9a8870, 0x756656, 0xa09078, 0x6a5c4e];
+const DUST_COLORS = [0x8a7a62, 0x9a8870, 0x756656, 0xa09078, 0x6a5c4e, 0xb0a090];
 
 function surfaceAt(terrain, dir) {
   const th = terrain.height(dir);
@@ -42,15 +45,15 @@ function radiusAt(u) {
   return R_BOTTOM + (R_TOP - R_BOTTOM) * Math.pow(u, 1.5);
 }
 
-function spawnDust(sys, pos, vel) {
+function spawnDust(sys, pos, vel, opts = {}) {
   if (!sys.smokePuffs) sys.smokePuffs = [];
   const mat = new THREE.MeshBasicMaterial({
-    color: DUST_COLORS[(Math.random() * DUST_COLORS.length) | 0],
+    color: opts.color ?? DUST_COLORS[(Math.random() * DUST_COLORS.length) | 0],
     transparent: true,
-    opacity: 0.35 + Math.random() * 0.25,
+    opacity: opts.opacity ?? 0.35 + Math.random() * 0.25,
     depthWrite: false
   });
-  const s = 0.06 + Math.random() * 0.14;
+  const s = opts.size ?? 0.06 + Math.random() * 0.14;
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(s, 5, 4), mat);
   mesh.position.copy(pos);
   sys.planetGroup.add(mesh);
@@ -59,9 +62,36 @@ function spawnDust(sys, pos, vel) {
     mat,
     vel: vel.clone(),
     t: 0,
-    life: 0.45 + Math.random() * 0.55,
-    grow: 0.35 + Math.random() * 0.2
+    life: opts.life ?? 0.45 + Math.random() * 0.55,
+    grow: opts.grow ?? 0.35 + Math.random() * 0.2
   });
+}
+
+function funnelWobble(u, pathT, seed, strand = 0) {
+  const w = u * u;
+  return {
+    rMul:
+      1 +
+      w *
+        (0.1 * Math.sin(u * 24.1 + pathT * 1.4 + seed * 11 + strand) +
+          0.06 * Math.sin(u * 41.3 - pathT * 0.7 + seed * 5)),
+    angOff:
+      w *
+      (0.28 * Math.sin(u * 17.5 + pathT * 0.85 + seed * 7 + strand * 0.6) +
+        0.14 * Math.sin(u * 33.2 + seed * 3)),
+    yOff: w * 0.09 * Math.sin(u * 29.7 + pathT * 1.1 + seed * 2.3)
+  };
+}
+
+function bendOffset(u, pathT, bendPhase, seed = 0) {
+  const bend = u * u * (0.4 + 0.6 * u);
+  const bx =
+    Math.sin(pathT * 1.05 + u * 2.4 + bendPhase) * 1.08 * bend +
+    0.24 * bend * Math.sin(u * 8.7 + pathT * 0.55 + seed * 4.1);
+  const bz =
+    Math.cos(pathT * 0.82 + u * 1.85 + bendPhase * 0.65) * 0.95 * bend +
+    0.2 * bend * Math.cos(u * 7.3 - pathT * 0.48 + seed * 2.7);
+  return { bx, bz };
 }
 
 function buildTornadoVisual(seed) {
@@ -77,12 +107,12 @@ function buildTornadoVisual(seed) {
   }
 
   const shellMat = new THREE.MeshStandardMaterial({
-    color: 0xb8c6d0,
-    emissive: 0x2a3840,
-    emissiveIntensity: 0.1,
+    color: 0x9a9488,
+    emissive: 0x3a3835,
+    emissiveIntensity: 0.08,
     transparent: true,
-    opacity: 0.28,
-    roughness: 0.9,
+    opacity: 0.2,
+    roughness: 0.95,
     depthWrite: false,
     side: THREE.DoubleSide
   });
@@ -93,7 +123,7 @@ function buildTornadoVisual(seed) {
   shell.renderOrder = 2;
   g.add(shell);
 
-  const spiralCount = 4;
+  const spiralCount = MAIN_SPIRALS + BLUR_SPIRALS;
   const spiralPosArrays = [];
   const spiralGeos = [];
   const spiralMats = [];
@@ -102,14 +132,15 @@ function buildTornadoVisual(seed) {
     spiralPosArrays.push(arr);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(arr, 3));
+    const blur = sp >= MAIN_SPIRALS;
     const mat = new THREE.LineBasicMaterial({
-      color: sp === 0 ? 0xe8f0f8 : 0x8a98a8,
+      color: blur ? 0xa8b0b8 : sp === 0 ? 0xd8e4ec : 0x98a4ae,
       transparent: true,
-      opacity: 0.55 - sp * 0.1,
+      opacity: blur ? 0.1 + (sp - MAIN_SPIRALS) * 0.04 : 0.42 - sp * 0.07,
       depthWrite: false
     });
     const line = new THREE.Line(geo, mat);
-    line.renderOrder = 4;
+    line.renderOrder = blur ? 3 : 4;
     g.add(line);
     spiralGeos.push(geo);
     spiralMats.push(mat);
@@ -136,44 +167,45 @@ function buildTornadoVisual(seed) {
     spiralMats,
     baseMat,
     spiralCount,
+    mainSpiralCount: MAIN_SPIRALS,
+    seed,
     bendPhase: seed * Math.PI * 2
   };
 }
 
-function bendOffset(u, pathT, bendPhase) {
-  const bend = u * u * (0.4 + 0.6 * u);
-  return {
-    bx: Math.sin(pathT * 1.05 + u * 2.4 + bendPhase) * 1.08 * bend,
-    bz: Math.cos(pathT * 0.82 + u * 1.85 + bendPhase * 0.65) * 0.95 * bend
-  };
-}
-
-function fillFunnel(positions, pathT, spiralPhase, bendPhase) {
+function fillFunnel(positions, pathT, spiralPhase, bendPhase, seed) {
   let vi = 0;
   for (let r = 0; r <= RINGS; r++) {
     const u = r / RINGS;
-    const y = u * HEIGHT;
-    const rad = radiusAt(u);
+    const yBase = u * HEIGHT;
+    const radBase = radiusAt(u);
     const twist = u * TURNS * Math.PI * 2 + spiralPhase;
-    const { bx, bz } = bendOffset(u, pathT, bendPhase);
+    const { bx, bz } = bendOffset(u, pathT, bendPhase, seed);
+    const ringWob = funnelWobble(u, pathT, seed, r * 0.07);
     for (let s = 0; s <= SEGS; s++) {
-      const ang = (s / SEGS) * Math.PI * 2 + twist;
+      const ang = (s / SEGS) * Math.PI * 2 + twist + ringWob.angOff;
+      const rad = radBase * ringWob.rMul * (1 + 0.04 * Math.sin(s * 2.3 + u * 18 + seed));
       positions[vi++] = Math.cos(ang) * rad + bx;
-      positions[vi++] = y;
+      positions[vi++] = yBase + ringWob.yOff;
       positions[vi++] = Math.sin(ang) * rad + bz;
     }
   }
 }
 
-function fillSpiral(arr, pathT, spiralPhase, bendPhase, strand) {
-  const strandOff = (strand / 4) * Math.PI * 2;
+function fillSpiral(arr, pathT, spiralPhase, bendPhase, strand, seed) {
+  const blur = strand >= MAIN_SPIRALS;
+  const mainStrand = strand % MAIN_SPIRALS;
+  const strandOff = (mainStrand / MAIN_SPIRALS) * Math.PI * 2;
+  const phaseOff = blur ? (strand - MAIN_SPIRALS) * 0.13 - 0.13 : 0;
+  const radScale = blur ? 1.05 + (strand - MAIN_SPIRALS) * 0.035 : 1;
   let vi = 0;
   for (let i = 0; i <= SPIRAL_STEPS; i++) {
     const u = i / SPIRAL_STEPS;
-    const y = u * HEIGHT;
-    const rad = radiusAt(u) * (0.92 - strand * 0.06);
-    const ang = u * TURNS * Math.PI * 2 + spiralPhase + strandOff;
-    const { bx, bz } = bendOffset(u, pathT, bendPhase);
+    const wob = funnelWobble(u, pathT, seed, strand);
+    const y = u * HEIGHT + wob.yOff;
+    const rad = radiusAt(u) * (0.92 - mainStrand * 0.06) * wob.rMul * radScale;
+    const ang = u * TURNS * Math.PI * 2 + spiralPhase + strandOff + phaseOff + wob.angOff;
+    const { bx, bz } = bendOffset(u, pathT, bendPhase, seed);
     arr[vi++] = Math.cos(ang) * rad + bx;
     arr[vi++] = y;
     arr[vi++] = Math.sin(ang) * rad + bz;
@@ -181,11 +213,11 @@ function fillSpiral(arr, pathT, spiralPhase, bendPhase, strand) {
 }
 
 function updateVisual(visual, pathT, spiralPhase) {
-  fillFunnel(visual.positions, pathT, spiralPhase, visual.bendPhase);
+  fillFunnel(visual.positions, pathT, spiralPhase, visual.bendPhase, visual.seed);
   visual.shellGeo.attributes.position.needsUpdate = true;
   visual.shellGeo.computeVertexNormals();
   for (let sp = 0; sp < visual.spiralCount; sp++) {
-    fillSpiral(visual.spiralPosArrays[sp], pathT, spiralPhase, visual.bendPhase, sp);
+    fillSpiral(visual.spiralPosArrays[sp], pathT, spiralPhase, visual.bendPhase, sp, visual.seed);
     visual.spiralGeos[sp].attributes.position.needsUpdate = true;
   }
 }
@@ -203,26 +235,82 @@ function placeAtSpiral(group, dir, terrain) {
   group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
 }
 
-function spawnBaseDust(sys, t) {
+function spawnGroundDust(sys, t) {
   tangentFrame(t.dir, tmp.east, tmp.north);
-  const base = t.group.position;
   const up = t.dir;
-  const count = 2 + ((Math.random() * 2) | 0);
+  const base = t.group.position;
+  const count = 3 + ((Math.random() * 3) | 0);
+
   for (let i = 0; i < count; i++) {
-    const ang = Math.random() * Math.PI * 2;
-    const r = R_BOTTOM + Math.random() * 1.8;
+    const ang = Math.random() * Math.PI * 2 + t.spiralPhase * 0.15;
+    const r = R_BOTTOM * 0.5 + Math.random() * 2.4;
+    const lift = 0.04 + Math.random() * 1.6;
     const pos = base
       .clone()
       .addScaledVector(tmp.east, Math.cos(ang) * r)
       .addScaledVector(tmp.north, Math.sin(ang) * r)
-      .addScaledVector(up, 0.05 + Math.random() * 0.08);
+      .addScaledVector(up, lift);
+    const spin = 2.5 + Math.random() * 4;
     const vel = tmp.east
       .clone()
-      .multiplyScalar((Math.random() - 0.5) * 3.5)
-      .addScaledVector(tmp.north, (Math.random() - 0.5) * 3.5)
-      .addScaledVector(up, 1.2 + Math.random() * 2.5);
-    spawnDust(sys, pos, vel);
+      .multiplyScalar(Math.cos(ang + Math.PI * 0.5) * spin + (Math.random() - 0.5) * 2)
+      .addScaledVector(tmp.north, Math.sin(ang + Math.PI * 0.5) * spin + (Math.random() - 0.5) * 2)
+      .addScaledVector(up, 1.4 + Math.random() * 3.2);
+    spawnDust(sys, pos, vel, {
+      size: 0.08 + Math.random() * 0.18,
+      opacity: 0.28 + Math.random() * 0.22,
+      life: 0.55 + Math.random() * 0.65
+    });
   }
+}
+
+function spawnWaterMist(sys, t) {
+  if (!sys.waterSpray) sys.waterSpray = [];
+  tangentFrame(t.dir, tmp.east, tmp.north);
+  const up = t.dir;
+  const base = t.dir.clone().multiplyScalar(CONFIG.waterLevel + 0.035);
+  const count = 2 + ((Math.random() * 4) | 0);
+
+  for (let i = 0; i < count; i++) {
+    const ang = Math.random() * Math.PI * 2 + t.spiralPhase * 0.2;
+    const r = 0.2 + Math.random() * 2.2;
+    const speed = 1.8 + Math.random() * 4.2;
+    const vel = tmp.east
+      .clone()
+      .multiplyScalar(Math.cos(ang) * speed * 0.55)
+      .addScaledVector(tmp.north, Math.sin(ang) * speed * 0.55)
+      .addScaledVector(up, 2.5 + Math.random() * 5.5);
+    const mat = new THREE.MeshBasicMaterial({
+      color: Math.random() > 0.4 ? 0xc8e4f4 : 0xf0f8ff,
+      transparent: true,
+      opacity: 0.55 + Math.random() * 0.25,
+      depthWrite: false
+    });
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.02 + Math.random() * 0.045, 4, 3),
+      mat
+    );
+    mesh.position
+      .copy(base)
+      .addScaledVector(tmp.east, Math.cos(ang) * r)
+      .addScaledVector(tmp.north, Math.sin(ang) * r)
+      .addScaledVector(up, Math.random() * 0.5);
+    sys.planetGroup.add(mesh);
+    sys.waterSpray.push({
+      mesh,
+      mat,
+      vel,
+      t: 0,
+      life: 0.28 + Math.random() * 0.38,
+      gravity: up.clone().multiplyScalar(-14),
+      drag: 0.86
+    });
+  }
+}
+
+function spawnGroundEffects(sys, t) {
+  if (isWaterAt(sys, t.dir)) spawnWaterMist(sys, t);
+  else spawnGroundDust(sys, t);
 }
 
 /** @returns {object} */
@@ -250,7 +338,8 @@ export function spawnTornado(sys, targetDir) {
     orbitR1: 3.2 + rng() * 3.8,
     orbitR2: 2.4 + rng() * 3.2,
     fading: false,
-    fadeT: 0
+    fadeT: 0,
+    lastTrailDir: anchor.clone()
   };
   if (!sys.tornados) sys.tornados = [];
   sys.tornados.push(t);
@@ -275,11 +364,11 @@ function updateTornadoPath(t, dt) {
     .normalize();
 }
 
-function wizardOrbitPos(terrain, centerDir, orbitAng, height, wallU, pathT, bendPhase, outPos) {
+function wizardOrbitPos(terrain, centerDir, orbitAng, height, wallU, pathT, bendPhase, outPos, seed = 0) {
   tangentFrame(centerDir, tmp.east, tmp.north);
   const u = Math.min(0.98, wallU);
   const r = radiusAt(u) * 0.75;
-  const { bx, bz } = bendOffset(u, pathT, bendPhase);
+  const { bx, bz } = bendOffset(u, pathT, bendPhase, seed);
   const baseR = surfaceAt(terrain, centerDir);
   outPos
     .copy(centerDir)
@@ -423,7 +512,7 @@ function updateCapturedWizard(w, tornadoDir, pathT, bendPhase, dt, linkedTornado
     td.sideZ = tiltT * tiltT * sideFull;
     td.bodyRoll = (td.bodyRoll || 0) + dt * tiltT * 12;
 
-    wizardOrbitPos(terrain, td.centerDir, td.orbitAng, td.height, td.wallU, pathT, bendPhase, w.mesh.position);
+    wizardOrbitPos(terrain, td.centerDir, td.orbitAng, td.height, td.wallU, pathT, bendPhase, w.mesh.position, linkedTornado?.visual?.seed ?? 0);
     w.dir.copy(w.mesh.position).normalize();
 
     if (u >= 1) {
@@ -494,7 +583,8 @@ function releaseTornadoVictims(list, t, forceThrow = false) {
         td.wallU,
         t.pathT,
         t.visual.bendPhase,
-        w.mesh.position
+        w.mesh.position,
+        t.visual.seed
       );
       w.dir.copy(w.mesh.position).normalize();
       beginThrow(w, td);
@@ -521,10 +611,12 @@ export function updateTornadoVictims(sys, dt) {
 
 function setTornadoAlpha(t, alpha) {
   const a = Math.max(0, alpha);
-  t.visual.shellMat.opacity = 0.28 * a;
+  t.visual.shellMat.opacity = 0.2 * a;
   t.visual.baseMat.opacity = 0.35 * a;
+  const mc = t.visual.mainSpiralCount ?? MAIN_SPIRALS;
   for (let sp = 0; sp < t.visual.spiralMats.length; sp++) {
-    t.visual.spiralMats[sp].opacity = (0.55 - sp * 0.1) * a;
+    const blur = sp >= mc;
+    t.visual.spiralMats[sp].opacity = (blur ? 0.1 + (sp - mc) * 0.04 : 0.42 - sp * 0.07) * a;
   }
 }
 
@@ -573,20 +665,39 @@ export function updateTornados(sys, dt) {
     updateTornadoPath(t, dt);
     placeOnSurface(t.group, t.dir, sys.terrain);
 
+    const trailStep = 0.38;
+    const moved = surfaceDist(t.lastTrailDir, t.dir);
+    if (moved >= trailStep) {
+      const steps = Math.min(8, Math.ceil(moved / trailStep));
+      for (let s = 1; s <= steps; s++) {
+        const u = s / steps;
+        tmp.v
+          .copy(t.lastTrailDir)
+          .multiplyScalar(1 - u)
+          .addScaledVector(t.dir, u)
+          .normalize();
+        sys.terrain.paintTornadoTrail(tmp.v, 2.1);
+      }
+      t.lastTrailDir.copy(t.dir);
+    }
+
     t.spiralPhase -= dt * 16;
     updateVisual(t.visual, t.pathT, t.spiralPhase);
 
     t.dustT += dt;
-    if (t.dustT >= 0.04 && !t.fading) {
+    if (t.dustT >= 0.032 && !t.fading) {
       t.dustT = 0;
-      spawnBaseDust(sys, t);
+      spawnGroundEffects(sys, t);
     }
 
     const pulse = 0.5 + 0.5 * Math.sin(t.t * 3.5);
-    t.visual.shellMat.opacity = 0.22 + pulse * 0.12;
-    t.visual.baseMat.opacity = 0.25 + pulse * 0.15;
+    t.visual.shellMat.opacity = 0.16 + pulse * 0.1;
+    t.visual.baseMat.opacity = 0.22 + pulse * 0.14;
+    const mc = t.visual.mainSpiralCount ?? MAIN_SPIRALS;
     for (let sp = 0; sp < t.visual.spiralMats.length; sp++) {
-      t.visual.spiralMats[sp].opacity = 0.55 - sp * 0.1;
+      const blur = sp >= mc;
+      const base = blur ? 0.1 + (sp - mc) * 0.04 : 0.42 - sp * 0.07;
+      t.visual.spiralMats[sp].opacity = base + (blur ? 0 : pulse * 0.06);
     }
 
     for (const w of list) {

@@ -175,6 +175,80 @@ export class Terrain {
     this.morphs = [];
     this._morphDirty = false;
     this.scorchMask = new Float32Array(count);
+    this.tornadoTrailMask = new Float32Array(count);
+    this.iceTrailLife = new Float32Array(count);
+  }
+
+  /** Sdílené kreslení kruhu na terén (m). */
+  #paintDisk(centerDir, radiusM, apply) {
+    const clen = Math.hypot(centerDir.x, centerDir.y, centerDir.z) || 1;
+    const ndx = centerDir.x / clen;
+    const ndy = centerDir.y / clen;
+    const ndz = centerDir.z / clen;
+    const pos = this.geometry.attributes.position;
+    const colAttr = this.geometry.attributes.color;
+    const col = tmp.col;
+    let any = false;
+
+    for (let i = 0; i < pos.count; i++) {
+      const dx = this.dirs[i * 3];
+      const dy = this.dirs[i * 3 + 1];
+      const dz = this.dirs[i * 3 + 2];
+      const dot = Math.min(1, Math.max(-1, dx * ndx + dy * ndy + dz * ndz));
+      const dist = Math.acos(dot) * CONFIG.planetR;
+      if (dist > radiusM * 1.15) continue;
+
+      const edgeT = 1 - dist / Math.max(radiusM, 1e-5);
+      const tCl = Math.min(1, Math.max(0, edgeT));
+      const mask = tCl * tCl * (3 - 2 * tCl);
+      if (mask <= 0.001) continue;
+
+      if (!apply(i, mask)) continue;
+      const h = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
+      this.#writeColor(i, h, col);
+      colAttr.setXYZ(i, col[0], col[1], col[2]);
+      any = true;
+    }
+    if (any) colAttr.needsUpdate = true;
+  }
+
+  /** Trvalá šedá stopa tornáda. */
+  paintTornadoTrail(centerDir, radiusM = 2.1) {
+    this.#paintDisk(centerDir, radiusM, (i, mask) => {
+      const prev = this.tornadoTrailMask[i];
+      const next = Math.min(1, Math.max(prev, mask * 0.94));
+      if (next <= prev + 1e-5) return false;
+      this.tornadoTrailMask[i] = next;
+      return true;
+    });
+  }
+
+  /** Bílá ledová stopa — život v sekundách (max 10). */
+  paintIceTrail(centerDir, radiusM = 1.7, life = 10) {
+    this.#paintDisk(centerDir, radiusM, (i, mask) => {
+      const next = Math.max(this.iceTrailLife[i], mask * life);
+      if (next <= this.iceTrailLife[i] + 1e-5) return false;
+      this.iceTrailLife[i] = next;
+      return true;
+    });
+  }
+
+  /** Zeslabení mizejících ledových stop. */
+  updateIceTrails(dt) {
+    const pos = this.geometry.attributes.position;
+    const colAttr = this.geometry.attributes.color;
+    const col = tmp.col;
+    let any = false;
+    for (let i = 0; i < this.iceTrailLife.length; i++) {
+      const life = this.iceTrailLife[i];
+      if (life <= 0) continue;
+      this.iceTrailLife[i] = Math.max(0, life - dt);
+      const h = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
+      this.#writeColor(i, h, col);
+      colAttr.setXYZ(i, col[0], col[1], col[2]);
+      any = true;
+    }
+    if (any) colAttr.needsUpdate = true;
   }
 
   /** Spálená zem v radiu (m). irregular = nepravidelný okraj. */
@@ -228,6 +302,9 @@ export class Terrain {
     const dy = this.dirs[i * 3 + 1];
     const dz = this.dirs[i * 3 + 2];
     this.colorFromHeight(h, col, dx, dy, dz);
+    const inv = 1 / (Math.hypot(dx, dy, dz) || 1);
+    const beachN = this.noise.fbm(dx * inv * 11.2 + 17, dy * inv * 11.2, dz * inv * 11.2);
+    const grain = this.noise.fbm(dx * inv * 34 + 41, dy * inv * 34, dz * inv * 34);
     const s = this.scorchMask[i];
     if (s > 0.001) {
       const core = s * s * s;
@@ -238,13 +315,36 @@ export class Terrain {
       col[1] = col[1] * (1 - s) + bg * s;
       col[2] = col[2] * (1 - s) + bb * s;
     }
+
+    const tornado = this.tornadoTrailMask[i];
+    if (tornado > 0.001) {
+      const u = tornado * tornado * (3 - 2 * tornado);
+      const gr = 0.36 + grain * 0.04;
+      const gg = 0.35 + grain * 0.035;
+      const gb = 0.33 + grain * 0.03;
+      col[0] = col[0] * (1 - u) + gr * u;
+      col[1] = col[1] * (1 - u) + gg * u;
+      col[2] = col[2] * (1 - u) + gb * u;
+    }
+
+    const iceLife = this.iceTrailLife[i];
+    if (iceLife > 0.001) {
+      const t = Math.min(1, iceLife / 10);
+      const u = t * t * (3 - 2 * t);
+      const wr = 0.88 + beachN * 0.03;
+      const wg = 0.92 + beachN * 0.025;
+      const wb = 0.97 + beachN * 0.02;
+      col[0] = col[0] * (1 - u) + wr * u;
+      col[1] = col[1] * (1 - u) + wg * u;
+      col[2] = col[2] * (1 - u) + wb * u;
+    }
   }
 
   /**
    * Elevace (+1) nebo deprese (−1) kolem bodu — plynulý morph ~spellDuration.
    * @returns {boolean}
    */
-  beginMorph(centerDir, sign) {
+  beginMorph(centerDir, sign, duration = CONFIG.spellDuration) {
     const cx = centerDir.x;
     const cy = centerDir.y;
     const cz = centerDir.z;
@@ -282,7 +382,7 @@ export class Terrain {
       indices,
       startH,
       deltaH,
-      duration: CONFIG.spellDuration,
+      duration,
       elapsed: 0
     });
     return true;

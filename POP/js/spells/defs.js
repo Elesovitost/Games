@@ -4,14 +4,14 @@ export const SPELLS = {
   elevate: {
     id: "elevate",
     range: 14,
-    castTime: CONFIG.spellDuration,
+    castTime: 3,
     color: 0x6dff9a,
     hint: "Klikni v dosahu — vyroste kopec."
   },
   depress: {
     id: "depress",
     range: 14,
-    castTime: CONFIG.spellDuration,
+    castTime: 3,
     color: 0x6aa8ff,
     hint: "Klikni v dosahu — vznikne prohlubeň."
   },
@@ -43,7 +43,7 @@ export const SPELLS = {
   iceball: {
     id: "iceball",
     range: 27.5,
-    castTime: 1,
+    castTime: 2,
     diameter: 3,
     travel: 50,
     speed: 16,
@@ -54,7 +54,7 @@ export const SPELLS = {
   tornado: {
     id: "tornado",
     range: 16,
-    castTime: 1,
+    castTime: 1.5,
     pullRadius: 10,
     innerRadius: 3,
     captureRadius: 0.6,

@@ -83,6 +83,7 @@ export function updateIceball(sys, p, dt) {
   const h = sys.terrain.height(p.dir);
   p.ball.position.copy(p.dir).multiplyScalar(h + p.radius);
   p.traveled += step;
+  sys.terrain.paintIceTrail(p.dir, p.radius * 1.15);
 
   if (p.traveled > 2.5) {
     const touchR = p.radius + 0.45;

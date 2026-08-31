@@ -47,10 +47,12 @@ export class SpellSystem {
       return;
     }
     this.activeSpellId = spellId;
-    this.rangeRing.show(this.effectiveRange(spellId));
+    this.rangeRing.show((a, _c, e, n) => this.rangeAtBearing(spellId, e, n, a));
     this.rangeRing.setColor(def.color);
     this.aim.setColor(def.color);
+    this.aim.setSpell(spellId);
     this.aim.hide();
+    this.wizard.footprints?.hide();
   }
 
   hideRange() {
@@ -61,17 +63,29 @@ export class SpellSystem {
     this.activeSpellId = null;
     this.rangeRing.hide();
     this.aim.hide();
+    this.aim.setSpell(null);
+    if (this.wizard?.hasTarget) {
+      this.wizard.footprints?.show(this.wizard.targetDir, this.wizard.dir);
+    }
+  }
+
+  /** Lokální hráč má aktivní spirálu — terč se neukazuje. */
+  #localSpiralActive() {
+    const w = this.wizard;
+    if (!w || w.remote) return false;
+    return this.spirals.some((s) => s.ownerId === w.id);
   }
 
   /** Posune terč pod kurzor (local hit point). */
-  updateAim(localPoint) {
-    if (!this.activeSpellId || this.wizard.isBusy) {
+  updateAim(localPoint, camera = null) {
+    if (!this.activeSpellId || this.wizard?.isBusy || this.#localSpiralActive()) {
       this.aim.hide();
       return;
     }
     this.aim.show();
+    this.aim.setSpell(this.activeSpellId);
     const dir = this._tmp.copy(localPoint).normalize();
-    this.aim.place(dir, this.inRange(this.activeSpellId, dir));
+    this.aim.place(dir, this.inRange(this.activeSpellId, dir), camera);
   }
 
   /** Spirála v cíli — dokud se nezavolá clearSpiral / clearAllSpirals. */
@@ -79,6 +93,7 @@ export class SpellSystem {
     const def = SPELLS[spellId];
     const color = def?.color ?? 0xffe08a;
     const spiral = new CastSpiral(this.planetGroup, this.terrain, targetDir, color);
+    spiral.ownerId = this._castOwnerId;
     this.spirals.push(spiral);
     return spiral;
   }
@@ -186,17 +201,82 @@ export class SpellSystem {
     return elev * CONFIG.spellRangePerHeightM;
   }
 
-  effectiveRange(spellId) {
+  /** Sklon mezi kouzelníkem a cílem — kladný = do kopce. */
+  #slopeGradeToTarget(targetDir) {
+    if (!this.wizard) return 0;
+    const from = this.wizard.dir;
+    const to = this._tmp.copy(targetDir).normalize();
+    const h0 = this.terrain.height(from);
+    const h1 = this.terrain.height(to);
+    const dot = Math.min(1, Math.max(-1, from.dot(to)));
+    const dist = Math.acos(dot) * CONFIG.planetR;
+    if (dist < 0.05) return 0;
+    return (h1 - h0) / dist;
+  }
+
+  /** Násobič dosahu podle sklonu — stejná křivka jako rychlost chůze. */
+  #slopeRangeMul(grade) {
+    if (grade >= 0) {
+      return 1 / (1 + grade * grade * 3.2 + grade * 1.1);
+    }
+    return Math.min(CONFIG.wizardDownhillBoost, 1 - grade * 0.4);
+  }
+
+  /** Směr na hranici dosahu v daném azimutu — stejný výpočet jako inRange. */
+  #dirAtBearing(from, east, north, angle, distM, out) {
+    const omega = distM / CONFIG.planetR;
+    this._axis
+      .copy(east)
+      .multiplyScalar(Math.cos(angle))
+      .addScaledVector(north, Math.sin(angle));
+    return out
+      .copy(from)
+      .multiplyScalar(Math.cos(omega))
+      .addScaledVector(this._axis, Math.sin(omega))
+      .normalize();
+  }
+
+  /** Bod na hranici dosahu v azimutu — přímo z inRange (stejně jako terč). */
+  rangeAtBearing(spellId, east, north, angle) {
+    const def = SPELLS[spellId];
+    if (!def || !this.wizard) return def?.range ?? 0;
+
+    const from = this.wizard.dir;
+    const maxM =
+      (def.range + this.elevationRangeBonus()) *
+      CONFIG.wizardDownhillBoost *
+      1.08;
+    let lo = 0;
+    let hi = maxM;
+
+    for (let i = 0; i < 22; i++) {
+      const mid = (lo + hi) * 0.5;
+      this.#dirAtBearing(from, east, north, angle, mid, this._tmp);
+      if (this.inRange(spellId, this._tmp)) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  dirAtBearing(from, east, north, angle, distM, out) {
+    return this.#dirAtBearing(from, east, north, angle, distM, out);
+  }
+
+  effectiveRange(spellId, targetDir = null) {
     const def = SPELLS[spellId];
     if (!def) return 0;
-    return def.range + this.elevationRangeBonus();
+    let range = def.range + this.elevationRangeBonus();
+    if (targetDir) {
+      range *= this.#slopeRangeMul(this.#slopeGradeToTarget(targetDir));
+    }
+    return Math.max(1, range);
   }
 
   inRange(spellId, targetDir) {
     const def = SPELLS[spellId];
     if (!def) return false;
-    const cosMax = Math.cos(this.effectiveRange(spellId) / CONFIG.planetR);
-    return this.wizard.dir.dot(tmp.dir.copy(targetDir).normalize()) >= cosMax;
+    const cosMax = Math.cos(this.effectiveRange(spellId, targetDir) / CONFIG.planetR);
+    return this.wizard.dir.dot(this._tmp2.copy(targetDir).normalize()) >= cosMax;
   }
 
   prepareTornadoEffects(dt) {
@@ -206,9 +286,14 @@ export class SpellSystem {
   update(dt) {
     if (this.wizard) {
       if (this.activeSpellId) {
-        this.rangeRing.radius = this.effectiveRange(this.activeSpellId);
+        const spellId = this.activeSpellId;
+        this.rangeRing.setBoundaryFn((a, _c, e, n) =>
+          this.rangeAtBearing(spellId, e, n, a)
+        );
       }
-      this.rangeRing.update(this.wizard.dir);
+      this.rangeRing.update(this.wizard.dir, (from, e, n, a, d, out) =>
+        this.dirAtBearing(from, e, n, a, d, out)
+      );
     }
     for (const s of this.spirals) s.update(dt);
     updateTornados(this, dt);
@@ -221,6 +306,7 @@ export class SpellSystem {
     updateSmokePuffs(this, dt);
     updateFireDebris(this, dt);
     updateIceDebris(this, dt);
+    this.terrain.updateIceTrails(dt);
     updateWaterFx(this, dt);
   }
 
@@ -252,6 +338,7 @@ export class SpellSystem {
     this._castOwnerId = wizard.id;
     const target = targetDir.clone().normalize();
     const spiral = this.startSpiral(target, spellId);
+    if (!wizard.remote) this.aim.hide();
 
     const restore = () => {
       this.wizard = prev;
@@ -270,7 +357,7 @@ export class SpellSystem {
 
     if (spellId === "elevate" || spellId === "depress") {
       const sign = spellId === "elevate" ? 1 : -1;
-      if (!this.terrain.beginMorph(target, sign)) {
+      if (!this.terrain.beginMorph(target, sign, def.castTime)) {
         this.clearSpiral(spiral);
         restore();
         return;
