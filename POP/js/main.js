@@ -11,6 +11,8 @@ import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./vi
 import { tmp } from "./utils.js";
 import { MultiplayerSession } from "./net/session.js";
 import { LobbyUI } from "./net/lobby.js";
+import { createIntentRouter } from "./net/wizard-sync.js";
+import { createGameIntentHandlers } from "./net/intents.js";
 import { mountGameVersion } from "./game-version.js";
 
 class Game {
@@ -68,6 +70,7 @@ class Game {
 
     this.session = new MultiplayerSession(this);
     this.lobby = new LobbyUI(this, this.session);
+    this.#applyRemoteIntent = createIntentRouter(createGameIntentHandlers(this));
 
     this.enterSolo();
 
@@ -167,36 +170,10 @@ class Game {
   }
 
   applyRemoteIntent(fromId, intent) {
-    if (!intent || !intent.kind) return;
-    const w = this.wizards.get(String(fromId));
-    if (!w) return;
-
-    if (intent.kind === "pose") {
-      w.applyNetPose(intent.dir, intent.facing, intent);
-      return;
-    }
-    if (intent.kind === "knock") {
-      if (!w.remote) return;
-      w.applyKnockdown(intent.amt, intent.from, {
-        seq: intent.seq,
-        hp: intent.hp
-      });
-      return;
-    }
-    if (intent.kind === "walk") {
-      const dir = new THREE.Vector3(intent.dir[0], intent.dir[1], intent.dir[2]);
-      w.setDestination(dir);
-      return;
-    }
-    if (intent.kind === "cast") {
-      const target = new THREE.Vector3(
-        intent.target[0],
-        intent.target[1],
-        intent.target[2]
-      );
-      this.spells.castAs(w, intent.spell, target);
-    }
+    this.#applyRemoteIntent(fromId, intent, this);
   }
+
+  #applyRemoteIntent;
 
   #pixelRatio() {
     const base = Math.min(window.devicePixelRatio || 1, CONFIG.pixelRatioMax);

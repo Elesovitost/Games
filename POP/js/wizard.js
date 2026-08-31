@@ -1,6 +1,11 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, tmp, slerpDirection } from "./utils.js";
+import {
+  applyInterpolatedPose,
+  applyKnockFromSnapshot,
+  poseSnapshotFromIntent
+} from "./net/wizard-sync.js";
 
 const ROBE = 0x1a2848;
 const ROBE_DARK = 0x0c1424;
@@ -273,6 +278,8 @@ export class Wizard {
     this._tornadoPullSpeed = 0;
     this._tornadoPullDir = null;
     this._tornadoSource = null;
+    this._netPos = new THREE.Vector3();
+    this._netHasPos = false;
     this.maxHp = CONFIG.wizardMaxHp;
     this.hp = this.maxHp;
     this.dead = false;
@@ -341,98 +348,17 @@ export class Wizard {
   applyNetPose(dirArr, facingArr, flags = {}) {
     if (!this.remote) return;
     const t = performance.now() * 0.001;
-    let snap = this._netPool.pop();
-    if (!snap) {
-      snap = {
-        dir: new THREE.Vector3(),
-        facing: new THREE.Vector3(),
-        moving: false,
-        hp: this.hp,
-        time: 0
-      };
-    }
-    snap.dir.set(dirArr[0], dirArr[1], dirArr[2]).normalize();
-    if (facingArr) snap.facing.set(facingArr[0], facingArr[1], facingArr[2]).normalize();
-    else snap.facing.copy(snap.dir);
-    snap.moving = !!flags.moving;
-    if (typeof flags.hp === "number") snap.hp = flags.hp;
-    snap.knock = flags.knock || null;
-    snap.tornado = flags.tornado || null;
+    const snap = poseSnapshotFromIntent(flags, dirArr, facingArr);
     snap.time = t;
 
     const buf = this._netBuf;
     const last = buf[buf.length - 1];
     if (last && t - last.time < 0.001) {
-      last.dir.copy(snap.dir);
-      last.facing.copy(snap.facing);
-      last.moving = snap.moving;
-      last.hp = snap.hp;
-      last.knock = snap.knock;
-      last.tornado = snap.tornado;
-      last.time = t;
-      this._netPool.push(snap);
-    } else {
-      buf.push(snap);
-    }
-
-    while (buf.length > 24) this._netPool.push(buf.shift());
-  }
-
-  #applyNetTornado(a, b, alpha) {
-    const ta = a?.tornado;
-    const tb = b?.tornado;
-    const td = tb || ta;
-    if (!td) {
-      if (this.tornado) this.endTornadoCapture();
+      Object.assign(last, snap);
       return;
     }
-
-    let px, py, pz, spinY, sideZ, preAmp, bodyRoll, phase;
-    if (ta?.pos && tb?.pos) {
-      px = ta.pos[0] + (tb.pos[0] - ta.pos[0]) * alpha;
-      py = ta.pos[1] + (tb.pos[1] - ta.pos[1]) * alpha;
-      pz = ta.pos[2] + (tb.pos[2] - ta.pos[2]) * alpha;
-      spinY = ta.spinY + (tb.spinY - ta.spinY) * alpha;
-      sideZ = ta.sideZ + (tb.sideZ - ta.sideZ) * alpha;
-      preAmp = ta.preAmp + (tb.preAmp - ta.preAmp) * alpha;
-      bodyRoll = ta.bodyRoll + (tb.bodyRoll - ta.bodyRoll) * alpha;
-      phase = alpha >= 0.5 ? tb.phase : ta.phase;
-    } else {
-      px = td.pos[0];
-      py = td.pos[1];
-      pz = td.pos[2];
-      spinY = td.spinY;
-      sideZ = td.sideZ;
-      preAmp = td.preAmp;
-      bodyRoll = td.bodyRoll;
-      phase = td.phase;
-    }
-
-    if (!this.tornado) {
-      this.tornado = {
-        phase,
-        t: 0,
-        centerDir: this.dir.clone(),
-        spinY,
-        sideZ,
-        preAmp,
-        bodyRoll,
-        orbitAng: 0,
-        height: 0,
-        wallU: 0
-      };
-    } else {
-      this.tornado.phase = phase;
-      this.tornado.spinY = spinY;
-      this.tornado.sideZ = sideZ;
-      this.tornado.preAmp = preAmp;
-      this.tornado.bodyRoll = bodyRoll;
-    }
-
-    this.mesh.position.set(px, py, pz);
-    if (this.mesh.position.lengthSq() > 1e-8) {
-      this.dir.copy(this.mesh.position).normalize();
-    }
+    buf.push(snap);
+    while (buf.length > 24) buf.shift();
   }
 
   /** Interpolace mezi síťovými snímky (~80 ms zpět v čase). */
@@ -443,26 +369,15 @@ export class Wizard {
     const renderT = performance.now() * 0.001 - CONFIG.netPoseInterpDelay;
 
     while (buf.length > 2 && buf[1].time <= renderT) {
-      this._netPool.push(buf.shift());
+      buf.shift();
     }
 
     const latest = buf[buf.length - 1];
     if (typeof latest.hp === "number" && !this.dead) this.hp = latest.hp;
-
-    if (latest.knock && latest.knock.seq > this._lastKnockSeqApplied) {
-      if (!this.knockdown || latest.knock.seq !== this.knockdown.seq) {
-        this.applyKnockdown(latest.knock.amt, latest.knock.from, {
-          seq: latest.knock.seq,
-          hp: latest.hp
-        });
-      }
-    }
+    applyKnockFromSnapshot(this, latest.knock, latest.hp);
 
     if (buf.length === 1) {
-      this.dir.copy(buf[0].dir);
-      this.facing.copy(buf[0].facing);
-      this.moving = buf[0].moving;
-      this.#applyNetTornado(buf[0], buf[0], 1);
+      applyInterpolatedPose(this, buf[0], buf[0], 1, this._netPos);
     } else {
       const a = buf[0];
       const b = buf[1];
@@ -473,12 +388,9 @@ export class Wizard {
           : renderT >= b.time
             ? 1
             : 0;
-      slerpDirection(this.dir, a.dir, b.dir, alpha);
-      slerpDirection(this.facing, a.facing, b.facing, alpha);
-      this.moving = alpha >= 0.5 ? b.moving : a.moving;
-      this.#applyNetTornado(a, b, alpha);
+      applyInterpolatedPose(this, a, b, alpha, this._netPos);
     }
-    this.wantsWalk = this.moving;
+    this._netHasPos = true;
   }
 
   get isBusy() {
@@ -1002,10 +914,7 @@ export class Wizard {
       }
       this.#updateNetPose();
       if (this.knockdown) this.#updateKnockdown(dt);
-      if (this.knockdown) {
-        const lift = this.#knockLift(this.knockdown);
-        this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir) + lift);
-      } else if (!this.tornado) {
+      if (!this._netHasPos) {
         this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
       }
       this.#applyPose();

@@ -1,5 +1,6 @@
 import { NetClient, loadProfile, saveProfile } from "./client.js";
 import { CONFIG } from "../config.js";
+import { buildPosePacket } from "./wizard-sync.js";
 
 /**
  * Multiplayer session — relay intents přes WebSocket.
@@ -85,35 +86,8 @@ export class MultiplayerSession {
     this._poseAcc = 0;
     const w = this.game.wizard;
     if (!w || w.dead) return;
-    this.sendIntent({
-      kind: "pose",
-      dir: [w.dir.x, w.dir.y, w.dir.z],
-      facing: [w.facing.x, w.facing.y, w.facing.z],
-      moving: !!w.moving,
-      casting: !!w.casting,
-      hp: w.hp,
-      knock: w.knockdown
-        ? {
-            seq: w.knockdown.seq,
-            amt: w.knockdown.amount,
-            from: [
-              w.knockdown.fromDir.x,
-              w.knockdown.fromDir.y,
-              w.knockdown.fromDir.z
-            ]
-          }
-        : null,
-      tornado: w.tornado
-        ? {
-            phase: w.tornado.phase,
-            spinY: w.tornado.spinY,
-            sideZ: w.tornado.sideZ ?? 0,
-            bodyRoll: w.tornado.bodyRoll || 0,
-            preAmp: w.tornado.preAmp || 0,
-            pos: [w.mesh.position.x, w.mesh.position.y, w.mesh.position.z]
-          }
-        : null
-    });
+    const packet = buildPosePacket(w);
+    if (packet) this.sendIntent(packet);
   }
 
   #onMsg(msg) {
