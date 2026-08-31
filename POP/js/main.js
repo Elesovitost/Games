@@ -23,6 +23,7 @@ class Game {
     this._hitLocal = new THREE.Vector3();
     this.selectedSpell = null;
     this._shoreRefreshAt = 0;
+    this._spawnCamIdx = 0;
     this.wizards = new Map();
     this.inputEnabled = true;
 
@@ -249,12 +250,54 @@ class Game {
     else this.spells.hideRange();
   }
 
+  #spawnIndexForDir(dir) {
+    let best = 0;
+    let bestDot = -Infinity;
+    for (let i = 0; i < this.landSpawns.length; i++) {
+      const s = this.landSpawns[i];
+      const dot = dir.x * s[0] + dir.y * s[1] + dir.z * s[2];
+      if (dot > bestDot) {
+        bestDot = dot;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  #cycleSpawnCamera() {
+    if (!this.landSpawns.length) return;
+    this._spawnCamIdx = (this._spawnCamIdx + 1) % this.landSpawns.length;
+    placeCamera(this.camera, this.landSpawns[this._spawnCamIdx]);
+  }
+
   #bindInput() {
     const track = (code) => code.startsWith("Arrow") || code === "Escape";
 
     window.addEventListener("keydown", (e) => {
       if (e.code === "KeyG" && !e.repeat && this.inputEnabled && this.wizard && !this.wizard.remote) {
-        this.wizard.setGodMode(!this.wizard.godMode);
+        const next = !this.wizard.godMode;
+        this.wizard.setGodMode(next);
+        if (next) {
+          this._spawnCamIdx = this.#spawnIndexForDir(this.wizard.dir);
+        } else {
+          placeCamera(this.camera, [
+            this.wizard.dir.x,
+            this.wizard.dir.y,
+            this.wizard.dir.z
+          ]);
+        }
+        e.preventDefault();
+        return;
+      }
+      if (
+        e.code === "Tab" &&
+        !e.repeat &&
+        this.inputEnabled &&
+        this.wizard &&
+        !this.wizard.remote &&
+        this.wizard.godMode
+      ) {
+        this.#cycleSpawnCamera();
         e.preventDefault();
         return;
       }
