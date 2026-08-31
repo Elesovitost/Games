@@ -98,6 +98,7 @@ export function spawnScorchMark(sys, dir, radiusM) {
   const positions = [];
   const edges = [];
   const indices = [];
+  const ringDirs = [];
 
   const ch = sys.terrain.height(centerDir);
   positions.push(
@@ -116,6 +117,7 @@ export function spawnScorchMark(sys, dir, radiusM) {
       0.07 * Math.sin(angle * 11.3 + 1.4) +
       Math.random() * 0.07;
     const d = surfaceDirFrom(centerDir, east, north, angle, R * wobble);
+    ringDirs.push(d.x, d.y, d.z);
     const h = sys.terrain.height(d);
     positions.push(d.x * (h + lift), d.y * (h + lift), d.z * (h + lift));
     edges.push(1);
@@ -132,7 +134,41 @@ export function spawnScorchMark(sys, dir, radiusM) {
   const mesh = new THREE.Mesh(geo, scorchMaterial());
   mesh.renderOrder = 2;
   sys.planetGroup.add(mesh);
-  sys.scorchMarks.push(mesh);
+  sys.scorchMarks.push({
+    mesh,
+    centerDir: [centerDir.x, centerDir.y, centerDir.z],
+    ringDirs,
+    lift,
+    segments
+  });
+}
+
+function refreshScorchMark(terrain, mark) {
+  const pos = mark.mesh.geometry.attributes.position;
+  const lift = mark.lift;
+  const cx = mark.centerDir[0];
+  const cy = mark.centerDir[1];
+  const cz = mark.centerDir[2];
+  const ch = terrain.height({ x: cx, y: cy, z: cz });
+  pos.setXYZ(0, cx * (ch + lift), cy * (ch + lift), cz * (ch + lift));
+
+  const ring = mark.ringDirs;
+  for (let i = 0; i < mark.segments; i++) {
+    const j = i * 3;
+    const dx = ring[j];
+    const dy = ring[j + 1];
+    const dz = ring[j + 2];
+    const h = terrain.height({ x: dx, y: dy, z: dz });
+    pos.setXYZ(i + 1, dx * (h + lift), dy * (h + lift), dz * (h + lift));
+  }
+  pos.needsUpdate = true;
+  mark.mesh.geometry.computeVertexNormals();
+}
+
+/** Přilepí spáleniny na aktuální tvar terénu (elevace / deprese). */
+export function updateScorchMarks(sys) {
+  if (!sys.scorchMarks?.length) return;
+  for (const mark of sys.scorchMarks) refreshScorchMark(sys.terrain, mark);
 }
 
 export function disposeProjectile(sys, p) {

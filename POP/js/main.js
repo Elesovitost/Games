@@ -377,6 +377,7 @@ class Game {
     if (this.terrain.consumeMorphDirty()) {
       this._shoreRefreshAt -= dt;
       this.spawnMarkers?.refresh();
+      this.spells.refreshScorchMarks();
       if (!morphing || this._shoreRefreshAt <= 0) {
         this.water.refreshShore();
         this._shoreRefreshAt = morphing ? 0.45 : 0;

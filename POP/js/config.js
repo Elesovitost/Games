@@ -42,6 +42,8 @@ export const CONFIG = {
   spellDuration: 5,
   /** Poloměr morphu elevace/deprese (m) */
   spellRadius: 7.5,
+  /** +1 m dosahu kouzla za každý 1 m nad referenční rovinou (planetR) */
+  spellRangePerHeightM: 1,
   spellAmount: 4.2,
   /** Průměr cílové spirály (m) */
   spellSpiralDiameter: 1,

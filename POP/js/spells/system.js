@@ -3,7 +3,7 @@ import { CONFIG } from "../config.js";
 import { tmp } from "../utils.js";
 import { SPELLS } from "./defs.js";
 import { AimReticle, CastSpiral, RangeRing } from "./fx-aim.js";
-import { updateBursts, disposeProjectile } from "./fx-common.js";
+import { updateBursts, disposeProjectile, updateScorchMarks } from "./fx-common.js";
 import { launchFireball as doLaunchFireball, updateFireball, updateSmokePuffs, updateFireDebris } from "./fireball.js";
 import { launchIceball as doLaunchIceball, updateIceball, updateIceDebris } from "./iceball.js";
 import { strikeLightning as doStrikeLightning, updateBolts } from "./lightning.js";
@@ -45,7 +45,7 @@ export class SpellSystem {
       return;
     }
     this.activeSpellId = spellId;
-    this.rangeRing.show(def.range);
+    this.rangeRing.show(this.effectiveRange(spellId));
     this.rangeRing.setColor(def.color);
     this.aim.setColor(def.color);
     this.aim.hide();
@@ -131,9 +131,9 @@ export class SpellSystem {
     }
     this.bursts.length = 0;
 
-    for (const m of this.scorchMarks) {
-      this.planetGroup.remove(m);
-      m.geometry.dispose();
+    for (const mark of this.scorchMarks) {
+      this.planetGroup.remove(mark.mesh);
+      mark.mesh.geometry.dispose();
     }
     this.scorchMarks.length = 0;
 
@@ -174,10 +174,24 @@ export class SpellSystem {
     disposeTornados(this);
   }
 
+  /** Výška nad referenční rovinou (m) — bonus k dosahu kouzel. */
+  elevationRangeBonus() {
+    if (!this.wizard) return 0;
+    const h = this.terrain.height(this.wizard.dir);
+    const elev = Math.max(0, h - CONFIG.planetR);
+    return elev * CONFIG.spellRangePerHeightM;
+  }
+
+  effectiveRange(spellId) {
+    const def = SPELLS[spellId];
+    if (!def) return 0;
+    return def.range + this.elevationRangeBonus();
+  }
+
   inRange(spellId, targetDir) {
     const def = SPELLS[spellId];
     if (!def) return false;
-    const cosMax = Math.cos(def.range / CONFIG.planetR);
+    const cosMax = Math.cos(this.effectiveRange(spellId) / CONFIG.planetR);
     return this.wizard.dir.dot(tmp.dir.copy(targetDir).normalize()) >= cosMax;
   }
 
@@ -186,7 +200,12 @@ export class SpellSystem {
   }
 
   update(dt) {
-    if (this.wizard) this.rangeRing.update(this.wizard.dir);
+    if (this.wizard) {
+      if (this.activeSpellId) {
+        this.rangeRing.radius = this.effectiveRange(this.activeSpellId);
+      }
+      this.rangeRing.update(this.wizard.dir);
+    }
     for (const s of this.spirals) s.update(dt);
     updateTornados(this, dt);
     updateTornadoPull(this, dt);
@@ -198,6 +217,11 @@ export class SpellSystem {
     updateFireDebris(this, dt);
     updateIceDebris(this, dt);
     updateWaterFx(this, dt);
+  }
+
+  /** Přilepí spáleniny na terén po změně výšky (elevace / deprese). */
+  refreshScorchMarks() {
+    updateScorchMarks(this);
   }
 
   strikeLightning(targetDir) {
