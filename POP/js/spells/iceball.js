@@ -84,15 +84,16 @@ export function updateIceball(sys, p, dt) {
   p.ball.position.copy(p.dir).multiplyScalar(h + p.radius);
   p.traveled += step;
 
-  if (!p.hitWizard && p.traveled > 2.5) {
+  if (p.traveled > 2.5) {
     const touchR = p.radius + 0.45;
     const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
     for (const w of list) {
       if (!w || w.dead) continue;
       if (surfaceDist(p.dir, w.dir) <= touchR) {
-        p.hitWizard = true;
         w.takeDamage(SPELLS.iceball.contactDamage);
-        break;
+        shatterIceball(sys, p.ball.position.clone(), p.dir.clone());
+        disposeProjectile(sys, p);
+        return false;
       }
     }
   }
@@ -233,7 +234,6 @@ export function launchIceball(sys, targetDir) {
     traveled: 0,
     maxTravel: SPELLS.iceball.travel,
     life: 12,
-    roll: 0,
-    hitWizard: false
+    roll: 0
   });
 }
