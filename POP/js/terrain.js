@@ -272,6 +272,70 @@ export class Terrain {
     return true;
   }
 
+  /**
+   * Sopka — vysoký ostrý kopec s malou proláklínou na vrcholu.
+   * @returns {boolean}
+   */
+  beginVolcanoMorph(centerDir, opts) {
+    const cx = centerDir.x;
+    const cy = centerDir.y;
+    const cz = centerDir.z;
+    const clen = Math.hypot(cx, cy, cz) || 1;
+    const ndx = cx / clen;
+    const ndy = cy / clen;
+    const ndz = cz / clen;
+
+    const baseR = opts.coneRadius ?? 11;
+    const height = opts.coneHeight ?? 9;
+    const craterR = opts.craterRadius ?? 2.2;
+    const craterD = opts.craterDepth ?? 1.8;
+    const duration = opts.duration ?? CONFIG.spellDuration;
+
+    const cosR = Math.cos(baseR / CONFIG.planetR);
+    const cosCrater = Math.cos(craterR / CONFIG.planetR);
+    const pos = this.geometry.attributes.position;
+    const indices = [];
+    const startH = [];
+    const deltaH = [];
+
+    for (let i = 0; i < pos.count; i++) {
+      const dx = this.dirs[i * 3];
+      const dy = this.dirs[i * 3 + 1];
+      const dz = this.dirs[i * 3 + 2];
+      const dot = dx * ndx + dy * ndy + dz * ndz;
+      if (dot < cosR) continue;
+
+      const t = (dot - cosR) / Math.max(1e-5, 1 - cosR);
+      // Lineární kužel — výška klesá rovnoměrně od vrcholu k patě.
+      let d = height * t;
+
+      if (dot >= cosCrater) {
+        const tc = (dot - cosCrater) / Math.max(1e-5, 1 - cosCrater);
+        const wc = tc * tc * (3 - 2 * tc);
+        d -= craterD * wc;
+      }
+
+      const h0 = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
+      const h1 = Math.min(CONFIG.maxR * 0.98, Math.max(CONFIG.minR, h0 + d));
+      d = h1 - h0;
+      if (Math.abs(d) < 1e-4) continue;
+      indices.push(i);
+      startH.push(h0);
+      deltaH.push(d);
+    }
+    if (!indices.length) return false;
+
+    this.morphs.push({
+      indices,
+      startH,
+      deltaH,
+      duration,
+      elapsed: 0,
+      onComplete: opts.onComplete ?? null
+    });
+    return true;
+  }
+
   /** @returns {boolean} true pokud ještě běží nějaký morph */
   updateMorphs(dt) {
     if (!this.morphs.length) return false;
@@ -295,8 +359,13 @@ export class Terrain {
         this.#writeColor(i, h, col);
         colAttr.setXYZ(i, col[0], col[1], col[2]);
       }
-      if (u >= 1) this.morphs.splice(m, 1);
-      else any = true;
+      if (u >= 1) {
+        const done = morph.onComplete;
+        this.morphs.splice(m, 1);
+        done?.();
+      } else {
+        any = true;
+      }
     }
 
     pos.needsUpdate = true;

@@ -275,6 +275,7 @@ export class Wizard {
     this._slopeSample = new THREE.Vector3();
     this._speedMul = 1;
     this._tornadoMoveMul = 1;
+    this._lavaMoveMul = 1;
     this._tornadoPullSpeed = 0;
     this._tornadoPullDir = null;
     this._tornadoSource = null;
@@ -989,7 +990,8 @@ export class Wizard {
         const speed =
           CONFIG.wizardSpeed * (this.godMode ? CONFIG.godModeSpeedMul : 1);
         const tornadoMul = this._tornadoMoveMul ?? 1;
-        const step = speed * this._speedMul * this.walkBlend * tornadoMul * dt;
+        const lavaMul = this._lavaMoveMul ?? 1;
+        const step = speed * this._speedMul * this.walkBlend * tornadoMul * lavaMul * dt;
         this._trial.copy(this.mesh.position).addScaledVector(this._move, step);
         if (this._trial.lengthSq() > 1e-8) {
           this._trial.normalize();

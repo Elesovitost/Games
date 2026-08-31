@@ -8,6 +8,7 @@ import { launchFireball as doLaunchFireball, updateFireball, updateSmokePuffs, u
 import { launchIceball as doLaunchIceball, updateIceball, updateIceDebris } from "./iceball.js";
 import { strikeLightning as doStrikeLightning, updateBolts } from "./lightning.js";
 import { spawnTornado as doSpawnTornado, updateTornados, prepareTornadoEffects as doPrepareTornadoEffects, updateTornadoPull, updateTornadoVictims, disposeTornados } from "./tornado.js";
+import { spawnVolcano as doSpawnVolcano, updateVolcanos, disposeVolcanos } from "./volcano.js";
 import { updateWaterFx } from "./water-fx.js";
 
 export class SpellSystem {
@@ -30,6 +31,7 @@ export class SpellSystem {
     this.waterRipples = [];
     this.waterSpray = [];
     this.tornados = [];
+    this.volcanos = [];
     this.activeSpellId = null;
 
     this._tmp = new THREE.Vector3();
@@ -134,6 +136,7 @@ export class SpellSystem {
     for (const mark of this.scorchMarks) {
       this.planetGroup.remove(mark.mesh);
       mark.mesh.geometry.dispose();
+      mark.mat?.dispose();
     }
     this.scorchMarks.length = 0;
 
@@ -172,6 +175,7 @@ export class SpellSystem {
     }
     this.waterSpray.length = 0;
     disposeTornados(this);
+    disposeVolcanos(this);
   }
 
   /** Výška nad referenční rovinou (m) — bonus k dosahu kouzel. */
@@ -210,6 +214,7 @@ export class SpellSystem {
     updateTornados(this, dt);
     updateTornadoPull(this, dt);
     updateTornadoVictims(this, dt);
+    updateVolcanos(this, dt);
     updateBolts(this, dt);
     this.#updateProjectiles(dt);
     updateBursts(this, dt);
@@ -274,6 +279,35 @@ export class SpellSystem {
         this.clearSpiral(spiral);
         restore();
         onDone?.();
+      })) {
+        this.clearSpiral(spiral);
+        restore();
+      }
+      return;
+    }
+
+    if (spellId === "volcano") {
+      const morphDur = def.morphDuration ?? CONFIG.spellDuration;
+      const prepTime = def.castPrepTime ?? 3;
+
+      if (!wizard.startCast(target, prepTime, () => {
+        if (!this.terrain.beginVolcanoMorph(target, {
+          coneRadius: def.coneRadius,
+          coneHeight: def.coneHeight,
+          craterRadius: def.craterRadius,
+          craterDepth: def.craterDepth,
+          duration: morphDur,
+          onComplete: () => {
+            doSpawnVolcano(this, target);
+            this.clearSpiral(spiral);
+            restore();
+            onDone?.();
+          }
+        })) {
+          this.clearSpiral(spiral);
+          restore();
+          onDone?.();
+        }
       })) {
         this.clearSpiral(spiral);
         restore();

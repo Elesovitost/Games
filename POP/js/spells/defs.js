@@ -63,5 +63,24 @@ export const SPELLS = {
     life: 18,
     color: 0xb8c4d4,
     hint: "Do 10 m vtahuje 3 m/s, chůze lineárně k nule ve 3 m."
+  },
+  volcano: {
+    id: "volcano",
+    range: 16,
+    /** 3 s kouzlení, pak roste kopec — wizard může odejít */
+    castPrepTime: 3,
+    morphDuration: CONFIG.spellDuration,
+    color: 0xff3a18,
+    coneRadius: 11,
+    coneHeight: 9,
+    craterRadius: 2.2,
+    craterDepth: 1.8,
+    lavaRadius: 50,
+    lavaDuration: 5,
+    lavaDps: 20,
+    lavaFillTime: 0.65,
+    lavaFlowTime: 3.2,
+    lavaFadeTime: 2.4,
+    hint: "3 s kouzlení, pak sopka — láva až 50 m, 20 HP/s. Po zmizení spáleniště."
   }
 };
