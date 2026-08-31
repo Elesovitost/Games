@@ -50,5 +50,18 @@ export const SPELLS = {
     contactDamage: 45,
     color: 0xeef6ff,
     hint: "Klikni směr — ledová koule se 50 m kutálí."
+  },
+  tornado: {
+    id: "tornado",
+    range: 16,
+    castTime: 1,
+    pullRadius: 10,
+    innerRadius: 3,
+    captureRadius: 0.6,
+    pullSpeed: 3,
+    fallDamage: 40,
+    life: 18,
+    color: 0xb8c4d4,
+    hint: "Do 10 m vtahuje 3 m/s, chůze lineárně k nule ve 3 m."
   }
 };

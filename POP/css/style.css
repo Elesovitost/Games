@@ -192,6 +192,25 @@ html, body {
   border: 1px solid rgba(255, 255, 255, 0.7);
   background: radial-gradient(circle at 30% 30%, #fff, #b8d8f0 60%, transparent 70%);
 }
+.spell-icon.tornado {
+  background: linear-gradient(180deg, #d8e4ee 0%, #8a98a8 55%, #5a6468 100%);
+  border-radius: 3px;
+}
+.spell-icon.tornado::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: #c8b090;
+  box-shadow:
+    0 -6px 0 2px rgba(220, 230, 238, 0.55),
+    0 -12px 0 4px rgba(200, 212, 222, 0.35),
+    0 -18px 0 6px rgba(180, 195, 205, 0.2);
+}
 .spell-label {
   letter-spacing: 0.02em;
 }

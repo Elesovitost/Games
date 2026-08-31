@@ -7,6 +7,7 @@ import { updateBursts, disposeProjectile } from "./fx-common.js";
 import { launchFireball as doLaunchFireball, updateFireball, updateSmokePuffs, updateFireDebris } from "./fireball.js";
 import { launchIceball as doLaunchIceball, updateIceball, updateIceDebris } from "./iceball.js";
 import { strikeLightning as doStrikeLightning, updateBolts } from "./lightning.js";
+import { spawnTornado as doSpawnTornado, updateTornados, prepareTornadoEffects as doPrepareTornadoEffects, updateTornadoPull, updateTornadoVictims, disposeTornados } from "./tornado.js";
 import { updateWaterFx } from "./water-fx.js";
 
 export class SpellSystem {
@@ -28,6 +29,7 @@ export class SpellSystem {
     this.iceDebris = [];
     this.waterRipples = [];
     this.waterSpray = [];
+    this.tornados = [];
     this.activeSpellId = null;
 
     this._tmp = new THREE.Vector3();
@@ -169,6 +171,7 @@ export class SpellSystem {
       s.mat.dispose();
     }
     this.waterSpray.length = 0;
+    disposeTornados(this);
   }
 
   inRange(spellId, targetDir) {
@@ -178,9 +181,16 @@ export class SpellSystem {
     return this.wizard.dir.dot(tmp.dir.copy(targetDir).normalize()) >= cosMax;
   }
 
+  prepareTornadoEffects(dt) {
+    doPrepareTornadoEffects(this, dt);
+  }
+
   update(dt) {
     if (this.wizard) this.rangeRing.update(this.wizard.dir);
     for (const s of this.spirals) s.update(dt);
+    updateTornados(this, dt);
+    updateTornadoPull(this, dt);
+    updateTornadoVictims(this, dt);
     updateBolts(this, dt);
     this.#updateProjectiles(dt);
     updateBursts(this, dt);
@@ -220,6 +230,7 @@ export class SpellSystem {
     };
 
     const finishFx = () => {
+      if (spellId === "tornado") doSpawnTornado(this, target);
       this.clearSpiral(spiral);
       if (spellId === "lightning") this.strikeLightning(target);
       else if (spellId === "fireball") this.launchFireball(target);

@@ -269,6 +269,10 @@ export class Wizard {
     this._camRightLocal = new THREE.Vector3();
     this._slopeSample = new THREE.Vector3();
     this._speedMul = 1;
+    this._tornadoMoveMul = 1;
+    this._tornadoPullSpeed = 0;
+    this._tornadoPullDir = null;
+    this._tornadoSource = null;
     this.maxHp = CONFIG.wizardMaxHp;
     this.hp = this.maxHp;
     this.dead = false;
@@ -282,6 +286,7 @@ export class Wizard {
     this._godLight = null;
     this._godGlowT = 0;
     this.knockdown = null;
+    this.tornado = null;
     this._knockSeq = 0;
     this._lastKnockSeqApplied = 0;
     /** MP — po knockdownu pošle intent (nastaví main.js). */
@@ -416,7 +421,47 @@ export class Wizard {
   }
 
   get isBusy() {
-    return this.casting || this.dead || !!this.knockdown;
+    return this.casting || this.dead || !!this.knockdown || !!this.tornado;
+  }
+
+  beginTornadoCapture(centerDir, source = null) {
+    if (this.tornado || this.dead || this.godMode || this.casting || this.knockdown) return false;
+    this.#clearTarget();
+    this.wantsWalk = false;
+    this.moving = false;
+    if (this.casting) this.#endCast();
+    this.tornado = {
+      phase: "climb",
+      t: 0,
+      source,
+      centerDir: centerDir.clone(),
+      spinY: 0,
+      sideZ: 0,
+      preAmp: 0,
+      orbitAng: Math.random() * Math.PI * 2,
+      height: 0,
+      wallU: 0,
+      bodyRoll: 0
+    };
+    return true;
+  }
+
+  endTornadoCapture() {
+    this.tornado = null;
+  }
+
+  /** Vtah tornáda — posun po povrchu směrem k cíli (m). */
+  pullOnSurface(towardDir, stepM) {
+    if (this.tornado || this.dead || this.godMode || this.casting || this.knockdown) return false;
+    const target = towardDir.clone().normalize();
+    const dot = Math.min(1, Math.max(-1, this.dir.dot(target)));
+    const angle = Math.acos(dot);
+    if (angle < 1e-5) return false;
+    const t = Math.min(1, (stepM / CONFIG.planetR) / angle);
+    slerpDirection(this._trial, this.dir, target, t);
+    if (!this.#isWalkable(this._trial)) return false;
+    this.#snap(this._trial);
+    return true;
   }
 
   /** Spustí pád a kotrmelce (MP / lokální sim). */
@@ -651,6 +696,44 @@ export class Wizard {
     if (parts.castFx) parts.castFx.visible = false;
   }
 
+  #applyTornadoPose(parts) {
+    const td = this.tornado;
+    if (!td || !parts) return;
+
+    parts.body.position.set(0, 0, 0);
+    parts.body.rotation.order = "ZYX";
+    parts.leftLeg.rotation.set(0, 0, 0);
+    parts.rightLeg.rotation.set(0, 0, 0);
+    parts.leftArm.rotation.set(0, 0, 0);
+    parts.rightArm.rotation.set(0, 0, 0);
+
+    const side = td.sideZ ?? 0;
+    const phase = td.phase;
+
+    if (phase === "climb") {
+      parts.body.rotation.set(
+        Math.sin(td.spinY * 1.8) * (td.preAmp || 0) * 0.3,
+        td.spinY,
+        -side
+      );
+      const sway = Math.sin(td.spinY * 2.2) * 0.2 * (td.preAmp || 0);
+      parts.leftArm.rotation.z = sway;
+      parts.rightArm.rotation.z = -sway;
+      if (side > 0.2) {
+        const tuck = 0.25 * Math.sin((td.bodyRoll || 0) * 2);
+        parts.leftLeg.rotation.x = tuck;
+        parts.rightLeg.rotation.x = tuck;
+      }
+    } else if (phase === "air" || phase === "lie" || phase === "rise") {
+      parts.body.rotation.set(0, td.bodyRoll || 0, -side);
+      const tuck = 0.28 * Math.sin((td.bodyRoll || 0) * 2);
+      parts.leftLeg.rotation.x = tuck;
+      parts.rightLeg.rotation.x = tuck;
+    }
+
+    if (parts.castFx) parts.castFx.visible = false;
+  }
+
   #syncHealthUi() {
     if (this.remote) return;
     const fill = document.getElementById("health-fill");
@@ -668,6 +751,7 @@ export class Wizard {
     if (this.dead || this.godMode) return;
     this.dead = true;
     this.knockdown = null;
+    this.tornado = null;
     this.#clearTarget();
     this.casting = false;
     this._onCastComplete = null;
@@ -860,7 +944,7 @@ export class Wizard {
       if (this.knockdown) {
         const lift = this.#knockLift(this.knockdown);
         this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir) + lift);
-      } else {
+      } else if (!this.tornado) {
         this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
       }
       this.#applyPose();
@@ -884,6 +968,15 @@ export class Wizard {
     if (this.knockdown) {
       const lift = this.#knockLift(this.knockdown);
       this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir) + lift);
+      this.#applyPose();
+      this.#updateWalkBlend(dt);
+      this.#updateGodGlow(dt);
+      this.#animate(dt);
+      this.marker?.update(dt);
+      return;
+    }
+
+    if (this.tornado) {
       this.#applyPose();
       this.#updateWalkBlend(dt);
       this.#updateGodGlow(dt);
@@ -925,7 +1018,8 @@ export class Wizard {
         this._speedMul = this.#slopeSpeedMul(this._move) * this.#waterSpeedMul();
         const speed =
           CONFIG.wizardSpeed * (this.godMode ? CONFIG.godModeSpeedMul : 1);
-        const step = speed * this._speedMul * this.walkBlend * dt;
+        const tornadoMul = this._tornadoMoveMul ?? 1;
+        const step = speed * this._speedMul * this.walkBlend * tornadoMul * dt;
         this._trial.copy(this.mesh.position).addScaledVector(this._move, step);
         if (this._trial.lengthSq() > 1e-8) {
           this._trial.normalize();
@@ -976,7 +1070,7 @@ export class Wizard {
   /** Plynulý rozjezd / dojezd chůze (0 = stojí, 1 = plná chůze). */
   #updateWalkBlend(dt) {
     const target =
-      this.casting || this.dead || this.knockdown ? 0 : this.wantsWalk ? 1 : 0;
+      this.casting || this.dead || this.knockdown || this.tornado ? 0 : this.wantsWalk ? 1 : 0;
     const rate = target > this.walkBlend ? 3.2 : 5;
     this.walkBlend += (target - this.walkBlend) * Math.min(1, dt * rate);
     if (this.walkBlend < 0.003 && target === 0) this.walkBlend = 0;
@@ -988,6 +1082,11 @@ export class Wizard {
 
     if (this.knockdown) {
       this.#applyKnockPose(parts);
+      return;
+    }
+
+    if (this.tornado) {
+      this.#applyTornadoPose(parts);
       return;
     }
 

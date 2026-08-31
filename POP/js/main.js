@@ -406,6 +406,7 @@ class Game {
       }
     }
 
+    this.spells.prepareTornadoEffects(dt);
     for (const w of this.wizards.values()) {
       w.update(dt, this.keys, this.camRight);
     }
