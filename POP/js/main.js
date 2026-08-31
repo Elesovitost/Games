@@ -88,6 +88,13 @@ class Game {
     this.spells.wizard = null;
   }
 
+  #resetWorld() {
+    this.terrain.reset();
+    this.spells.resetWorld();
+    this.water.refreshShore();
+    this._shoreRefreshAt = 0;
+  }
+
   enterSolo() {
     this.inputEnabled = true;
     this.planetGroup.rotation.set(0, 0, 0);
@@ -110,6 +117,7 @@ class Game {
   beginMatch({ players, localId }) {
     this.inputEnabled = true;
     this.planetGroup.rotation.set(0, 0, 0);
+    this.#resetWorld();
     this.#clearWizards();
     this.spawnMarkers?.hide();
 

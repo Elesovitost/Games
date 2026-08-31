@@ -3,7 +3,7 @@ import { CONFIG } from "../config.js";
 import { tmp } from "../utils.js";
 import { SPELLS } from "./defs.js";
 import { AimReticle, CastSpiral, RangeRing } from "./fx-aim.js";
-import { updateBursts } from "./fx-common.js";
+import { updateBursts, disposeProjectile } from "./fx-common.js";
 import { launchFireball as doLaunchFireball, updateFireball, updateSmokePuffs, updateFireDebris } from "./fireball.js";
 import { launchIceball as doLaunchIceball, updateIceball } from "./iceball.js";
 import { strikeLightning as doStrikeLightning, updateBolts } from "./lightning.js";
@@ -88,6 +88,80 @@ export class SpellSystem {
   clearAllSpirals() {
     for (const s of this.spirals) s.dispose();
     this.spirals.length = 0;
+  }
+
+  /** Smaže všechny aktivní efekty kouzel (projektily, spáleniny, kouř…). */
+  resetWorld() {
+    this.clearAllSpirals();
+    this.hideAiming();
+
+    for (const p of this.projectiles) {
+      if (p.kind === "fireball") {
+        this.planetGroup.remove(p.ball);
+        for (const g of p.geos || []) g.dispose();
+        for (const m of p.mats || []) m.dispose();
+      } else {
+        disposeProjectile(this, p);
+      }
+    }
+    this.projectiles.length = 0;
+
+    for (const b of this.bolts) {
+      if (!b.group) continue;
+      this.planetGroup.remove(b.group);
+      for (const mesh of b.tubes || []) {
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+      }
+      for (const sp of b.sparks || []) {
+        sp.line.geometry.dispose();
+        sp.mat.dispose();
+      }
+      for (const L of b.lights || []) L.light.dispose();
+    }
+    this.bolts.length = 0;
+
+    for (const b of this.bursts) {
+      this.planetGroup.remove(b.mesh);
+      b.mesh.geometry.dispose();
+      b.mat.dispose();
+    }
+    this.bursts.length = 0;
+
+    for (const m of this.scorchMarks) {
+      this.planetGroup.remove(m);
+      m.geometry.dispose();
+      m.material.dispose();
+    }
+    this.scorchMarks.length = 0;
+
+    for (const s of this.smokePuffs) {
+      this.planetGroup.remove(s.mesh);
+      s.mesh.geometry.dispose();
+      s.mat.dispose();
+    }
+    this.smokePuffs.length = 0;
+
+    for (const d of this.fireDebris) {
+      this.planetGroup.remove(d.mesh);
+      d.mesh.geometry.dispose();
+      d.mat.dispose();
+    }
+    this.fireDebris.length = 0;
+
+    for (const r of this.waterRipples) {
+      this.planetGroup.remove(r.line);
+      r.geo.dispose();
+      r.mat.dispose();
+    }
+    this.waterRipples.length = 0;
+
+    for (const s of this.waterSpray) {
+      this.planetGroup.remove(s.mesh);
+      s.mesh.geometry.dispose();
+      s.mat.dispose();
+    }
+    this.waterSpray.length = 0;
   }
 
   inRange(spellId, targetDir) {

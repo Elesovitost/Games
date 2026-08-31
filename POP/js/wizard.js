@@ -1,6 +1,6 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
-import { tangentFrame, tmp } from "./utils.js";
+import { tangentFrame, tmp, slerpDirection } from "./utils.js";
 
 const ROBE = 0x1a2848;
 const ROBE_DARK = 0x0c1424;
@@ -392,8 +392,8 @@ export class Wizard {
           : renderT >= b.time
             ? 1
             : 0;
-      this.dir.copy(a.dir).slerp(b.dir, alpha);
-      this.facing.copy(a.facing).slerp(b.facing, alpha).normalize();
+      slerpDirection(this.dir, a.dir, b.dir, alpha);
+      slerpDirection(this.facing, a.facing, b.facing, alpha);
       this.moving = alpha >= 0.5 ? b.moving : a.moving;
     }
     this.wantsWalk = this.moving;

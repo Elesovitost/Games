@@ -305,6 +305,23 @@ export class Terrain {
     return d;
   }
 
+  /** Obnoví terén do výchozího stavu (stejný seed, bez morphů a spálenin). */
+  reset() {
+    this.morphs = [];
+    this._morphDirty = false;
+    const pos = this.geometry.attributes.position;
+    const count = pos.count;
+    for (let i = 0; i < count; i++) {
+      const dx = this.dirs[i * 3];
+      const dy = this.dirs[i * 3 + 1];
+      const dz = this.dirs[i * 3 + 2];
+      pos.setXYZ(i, dx * CONFIG.planetR, dy * CONFIG.planetR, dz * CONFIG.planetR);
+    }
+    pos.needsUpdate = true;
+    this.#sculpt();
+    this.buckets = null;
+  }
+
   #smoothCoast(heights, idx, count) {
     const acc = new Float32Array(count);
     const cnt = new Uint8Array(count);
