@@ -283,6 +283,7 @@ export class Wizard {
     this._godGlowT = 0;
     this.knockdown = null;
     this._knockSeq = 0;
+    this._lastKnockSeqApplied = 0;
     /** MP — po knockdownu pošle intent (nastaví main.js). */
     this.onKnockdown = null;
 
@@ -384,11 +385,13 @@ export class Wizard {
     const latest = buf[buf.length - 1];
     if (typeof latest.hp === "number" && !this.dead) this.hp = latest.hp;
 
-    if (latest.knock && (!this.knockdown || latest.knock.seq !== this.knockdown.seq)) {
-      this.applyKnockdown(latest.knock.amt, latest.knock.from, {
-        seq: latest.knock.seq,
-        hp: latest.hp
-      });
+    if (latest.knock && latest.knock.seq > this._lastKnockSeqApplied) {
+      if (!this.knockdown || latest.knock.seq !== this.knockdown.seq) {
+        this.applyKnockdown(latest.knock.amt, latest.knock.from, {
+          seq: latest.knock.seq,
+          hp: latest.hp
+        });
+      }
     }
 
     if (buf.length === 1) {
@@ -483,6 +486,7 @@ export class Wizard {
 
     const fromDir = opts.fromDir;
     const canKnock =
+      !this.remote &&
       opts.knock !== false &&
       fromDir &&
       amount >= CONFIG.wizardKnockMinDamage &&
@@ -528,7 +532,9 @@ export class Wizard {
   #startKnockdown(amount, fromDir, seq = null) {
     const nextSeq = seq ?? ++this._knockSeq;
     if (this.knockdown?.seq === nextSeq) return;
+    if (nextSeq <= this._lastKnockSeqApplied) return;
 
+    this._lastKnockSeqApplied = nextSeq;
     this.#clearTarget();
     if (this.casting) this.#endCast();
     this.wantsWalk = false;

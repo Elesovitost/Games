@@ -175,6 +175,7 @@ class Game {
       return;
     }
     if (intent.kind === "knock") {
+      if (!w.remote) return;
       w.applyKnockdown(intent.amt, intent.from, {
         seq: intent.seq,
         hp: intent.hp
