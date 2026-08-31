@@ -1,6 +1,6 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
-import { tangentFrame } from "./utils.js";
+import { tangentFrame, surfaceOffsetDir } from "./utils.js";
 
 const TREE_COUNT = 100;
 const VARIANTS = 6;
@@ -23,18 +23,6 @@ function randomSphereDir(rng) {
   const z = 2 * v - 1;
   const r = Math.sqrt(Math.max(0, 1 - z * z));
   return new THREE.Vector3(r * Math.cos(theta), z, r * Math.sin(theta));
-}
-
-function offsetOnSurface(center, east, north, distM, angle) {
-  const omega = distM / CONFIG.planetR;
-  const sinW = Math.sin(omega);
-  const cosW = Math.cos(omega);
-  return new THREE.Vector3()
-    .copy(center)
-    .multiplyScalar(cosW)
-    .addScaledVector(east, Math.cos(angle) * sinW)
-    .addScaledVector(north, Math.sin(angle) * sinW)
-    .normalize();
 }
 
 /** Přidá válec mezi dvěma body do akumulátoru (Y-up lokální prostor). */
@@ -266,7 +254,7 @@ export class Trees {
         const ang = rng() * Math.PI * 2;
         const dir = dist < 0.01
           ? center.clone()
-          : offsetOnSurface(center, this._east, this._north, dist, ang);
+          : surfaceOffsetDir(center, this._east, this._north, ang, dist, new THREE.Vector3());
         tangentFrame(dir, this._east, this._north);
         if (!canPlant(this.terrain, dir, this._east, this._north)) continue;
         dirs.push({

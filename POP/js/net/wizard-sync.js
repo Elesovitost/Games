@@ -1,10 +1,12 @@
 /**
  * Síťový stav kouzelníka — jedno místo pro serializaci / aplikaci.
  * Nový efekt: přidej handler do FX_HANDLERS (serialize + apply).
+ *
+ * Knock: intent = nízká latence, pose.knock = záloha; seq zabraňuje dvojitému startu.
+ * Tornado na remote: jen FX z pose (lokální sim na remote neběží).
  */
 import * as THREE from "../three.js";
-import { slerpDirection, tmp } from "../utils.js";
-import { CONFIG } from "../config.js";
+import { slerpDirection } from "../utils.js";
 
 const _dirA = new THREE.Vector3();
 const _dirB = new THREE.Vector3();
@@ -98,7 +100,6 @@ export function buildPosePacket(w) {
     dir: [w.dir.x, w.dir.y, w.dir.z],
     facing: [w.facing.x, w.facing.y, w.facing.z],
     moving: !!w.moving,
-    casting: !!w.casting,
     hp: w.hp,
     knock: w.knockdown
       ? {
@@ -187,13 +188,4 @@ export function applyKnockFromSnapshot(w, knock, hp) {
   if (!knock || knock.seq <= w._lastKnockSeqApplied) return;
   if (w.knockdown?.seq === knock.seq) return;
   w.applyKnockdown(knock.amt, knock.from, { seq: knock.seq, hp });
-}
-
-/** Registr intent handlerů (walk, cast, knock, …). */
-export function createIntentRouter(handlers) {
-  return (fromId, intent, ctx) => {
-    if (!intent?.kind) return;
-    const fn = handlers[intent.kind];
-    if (fn) fn(fromId, intent, ctx);
-  };
 }

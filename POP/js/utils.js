@@ -1,4 +1,5 @@
 import * as THREE from "./three.js";
+import { CONFIG } from "./config.js";
 
 export function lerp3(out, a, b, t) {
   out[0] = a[0] + (b[0] - a[0]) * t;
@@ -28,6 +29,19 @@ export function tangentFrame(n, east, north) {
   if (Math.abs(n.y) < 0.9) east.set(0, 1, 0).cross(n).normalize();
   else east.set(1, 0, 0).cross(n).normalize();
   north.crossVectors(n, east).normalize();
+}
+
+/** Bod na povrchu planety ve vzdálenosti distM (m) v azimutu angle od east/north. */
+export function surfaceOffsetDir(center, east, north, angle, distM, out) {
+  const omega = distM / CONFIG.planetR;
+  const sinW = Math.sin(omega);
+  const cosW = Math.cos(omega);
+  return out
+    .copy(center)
+    .multiplyScalar(cosW)
+    .addScaledVector(east, Math.cos(angle) * sinW)
+    .addScaledVector(north, Math.sin(angle) * sinW)
+    .normalize();
 }
 
 export function disposeObject(obj) {

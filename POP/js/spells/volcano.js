@@ -3,7 +3,7 @@ import { CONFIG } from "../config.js";
 import { SPELLS } from "./defs.js";
 import { spawnBurst, surfaceDist } from "./fx-common.js";
 import { dirSeed } from "./tornado.js";
-import { tangentFrame, tmp } from "../utils.js";
+import { tangentFrame, tmp, surfaceOffsetDir } from "../utils.js";
 
 const SEGS = 64;
 const RINGS = 14;
@@ -12,18 +12,6 @@ const LIFT = 0.022;
 function smoothstep(x) {
   const t = Math.min(1, Math.max(0, x));
   return t * t * (3 - 2 * t);
-}
-
-function surfaceDirFrom(center, east, north, angle, distM, out) {
-  const omega = distM / CONFIG.planetR;
-  const sinW = Math.sin(omega);
-  const cosW = Math.cos(omega);
-  return out
-    .copy(center)
-    .multiplyScalar(cosW)
-    .addScaledVector(east, Math.cos(angle) * sinW)
-    .addScaledVector(north, Math.sin(angle) * sinW)
-    .normalize();
 }
 
 function smoothedReach(segReach, i) {
@@ -170,7 +158,7 @@ function refreshLavaGeometry(terrain, lava, segReach) {
         placeOnSurface(terrain, sampleDir, LIFT, p);
       } else {
         const angle = (i / SEGS) * Math.PI * 2;
-        surfaceDirFrom(lava.centerDir, east, north, angle, reach, sampleDir);
+        surfaceOffsetDir(lava.centerDir, east, north, angle, reach, sampleDir);
         placeOnSurface(terrain, sampleDir, LIFT, p);
       }
       const vi = r * SEGS + i;
@@ -183,7 +171,7 @@ function refreshLavaGeometry(terrain, lava, segReach) {
 }
 
 function downhillFactor(terrain, centerDir, angle, east, north) {
-  const probe = surfaceDirFrom(centerDir, east, north, angle, 2.5, tmp.dir);
+  const probe = surfaceOffsetDir(centerDir, east, north, angle, 2.5, tmp.dir);
   const drop = terrain.height(centerDir) - terrain.height(probe);
   return Math.min(1.45, Math.max(0.55, 1 + drop * 0.22));
 }

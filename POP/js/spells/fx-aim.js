@@ -1,6 +1,6 @@
 import * as THREE from "../three.js";
 import { CONFIG } from "../config.js";
-import { tangentFrame } from "../utils.js";
+import { tangentFrame, surfaceOffsetDir } from "../utils.js";
 
 const RING_SEGS = 96;
 const RING_LIFT = 0.16;
@@ -399,18 +399,6 @@ const _footTmp = {
   pN: new THREE.Vector3()
 };
 
-function footSurfaceDir(center, east, north, angle, distM, out) {
-  const omega = distM / CONFIG.planetR;
-  const sinW = Math.sin(omega);
-  const cosW = Math.cos(omega);
-  return out
-    .copy(center)
-    .multiplyScalar(cosW)
-    .addScaledVector(east, Math.cos(angle) * sinW)
-    .addScaledVector(north, Math.sin(angle) * sinW)
-    .normalize();
-}
-
 function createFootGeometry() {
   const s = new THREE.Shape();
   s.moveTo(-0.055, 0.02);
@@ -521,7 +509,7 @@ export class WalkFootprints {
       const offN = o.r * this._right.dot(this._north) + o.f * this._forward.dot(this._north);
       const dist = Math.hypot(offE, offN);
       if (dist < 1e-4) this._footDir.copy(this.targetDir);
-      else footSurfaceDir(this.targetDir, this._east, this._north, Math.atan2(offN, offE), dist, this._footDir);
+      else surfaceOffsetDir(this.targetDir, this._east, this._north, Math.atan2(offN, offE), dist, this._footDir);
 
       placeFootOnSurface(
         this.terrain,

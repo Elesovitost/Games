@@ -12,8 +12,7 @@ import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./vi
 import { tmp } from "./utils.js";
 import { MultiplayerSession } from "./net/session.js";
 import { LobbyUI } from "./net/lobby.js";
-import { createIntentRouter } from "./net/wizard-sync.js";
-import { createGameIntentHandlers } from "./net/intents.js";
+import { createIntentRouter, createGameIntentHandlers } from "./net/intents.js";
 import { mountGameVersion } from "./game-version.js";
 
 class Game {
@@ -100,6 +99,7 @@ class Game {
     this.water.refreshShore();
     this._shoreRefreshAt = 0;
     this.spawnMarkers?.refresh();
+    this.trees?.refresh();
   }
 
   #wireWizardNet(w) {
@@ -353,6 +353,7 @@ class Game {
     }
 
     if (this.wizard.setDestination(hit)) {
+      // Pohyb na remote jde přes pose; walk intent je no-op (kompatibilita protokolu).
       this.session.sendIntent({
         kind: "walk",
         dir: [this.wizard.targetDir.x, this.wizard.targetDir.y, this.wizard.targetDir.z]

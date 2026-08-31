@@ -217,7 +217,6 @@ export class Wizard {
     this.ghostT = 0;
     this._ghostMats = [];
     this._netBuf = [];
-    this._netPool = [];
     this.godMode = false;
     this._godGlow = [];
     this._godLight = null;
@@ -429,13 +428,13 @@ export class Wizard {
   }
 
   takeDamage(amount, opts = {}) {
-    if (this.godMode || this.dead || amount <= 0) return;
+    // Vzdálený hráč: HP/knock jen ze sítě (pose + knock intent), ne z lokální simulace.
+    if (this.remote || this.godMode || this.dead || amount <= 0) return;
     this.hp = Math.max(0, this.hp - amount);
     this.#syncHealthUi();
 
     const fromDir = opts.fromDir;
     const canKnock =
-      !this.remote &&
       opts.knock !== false &&
       fromDir &&
       amount >= CONFIG.wizardKnockMinDamage &&
@@ -448,7 +447,7 @@ export class Wizard {
   }
 
   heal(amount) {
-    if (this.dead || this.godMode || amount <= 0 || this.hp >= this.maxHp) return;
+    if (this.remote || this.dead || this.godMode || amount <= 0 || this.hp >= this.maxHp) return;
     this.hp = Math.min(this.maxHp, this.hp + amount);
     this.#syncHealthUi();
   }

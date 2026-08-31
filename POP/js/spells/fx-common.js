@@ -1,6 +1,6 @@
 import * as THREE from "../three.js";
 import { CONFIG } from "../config.js";
-import { tangentFrame, tmp } from "../utils.js";
+import { tangentFrame, tmp, surfaceOffsetDir } from "../utils.js";
 
 /** Vzdálenost po povrchu (m). */
 export function surfaceDist(a, b) {
@@ -11,7 +11,7 @@ export function surfaceDist(a, b) {
 export function applyAoeDamage(sys, centerDir, radiusM, dmgCenter, dmgEdge) {
   const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
   for (const w of list) {
-    if (!w || w.dead) continue;
+    if (!w || w.dead || w.remote) continue;
     const dist = surfaceDist(centerDir, w.dir);
     if (dist >= radiusM) continue;
     const t = dist / radiusM;
@@ -31,19 +31,6 @@ export function spawnBurst(sys, pos, up, color, life = 0.45) {
   mesh.position.copy(pos).addScaledVector(up, 0.3);
   sys.planetGroup.add(mesh);
   sys.bursts.push({ mesh, mat, t: 0, life, up: up.clone() });
-}
-
-/** Bod na povrchu ve směru od středu (distM v metrech po povrchu). */
-function surfaceDirFrom(center, east, north, angle, distM, out) {
-  const omega = distM / CONFIG.planetR;
-  const sinW = Math.sin(omega);
-  const cosW = Math.cos(omega);
-  return out
-    .copy(center)
-    .multiplyScalar(cosW)
-    .addScaledVector(east, Math.cos(angle) * sinW)
-    .addScaledVector(north, Math.sin(angle) * sinW)
-    .normalize();
 }
 
 const SCORCH_VERT = `
@@ -116,7 +103,7 @@ export function spawnScorchMark(sys, dir, radiusM) {
       0.1 * Math.sin(angle * 5.9 + 2.1) +
       0.07 * Math.sin(angle * 11.3 + 1.4) +
       Math.random() * 0.07;
-    const d = surfaceDirFrom(centerDir, east, north, angle, R * wobble, tmp.dir);
+    const d = surfaceOffsetDir(centerDir, east, north, angle, R * wobble, tmp.dir);
     ringDirs.push(d.x, d.y, d.z);
     const h = sys.terrain.height(d);
     positions.push(d.x * (h + lift), d.y * (h + lift), d.z * (h + lift));
@@ -217,7 +204,7 @@ function refreshIrregularScorchMark(terrain, mark) {
         dz = cz;
       } else {
         const angle = (i / mark.segments) * Math.PI * 2;
-        const d = surfaceDirFrom(center, east, north, angle, dist, tmp.dir);
+        const d = surfaceOffsetDir(center, east, north, angle, dist, tmp.dir);
         dx = d.x;
         dy = d.y;
         dz = d.z;
