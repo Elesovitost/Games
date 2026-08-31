@@ -324,7 +324,9 @@ export class Terrain {
       }
       for (let i = 0; i < count; i++) {
         const elev = heights[i] - CONFIG.waterLevel;
-        if (elev <= 0.02) {
+        // Hluboké moře — nechat podvodní terén
+        if (elev < -0.45) continue;
+        if (elev <= 0.04 && elev >= -0.2) {
           heights[i] = CONFIG.waterLevel;
           continue;
         }
@@ -332,7 +334,9 @@ export class Terrain {
         const avg = acc[i] / cnt[i];
         const blend = elev < 0.7 ? 0.62 : 0.28;
         heights[i] = heights[i] * (1 - blend) + avg * blend;
-        if (heights[i] < CONFIG.waterLevel) heights[i] = CONFIG.waterLevel;
+        if (heights[i] < CONFIG.waterLevel && elev > -0.25) {
+          heights[i] = CONFIG.waterLevel;
+        }
       }
     }
   }

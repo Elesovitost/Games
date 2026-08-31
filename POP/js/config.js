@@ -29,6 +29,12 @@ export const CONFIG = {
   wizardUphillMin: 0.14,
   /** Min. výška nad hladinou, aby kouzelník nešel do vody / mokré pláže */
   wizardMinLand: 0.15,
+  /** Rychlost v hluboké vodě (násobek) */
+  wizardWaterSpeedMul: 0.32,
+  /** Ztráta HP při potopené hlavě (HP/s) */
+  wizardDrownHpPerSec: 20,
+  /** Min. poloměr terénu — lze chodit i pod vodou */
+  wizardMinTerrainR: PLANET_R * 0.72 + 0.08,
   /** Dojede na klik, když je blíž než tolik metrů po povrchu */
   wizardArrive: 0.55,
   spellDuration: 5,

@@ -53,8 +53,7 @@ export function launchIceball(sys, targetDir) {
     maxTravel: SPELLS.iceball.travel,
     life: 12,
     roll: 0,
-    hitWizard: false,
-    ownerId: sys.wizard?.id ?? null
+    hitWizard: false
   });
 }
 
@@ -80,7 +79,6 @@ export function updateIceball(sys, p, dt) {
     const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
     for (const w of list) {
       if (!w || w.dead) continue;
-      if (p.ownerId && w.id === p.ownerId) continue;
       if (surfaceDist(p.dir, w.dir) <= touchR) {
         p.hitWizard = true;
         w.takeDamage(SPELLS.iceball.contactDamage);

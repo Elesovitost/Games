@@ -43,17 +43,21 @@ export function generateHeights(heights, pos, noise) {
     const basinB = noise.fbm(nx * 1.9 - 5.4, ny * 1.9 + 2.7, nz * 1.9 + 0.8);
     const basin = Math.min(basinA, basinB * 0.85 + 0.08);
 
-    // Moře jen v hlubokých pánvích; pevnina zůstává propojená
+    // Moře — pod hladinou je dno (lze chodit a nořit se)
     const sea = smoothstep(-0.02, -0.28, basin);
     if (sea > 0.72) {
-      heights[i] = W;
+      const deep = smoothstep(0.72, 1.0, sea);
+      const bump = noise.fbm(nx * 7.2 + 4.1, ny * 7.2 - 2.3, nz * 7.2) * 0.7;
+      const depth = 1.6 + deep * 4.2 + bump;
+      heights[i] = W - depth;
       continue;
     }
 
-    // Pobřeží / mělčina kolem moří
+    // Mělčina / pobřežní shelf pod vodou
     if (sea > 0.35) {
       const shore = smoothstep(0.35, 0.72, sea);
-      heights[i] = W + 0.04 + (1 - shore) * 0.55;
+      const shelf = shore * 1.3;
+      heights[i] = W - shelf + (1 - shore) * 0.45;
       continue;
     }
 

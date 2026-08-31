@@ -1,5 +1,6 @@
 import * as THREE from "../three.js";
 import { CONFIG } from "../config.js";
+import { tangentFrame, tmp } from "../utils.js";
 
 /** Vzdálenost po povrchu (m). */
 export function surfaceDist(a, b) {
@@ -7,11 +8,10 @@ export function surfaceDist(a, b) {
   return Math.acos(d) * CONFIG.planetR;
 }
 
-export function applyAoeDamage(sys, centerDir, radiusM, dmgCenter, dmgEdge, exceptId = null) {
+export function applyAoeDamage(sys, centerDir, radiusM, dmgCenter, dmgEdge) {
   const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
   for (const w of list) {
     if (!w || w.dead) continue;
-    if (exceptId != null && w.id === exceptId) continue;
     const dist = surfaceDist(centerDir, w.dir);
     if (dist >= radiusM) continue;
     const t = dist / radiusM;
@@ -33,27 +33,86 @@ export function spawnBurst(sys, pos, up, color, life = 0.45) {
   sys.bursts.push({ mesh, mat, t: 0, life, up: up.clone() });
 }
 
-/** Nepravidelná spálenina na povrchu (viditelná i při hrubém meshi). */
-export function spawnScorchMark(sys, dir, radiusM) {
-  const h = sys.terrain.height(dir);
-  const n = 28;
-  const shape = new THREE.Shape();
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2;
-    const wobble =
-      0.55 +
-      0.28 * Math.sin(i * 2.3 + 1.7) +
-      0.22 * Math.sin(i * 5.1 + 0.4) +
-      Math.random() * 0.12;
-    const r = radiusM * wobble;
-    const x = Math.cos(a) * r;
-    const y = Math.sin(a) * r;
-    if (i === 0) shape.moveTo(x, y);
-    else shape.lineTo(x, y);
-  }
-  shape.closePath();
+/** Bod na povrchu ve směru od středu (distM v metrech po povrchu). */
+function surfaceDirFrom(center, east, north, angle, distM) {
+  const omega = distM / CONFIG.planetR;
+  const sinW = Math.sin(omega);
+  const cosW = Math.cos(omega);
+  return center
+    .clone()
+    .multiplyScalar(cosW)
+    .addScaledVector(east, Math.cos(angle) * sinW)
+    .addScaledVector(north, Math.sin(angle) * sinW)
+    .normalize();
+}
 
-  const geo = new THREE.ShapeGeometry(shape);
+/** Spálenina kopírující terén — síť z více prstenců po výškové mapě. */
+export function spawnScorchMark(sys, dir, radiusM) {
+  const centerDir = dir.clone().normalize();
+  tangentFrame(centerDir, tmp.east, tmp.north);
+  const east = tmp.east;
+  const north = tmp.north;
+
+  const rings = 5;
+  const segments = 22;
+  const lift = 0.045;
+  const positions = [];
+  const indices = [];
+  const ringIdx = [];
+
+  const ch = sys.terrain.height(centerDir);
+  positions.push(
+    centerDir.x * (ch + lift),
+    centerDir.y * (ch + lift),
+    centerDir.z * (ch + lift)
+  );
+
+  for (let ri = 1; ri <= rings; ri++) {
+    const frac = ri / rings;
+    const ring = [];
+    for (let sj = 0; sj < segments; sj++) {
+      const angle = (sj / segments) * Math.PI * 2;
+      let rM = radiusM * frac;
+      if (ri === rings) {
+        const wobble =
+          0.55 +
+          0.28 * Math.sin(sj * 2.3 + 1.7) +
+          0.22 * Math.sin(sj * 5.1 + 0.4) +
+          Math.random() * 0.12;
+        rM *= wobble;
+      }
+      const d = surfaceDirFrom(centerDir, east, north, angle, rM);
+      const h = sys.terrain.height(d);
+      ring.push(positions.length / 3);
+      positions.push(d.x * (h + lift), d.y * (h + lift), d.z * (h + lift));
+    }
+    ringIdx.push(ring);
+  }
+
+  for (let sj = 0; sj < segments; sj++) {
+    const nj = (sj + 1) % segments;
+    indices.push(0, ringIdx[0][sj], ringIdx[0][nj]);
+  }
+
+  for (let ri = 0; ri < ringIdx.length - 1; ri++) {
+    const inner = ringIdx[ri];
+    const outer = ringIdx[ri + 1];
+    for (let sj = 0; sj < segments; sj++) {
+      const nj = (sj + 1) % segments;
+      const a = inner[sj];
+      const b = inner[nj];
+      const c = outer[sj];
+      const d = outer[nj];
+      indices.push(a, c, b);
+      indices.push(b, c, d);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+
   const mat = new THREE.MeshBasicMaterial({
     color: 0x3a2e28,
     transparent: true,
@@ -65,8 +124,6 @@ export function spawnScorchMark(sys, dir, radiusM) {
     polygonOffsetUnits: -4
   });
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.copy(dir).multiplyScalar(h + 0.08);
-  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
   mesh.renderOrder = 2;
   sys.planetGroup.add(mesh);
   sys.scorchMarks.push(mesh);

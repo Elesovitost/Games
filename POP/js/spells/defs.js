@@ -30,12 +30,13 @@ export const SPELLS = {
     id: "fireball",
     range: 18,
     castTime: 1,
-    burnRadius: 0.5,
+    burnRadius: 1,
     damageRadius: 2,
     damageCenter: 60,
     damageEdge: 10,
-    speed: 40,
-    radius: 0.35,
+    speed: 26,
+    /** Poloměr koule ≈ 15 cm → průměr 30 cm */
+    radius: 0.15,
     color: 0xff7a28,
     hint: "Klikni v dosahu — ohnivá koule letí přímkou."
   },

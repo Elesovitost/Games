@@ -4,9 +4,10 @@ import { tmp } from "../utils.js";
 import { SPELLS } from "./defs.js";
 import { AimReticle, CastSpiral, RangeRing } from "./fx-aim.js";
 import { updateBursts } from "./fx-common.js";
-import { launchFireball as doLaunchFireball, updateFireball } from "./fireball.js";
+import { launchFireball as doLaunchFireball, updateFireball, updateSmokePuffs, updateFireDebris } from "./fireball.js";
 import { launchIceball as doLaunchIceball, updateIceball } from "./iceball.js";
 import { strikeLightning as doStrikeLightning, updateBolts } from "./lightning.js";
+import { updateWaterFx } from "./water-fx.js";
 
 export class SpellSystem {
   constructor(planetGroup, terrain, wizard, getWizards = null) {
@@ -22,6 +23,10 @@ export class SpellSystem {
     this.bolts = [];
     this.bursts = [];
     this.scorchMarks = [];
+    this.smokePuffs = [];
+    this.fireDebris = [];
+    this.waterRipples = [];
+    this.waterSpray = [];
     this.activeSpellId = null;
 
     this._tmp = new THREE.Vector3();
@@ -98,6 +103,9 @@ export class SpellSystem {
     updateBolts(this, dt);
     this.#updateProjectiles(dt);
     updateBursts(this, dt);
+    updateSmokePuffs(this, dt);
+    updateFireDebris(this, dt);
+    updateWaterFx(this, dt);
   }
 
   strikeLightning(targetDir) {

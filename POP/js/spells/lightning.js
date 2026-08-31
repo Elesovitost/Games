@@ -1,7 +1,9 @@
 import * as THREE from "../three.js";
+import { CONFIG } from "../config.js";
 import { tangentFrame, tmp } from "../utils.js";
 import { SPELLS } from "./defs.js";
 import { applyAoeDamage, spawnScorchMark } from "./fx-common.js";
+import { isWaterAt, spawnWaterSplash } from "./water-fx.js";
 
 /** Fractal mid-point path (ostré zlomy jako reálný blesk). */
 function lightningPath(from, to, generations, maxOffset) {
@@ -108,9 +110,11 @@ function rebuildBoltTubes(b) {
 /** Blesk: silný kanál (trubice), odbočky, jiskry, spálenina. */
 export function strikeLightning(sys, targetDir) {
   const dir = targetDir.clone().normalize();
-  const h = sys.terrain.height(dir);
-  const ground = dir.clone().multiplyScalar(h);
-  const sky = dir.clone().multiplyScalar(h + 40);
+  const th = sys.terrain.height(dir);
+  const onWater = isWaterAt(sys, dir);
+  const strikeH = onWater ? CONFIG.waterLevel : th;
+  const ground = dir.clone().multiplyScalar(strikeH);
+  const sky = dir.clone().multiplyScalar(strikeH + 40);
 
   tangentFrame(dir, tmp.east, tmp.north);
   const group = new THREE.Group();
@@ -203,15 +207,18 @@ export function strikeLightning(sys, targetDir) {
     nextJitter: 0.12
   });
 
-  spawnScorchMark(sys, dir, SPELLS.lightning.burnRadius);
-  sys.terrain.scorch(dir, Math.max(2.2, SPELLS.lightning.burnRadius), true);
+  if (onWater) {
+    spawnWaterSplash(sys, dir, SPELLS.lightning.burnRadius * 1.8);
+  } else {
+    spawnScorchMark(sys, dir, SPELLS.lightning.burnRadius);
+    sys.terrain.scorch(dir, Math.max(2.2, SPELLS.lightning.burnRadius), true);
+  }
   applyAoeDamage(
     sys,
     dir,
     SPELLS.lightning.damageRadius,
     SPELLS.lightning.damageCenter,
-    SPELLS.lightning.damageEdge,
-    sys._castOwnerId
+    SPELLS.lightning.damageEdge
   );
 }
 
