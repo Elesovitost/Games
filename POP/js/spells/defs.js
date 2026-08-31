@@ -47,7 +47,7 @@ export const SPELLS = {
     diameter: 3,
     travel: 50,
     speed: 16,
-    contactDamage: 25,
+    contactDamage: 45,
     color: 0xeef6ff,
     hint: "Klikni směr — ledová koule se 50 m kutálí."
   }
