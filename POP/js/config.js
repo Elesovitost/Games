@@ -47,6 +47,8 @@ export const CONFIG = {
   spellSpiralDiameter: 1,
   shadowMapSize: 1024,
   shadowFrustumHalf: 128,
+  /** Rozmazání okraje stínu (PCFSoft) — levnější než větší mapa */
+  shadowSoftRadius: 3.5,
   pixelRatioMax: 1.35,
   resolutionScale: 0.92,
   landColor: [0.26, 0.52, 0.16],

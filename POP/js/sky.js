@@ -120,6 +120,7 @@ export function createSun(planetGroup) {
   sun.position.set(220, 180, -70);
   sun.castShadow = true;
   sun.shadow.mapSize.set(CONFIG.shadowMapSize, CONFIG.shadowMapSize);
+  sun.shadow.radius = CONFIG.shadowSoftRadius;
   // Vyšší normalBias + mírný bias: méně acne / čárkování na svazích.
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.08;
