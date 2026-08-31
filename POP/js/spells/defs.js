@@ -21,8 +21,8 @@ export const SPELLS = {
     castTime: 2,
     burnRadius: 1,
     damageRadius: 4,
-    damageCenter: 90,
-    damageEdge: 10,
+    damageCenter: 45,
+    damageEdge: 5,
     color: 0xc8f0ff,
     hint: "Klikni v dosahu — blesk spálí zem."
   },
@@ -32,8 +32,8 @@ export const SPELLS = {
     castTime: 1,
     burnRadius: 1,
     damageRadius: 4,
-    damageCenter: 60,
-    damageEdge: 10,
+    damageCenter: 30,
+    damageEdge: 5,
     speed: 26,
     /** Poloměr koule ≈ 15 cm → průměr 30 cm */
     radius: 0.15,
@@ -47,7 +47,7 @@ export const SPELLS = {
     diameter: 3,
     travel: 50,
     speed: 16,
-    contactDamage: 50,
+    contactDamage: 25,
     color: 0xeef6ff,
     hint: "Klikni směr — ledová koule se 50 m kutálí."
   }

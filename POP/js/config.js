@@ -62,15 +62,14 @@ export const CONFIG = {
   netPoseInterpDelay: 0.08,
   /** Min. damage pro knockdown */
   wizardKnockMinDamage: 10,
-  wizardKnockFallDur: 0.16,
+  wizardKnockFallDur: 0.08,
   wizardKnockRiseDur: 0.45,
   wizardKnockSlideImpulse: 10,
   wizardKnockSlideFriction: 3.2,
   wizardKnockDistMin: 2,
   wizardKnockDistMax: 10,
-  wizardKnockMinRotations: 1,
-  /** Po plném zásahu (≈ max HP) */
-  wizardKnockMaxRotations: 4,
+  /** Sudy = 1 + (damage/maxHp) × extra; při plném zásahu */
+  wizardKnockExtraRotationsMax: 7,
   wizardKnockRollRadius: 0.2,
   defaultMapSeed: 20260829
 };

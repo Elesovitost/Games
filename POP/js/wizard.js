@@ -535,17 +535,16 @@ export class Wizard {
     this.moving = false;
 
     const ratio = Math.min(1, amount / this.maxHp);
-    const imp = 0.65 + ratio * 2.4;
     const rollDir = new THREE.Vector3();
     this.#computeKnockRollDir(fromDir, rollDir);
     this.facing.copy(rollDir);
 
-    const rotCount =
-      CONFIG.wizardKnockMinRotations +
-      ratio * (CONFIG.wizardKnockMaxRotations - CONFIG.wizardKnockMinRotations);
+    const rotCount = 1 + ratio * CONFIG.wizardKnockExtraRotationsMax;
     const rollR = this.#knockRollRadius();
     const minRot = Math.PI * 2 * rotCount;
     const rollDist = minRot * rollR;
+    // Počáteční rychlost tak, aby tření stihlo projet celou vzdálenost sudů
+    const slideVel = rollDist * CONFIG.wizardKnockSlideFriction * 1.2;
 
     this.knockdown = {
       seq: nextSeq,
@@ -557,7 +556,7 @@ export class Wizard {
       rollDir,
       sideZ: 0,
       barrelY: 0,
-      slideVel: imp * CONFIG.wizardKnockSlideImpulse * (0.9 + rotCount * 0.05),
+      slideVel,
       slideDist: 0,
       rollDist,
       minRot,
@@ -578,11 +577,12 @@ export class Wizard {
     if (kd.phase === "fall") {
       kd.fallT += dt;
       const u = Math.min(1, kd.fallT / CONFIG.wizardKnockFallDur);
-      const ease = 1 - (1 - u) ** 2;
+      const ease = 1 - (1 - u) ** 3;
       kd.sideZ = ease * fallEnd;
-      kd.barrelY = 0;
-      const step = kd.slideVel * dt * 0.15;
+      const rollBlend = Math.max(0, (u - 0.4) / 0.6);
+      const step = kd.slideVel * dt * (0.12 + 0.88 * rollBlend);
       kd.slideDist += step;
+      kd.barrelY += (step / Math.max(r, 0.08)) * rollBlend;
       this.#knockMove(kd, step);
       if (u >= 1) {
         kd.phase = "roll";
@@ -600,10 +600,8 @@ export class Wizard {
       kd.barrelY += step / Math.max(r, 0.08);
       this.#knockMove(kd, step);
 
-      const slowed = kd.slideVel < 0.28;
-      const rotOk = kd.barrelY >= kd.minRot * 0.88;
-      const distOk = kd.slideDist >= kd.rollDist * 0.88;
-      if ((slowed && (rotOk || distOk)) || kd.t > 5) {
+      const slowed = kd.slideVel < 0.35;
+      if (slowed || kd.t > 4) {
         kd.phase = "rise";
         kd.t = 0;
       }
