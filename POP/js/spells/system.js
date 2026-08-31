@@ -5,7 +5,7 @@ import { SPELLS } from "./defs.js";
 import { AimReticle, CastSpiral, RangeRing } from "./fx-aim.js";
 import { updateBursts, disposeProjectile } from "./fx-common.js";
 import { launchFireball as doLaunchFireball, updateFireball, updateSmokePuffs, updateFireDebris } from "./fireball.js";
-import { launchIceball as doLaunchIceball, updateIceball } from "./iceball.js";
+import { launchIceball as doLaunchIceball, updateIceball, updateIceDebris } from "./iceball.js";
 import { strikeLightning as doStrikeLightning, updateBolts } from "./lightning.js";
 import { updateWaterFx } from "./water-fx.js";
 
@@ -25,6 +25,7 @@ export class SpellSystem {
     this.scorchMarks = [];
     this.smokePuffs = [];
     this.fireDebris = [];
+    this.iceDebris = [];
     this.waterRipples = [];
     this.waterSpray = [];
     this.activeSpellId = null;
@@ -131,7 +132,6 @@ export class SpellSystem {
     for (const m of this.scorchMarks) {
       this.planetGroup.remove(m);
       m.geometry.dispose();
-      m.material.dispose();
     }
     this.scorchMarks.length = 0;
 
@@ -148,6 +148,13 @@ export class SpellSystem {
       d.mat.dispose();
     }
     this.fireDebris.length = 0;
+
+    for (const s of this.iceDebris) {
+      this.planetGroup.remove(s.mesh);
+      s.mesh.geometry.dispose();
+      s.mat.dispose();
+    }
+    this.iceDebris.length = 0;
 
     for (const r of this.waterRipples) {
       this.planetGroup.remove(r.line);
@@ -179,6 +186,7 @@ export class SpellSystem {
     updateBursts(this, dt);
     updateSmokePuffs(this, dt);
     updateFireDebris(this, dt);
+    updateIceDebris(this, dt);
     updateWaterFx(this, dt);
   }
 

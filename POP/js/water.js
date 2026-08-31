@@ -59,7 +59,7 @@ void main() {
   float pulse = 0.5 + 0.5 * sin(uTime * 1.8 - vShore * 8.0);
   float foam = smoothstep(0.45, 0.95, vShore) * (0.25 + 0.2 * pulse);
   col = mix(col, vec3(0.88, 0.93, 0.98), foam);
-  float alpha = 0.62 + fres * 0.12 + foam * 0.08;
+  float alpha = 0.85 + fres * 0.08 + foam * 0.02;
   gl_FragColor = vec4(col, alpha);
 }
 `;

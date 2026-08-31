@@ -163,6 +163,7 @@ export class Terrain {
 
   /** Spálená zem v radiu (m). irregular = nepravidelný okraj. */
   scorch(centerDir, radiusMeters, irregular = false) {
+    const radius = radiusMeters * 1.35;
     const clen = Math.hypot(centerDir.x, centerDir.y, centerDir.z) || 1;
     const ndx = centerDir.x / clen;
     const ndy = centerDir.y / clen;
@@ -179,9 +180,8 @@ export class Terrain {
       const dot = Math.min(1, Math.max(-1, dx * ndx + dy * ndy + dz * ndz));
       const dist = Math.acos(dot) * CONFIG.planetR;
 
-      let rEff = radiusMeters;
+      let rEff = radius;
       if (irregular) {
-        // Nepravidelný okraj podle směru od středu úderu
         const px = dx - ndx;
         const py = dy - ndy;
         const pz = dz - ndz;
@@ -189,13 +189,16 @@ export class Terrain {
           Math.sin(px * 37.1 + py * 19.7 + pz * 53.3) * 0.5 +
           Math.sin(px * 71.3 - py * 41.9 + pz * 13.1) * 0.5;
         const u = n * 0.5 + 0.5;
-        rEff = radiusMeters * (0.55 + u * 0.55);
+        rEff = radius * (0.9 + u * 0.12);
       }
-      if (dist > rEff) continue;
 
-      const t = 1 - dist / Math.max(rEff, 1e-5);
-      const w = t * t * (3 - 2 * t);
-      this.scorchMask[i] = Math.min(1, Math.max(this.scorchMask[i], w * 0.95));
+      const fadeEnd = rEff * 1.38;
+      const t = 1 - dist / Math.max(fadeEnd, 1e-5);
+      if (t <= 0) continue;
+      const tCl = Math.min(1, t);
+      const w = tCl * tCl * tCl * (tCl * (tCl * 6 - 15) + 10);
+      const mask = Math.pow(tCl, 0.32) * w;
+      this.scorchMask[i] = Math.min(1, Math.max(this.scorchMask[i], mask * 0.96));
       const h = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
       this.#writeColor(i, h, col);
       colAttr.setXYZ(i, col[0], col[1], col[2]);
@@ -211,9 +214,13 @@ export class Terrain {
     this.colorFromHeight(h, col, dx, dy, dz);
     const s = this.scorchMask[i];
     if (s > 0.001) {
-      col[0] = col[0] * (1 - s) + 0.18 * s;
-      col[1] = col[1] * (1 - s) + 0.14 * s;
-      col[2] = col[2] * (1 - s) + 0.11 * s;
+      const core = s * s * s;
+      const br = 0.008 + 0.1 * (1 - core);
+      const bg = 0.006 + 0.075 * (1 - core);
+      const bb = 0.005 + 0.06 * (1 - core);
+      col[0] = col[0] * (1 - s) + br * s;
+      col[1] = col[1] * (1 - s) + bg * s;
+      col[2] = col[2] * (1 - s) + bb * s;
     }
   }
 

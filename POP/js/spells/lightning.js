@@ -211,7 +211,7 @@ export function strikeLightning(sys, targetDir) {
     spawnWaterSplash(sys, dir, SPELLS.lightning.burnRadius * 1.8);
   } else {
     spawnScorchMark(sys, dir, SPELLS.lightning.burnRadius);
-    sys.terrain.scorch(dir, Math.max(2.2, SPELLS.lightning.burnRadius), true);
+    sys.terrain.scorch(dir, Math.max(2.6, SPELLS.lightning.burnRadius * 2.5), true);
   }
   applyAoeDamage(
     sys,

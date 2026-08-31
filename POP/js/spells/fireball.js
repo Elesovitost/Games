@@ -6,6 +6,9 @@ import { applyAoeDamage, spawnBurst, spawnScorchMark } from "./fx-common.js";
 import { isWaterAt, spawnWaterSplash } from "./water-fx.js";
 
 const SMOKE_COLORS = [0x3a3835, 0x4a4844, 0x555048, 0x2e2c28];
+const _yUp = new THREE.Vector3(0, 1, 0);
+const _quat = new THREE.Quaternion();
+const _coalCol = new THREE.Color(0x1a1008);
 
 function spawnSmokePuff(sys, pos, vel, opts = {}) {
   const mat = new THREE.MeshBasicMaterial({
@@ -63,70 +66,58 @@ function spawnSmokeStreak(sys, pos, vel, up) {
   });
 }
 
-function spawnEmbers(sys, pos, normalDir, count, kind = "spark") {
+function spawnFireShards(sys, pos, normalDir, count = 72) {
   tangentFrame(normalDir, tmp.east, tmp.north);
   if (!sys.fireDebris) sys.fireDebris = [];
 
   for (let i = 0; i < count; i++) {
-    const a = (i / count) * Math.PI * 2 + Math.random() * 0.8;
-    const spread = kind === "coal" ? 2.2 + Math.random() * 3.5 : 4 + Math.random() * 6;
+    const a = (i / count) * Math.PI * 2 + Math.random() * 0.85;
+    const spread = 1.1 + Math.random() * 2.4;
     const vel = tmp.east
       .clone()
       .multiplyScalar(Math.cos(a) * spread)
       .addScaledVector(tmp.north, Math.sin(a) * spread);
-    vel.addScaledVector(
-      normalDir,
-      kind === "coal" ? 0.6 + Math.random() * 1.8 : 1.5 + Math.random() * 3.5
-    );
+    vel.addScaledVector(normalDir, 1.0 + Math.random() * 2.2);
 
-    let mesh;
-    let mat;
-
-    if (kind === "coal") {
-      const w = 0.05 + Math.random() * 0.07;
-      const h = 0.04 + Math.random() * 0.06;
-      mat = new THREE.MeshStandardMaterial({
-        color: 0x1a1008,
-        emissive: 0xff5500,
-        emissiveIntensity: 1.4,
-        roughness: 0.9,
-        metalness: 0.05,
-        transparent: true,
-        opacity: 0.95
-      });
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, w * 0.9), mat);
-      mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
-    } else {
-      const r = 0.03 + Math.random() * 0.06;
-      mat = new THREE.MeshBasicMaterial({
-        color: Math.random() > 0.4 ? 0xffaa30 : 0xff6620,
-        transparent: true,
-        opacity: 0.95,
-        depthWrite: false
-      });
-      mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 5, 4), mat);
-    }
-
-    mesh.position.copy(pos).addScaledVector(normalDir, 0.05 + Math.random() * 0.08);
+    const w = 0.065 + Math.random() * 0.15;
+    const h = 0.055 + Math.random() * 0.13;
+    const d = 0.06 + Math.random() * 0.14;
+    const hot = Math.random() > 0.35;
+    const mat = new THREE.MeshStandardMaterial({
+      color: hot ? 0xff8820 : 0x3a2010,
+      emissive: hot ? 0xff5500 : 0xff3300,
+      emissiveIntensity: 1.2 + Math.random() * 0.9,
+      roughness: 0.82,
+      metalness: 0.04,
+      transparent: true,
+      opacity: 0.96
+    });
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+    mesh.position.copy(pos).addScaledVector(normalDir, 0.04 + Math.random() * 0.1);
+    mesh.castShadow = true;
     sys.planetGroup.add(mesh);
 
     sys.fireDebris.push({
       mesh,
       mat,
       vel,
-      t: kind === "coal" ? -0.05 - Math.random() * 0.12 : 0,
-      life: kind === "coal" ? 1.4 + Math.random() * 1.1 : 0.35 + Math.random() * 0.45,
-      drag: kind === "coal" ? 0.96 : 0.91,
-      gravity: normalDir.clone().multiplyScalar(-9),
-      kind,
-      rotVel:
-        kind === "coal"
-          ? new THREE.Vector3(
-              (Math.random() - 0.5) * 14,
-              (Math.random() - 0.5) * 14,
-              (Math.random() - 0.5) * 14
-            )
-          : null
+      dir: normalDir.clone(),
+      radius: Math.max(w, h, d) * 0.5,
+      state: "air",
+      t: 0,
+      groundT: 0,
+      coolT: 0,
+      restTime: 0.25 + Math.random() * 0.85,
+      coolLife: 1.0 + Math.random() * 1.4,
+      rotVel: new THREE.Vector3(
+        (Math.random() - 0.5) * 18,
+        (Math.random() - 0.5) * 18,
+        (Math.random() - 0.5) * 18
+      ),
+      baseScale: mesh.scale.clone(),
+      hot,
+      coolFrom: null
     });
   }
 }
@@ -141,12 +132,11 @@ function explodeFireball(sys, pos, dir) {
     spawnBurst(sys, pos, dir, 0xb8dcf0, 0.32);
   } else {
     spawnScorchMark(sys, dir, def.burnRadius);
-    sys.terrain.scorch(dir, Math.max(2.2, def.burnRadius * 2), true);
+    sys.terrain.scorch(dir, Math.max(2.6, def.burnRadius * 2.5), true);
     spawnBurst(sys, pos, dir, 0xff3a08, 0.65);
     spawnBurst(sys, pos, dir, 0xff9020, 0.5);
     spawnBurst(sys, pos, dir, 0xffe8a0, 0.35);
-    spawnEmbers(sys, pos, dir, 28, "spark");
-    spawnEmbers(sys, pos, dir, 14, "coal");
+    spawnFireShards(sys, pos, dir);
   }
 
   applyAoeDamage(
@@ -363,36 +353,81 @@ export function updateSmokePuffs(sys, dt) {
 
 export function updateFireDebris(sys, dt) {
   if (!sys.fireDebris?.length) return;
+
   for (let i = sys.fireDebris.length - 1; i >= 0; i--) {
-    const d = sys.fireDebris[i];
-    d.t += dt;
-    if (d.t < 0) continue;
-    const u = d.t / d.life;
-    d.vel.addScaledVector(d.gravity, dt);
-    d.vel.multiplyScalar(d.drag);
-    d.mesh.position.addScaledVector(d.vel, dt);
+    const s = sys.fireDebris[i];
+    s.t += dt;
 
-    if (d.rotVel) {
-      d.mesh.rotation.x += d.rotVel.x * dt;
-      d.mesh.rotation.y += d.rotVel.y * dt;
-      d.mesh.rotation.z += d.rotVel.z * dt;
-    }
+    if (s.state === "air") {
+      const pos = s.mesh.position;
+      tmp.dir.copy(pos);
+      const rLen = tmp.dir.length();
+      if (rLen > 1e-6) tmp.dir.multiplyScalar(1 / rLen);
+      else tmp.dir.copy(s.dir);
 
-    if (d.kind === "coal" && d.mat.emissiveIntensity != null) {
-      const heat = Math.max(0, 1 - u * 1.1);
-      d.mat.emissiveIntensity = heat * 1.6;
-      d.mat.color.setRGB(0.08 + heat * 0.2, 0.04 + heat * 0.1, 0.02);
-      d.mat.opacity = 0.95 * (1 - u * 0.3);
-    } else {
-      d.mesh.scale.setScalar(1 - u * 0.4);
-      d.mat.opacity = Math.max(0, 0.95 * (1 - u));
-    }
+      s.vel.addScaledVector(tmp.dir, -11.5 * dt);
+      s.vel.multiplyScalar(0.982);
+      pos.addScaledVector(s.vel, dt);
 
-    if (u >= 1) {
-      sys.planetGroup.remove(d.mesh);
-      d.mesh.geometry.dispose();
-      d.mat.dispose();
-      sys.fireDebris.splice(i, 1);
+      s.mesh.rotation.x += s.rotVel.x * dt;
+      s.mesh.rotation.y += s.rotVel.y * dt;
+      s.mesh.rotation.z += s.rotVel.z * dt;
+
+      tmp.dir.copy(pos);
+      const len = tmp.dir.length();
+      if (len < 1e-6) continue;
+      tmp.dir.multiplyScalar(1 / len);
+      s.dir.copy(tmp.dir);
+
+      const groundR = sys.terrain.height(s.dir) + s.radius * 0.35;
+      if (len <= groundR) {
+        s.mesh.position.copy(s.dir).multiplyScalar(groundR);
+        _quat.setFromUnitVectors(_yUp, s.dir);
+        s.mesh.quaternion.copy(_quat);
+        s.mesh.rotation.x += s.rotVel.x * 0.12;
+        s.mesh.rotation.z += s.rotVel.z * 0.12;
+        s.state = "ground";
+        s.groundT = 0;
+        s.vel.set(0, 0, 0);
+      }
+    } else if (s.state === "ground") {
+      s.groundT += dt;
+      const h = sys.terrain.height(s.dir) + s.radius * 0.35;
+      s.mesh.position.copy(s.dir).multiplyScalar(h);
+      _quat.setFromUnitVectors(_yUp, s.dir);
+      s.mesh.quaternion.copy(_quat);
+
+      const glow = Math.max(0.15, 1 - s.groundT * 0.35);
+      s.mat.emissiveIntensity = (s.hot ? 1.3 : 0.9) * glow;
+
+      if (s.groundT >= s.restTime) {
+        s.state = "cool";
+        s.coolT = 0;
+        s.coolFrom = s.mat.color.clone();
+        s.emFrom = s.mat.emissiveIntensity;
+      }
+    } else if (s.state === "cool") {
+      s.coolT += dt;
+      const u = s.coolT / s.coolLife;
+      const h = sys.terrain.height(s.dir) + s.radius * 0.3 * (1 - u * 0.5);
+      s.mesh.position.copy(s.dir).multiplyScalar(h);
+
+      s.mesh.scale.set(
+        s.baseScale.x * (1 - u * 0.15),
+        s.baseScale.y * (1 - u * 0.35),
+        s.baseScale.z * (1 - u * 0.15)
+      );
+
+      s.mat.emissiveIntensity = s.emFrom * (1 - u * u);
+      if (s.coolFrom) s.mat.color.copy(s.coolFrom).lerp(_coalCol, u);
+      s.mat.opacity = 0.96 * (1 - u);
+
+      if (u >= 1) {
+        sys.planetGroup.remove(s.mesh);
+        s.mesh.geometry.dispose();
+        s.mat.dispose();
+        sys.fireDebris.splice(i, 1);
+      }
     }
   }
 }
