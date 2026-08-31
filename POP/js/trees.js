@@ -65,9 +65,9 @@ function pushCylinder(verts, idx, a, b, r0, r1, seg = 5) {
   for (let i = 0; i < seg; i++) {
     const i0 = base + i;
     const i1 = base + ((i + 1) % seg);
-    const i2 = base + seg + 1 + i;
-    const i3 = base + seg + 1 + ((i + 1) % seg);
-    idx.push(i0, i2, i1, i1, i2, i3);
+    const i2 = base + seg + i;
+    const i3 = base + seg + ((i + 1) % seg);
+    idx.push(i0, i1, i2, i1, i3, i2);
   }
 }
 
@@ -150,7 +150,7 @@ function buildTreeVariant(rng, protoHeight = 4) {
   const leafI = [];
 
   const trunkH = protoHeight * (0.48 + rng() * 0.08);
-  const trunkR = 0.09 + rng() * 0.03;
+  const trunkR = 0.12 + rng() * 0.04;
   pushCylinder(
     woodV,
     woodI,
@@ -227,13 +227,15 @@ export class Trees {
     this.woodMat = new THREE.MeshStandardMaterial({
       color: 0x5a3d22,
       roughness: 0.92,
-      metalness: 0
+      metalness: 0,
+      side: THREE.DoubleSide
     });
     this.leafMat = new THREE.MeshStandardMaterial({
       color: 0x3d8a32,
       roughness: 0.82,
       metalness: 0,
-      flatShading: true
+      flatShading: true,
+      side: THREE.DoubleSide
     });
 
     this.#scatter(seed);
