@@ -59,10 +59,7 @@ void main() {
   vec3 scorchCol = mix(scCore, scRim, t * t * (3.0 - 2.0 * t));
   float scorchA = uOpacity * mix(0.94, 0.72, t * t);
 
-  if (vWater > 0.5) {
-    gl_FragColor = vec4(0.018, 0.009, 0.005, mix(uOpacity * 0.96, scorchA, uCool));
-    return;
-  }
+  if (vWater > 0.5) discard;
 
   float pulseAmt = 1.0 - uCool;
   float pulse = 1.0 + pulseAmt * 0.28 * sin(uTime * 6.2 + vHeat * 14.0);
@@ -137,7 +134,7 @@ function buildLavaMesh(sys, centerDir) {
 
   const mat = lavaMaterial();
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.renderOrder = 4;
+  mesh.renderOrder = 0;
   sys.planetGroup.add(mesh);
 
   return { mesh, mat, centerDir: centerDir.clone(), waters };
@@ -368,7 +365,7 @@ function finalizeVolcanoAsScorch(sys, volcano) {
   const reach = new Float32Array(SEGS);
   for (let i = 0; i < SEGS; i++) reach[i] = volcano.segMax[i];
 
-  volcano.lava.mesh.renderOrder = 2;
+  volcano.lava.mesh.renderOrder = 0;
   sys.scorchMarks.push({
     kind: "irregular",
     mesh: volcano.lava.mesh,

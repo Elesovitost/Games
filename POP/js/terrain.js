@@ -122,6 +122,22 @@ export class Terrain {
     lerp3(out, CONFIG.landColor, [0.22, 0.5, 0.16], Math.min(1, (elev - 0.55) / 2.8));
     out[0] += beachN * 0.025;
     out[1] += beachN * 0.035;
+
+    const rockStart = 3.5;
+    const rockFull = 5;
+    if (elev > rockStart) {
+      const rockT = smoothFalloff(Math.min(1, (elev - rockStart) / (rockFull - rockStart)));
+      const gray = [
+        0.44 + grain * 0.06 + beachN * 0.015,
+        0.42 + grain * 0.05 + beachN * 0.015,
+        0.4 + grain * 0.04
+      ];
+      lerp3(out, out, gray, rockT);
+      if (elev > rockFull) {
+        const highT = smoothFalloff(Math.min(1, (elev - rockFull) / 6));
+        lerp3(out, out, [0.35, 0.34, 0.32], highT * 0.4);
+      }
+    }
     return out;
   }
 

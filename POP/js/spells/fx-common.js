@@ -132,7 +132,7 @@ export function spawnScorchMark(sys, dir, radiusM) {
   geo.computeVertexNormals();
 
   const mesh = new THREE.Mesh(geo, scorchMaterial());
-  mesh.renderOrder = 2;
+  mesh.renderOrder = 0;
   sys.planetGroup.add(mesh);
   sys.scorchMarks.push({
     mesh,
@@ -177,7 +177,7 @@ export function spawnIrregularScorchMark(sys, dir, reachBySeg, segments = 64) {
   geo.setIndex(indices);
 
   const mesh = new THREE.Mesh(geo, scorchMaterial());
-  mesh.renderOrder = 2;
+  mesh.renderOrder = 0;
   sys.planetGroup.add(mesh);
 
   const mark = {
