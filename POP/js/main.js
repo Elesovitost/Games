@@ -23,8 +23,6 @@ class Game {
     this._hitLocal = new THREE.Vector3();
     this.selectedSpell = null;
     this._shoreRefreshAt = 0;
-    this._shadowDirty = true;
-    this._shadowAcc = 0;
     this.wizards = new Map();
     this.inputEnabled = true;
 
@@ -38,7 +36,6 @@ class Game {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
-    this.renderer.shadowMap.autoUpdate = false;
 
     this.scene = new THREE.Scene();
     this.scene.background = null;
@@ -97,7 +94,6 @@ class Game {
     this.water.refreshShore();
     this._shoreRefreshAt = 0;
     this.spawnMarkers?.refresh();
-    this.#markShadowDirty();
   }
 
   enterSolo() {
@@ -116,12 +112,7 @@ class Game {
     this.spells._castOwnerId = w.id;
     placeCamera(this.camera, start);
     this.spawnMarkers?.show();
-    this.#markShadowDirty();
     this.#selectSpell(null);
-  }
-
-  #markShadowDirty() {
-    this._shadowDirty = true;
   }
 
   beginMatch({ players, localId }) {
@@ -157,7 +148,6 @@ class Game {
     }
     this.#selectSpell(null);
     this.lobby?.hide();
-    this.#markShadowDirty();
   }
 
   applyRemoteIntent(fromId, intent) {
@@ -334,41 +324,25 @@ class Game {
     if (this.inputEnabled) {
       const rs = CONFIG.rotSpeed * dt;
       const rsSide = rs * 2;
-      if (this.keys.ArrowLeft) {
-        this.planetGroup.rotateOnWorldAxis(this.camUp, rsSide);
-        this.#markShadowDirty();
-      }
-      if (this.keys.ArrowRight) {
-        this.planetGroup.rotateOnWorldAxis(this.camUp, -rsSide);
-        this.#markShadowDirty();
-      }
-      if (this.keys.ArrowUp) {
-        this.planetGroup.rotateOnWorldAxis(this.camRight, rs);
-        this.#markShadowDirty();
-      }
-      if (this.keys.ArrowDown) {
-        this.planetGroup.rotateOnWorldAxis(this.camRight, -rs);
-        this.#markShadowDirty();
-      }
+      if (this.keys.ArrowLeft) this.planetGroup.rotateOnWorldAxis(this.camUp, rsSide);
+      if (this.keys.ArrowRight) this.planetGroup.rotateOnWorldAxis(this.camUp, -rsSide);
+      if (this.keys.ArrowUp) this.planetGroup.rotateOnWorldAxis(this.camRight, rs);
+      if (this.keys.ArrowDown) this.planetGroup.rotateOnWorldAxis(this.camRight, -rs);
     }
 
     const morphing = this.terrain.updateMorphs(dt);
     if (this.terrain.consumeMorphDirty()) {
       this._shoreRefreshAt -= dt;
       this.spawnMarkers?.refresh();
-      this.#markShadowDirty();
       if (!morphing || this._shoreRefreshAt <= 0) {
         this.water.refreshShore();
         this._shoreRefreshAt = morphing ? 0.45 : 0;
       }
     }
 
-    let anyMoving = false;
     for (const w of this.wizards.values()) {
       w.update(dt, this.keys, this.camRight);
-      if (w.moving) anyMoving = true;
     }
-    if (anyMoving) this._shadowAcc += dt;
     this.spells.update(dt);
     this.spawnMarkers.update(dt);
     this.water.update(dt);
@@ -380,15 +354,7 @@ class Game {
 
     updateSunShadow(this.sun, this.planetGroup);
     this.sky.setSunDirection(this.sun);
-
-    const shadowInterval = 0.4;
-    if (this._shadowDirty || this._shadowAcc >= shadowInterval) {
-      this.sun.shadow.needsUpdate = true;
-      this._shadowDirty = false;
-      this._shadowAcc = 0;
-    } else {
-      this.sun.shadow.needsUpdate = false;
-    }
+    this.renderer.shadowMap.autoUpdate = true;
 
     this.renderer.render(this.scene, this.camera);
     requestAnimationFrame(() => this.#loop());
