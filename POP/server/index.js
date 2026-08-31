@@ -42,6 +42,11 @@ function roomPublic(room) {
 }
 
 function assignRandomSpawns(room, slotCount = 4) {
+  const players = [...room.players.values()];
+  if (players.length <= 2) {
+    for (const p of players) p.spawn = 0;
+    return;
+  }
   const slots = Array.from({ length: slotCount }, (_, i) => i);
   for (let i = slots.length - 1; i > 0; i--) {
     const j = (Math.random() * (i + 1)) | 0;
@@ -227,12 +232,13 @@ wss.on("connection", (ws) => {
       if (!room || room.phase !== "playing") return;
       if (!room.players.has(playerId)) return;
       room.seq += 1;
+      const sender = room.players.get(playerId);
       broadcast(room, {
         type: "intent",
         seq: room.seq,
         from: playerId,
         intent: msg.intent
-      });
+      }, sender?.ws);
       return;
     }
   });

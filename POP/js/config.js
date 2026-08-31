@@ -37,6 +37,8 @@ export const CONFIG = {
   wizardMinTerrainR: PLANET_R * 0.72 + 0.08,
   /** Dojede na klik, když je blíž než tolik metrů po povrchu */
   wizardArrive: 0.55,
+  /** GOD MODE — násobič rychlosti chůze (testování) */
+  godModeSpeedMul: 3,
   spellDuration: 5,
   /** Poloměr morphu elevace/deprese (m) */
   spellRadius: 7.5,
@@ -52,5 +54,9 @@ export const CONFIG = {
   sandColor: [0.9, 0.76, 0.46],
   swampColor: [0.22, 0.08, 0.16],
   netPort: 2567,
+  /** Interval odesílání pose v MP (s) — ~20 Hz */
+  netPoseInterval: 0.05,
+  /** Zpoždění interpolace vzdáleného hráče (s) — vyhlazuje skoky mezi snímky */
+  netPoseInterpDelay: 0.08,
   defaultMapSeed: 20260829
 };

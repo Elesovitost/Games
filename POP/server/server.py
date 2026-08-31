@@ -53,7 +53,11 @@ def room_public(room: dict) -> dict:
 
 
 def assign_random_spawns(room: dict, slot_count: int = 4) -> None:
-    """Každý hráč dostane unikátní náhodný spawn slot."""
+    players = list(room["players"].values())
+    if len(players) <= 2:
+        for p in players:
+            p["spawn"] = 0
+        return
     slots = list(range(slot_count))
     random.shuffle(slots)
     for i, p in enumerate(room["players"].values()):
@@ -244,6 +248,7 @@ async def handler(ws) -> None:
                 if player_id not in room["players"]:
                     continue
                 room["seq"] += 1
+                sender = room["players"].get(player_id)
                 await broadcast(
                     room,
                     {
@@ -252,6 +257,7 @@ async def handler(ws) -> None:
                         "from": player_id,
                         "intent": msg.get("intent"),
                     },
+                    except_ws=sender.get("ws") if sender else None,
                 )
     finally:
         await leave_room(ws)

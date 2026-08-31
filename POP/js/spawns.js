@@ -109,4 +109,12 @@ export class SpawnMarkers {
       cap.emissiveIntensity = pulse * (0.7 + 0.45 * phase);
     }
   }
+
+  hide() {
+    this.group.visible = false;
+  }
+
+  show() {
+    this.group.visible = true;
+  }
 }

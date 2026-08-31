@@ -137,6 +137,7 @@ export function createWizardMesh(robeColor = ROBE) {
 
   body.add(leftLeg, rightLeg, leftArm, rightArm);
   root.add(body);
+  root.frustumCulled = false;
 
   // Nohy na y=0, celková výška = wizardHeightM (2 m)
   const bbox = new THREE.Box3().setFromObject(body);
@@ -274,6 +275,25 @@ export class Wizard {
     this.ghost = null;
     this.ghostT = 0;
     this._ghostMats = [];
+    this._netBuf = [];
+    this._netPool = [];
+    this.godMode = false;
+    this._godGlow = [];
+    this._godLight = null;
+    this._godGlowT = 0;
+
+    this.mesh.traverse((ch) => {
+      if (!ch.isMesh || !ch.material) return;
+      const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
+      for (const m of mats) {
+        if (!m.isMeshStandardMaterial) continue;
+        this._godGlow.push({
+          mat: m,
+          emissive: m.emissive.clone(),
+          intensity: m.emissiveIntensity ?? 0
+        });
+      }
+    });
 
     this.#placeOnLand(this.dir);
     tangentFrame(this.dir, tmp.east, tmp.north);
@@ -300,30 +320,139 @@ export class Wizard {
       this.planetGroup.remove(this.ghost);
       for (const m of this._ghostMats) m.dispose();
     }
+    if (this._godLight) {
+      this.mesh.remove(this._godLight);
+      this._godLight.dispose();
+      this._godLight = null;
+    }
   }
 
-  /** Vzdálený hráč — snap / hladká pozice ze sítě. */
+  /** Vzdálený hráč — přidá snímek pozice do bufferu pro interpolaci. */
   applyNetPose(dirArr, facingArr, flags = {}) {
     if (!this.remote) return;
-    this.dir.set(dirArr[0], dirArr[1], dirArr[2]).normalize();
-    if (facingArr) {
-      this.facing.set(facingArr[0], facingArr[1], facingArr[2]);
+    const t = performance.now() * 0.001;
+    let snap = this._netPool.pop();
+    if (!snap) {
+      snap = {
+        dir: new THREE.Vector3(),
+        facing: new THREE.Vector3(),
+        moving: false,
+        hp: this.hp,
+        time: 0
+      };
     }
-    this.moving = !!flags.moving;
+    snap.dir.set(dirArr[0], dirArr[1], dirArr[2]).normalize();
+    if (facingArr) snap.facing.set(facingArr[0], facingArr[1], facingArr[2]).normalize();
+    else snap.facing.copy(snap.dir);
+    snap.moving = !!flags.moving;
+    if (typeof flags.hp === "number") snap.hp = flags.hp;
+    snap.time = t;
+
+    const buf = this._netBuf;
+    const last = buf[buf.length - 1];
+    if (last && t - last.time < 0.001) {
+      last.dir.copy(snap.dir);
+      last.facing.copy(snap.facing);
+      last.moving = snap.moving;
+      last.hp = snap.hp;
+      last.time = t;
+      this._netPool.push(snap);
+    } else {
+      buf.push(snap);
+    }
+
+    while (buf.length > 24) this._netPool.push(buf.shift());
+  }
+
+  /** Interpolace mezi síťovými snímky (~80 ms zpět v čase). */
+  #updateNetPose() {
+    const buf = this._netBuf;
+    if (!buf.length) return;
+
+    const renderT = performance.now() * 0.001 - CONFIG.netPoseInterpDelay;
+
+    while (buf.length > 2 && buf[1].time <= renderT) {
+      this._netPool.push(buf.shift());
+    }
+
+    const latest = buf[buf.length - 1];
+    if (typeof latest.hp === "number" && !this.dead) this.hp = latest.hp;
+
+    if (buf.length === 1) {
+      this.dir.copy(buf[0].dir);
+      this.facing.copy(buf[0].facing);
+      this.moving = buf[0].moving;
+    } else {
+      const a = buf[0];
+      const b = buf[1];
+      const span = b.time - a.time;
+      const alpha =
+        span > 1e-6
+          ? THREE.MathUtils.clamp((renderT - a.time) / span, 0, 1)
+          : renderT >= b.time
+            ? 1
+            : 0;
+      this.dir.copy(a.dir).slerp(b.dir, alpha);
+      this.facing.copy(a.facing).slerp(b.facing, alpha).normalize();
+      this.moving = alpha >= 0.5 ? b.moving : a.moving;
+    }
     this.wantsWalk = this.moving;
-    if (typeof flags.hp === "number" && !this.dead) {
-      this.hp = flags.hp;
-    }
-    this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
-    this.#applyPose();
   }
 
   get isBusy() {
     return this.casting || this.dead;
   }
 
+  /** Testovací GOD MODE — nesmrtelnost, 3× rychlost, záře. */
+  setGodMode(on) {
+    this.godMode = !!on;
+    if (this.godMode && this.dead) {
+      this.dead = false;
+      this.hp = this.maxHp;
+      if (this.ghost) {
+        this.planetGroup.remove(this.ghost);
+        for (const m of this._ghostMats) m.dispose();
+        this._ghostMats.length = 0;
+        this.ghost = null;
+      }
+      this.#syncHealthUi();
+    }
+    this.#applyGodGlow(this.godMode);
+  }
+
+  #applyGodGlow(on) {
+    if (on && !this._godLight) {
+      this._godLight = new THREE.PointLight(0xffe066, 1.4, 6, 2);
+      this._godLight.position.set(0, 1.1, 0.35);
+      this.mesh.add(this._godLight);
+    } else if (!on && this._godLight) {
+      this.mesh.remove(this._godLight);
+      this._godLight.dispose();
+      this._godLight = null;
+    }
+    for (const g of this._godGlow) {
+      if (on) {
+        g.mat.emissive.setHex(0xffe066);
+        g.mat.emissiveIntensity = 0.55;
+      } else {
+        g.mat.emissive.copy(g.emissive);
+        g.mat.emissiveIntensity = g.intensity;
+      }
+    }
+  }
+
+  #updateGodGlow(dt) {
+    if (!this.godMode) return;
+    this._godGlowT += dt;
+    const pulse = 0.55 + 0.45 * Math.sin(this._godGlowT * 5.5);
+    for (const g of this._godGlow) {
+      g.mat.emissiveIntensity = 0.35 + pulse * 1.1;
+    }
+    if (this._godLight) this._godLight.intensity = 1.1 + pulse * 1.4;
+  }
+
   takeDamage(amount) {
-    if (this.dead || amount <= 0) return;
+    if (this.godMode || this.dead || amount <= 0) return;
     this.hp = Math.max(0, this.hp - amount);
     this.#syncHealthUi();
     if (this.hp <= 0) this.#die();
@@ -343,7 +472,7 @@ export class Wizard {
   }
 
   #die() {
-    if (this.dead) return;
+    if (this.dead || this.godMode) return;
     this.dead = true;
     this.#clearTarget();
     this.casting = false;
@@ -405,7 +534,7 @@ export class Wizard {
   }
 
   #applyDrowning(dt) {
-    if (this.dead || !this.#isHeadSubmerged()) return;
+    if (this.dead || this.godMode || !this.#isHeadSubmerged()) return;
     this.takeDamage(CONFIG.wizardDrownHpPerSec * dt);
   }
 
@@ -532,6 +661,7 @@ export class Wizard {
         this.castT += dt;
         if (this.castT >= this.castDuration) this.#endCast();
       }
+      this.#updateNetPose();
       this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
       this.#applyPose();
       this.#updateWalkBlend(dt);
@@ -561,16 +691,7 @@ export class Wizard {
 
     this._move.set(0, 0, 0);
     if (!this.casting) {
-      if (keys.KeyW) this._move.add(this._fwd);
-      if (keys.KeyS) this._move.sub(this._fwd);
-      if (keys.KeyA) this._move.sub(this._right);
-      if (keys.KeyD) this._move.add(this._right);
-
-      const keyboard = this._move.lengthSq() > 1e-8;
-      if (keyboard) {
-        this.#clearTarget();
-        this._move.normalize();
-      } else if (this.hasTarget) {
+      if (this.hasTarget) {
         const dot = Math.min(1, Math.max(-1, this.dir.dot(this.targetDir)));
         if (Math.acos(dot) <= this.#arriveAngle()) {
           this.#snap(this.targetDir);
@@ -588,7 +709,9 @@ export class Wizard {
 
       if (this.wantsWalk && this.walkBlend > 0.02) {
         this._speedMul = this.#slopeSpeedMul(this._move) * this.#waterSpeedMul();
-        const step = CONFIG.wizardSpeed * this._speedMul * this.walkBlend * dt;
+        const speed =
+          CONFIG.wizardSpeed * (this.godMode ? CONFIG.godModeSpeedMul : 1);
+        const step = speed * this._speedMul * this.walkBlend * dt;
         this._trial.copy(this.mesh.position).addScaledVector(this._move, step);
         if (this._trial.lengthSq() > 1e-8) {
           this._trial.normalize();
@@ -616,6 +739,7 @@ export class Wizard {
 
     this.#applyPose();
     this.#updateWalkBlend(dt);
+    this.#updateGodGlow(dt);
     this.#animate(dt);
     this.marker?.update(dt);
   }

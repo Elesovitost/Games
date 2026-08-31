@@ -49,28 +49,34 @@ export class NetClient {
     const url = wsUrlFor(host);
     return new Promise((resolve, reject) => {
       let settled = false;
+      const finish = (err) => {
+        if (settled) return;
+        settled = true;
+        if (err) reject(err);
+        else resolve(this.playerId);
+      };
+      const timer = setTimeout(() => finish(new Error("Server neodpověděl (welcome)")), 8000);
       try {
         this.ws = new WebSocket(url);
       } catch (e) {
-        reject(e);
+        clearTimeout(timer);
+        finish(e);
         return;
       }
-      const fail = (err) => {
-        if (settled) return;
-        settled = true;
-        reject(err || new Error("Nepodařilo se připojit k " + url));
-      };
       this.ws.onopen = () => {
-        if (settled) return;
-        settled = true;
-        this.onOpen?.();
-        resolve();
+        /* čekáme na welcome s playerId */
       };
-      this.ws.onerror = () => fail();
+      this.ws.onerror = () => {
+        clearTimeout(timer);
+        finish(new Error("Nepodařilo se připojit k " + url));
+      };
       this.ws.onclose = () => {
-        this.ws = null;
-        if (!settled) fail();
-        else this.onClose?.();
+        clearTimeout(timer);
+        if (!settled) finish(new Error("Spojení uzavřeno"));
+        else {
+          this.ws = null;
+          this.onClose?.();
+        }
       };
       this.ws.onmessage = (ev) => {
         let msg;
@@ -79,7 +85,14 @@ export class NetClient {
         } catch {
           return;
         }
-        if (msg.type === "welcome") this.playerId = msg.playerId;
+        if (msg.type === "welcome" && msg.playerId) {
+          this.playerId = msg.playerId;
+          if (!settled) {
+            clearTimeout(timer);
+            this.onOpen?.();
+            finish();
+          }
+        }
         this.onMessage?.(msg);
       };
     });

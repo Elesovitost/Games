@@ -1,4 +1,5 @@
 import { NetClient, loadProfile, saveProfile } from "./client.js";
+import { CONFIG } from "../config.js";
 
 /**
  * Multiplayer session — relay intents přes WebSocket.
@@ -43,7 +44,7 @@ export class MultiplayerSession {
     saveProfile({ name, color, host: "localhost" });
     await this.client.connect("localhost");
     this.isMp = true;
-    this.localId = this.client.playerId;
+    this.localId = String(this.client.playerId);
     this.client.send({ type: "create", name, color });
   }
 
@@ -51,7 +52,7 @@ export class MultiplayerSession {
     saveProfile({ name, color, host });
     await this.client.connect(host);
     this.isMp = true;
-    this.localId = this.client.playerId;
+    this.localId = String(this.client.playerId);
     this.client.send({
       type: "join",
       code: code || "",
@@ -80,7 +81,7 @@ export class MultiplayerSession {
   tickPose(dt) {
     if (!this.isMp || !this.playing) return;
     this._poseAcc += dt;
-    if (this._poseAcc < 0.05) return;
+    if (this._poseAcc < CONFIG.netPoseInterval) return;
     this._poseAcc = 0;
     const w = this.game.wizard;
     if (!w || w.dead) return;
@@ -96,7 +97,7 @@ export class MultiplayerSession {
 
   #onMsg(msg) {
     if (msg.type === "welcome") {
-      this.localId = msg.playerId;
+      this.localId = String(msg.playerId);
       return;
     }
     if (msg.type === "error") {
@@ -117,12 +118,13 @@ export class MultiplayerSession {
     if (msg.type === "started") {
       this.room = msg.room;
       this.playing = true;
-      this.localId = msg.you || this.localId;
+      this.localId = String(msg.you || this.localId || this.client.playerId);
       this.game.beginMatch?.({
         players: msg.room.players,
         localId: this.localId,
         mapId: msg.mapId ?? 0
       });
+      this._poseAcc = 1;
       this.game.lobby?.render(this.room);
       return;
     }
@@ -134,7 +136,7 @@ export class MultiplayerSession {
       return;
     }
     if (msg.type === "intent") {
-      if (msg.from === this.localId) return;
+      if (String(msg.from) === String(this.localId)) return;
       this.game.applyRemoteIntent?.(msg.from, msg.intent);
     }
   }

@@ -103,6 +103,7 @@ class Game {
     this.spells.wizard = w;
     this.spells._castOwnerId = w.id;
     placeCamera(this.camera, start);
+    this.spawnMarkers?.show();
     this.#selectSpell(null);
   }
 
@@ -110,25 +111,31 @@ class Game {
     this.inputEnabled = true;
     this.planetGroup.rotation.set(0, 0, 0);
     this.#clearWizards();
+    this.spawnMarkers?.hide();
 
     const list = Array.isArray(players) ? players : [];
+    const me = String(localId);
     for (const p of list) {
       const slot = Number.isInteger(p.spawn) ? p.spawn % this.landSpawns.length : 0;
       const spawn = this.landSpawns[slot];
-      const isLocal = String(p.id) === String(localId);
+      const pid = String(p.id);
+      const isLocal = pid === me;
       const w = new Wizard(this.planetGroup, this.terrain, spawn, {
-        id: String(p.id),
+        id: pid,
         name: p.name,
         color: p.color,
         remote: !isLocal
       });
-      this.wizards.set(w.id, w);
+      this.wizards.set(pid, w);
       if (isLocal) {
         this.wizard = w;
         this.spells.wizard = w;
         this.spells._castOwnerId = w.id;
         placeCamera(this.camera, spawn);
       }
+    }
+    if (!this.wizard && list.length) {
+      console.warn("[MP] lokální kouzelník nenalezen, localId=", me);
     }
     this.#selectSpell(null);
     this.lobby?.hide();
@@ -211,12 +218,14 @@ class Game {
   }
 
   #bindInput() {
-    const track = (code) =>
-      code.startsWith("Arrow") ||
-      code === "KeyW" || code === "KeyA" || code === "KeyS" || code === "KeyD" ||
-      code === "Escape";
+    const track = (code) => code.startsWith("Arrow") || code === "Escape";
 
     window.addEventListener("keydown", (e) => {
+      if (e.code === "KeyG" && !e.repeat && this.inputEnabled && this.wizard && !this.wizard.remote) {
+        this.wizard.setGodMode(!this.wizard.godMode);
+        e.preventDefault();
+        return;
+      }
       if (e.code === "Escape") {
         this.#selectSpell(null);
         e.preventDefault();
