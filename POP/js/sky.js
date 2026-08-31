@@ -24,33 +24,17 @@ float hash12(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
 
-float starLayer(vec3 dir, float density, vec2 scale) {
+float starField(vec3 dir) {
   float u = atan(dir.z, dir.x) * 0.15915494 + 0.5;
   float v = asin(clamp(dir.y, -1.0, 1.0)) * 0.31830989 + 0.5;
-  vec2 uv = vec2(u, v) * scale;
+  vec2 uv = vec2(u, v) * 520.0;
   vec2 id = floor(uv);
   vec2 f = fract(uv);
-  float star = 0.0;
-
-  for (int j = -1; j <= 1; j++) {
-    for (int i = -1; i <= 1; i++) {
-      vec2 nid = id + vec2(float(i), float(j));
-      float h = hash12(nid);
-      if (h > 1.0 - density) {
-        vec2 pos = vec2(hash12(nid + 17.3), hash12(nid + 41.9));
-        float d = length(f - vec2(float(i), float(j)) - pos);
-        float s = exp(-d * d * 520.0);
-        star += s * (0.45 + 0.55 * hash12(nid + 3.7));
-      }
-    }
-  }
-  return star;
-}
-
-float starField(vec3 dir) {
-  float s1 = starLayer(dir, 0.018, vec2(820.0, 410.0));
-  float s2 = starLayer(dir, 0.006, vec2(1200.0, 600.0));
-  return s1 + s2 * 1.35;
+  float h = hash12(id);
+  if (h < 0.982) return 0.0;
+  vec2 pos = vec2(hash12(id + 17.3), hash12(id + 41.9));
+  float d = length(f - pos);
+  return exp(-d * d * 480.0) * (0.5 + 0.5 * hash12(id + 3.7));
 }
 
 void main() {
@@ -109,7 +93,7 @@ void main() {
 export class Sky {
   constructor(planetGroup) {
     this.group = planetGroup;
-    const geo = new THREE.SphereGeometry(CONFIG.maxR * 3.2, 40, 24);
+    const geo = new THREE.SphereGeometry(CONFIG.maxR * 3.2, 32, 18);
     this.skyMat = new THREE.ShaderMaterial({
       uniforms: { uSunDir: { value: new THREE.Vector3(0.6, 0.7, -0.3) } },
       vertexShader: SKY_VERT,

@@ -4,7 +4,6 @@ import { tangentFrame } from "./utils.js";
 const RING_RADIUS = 2;
 const MUSHROOM_COUNT = 14;
 const SURFACE_LIFT = 0.02;
-const LIGHT_DISTANCE = 3.2;
 const POOL_RADIUS = 0.38;
 
 function makeMushroom(glowColor) {
@@ -17,7 +16,6 @@ function makeMushroom(glowColor) {
   });
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.28, 8), stemMat);
   stem.position.y = 0.14;
-  stem.castShadow = true;
 
   const capMat = new THREE.MeshStandardMaterial({
     color: 0xc45a8c,
@@ -26,10 +24,9 @@ function makeMushroom(glowColor) {
     roughness: 0.55,
     metalness: 0.05
   });
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 10), capMat);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), capMat);
   cap.scale.set(1, 0.55, 1);
   cap.position.y = 0.34;
-  cap.castShadow = true;
 
   const spotMat = new THREE.MeshBasicMaterial({
     color: 0xfff0d0,
@@ -38,7 +35,7 @@ function makeMushroom(glowColor) {
   });
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + 0.3;
-    const spot = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), spotMat);
+    const spot = new THREE.Mesh(new THREE.SphereGeometry(0.035, 5, 4), spotMat);
     spot.position.set(Math.cos(a) * 0.1, 0.38, Math.sin(a) * 0.08);
     g.add(spot);
   }
@@ -49,20 +46,15 @@ function makeMushroom(glowColor) {
     opacity: 0.08,
     depthWrite: false
   });
-  const pool = new THREE.Mesh(new THREE.CircleGeometry(POOL_RADIUS, 16), poolMat);
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(POOL_RADIUS, 12), poolMat);
   pool.rotation.x = -Math.PI / 2;
   pool.position.y = 0.012;
   pool.renderOrder = 1;
   g.add(pool);
 
-  const light = new THREE.PointLight(glowColor, 0.32, LIGHT_DISTANCE, 2);
-  light.position.set(0, 0.38, 0);
-  g.add(light);
-
   g.add(stem, cap);
   g.userData.capMat = capMat;
   g.userData.poolMat = poolMat;
-  g.userData.light = light;
   return g;
 }
 
@@ -156,24 +148,21 @@ export class SpawnMarkers {
     for (const entry of this.entries) this.#placeEntry(entry);
   }
 
+  /** Jen pulz emissive — pozice se mění jen přes refresh(). */
   update(dt) {
     if (!this.group.visible) return;
     this.t += dt;
-    for (const entry of this.entries) this.#placeEntry(entry);
 
     const wave = 0.5 + 0.5 * Math.sin(this.t * 2.4);
     for (let i = 0; i < this.entries.length; i++) {
-      const mush = this.entries[i].mush;
-      const cap = mush.userData.capMat;
-      const pool = mush.userData.poolMat;
-      const light = mush.userData.light;
+      const cap = this.entries[i].mush.userData.capMat;
+      const pool = this.entries[i].mush.userData.poolMat;
       const phase = Math.sin(this.t * 2.4 + i * 0.55);
       const flicker = 0.5 + 0.5 * phase;
       const mix = wave * 0.65 + flicker * 0.35;
 
       if (cap) cap.emissiveIntensity = 0.28 + mix * 0.38;
       if (pool) pool.opacity = 0.03 + mix * 0.1;
-      if (light) light.intensity = 0.12 + mix * 0.38;
     }
   }
 
