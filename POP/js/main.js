@@ -5,6 +5,7 @@ import { Water } from "./water.js";
 import { Sky, createSun, placeCamera } from "./sky.js";
 import { SPAWN_SEEDS, resolveLandSpawns, pickRandomSpawn } from "./maps.js";
 import { SpawnMarkers } from "./spawns.js";
+import { Trees } from "./trees.js";
 import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
 import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./visibility.js";
@@ -59,6 +60,7 @@ class Game {
 
     this.landSpawns = resolveLandSpawns(this.terrain, SPAWN_SEEDS);
     this.spawnMarkers = new SpawnMarkers(this.planetGroup, this.terrain, this.landSpawns);
+    this.trees = new Trees(this.planetGroup, this.terrain);
 
     this.wizard = null;
     this.spells = new SpellSystem(
@@ -399,6 +401,7 @@ class Game {
     if (this.terrain.consumeMorphDirty()) {
       this._shoreRefreshAt -= dt;
       this.spawnMarkers?.refresh();
+      this.trees?.refresh();
       this.spells.refreshScorchMarks();
       if (!morphing || this._shoreRefreshAt <= 0) {
         this.water.refreshShore();
