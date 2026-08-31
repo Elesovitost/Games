@@ -14,19 +14,94 @@ void main() {
 const SKY_FRAG = `
 uniform vec3 uSunDir;
 varying vec3 vDir;
+
+float smoothGrad(float edge0, float edge1, float x) {
+  float t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+  return t * t * (3.0 - 2.0 * t);
+}
+
+float hash12(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+float starLayer(vec3 dir, float density, vec2 scale) {
+  float u = atan(dir.z, dir.x) * 0.15915494 + 0.5;
+  float v = asin(clamp(dir.y, -1.0, 1.0)) * 0.31830989 + 0.5;
+  vec2 uv = vec2(u, v) * scale;
+  vec2 id = floor(uv);
+  vec2 f = fract(uv);
+  float star = 0.0;
+
+  for (int j = -1; j <= 1; j++) {
+    for (int i = -1; i <= 1; i++) {
+      vec2 nid = id + vec2(float(i), float(j));
+      float h = hash12(nid);
+      if (h > 1.0 - density) {
+        vec2 pos = vec2(hash12(nid + 17.3), hash12(nid + 41.9));
+        float d = length(f - vec2(float(i), float(j)) - pos);
+        float s = exp(-d * d * 520.0);
+        star += s * (0.45 + 0.55 * hash12(nid + 3.7));
+      }
+    }
+  }
+  return star;
+}
+
+float starField(vec3 dir) {
+  float s1 = starLayer(dir, 0.018, vec2(820.0, 410.0));
+  float s2 = starLayer(dir, 0.006, vec2(1200.0, 600.0));
+  return s1 + s2 * 1.35;
+}
+
 void main() {
-  float h = clamp(vDir.y * 0.78 + 0.22, 0.0, 1.0);
-  vec3 zenith = vec3(0.12, 0.32, 0.72);
-  vec3 mid = vec3(0.38, 0.62, 0.92);
-  vec3 horizon = vec3(0.78, 0.72, 0.58);
-  vec3 col = mix(horizon, mid, smoothstep(0.0, 0.34, h));
-  col = mix(col, zenith, smoothstep(0.28, 0.98, h));
-  float glow = pow(1.0 - abs(vDir.y), 5.0) * 0.22;
-  col += vec3(1.0, 0.78, 0.42) * glow;
+  vec3 dir = normalize(vDir);
   vec3 sd = normalize(uSunDir);
-  float sunDot = max(dot(normalize(vDir), sd), 0.0);
-  col += vec3(1.0, 0.94, 0.72) * pow(sunDot, 96.0) * 0.9;
-  col += vec3(1.0, 0.82, 0.45) * pow(sunDot, 6.0) * 0.28;
+  float sunDot = dot(dir, sd);
+
+  float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
+
+  // Noc — protilehlá strana slunce
+  vec3 nightZenith = vec3(0.012, 0.018, 0.045);
+  vec3 nightHorizon = vec3(0.035, 0.042, 0.08);
+  vec3 night = mix(nightHorizon, nightZenith, smoothGrad(0.05, 0.95, h));
+
+  // Den — strana slunce
+  vec3 dayZenith = vec3(0.34, 0.58, 0.94);
+  vec3 dayHorizon = vec3(0.82, 0.78, 0.62);
+  vec3 day = mix(dayHorizon, dayZenith, smoothGrad(0.06, 0.88, h));
+
+  // Postupný přechod — mírně ostřejší než předchozí verze
+  float dayAmt = sunDot * 0.5 + 0.5;
+  dayAmt = pow(dayAmt, 0.62);
+  dayAmt = smoothGrad(0.0, 1.0, dayAmt);
+  vec3 col = mix(night, day, dayAmt);
+
+  // Soumrak
+  float twi = smoothGrad(-0.42, 0.06, sunDot) * (1.0 - smoothGrad(0.06, 0.68, sunDot));
+  col += vec3(0.22, 0.10, 0.16) * twi * 0.20;
+  col += vec3(0.18, 0.08, 0.04) * twi * (1.0 - h) * 0.16;
+
+  // Teplé rozptýlení
+  float scatter = smoothGrad(-0.22, 0.90, sunDot);
+  col = mix(col, col + vec3(0.12, 0.09, 0.02), scatter * 0.32);
+
+  // Obzor — den teplý, noc sotva viditelný
+  float horiz = pow(1.0 - abs(dir.y), 5.0);
+  col += mix(vec3(0.02, 0.025, 0.04), vec3(0.10, 0.09, 0.06), dayAmt) * horiz * 0.32;
+
+  // Slunce (jen nad horizontem denní strany)
+  float sunCore = pow(max(sunDot, 0.0), 120.0);
+  float sunHalo = pow(max(sunDot, 0.0), 7.0);
+  col += vec3(1.0, 0.95, 0.78) * sunCore * 0.82;
+  col += vec3(1.0, 0.84, 0.50) * sunHalo * 0.18;
+
+  // Hvězdy — noc plně, soumrak méně, den vůbec
+  float starVis = 1.0 - smoothGrad(0.14, 0.58, dayAmt);
+  starVis *= starVis;
+  float horizonFade = smoothGrad(0.04, 0.28, abs(dir.y) + 0.06);
+  float stars = starField(dir) * starVis * horizonFade;
+  col += vec3(0.88, 0.93, 1.0) * stars * 1.25;
+
   gl_FragColor = vec4(col, 1.0);
 }
 `;

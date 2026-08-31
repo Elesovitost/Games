@@ -38,8 +38,8 @@ class Game {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x5a8fc8);
-    this.scene.fog = new THREE.Fog(0x7aabdb, 55, 195);
+    this.scene.background = null;
+    this.scene.fog = new THREE.Fog(0x283850, 58, 205);
     this.camera = new THREE.PerspectiveCamera(52, 1, 0.3, 800);
 
     this.planetGroup = new THREE.Group();
@@ -93,6 +93,7 @@ class Game {
     this.spells.resetWorld();
     this.water.refreshShore();
     this._shoreRefreshAt = 0;
+    this.spawnMarkers?.refresh();
   }
 
   enterSolo() {
@@ -119,7 +120,7 @@ class Game {
     this.planetGroup.rotation.set(0, 0, 0);
     this.#resetWorld();
     this.#clearWizards();
-    this.spawnMarkers?.hide();
+    this.spawnMarkers?.show();
 
     const list = Array.isArray(players) ? players : [];
     const me = String(localId);

@@ -1,9 +1,11 @@
 import * as THREE from "./three.js";
-import { CONFIG } from "./config.js";
 import { tangentFrame } from "./utils.js";
 
 const RING_RADIUS = 2;
 const MUSHROOM_COUNT = 14;
+const SURFACE_LIFT = 0.02;
+const LIGHT_DISTANCE = 3.2;
+const POOL_RADIUS = 0.38;
 
 function makeMushroom(glowColor) {
   const g = new THREE.Group();
@@ -41,72 +43,137 @@ function makeMushroom(glowColor) {
     g.add(spot);
   }
 
+  const poolMat = new THREE.MeshBasicMaterial({
+    color: glowColor,
+    transparent: true,
+    opacity: 0.08,
+    depthWrite: false
+  });
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(POOL_RADIUS, 16), poolMat);
+  pool.rotation.x = -Math.PI / 2;
+  pool.position.y = 0.012;
+  pool.renderOrder = 1;
+  g.add(pool);
+
+  const light = new THREE.PointLight(glowColor, 0.32, LIGHT_DISTANCE, 2);
+  light.position.set(0, 0.38, 0);
+  g.add(light);
+
   g.add(stem, cap);
   g.userData.capMat = capMat;
+  g.userData.poolMat = poolMat;
+  g.userData.light = light;
   return g;
 }
 
-/** Světélkující kruh hub (r = 2 m) na spawn pointu. */
+/** Světélkující kruh hub (r = 2 m) na spawn pointu — sleduje aktuální povrch. */
 export class SpawnMarkers {
   constructor(planetGroup, terrain, spawnDirs) {
     this.planetGroup = planetGroup;
     this.terrain = terrain;
     this.group = new THREE.Group();
     this.planetGroup.add(this.group);
-    this.mushrooms = [];
+    /** @type {{ mush: THREE.Group, ringDir: THREE.Vector3, angle: number, scale: number }[]} */
+    this.entries = [];
     this.t = 0;
 
     this._east = new THREE.Vector3();
     this._north = new THREE.Vector3();
     this._dir = new THREE.Vector3();
     this._tmp = new THREE.Vector3();
-    this._radial = new THREE.Vector3();
+    this._tmp2 = new THREE.Vector3();
+    this._mushDir = new THREE.Vector3();
+    this._p0 = new THREE.Vector3();
+    this._pE = new THREE.Vector3();
+    this._pN = new THREE.Vector3();
+    this._n = new THREE.Vector3();
     this._yUp = new THREE.Vector3(0, 1, 0);
-    this._center = new THREE.Vector3();
 
     const colors = [0x66ffc8, 0xa8f0ff, 0xffd080, 0xe8a0ff];
     for (let s = 0; s < spawnDirs.length; s++) {
       this.#buildRing(spawnDirs[s], colors[s % colors.length]);
     }
+    this.refresh();
   }
 
   #buildRing(spawnArr, glowColor) {
     this._dir.fromArray(spawnArr).normalize();
-    tangentFrame(this._dir, this._east, this._north);
-    const hCenter = this.terrain.height(this._dir);
-    this._center.copy(this._dir).multiplyScalar(hCenter);
-
     for (let i = 0; i < MUSHROOM_COUNT; i++) {
-      const a = (i / MUSHROOM_COUNT) * Math.PI * 2;
-      const ox = Math.cos(a) * RING_RADIUS;
-      const oy = Math.sin(a) * RING_RADIUS;
-
-      this._tmp.copy(this._center)
-        .addScaledVector(this._east, ox)
-        .addScaledVector(this._north, oy)
-        .normalize();
-
-      const h = this.terrain.height(this._tmp);
-      // +Y stonku = radiála od středu (stabilní, bez krocení při rotaci planety)
+      const angle = (i / MUSHROOM_COUNT) * Math.PI * 2;
       const mush = makeMushroom(glowColor);
-      mush.position.copy(this._tmp).multiplyScalar(h);
-      this._radial.copy(this._tmp);
-      mush.quaternion.setFromUnitVectors(this._yUp, this._radial);
       mush.scale.setScalar(0.85 + (i % 3) * 0.12);
-
       this.group.add(mush);
-      this.mushrooms.push(mush);
+      this.entries.push({
+        mush,
+        ringDir: this._dir.clone(),
+        angle,
+        scale: mush.scale.x
+      });
     }
   }
 
+  /** Směr + normála povrchu v bodě (local dir). */
+  #surfaceAt(dir, outPos, outNormal) {
+    const h = this.terrain.height(dir);
+    this._p0.copy(dir).multiplyScalar(h);
+
+    tangentFrame(dir, this._east, this._north);
+    const eps = 0.035;
+    this._tmp.copy(dir).addScaledVector(this._east, eps).normalize();
+    this._pE.copy(this._tmp).multiplyScalar(this.terrain.height(this._tmp));
+    this._tmp2.copy(dir).addScaledVector(this._north, eps).normalize();
+    this._pN.copy(this._tmp2).multiplyScalar(this.terrain.height(this._tmp2));
+
+    outNormal.crossVectors(this._pE.sub(this._p0), this._pN.sub(this._p0));
+    if (outNormal.lengthSq() < 1e-10) outNormal.copy(dir);
+    else outNormal.normalize();
+    if (outNormal.dot(dir) < 0) outNormal.negate();
+
+    outPos.copy(this._p0);
+  }
+
+  #placeEntry(entry) {
+    const { mush, ringDir, angle, scale } = entry;
+    tangentFrame(ringDir, this._east, this._north);
+    const ox = Math.cos(angle) * RING_RADIUS;
+    const oy = Math.sin(angle) * RING_RADIUS;
+    const hCenter = this.terrain.height(ringDir);
+    this._mushDir
+      .copy(ringDir)
+      .multiplyScalar(hCenter)
+      .addScaledVector(this._east, ox)
+      .addScaledVector(this._north, oy)
+      .normalize();
+
+    this.#surfaceAt(this._mushDir, this._p0, this._n);
+    mush.position.copy(this._p0).addScaledVector(this._n, SURFACE_LIFT);
+    mush.quaternion.setFromUnitVectors(this._yUp, this._n);
+    mush.scale.setScalar(scale);
+  }
+
+  /** Přepočítá pozice hub podle aktuálního terénu (po morphu / resetu). */
+  refresh() {
+    for (const entry of this.entries) this.#placeEntry(entry);
+  }
+
   update(dt) {
+    if (!this.group.visible) return;
     this.t += dt;
-    const pulse = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(this.t * 2.8));
-    for (let i = 0; i < this.mushrooms.length; i++) {
-      const cap = this.mushrooms[i].userData.capMat;
-      if (!cap) continue;
-      const phase = Math.sin(this.t * 2.8 + i * 0.45);
-      cap.emissiveIntensity = pulse * (0.7 + 0.45 * phase);
+    for (const entry of this.entries) this.#placeEntry(entry);
+
+    const wave = 0.5 + 0.5 * Math.sin(this.t * 2.4);
+    for (let i = 0; i < this.entries.length; i++) {
+      const mush = this.entries[i].mush;
+      const cap = mush.userData.capMat;
+      const pool = mush.userData.poolMat;
+      const light = mush.userData.light;
+      const phase = Math.sin(this.t * 2.4 + i * 0.55);
+      const flicker = 0.5 + 0.5 * phase;
+      const mix = wave * 0.65 + flicker * 0.35;
+
+      if (cap) cap.emissiveIntensity = 0.28 + mix * 0.38;
+      if (pool) pool.opacity = 0.03 + mix * 0.1;
+      if (light) light.intensity = 0.12 + mix * 0.38;
     }
   }
 
