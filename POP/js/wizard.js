@@ -208,6 +208,7 @@ export class Wizard {
     this.mesh = createWizardMesh(this.color);
     this.planetGroup.add(this.mesh);
     this.footprints = this.remote ? null : new WalkFootprints(planetGroup, terrain);
+    this.#createSoftShadow();
 
     this.dir = new THREE.Vector3().fromArray(spawnDir).normalize();
     this.facing = new THREE.Vector3();
@@ -253,15 +254,21 @@ export class Wizard {
     this._godGlowT = 0;
     this.knockdown = null;
     this.tornado = null;
+    this.invis = null;
+    this._bodyMats = [];
     this._knockSeq = 0;
     this._lastKnockSeqApplied = 0;
     /** MP — po knockdownu pošle intent (nastaví main.js). */
     this.onKnockdown = null;
 
     this.mesh.traverse((ch) => {
-      if (!ch.isMesh || !ch.material) return;
+      if (!ch.isMesh || !ch.material || ch === this._softShadow) return;
       const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
       for (const m of mats) {
+        if (m.userData._invisBaseOp == null) {
+          m.userData._invisBaseOp = m.opacity ?? 1;
+        }
+        this._bodyMats.push(m);
         if (!m.isMeshStandardMaterial) continue;
         this._godGlow.push({
           mat: m,
@@ -301,6 +308,13 @@ export class Wizard {
       this.mesh.remove(this._godLight);
       this._godLight.dispose();
       this._godLight = null;
+    }
+    if (this._softShadow) {
+      this.mesh.remove(this._softShadow);
+      this._softShadow.geometry.dispose();
+      this._softShadowMat.dispose();
+      this._softShadow = null;
+      this._softShadowMat = null;
     }
   }
 
@@ -359,6 +373,7 @@ export class Wizard {
 
   beginTornadoCapture(centerDir, source = null) {
     if (this.tornado || this.dead || this.godMode || this.casting || this.knockdown) return false;
+    this.breakInvisibility();
     this.#clearTarget();
     this.wantsWalk = false;
     this.moving = false;
@@ -519,6 +534,7 @@ export class Wizard {
     if (nextSeq <= this._lastKnockSeqApplied) return;
 
     this._lastKnockSeqApplied = nextSeq;
+    this.breakInvisibility();
     this.#clearTarget();
     if (this.casting) this.#endCast();
     this.wantsWalk = false;
@@ -688,6 +704,7 @@ export class Wizard {
 
   #die() {
     if (this.dead || this.godMode) return;
+    this.breakInvisibility();
     this.dead = true;
     this.knockdown = null;
     this.tornado = null;
@@ -825,6 +842,8 @@ export class Wizard {
   /** Začni vizuální show kouzlení směrem k cíli. onComplete po skončení. */
   startCast(targetDir, duration = CONFIG.spellDuration, onComplete = null) {
     if (this.isBusy) return false;
+    // Kouzlení v neviditelnosti = okamžité zviditelnění
+    this.breakInvisibility();
     this.#clearTarget();
     this.wantsWalk = false;
     this.casting = true;
@@ -839,6 +858,111 @@ export class Wizard {
     const parts = this.mesh.userData.parts;
     if (parts?.castFx) parts.castFx.visible = true;
     return true;
+  }
+
+  /**
+   * Neviditelnost: lokální hráč semitransparent, remote úplně skrytý.
+   * Po hold sekundách se najednou znovu plně zviditelní.
+   */
+  beginInvisibility(opts = {}) {
+    if (this.dead) return;
+    this.invis = {
+      t: 0,
+      hold: opts.hold ?? 10,
+      localOpacity: opts.localOpacity ?? 0.5,
+      remoteOpacity: opts.remoteOpacity ?? 0
+    };
+    this.#applyInvisOpacity();
+  }
+
+  breakInvisibility() {
+    if (!this.invis) return;
+    this.invis = null;
+    this.#setBodyOpacity(1);
+    if (!this.dead) this.mesh.visible = true;
+  }
+
+  #invisOpacity() {
+    const inv = this.invis;
+    if (!inv) return 1;
+    return this.remote ? inv.remoteOpacity : inv.localOpacity;
+  }
+
+  #applyInvisOpacity() {
+    this.#setBodyOpacity(this.#invisOpacity());
+  }
+
+  #setBodyOpacity(op) {
+    const hidden = this.remote && op < 0.02;
+    if (!this.dead) this.mesh.visible = !hidden;
+
+    for (const m of this._bodyMats) {
+      const base = m.userData._invisBaseOp ?? 1;
+      const o = Math.min(1, Math.max(0, base * op));
+      m.transparent = o < 0.999;
+      m.opacity = o;
+      m.depthWrite = o > 0.85;
+      m.needsUpdate = true;
+    }
+
+    // Shadow-map stín umí jen zap/vyp — při neviditelnosti vypnout a použít měkký stín s opacity
+    const fullyVisible = op >= 0.995;
+    this.mesh.traverse((ch) => {
+      if (!ch.isMesh || ch === this._softShadow) return;
+      ch.castShadow = fullyVisible && !hidden;
+    });
+    this.#updateSoftShadow(op, hidden);
+
+    if (this.footprints?.group) {
+      if (op <= 0.85) this.footprints.group.visible = false;
+      else if (this.hasTarget) this.footprints.show(this.targetDir, this.dir);
+    }
+  }
+
+  /** Měkký kontaktní stín pod nohama — opacity kopíruje neviditelnost. */
+  #createSoftShadow() {
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2
+    });
+    const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.55, 28), mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = 0.03;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.renderOrder = 1;
+    mesh.visible = false;
+    mesh.frustumCulled = false;
+    this.mesh.add(mesh);
+    this._softShadow = mesh;
+    this._softShadowMat = mat;
+  }
+
+  #updateSoftShadow(op, hidden = false) {
+    if (!this._softShadow || !this._softShadowMat) return;
+    if (hidden || op >= 0.995) {
+      this._softShadow.visible = false;
+      this._softShadowMat.opacity = 0;
+      return;
+    }
+    // Stejná „síla“ stínu jako tělo — při 50 % neviditelnosti i stín na ~50 %
+    const softOp = Math.max(0, Math.min(1, op)) * 0.55;
+    this._softShadowMat.opacity = softOp;
+    this._softShadow.visible = softOp > 0.02;
+    this._softShadow.scale.setScalar(0.85 + (1 - op) * 0.25);
+  }
+
+  #updateInvisibility(dt) {
+    if (!this.invis) return;
+    this.invis.t += dt;
+    if (this.invis.t >= this.invis.hold) {
+      this.breakInvisibility();
+    }
   }
 
   #placeOnLand(preferred) {
@@ -898,6 +1022,7 @@ export class Wizard {
       this.#applyPose();
       this.#updateWalkBlend(dt);
       this.#animate(dt);
+      this.#updateInvisibility(dt);
       if (this.dead) this.#updateGhost(dt);
       return;
     }
@@ -920,6 +1045,7 @@ export class Wizard {
       this.#updateWalkBlend(dt);
       this.#updateGodGlow(dt);
       this.#animate(dt);
+      this.#updateInvisibility(dt);
       this.footprints?.update(dt);
       return;
     }
@@ -929,6 +1055,7 @@ export class Wizard {
       this.#updateWalkBlend(dt);
       this.#updateGodGlow(dt);
       this.#animate(dt);
+      this.#updateInvisibility(dt);
       this.footprints?.update(dt);
       return;
     }
@@ -998,6 +1125,7 @@ export class Wizard {
     this.#updateWalkBlend(dt);
     this.#updateGodGlow(dt);
     this.#animate(dt);
+    this.#updateInvisibility(dt);
     this.footprints?.update(dt);
   }
 

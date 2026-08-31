@@ -219,9 +219,29 @@ class Game {
       e.stopPropagation();
       if (!this.inputEnabled || !this.wizard || this.wizard.isBusy) return;
       const id = btn.getAttribute("data-spell");
+      const def = SPELLS[id];
+      if (def?.selfCast) {
+        this.#castSelfSpell(id);
+        return;
+      }
       if (this.selectedSpell === id) this.#selectSpell(null);
       else this.#selectSpell(id);
     });
+  }
+
+  /** Kouzlo bez cíle — cast rovnou na sebe. */
+  #castSelfSpell(spellId) {
+    if (!this.wizard || this.wizard.isBusy) return;
+    const def = SPELLS[spellId];
+    if (!def?.selfCast) return;
+    const target = this.wizard.dir.clone();
+    this.session.sendIntent({
+      kind: "cast",
+      spell: spellId,
+      target: [target.x, target.y, target.z]
+    });
+    this.spells.castAs(this.wizard, spellId, target);
+    this.#selectSpell(null);
   }
 
   #selectSpell(id) {

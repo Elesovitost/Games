@@ -10,6 +10,7 @@ import { strikeLightning as doStrikeLightning, updateBolts } from "./lightning.j
 import { spawnTornado as doSpawnTornado, updateTornados, prepareTornadoEffects as doPrepareTornadoEffects, updateTornadoPull, updateTornadoVictims, disposeTornados } from "./tornado.js";
 import { spawnVolcano as doSpawnVolcano, updateVolcanos, disposeVolcanos } from "./volcano.js";
 import { updateWaterFx } from "./water-fx.js";
+import { applyInvisibility } from "./invisibility.js";
 
 export class SpellSystem {
   constructor(planetGroup, terrain, wizard, getWizards = null) {
@@ -45,6 +46,10 @@ export class SpellSystem {
   showRange(spellId) {
     const def = SPELLS[spellId];
     if (!def) {
+      this.hideAiming();
+      return;
+    }
+    if (def.selfCast) {
       this.hideAiming();
       return;
     }
@@ -353,6 +358,7 @@ export class SpellSystem {
       if (spellId === "lightning") this.strikeLightning(target);
       else if (spellId === "fireball") this.launchFireball(target);
       else if (spellId === "iceball") this.launchIceball(target);
+      else if (spellId === "invisibility") applyInvisibility(this, wizard);
       restore();
       onDone?.();
     };

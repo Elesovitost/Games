@@ -82,5 +82,19 @@ export const SPELLS = {
     lavaFlowTime: 3.2,
     lavaFadeTime: 2.4,
     hint: "3 s kouzlení, pak sopka — láva až 50 m, 20 HP/s. Po zmizení spáleniště."
+  },
+  invisibility: {
+    id: "invisibility",
+    /** Klik na ikonu = rovnou cast (bez míření) */
+    selfCast: true,
+    range: 0,
+    castTime: 3,
+    holdTime: 10,
+    /** Lokální hráč vidí sebe na 50 % */
+    localOpacity: 0.5,
+    /** Ostatní v MP nevidí vůbec */
+    remoteOpacity: 0,
+    color: 0xc8b8e8,
+    hint: "Klikni — 3 s kouzlení, pak 10 s neviditelnost. Kouzlení zruší efekt."
   }
 };
