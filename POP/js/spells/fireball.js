@@ -126,6 +126,13 @@ function explodeFireball(sys, pos, dir) {
   const def = SPELLS.fireball;
   const onWater = isWaterAt(sys, dir);
 
+  const listener = sys.getListenerDir?.(tmp.dir2);
+  if (listener) {
+    sys.audio?.playAt("fireballImpact", dir, listener, {
+      rate: 0.92 + Math.random() * 0.14
+    });
+  }
+
   if (onWater) {
     spawnWaterSplash(sys, dir, def.burnRadius * 1.6);
     spawnBurst(sys, pos, dir, 0xd8ecff, 0.45);
@@ -149,6 +156,10 @@ function explodeFireball(sys, pos, dir) {
 }
 
 function disposeFireball(sys, p) {
+  if (p.sfxHiss) {
+    sys.audio?.stopHiss(p.sfxHiss, 0.04);
+    p.sfxHiss = null;
+  }
   sys.planetGroup.remove(p.ball);
   for (const g of p.geos) g.dispose();
   for (const m of p.mats) m.dispose();
@@ -239,6 +250,11 @@ export function launchFireball(sys, targetDir) {
   ball.frustumCulled = false;
   sys.planetGroup.add(ball);
 
+  const fromDir = from.clone().normalize();
+  const listener = sys.getListenerDir?.(tmp.dir2);
+  const sfxHiss =
+    listener && sys.audio ? sys.audio.startHiss(fromDir, listener) : null;
+
   sys.projectiles.push({
     kind: "fireball",
     ball,
@@ -253,7 +269,8 @@ export function launchFireball(sys, targetDir) {
     maxDist: dist + headLift + 6,
     life: 6,
     smokeAcc: 0,
-    burnT: 0
+    burnT: 0,
+    sfxHiss
   });
 }
 
@@ -317,8 +334,21 @@ export function updateFireball(sys, p, dt) {
   const wobble = 1 + 0.1 * Math.sin(p.burnT * 24);
   p.ball.scale.setScalar(wobble);
 
+  if (p.sfxHiss && len > 1e-5) {
+    const listener = sys.getListenerDir?.(tmp.dir2);
+    if (listener) {
+      sys._tmp.copy(pos).multiplyScalar(1 / len);
+      sys.audio?.updateHiss(p.sfxHiss, sys._tmp, listener, dt);
+    }
+  }
+
   if (hit) {
+    if (p.sfxHiss) {
+      sys.audio?.stopHiss(p.sfxHiss, 0.05);
+      p.sfxHiss = null;
+    }
     const dir = len > 1e-5 ? sys._tmp.clone() : p.target.clone();
+    if (len > 1e-5) sys._tmp.copy(pos).multiplyScalar(1 / len);
     const terrainH = len > 1e-5 ? sys.terrain.height(sys._tmp) : CONFIG.waterLevel;
     const surface = terrainH < CONFIG.waterLevel + 0.06 ? CONFIG.waterLevel : terrainH;
     const hitPos =

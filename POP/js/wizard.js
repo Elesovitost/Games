@@ -13,8 +13,6 @@ const ROBE_DARK = 0x0c1424;
 const GOLD = 0xd4a837;
 const GOLD_DIM = 0xa88628;
 const FACE_VOID = 0x060810;
-const MAGIC = 0x5ec8ff;
-const MAGIC_BRIGHT = 0xa8eeff;
 
 function mat(color, opts = {}) {
   const m = new THREE.MeshStandardMaterial({
@@ -48,20 +46,6 @@ export function createWizardMesh(robeColor = ROBE) {
   const goldMat = mat(GOLD, { roughness: 0.55, metalness: 0.35 });
   const goldDimMat = mat(GOLD_DIM, { roughness: 0.6, metalness: 0.25 });
   const voidMat = mat(FACE_VOID, { roughness: 1 });
-  const magicMats = [];
-  const magicMat = mat(MAGIC_BRIGHT, {
-    emissive: MAGIC,
-    emissiveIntensity: 0.5,
-    roughness: 0.35,
-    metalness: 0.1
-  });
-  const magicHotMat = mat(0xffffff, {
-    emissive: MAGIC_BRIGHT,
-    emissiveIntensity: 0.75,
-    roughness: 0.2,
-    metalness: 0.15
-  });
-  magicMats.push(magicMat, magicHotMat);
 
   const leftLeg = new THREE.Group();
   leftLeg.position.set(-0.12, 0.52, 0);
@@ -105,43 +89,90 @@ export function createWizardMesh(robeColor = ROBE) {
   const rightArm = new THREE.Group();
   rightArm.position.set(0.38, 1.34, 0);
   rightArm.add(box(0.22, 0.3, 0.22, robeMat, 0, -0.12, 0));
-  rightArm.add(box(0.22, 0.26, 0.22, magicMat, 0, -0.36, 0));
-  rightArm.add(box(0.14, 0.14, 0.14, magicHotMat, 0.04, -0.48, 0.06));
-  rightArm.add(box(0.1, 0.1, 0.1, magicMat, -0.06, -0.42, 0.1));
-  rightArm.add(box(0.08, 0.08, 0.08, magicHotMat, 0.08, -0.5, -0.04));
+  rightArm.add(box(0.24, 0.08, 0.24, goldMat, 0, -0.34, 0));
+  rightArm.add(box(0.2, 0.16, 0.2, robeDarkMat, 0, -0.48, 0));
 
+  // Cast FX — krouží kolem těla v barvě hráče (ne světélko v ruce)
   const castFx = new THREE.Group();
   castFx.visible = false;
-  castFx.position.set(0, -0.52, 0.1);
-  const sparks = [];
-  const sparkColors = [0xa8eeff, 0x5ec8ff, 0xd4f4ff, 0x88ddff];
-  for (let i = 0; i < 10; i++) {
-    const sm = new THREE.MeshBasicMaterial({
-      color: sparkColors[i % sparkColors.length],
+  castFx.position.set(0, 1.05, 0);
+  const castBase = new THREE.Color(robe);
+  const castBright = castBase.clone().lerp(new THREE.Color(0xffffff), 0.4);
+  const castSoft = castBase.clone().lerp(new THREE.Color(0x000000), 0.15);
+  const castOrbs = [];
+  const castMats = [];
+
+  const mkGlowMat = (hex, opacity = 0.85) => {
+    const m = new THREE.MeshBasicMaterial({
+      color: hex,
       transparent: true,
-      opacity: 0.85,
+      opacity,
       depthWrite: false
     });
-    const sp = new THREE.Mesh(
-      new THREE.SphereGeometry(0.05 + (i % 2) * 0.02, 6, 5),
-      sm
-    );
-    castFx.add(sp);
-    sparks.push(sp);
-  }
-  const ringMat = new THREE.MeshBasicMaterial({
-    color: 0x88ddff,
-    transparent: true,
-    opacity: 0.4,
-    depthWrite: false,
-    side: THREE.DoubleSide
-  });
-  const handRing = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.018, 6, 20), ringMat);
-  handRing.rotation.x = Math.PI / 2;
-  castFx.add(handRing);
-  rightArm.add(castFx);
+    castMats.push(m);
+    return m;
+  };
 
-  body.add(leftLeg, rightLeg, leftArm, rightArm);
+  for (let i = 0; i < 14; i++) {
+    const bright = i % 3 !== 2;
+    const col = bright ? castBright.getHex() : castSoft.getHex();
+    const size = bright ? 0.055 + (i % 3) * 0.02 : 0.07 + (i % 2) * 0.025;
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(size, 6, 5),
+      mkGlowMat(col, 0.55 + (i % 4) * 0.1)
+    );
+    mesh.frustumCulled = false;
+    castFx.add(mesh);
+    castOrbs.push({
+      mesh,
+      kind: "orb",
+      r: 0.55 + (i % 5) * 0.12,
+      y0: -0.35 + (i % 7) * 0.14,
+      speed: 1.4 + (i % 4) * 0.55 + (i % 2) * 0.35,
+      phase: (i / 14) * Math.PI * 2,
+      bob: 0.08 + (i % 3) * 0.04,
+      spin: 2 + (i % 5)
+    });
+  }
+
+  for (let i = 0; i < 6; i++) {
+    const w = 0.04 + (i % 3) * 0.02;
+    const h = 0.1 + (i % 2) * 0.06;
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, w * 0.6),
+      mkGlowMat(i % 2 ? castBright.getHex() : castBase.getHex(), 0.7)
+    );
+    mesh.frustumCulled = false;
+    castFx.add(mesh);
+    castOrbs.push({
+      mesh,
+      kind: "shard",
+      r: 0.7 + (i % 3) * 0.15,
+      y0: -0.15 + (i % 4) * 0.18,
+      speed: -(1.1 + i * 0.22),
+      phase: (i / 6) * Math.PI * 2 + 0.4,
+      bob: 0.1,
+      spin: 3.5 + i * 0.4
+    });
+  }
+
+  const castRings = [];
+  for (let i = 0; i < 2; i++) {
+    const ringMat = mkGlowMat(castBright.getHex(), 0.28 + i * 0.08);
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.72 + i * 0.22, 0.018, 6, 28),
+      ringMat
+    );
+    ring.rotation.x = Math.PI / 2 + (i === 0 ? 0.35 : -0.45);
+    ring.rotation.z = i * 0.6;
+    ring.frustumCulled = false;
+    castFx.add(ring);
+    castRings.push({ mesh: ring, speed: i === 0 ? 1.8 : -1.35 });
+  }
+
+  body.add(leftArm, rightArm);
+  body.add(leftLeg, rightLeg);
+  body.add(castFx);
   root.add(body);
   root.frustumCulled = false;
 
@@ -159,10 +190,9 @@ export function createWizardMesh(robeColor = ROBE) {
     leftArm,
     rightArm,
     castFx,
-    sparks,
-    handRing,
-    ringMat,
-    magicMats
+    castOrbs,
+    castRings,
+    castMats
   };
   return root;
 }
@@ -786,9 +816,6 @@ export class Wizard {
     const parts = this.mesh.userData.parts;
     if (parts) {
       if (parts.castFx) parts.castFx.visible = false;
-      if (parts.magicMats) {
-        for (const m of parts.magicMats) m.emissiveIntensity = 0.5;
-      }
       parts.rightArm.rotation.set(0, 0, 0);
       parts.leftArm.rotation.set(0, 0, 0);
     }
@@ -1018,39 +1045,38 @@ export class Wizard {
         parts.body.position.y = 0;
       }
       const t = this.castT;
-      const pulse = 0.5 + 0.5 * Math.sin(t * 10);
-      const circle = t * 2.4;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 9);
 
-      // Pravá ruka nahoře, lehké kroužení
-      parts.rightArm.rotation.x = -1.35 + Math.sin(t * 1.6) * 0.06;
-      parts.rightArm.rotation.y = Math.sin(circle) * 0.32;
-      parts.rightArm.rotation.z = -0.35 + Math.cos(circle) * 0.22;
-      parts.leftArm.rotation.x = -0.4;
-      parts.leftArm.rotation.z = 0.2;
+      // Obě ruce mírně od těla — channeling, ne světélko v dlani
+      parts.rightArm.rotation.x = -0.55 + Math.sin(t * 1.4) * 0.05;
+      parts.rightArm.rotation.z = -0.55 + Math.sin(t * 2.1) * 0.08;
+      parts.leftArm.rotation.x = -0.55 + Math.cos(t * 1.4) * 0.05;
+      parts.leftArm.rotation.z = 0.55 + Math.cos(t * 2.1) * 0.08;
       parts.leftLeg.rotation.x = 0;
       parts.rightLeg.rotation.x = 0;
-      if (parts.body) parts.body.position.y = 0;
-
-      if (parts.magicMats) {
-        parts.magicMats[0].emissiveIntensity = 0.55 + pulse * 1.2;
-        parts.magicMats[1].emissiveIntensity = 0.75 + pulse * 1.6;
-      }
 
       if (parts.castFx) {
-        if (parts.handRing) {
-          parts.handRing.rotation.z = t * 4.5;
-          parts.handRing.scale.setScalar(0.9 + pulse * 0.25);
-          if (parts.ringMat) parts.ringMat.opacity = 0.3 + pulse * 0.45;
+        if (parts.castOrbs) {
+          for (const o of parts.castOrbs) {
+            const a = t * o.speed + o.phase;
+            const y = o.y0 + Math.sin(t * o.spin + o.phase) * o.bob;
+            o.mesh.position.set(Math.cos(a) * o.r, y, Math.sin(a) * o.r);
+            if (o.kind === "shard") {
+              o.mesh.rotation.set(t * o.spin, a, t * 1.7);
+            }
+            const s = 0.75 + pulse * 0.45;
+            o.mesh.scale.setScalar(s);
+            if (o.mesh.material) {
+              o.mesh.material.opacity = 0.4 + pulse * 0.45;
+            }
+          }
         }
-        if (parts.sparks) {
-          const n = parts.sparks.length;
-          for (let i = 0; i < n; i++) {
-            const sp = parts.sparks[i];
-            const a = circle * 1.2 + (i / n) * Math.PI * 2;
-            const r = 0.12 + 0.06 * Math.sin(t * 5 + i);
-            sp.position.set(Math.cos(a) * r, Math.sin(t * 3 + i) * 0.06, Math.sin(a) * r);
-            sp.scale.setScalar(0.7 + pulse * 0.5);
-            if (sp.material) sp.material.opacity = 0.35 + pulse * 0.5;
+        if (parts.castRings) {
+          for (const r of parts.castRings) {
+            r.mesh.rotation.y = t * r.speed;
+            r.mesh.rotation.z += dt * r.speed * 0.35;
+            r.mesh.scale.setScalar(0.92 + pulse * 0.14);
+            if (r.mesh.material) r.mesh.material.opacity = 0.22 + pulse * 0.28;
           }
         }
       }

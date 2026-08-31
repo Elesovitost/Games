@@ -17,6 +17,8 @@ export class SpellSystem {
     this.terrain = terrain;
     this.wizard = wizard;
     this.getWizards = getWizards || (() => (wizard ? [wizard] : []));
+    this.audio = null;
+    this.getListenerDir = null;
     this._castOwnerId = wizard?.id ?? null;
     this.rangeRing = new RangeRing(planetGroup, terrain);
     this.aim = new AimReticle(planetGroup, terrain);
@@ -378,6 +380,7 @@ export class SpellSystem {
       const prepTime = def.castPrepTime ?? 3;
 
       if (!wizard.startCast(target, prepTime, () => {
+        this.clearSpiral(spiral);
         if (!this.terrain.beginVolcanoMorph(target, {
           coneRadius: def.coneRadius,
           coneHeight: def.coneHeight,
@@ -386,12 +389,10 @@ export class SpellSystem {
           duration: morphDur,
           onComplete: () => {
             doSpawnVolcano(this, target);
-            this.clearSpiral(spiral);
             restore();
             onDone?.();
           }
         })) {
-          this.clearSpiral(spiral);
           restore();
           onDone?.();
         }

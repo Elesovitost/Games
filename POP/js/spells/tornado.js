@@ -339,8 +339,11 @@ export function spawnTornado(sys, targetDir) {
     orbitR2: 2.4 + rng() * 3.2,
     fading: false,
     fadeT: 0,
-    lastTrailDir: anchor.clone()
+    lastTrailDir: anchor.clone(),
+    sfx: null
   };
+  const listener = sys.getListenerDir?.(tmp.dir2);
+  if (listener && sys.audio) t.sfx = sys.audio.startTornado(t.dir, listener);
   if (!sys.tornados) sys.tornados = [];
   sys.tornados.push(t);
   return t;
@@ -621,6 +624,10 @@ function setTornadoAlpha(t, alpha) {
 }
 
 function disposeTornado(sys, t) {
+  if (t.sfx) {
+    sys.audio?.stopTornado(t.sfx, 0.25);
+    t.sfx = null;
+  }
   sys.planetGroup.remove(t.group);
   const v = t.visual;
   v.shellGeo.dispose();
@@ -653,6 +660,11 @@ export function updateTornados(sys, dt) {
       t.spiralPhase -= dt * 5 * (1 - fu * 0.5);
       updateVisual(t.visual, t.pathT, t.spiralPhase);
 
+      if (t.sfx) {
+        const listener = sys.getListenerDir?.(tmp.dir2);
+        if (listener) sys.audio?.updateTornado(t.sfx, t.dir, listener, dt, alpha);
+      }
+
       if (fu >= 1) {
         releaseTornadoVictims(list, t, false);
         disposeTornado(sys, t);
@@ -664,6 +676,11 @@ export function updateTornados(sys, dt) {
     t.t += dt;
     updateTornadoPath(t, dt);
     placeOnSurface(t.group, t.dir, sys.terrain);
+
+    if (t.sfx) {
+      const listener = sys.getListenerDir?.(tmp.dir2);
+      if (listener) sys.audio?.updateTornado(t.sfx, t.dir, listener, dt, 1);
+    }
 
     const trailStep = 0.38;
     const moved = surfaceDist(t.lastTrailDir, t.dir);

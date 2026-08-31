@@ -220,6 +220,14 @@ export function strikeLightning(sys, targetDir) {
     SPELLS.lightning.damageCenter,
     SPELLS.lightning.damageEdge
   );
+
+  // Lokálně u každého klienta — hlasitost podle vzdálenosti od jeho kamery
+  const listener = sys.getListenerDir?.(tmp.dir2);
+  if (listener) {
+    sys.audio?.playAt("lightning", dir, listener, {
+      rate: 0.94 + Math.random() * 0.12
+    });
+  }
 }
 
 export function updateBolts(sys, dt) {

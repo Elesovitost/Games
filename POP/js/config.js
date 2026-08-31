@@ -75,5 +75,11 @@ export const CONFIG = {
   /** Sudy = 1 + (damage/maxHp) × extra; při plném zásahu */
   wizardKnockExtraRotationsMax: 7,
   wizardKnockRollRadius: 0.2,
-  defaultMapSeed: 20260829
+  defaultMapSeed: 20260829,
+  /** SFX: plná hlasitost do této vzdálenosti od pohledu kamery (m) */
+  sfxRefDist: 8,
+  /** SFX: každých tolik metrů hlasitost cca na polovinu */
+  sfxHalfDist: 7,
+  /** SFX: hard cutoff — dál už neslyšet (m) */
+  sfxMaxDist: 110
 };

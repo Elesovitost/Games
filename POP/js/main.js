@@ -14,6 +14,7 @@ import { MultiplayerSession } from "./net/session.js";
 import { LobbyUI } from "./net/lobby.js";
 import { createIntentRouter, createGameIntentHandlers } from "./net/intents.js";
 import { mountGameVersion } from "./game-version.js";
+import { GameAudio } from "./audio.js";
 
 class Game {
   constructor() {
@@ -23,6 +24,7 @@ class Game {
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
     this._hitLocal = new THREE.Vector3();
+    this._listenerDir = new THREE.Vector3();
     this.selectedSpell = null;
     this._shoreRefreshAt = 0;
     this._spawnCamIdx = 0;
@@ -30,6 +32,12 @@ class Game {
     this.inputEnabled = true;
 
     mountGameVersion(document.getElementById("game-version"));
+
+    this.audio = new GameAudio();
+    this.audio.preload();
+    const unlockAudio = () => this.audio.unlock();
+    window.addEventListener("pointerdown", unlockAudio, { once: true });
+    window.addEventListener("keydown", unlockAudio, { once: true });
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
@@ -68,6 +76,9 @@ class Game {
       null,
       () => [...this.wizards.values()]
     );
+    this.spells.audio = this.audio;
+    this.spells.getListenerDir = (out = this._listenerDir) =>
+      getPlanetViewAxis(this.camera, this.planetGroup, out);
 
     this.session = new MultiplayerSession(this);
     this.lobby = new LobbyUI(this, this.session);
