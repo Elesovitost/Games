@@ -113,6 +113,13 @@ class Game {
     this.trees?.refresh();
   }
 
+  #wireWizardAudio(w) {
+    if (!w) return;
+    const listener = () => this.spells.getListenerDir(this._listenerDir);
+    w.onBodyFall = () => this.audio?.playAt("bodyfall", w.dir, listener());
+    w.onScream = () => this.audio?.playRandomScream(w.dir, listener());
+  }
+
   #wireWizardNet(w) {
     if (!w || w.remote) return;
     w.onKnockdown = (kd) => {
@@ -127,6 +134,7 @@ class Game {
         away: !!kd.away
       });
     };
+    w.onCastAudioStop = () => this.audio?.stopCastBackground(w.id);
   }
 
   enterSolo() {
@@ -143,6 +151,7 @@ class Game {
     this.wizard = w;
     this.spells.wizard = w;
     this.spells._castOwnerId = w.id;
+    this.#wireWizardAudio(w);
     this.#wireWizardNet(w);
     placeCamera(this.camera, start);
     this.spawnMarkers?.show();
@@ -176,6 +185,7 @@ class Game {
         remote: !isLocal
       });
       this.wizards.set(pid, w);
+      this.#wireWizardAudio(w);
       if (isLocal) {
         this.wizard = w;
         this.spells.wizard = w;
@@ -460,6 +470,7 @@ class Game {
     const viewAxis = getPlanetViewAxis(this.camera, this.planetGroup, tmp.v);
     this.terrain.setViewAxis(viewAxis);
     this.water.setViewAxis(viewAxis);
+    this.audio.updateCastSpatial(viewAxis, (id) => this.wizards.get(String(id))?.dir);
 
     updateSunShadow(this.sun, this.planetGroup);
     this.sky.setSunDirection(this.sun);

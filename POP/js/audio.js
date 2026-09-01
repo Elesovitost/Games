@@ -1,4 +1,9 @@
 import { CONFIG } from "./config.js";
+import { allIncantationUrls, INCANTATION_DIR, INCANTATION_BG } from "./incantations.js";
+
+const CAST_BG_VOL = 0.1;
+const CAST_VOICE_DELAY = 0.2;
+const CAST_BG_FADE = 0.2;
 
 /** Katalog SFX — refDist = plná hlasitost, halfDist = −50 % / N m. */
 export const SFX = {
@@ -29,8 +34,38 @@ export const SFX = {
     halfDist: CONFIG.sfxHalfDist,
     maxDist: CONFIG.sfxMaxDist,
     gain: 1.35
+  },
+  bodyfall: {
+    url: "./audio/bodyfall.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1
+  },
+  scream1: {
+    url: "./audio/scream1.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1
+  },
+  scream2: {
+    url: "./audio/scream2.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1
+  },
+  scream3: {
+    url: "./audio/scream3.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1
   }
 };
+
+const SCREAM_IDS = ["scream1", "scream2", "scream3"];
 
 /** Vzdálenost po povrchu (m) mezi dvěma směry od středu planety. */
 function surfaceDist(a, b) {
@@ -62,6 +97,9 @@ export class GameAudio {
     this._loading = new Map();
     this._ready = false;
     this._noiseBuf = null;
+    this._incantationBuffers = new Map();
+    this._incantationLoading = new Map();
+    this._castSessions = new Map();
   }
 
   #ensureCtx() {
@@ -121,8 +159,254 @@ export class GameAudio {
     if (!ctx) return;
     this.#noiseBuffer();
     const withUrl = ids.filter((id) => SFX[id]?.url);
-    await Promise.all(withUrl.map((id) => this.#loadOne(id)));
+    await Promise.all([
+      ...withUrl.map((id) => this.#loadOne(id)),
+      this.preloadIncantations()
+    ]);
     this._ready = true;
+  }
+
+  async preloadIncantations() {
+    const ctx = this.#ensureCtx();
+    if (!ctx) return;
+    await Promise.all(allIncantationUrls().map((url) => this.#loadIncantation(url)));
+  }
+
+  async #loadIncantation(url) {
+    if (this._incantationBuffers.has(url)) return this._incantationBuffers.get(url);
+    if (this._incantationLoading.has(url)) return this._incantationLoading.get(url);
+
+    const p = (async () => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Incantation load failed: ${url} (${res.status})`);
+      const raw = await res.arrayBuffer();
+      const buf = await this.ctx.decodeAudioData(raw.slice(0));
+      this._incantationBuffers.set(url, buf);
+      this._incantationLoading.delete(url);
+      return buf;
+    })().catch((err) => {
+      console.warn("[audio]", err);
+      this._incantationLoading.delete(url);
+      return null;
+    });
+
+    this._incantationLoading.set(url, p);
+    return p;
+  }
+
+  #spatialMul(sourceDir, listenerDir) {
+    if (!sourceDir || !listenerDir) return 0;
+    const dist = surfaceDist(sourceDir, listenerDir);
+    return distanceVolume(
+      dist,
+      CONFIG.sfxRefDist,
+      CONFIG.sfxMaxDist,
+      CONFIG.sfxHalfDist
+    );
+  }
+
+  #createEchoConvolver() {
+    const ctx = this.#ensureCtx();
+    if (!ctx) return null;
+    const rate = ctx.sampleRate;
+    const length = rate * 2.0;
+    const impulse = ctx.createBuffer(2, length, rate);
+    for (let i = 0; i < 2; i++) {
+      const channel = impulse.getChannelData(i);
+      for (let j = 0; j < length; j++) {
+        channel[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, 4.0);
+      }
+    }
+    const convolver = ctx.createConvolver();
+    convolver.buffer = impulse;
+    return convolver;
+  }
+
+  /**
+   * Začátek kouzlení — BG 10 % po celou dobu castu, hláška +200 ms (větrný posun z demo).
+   * @param {string} sessionId — typicky wizard.id
+   * @param {string|null} voiceFile
+   * @param {number} castDurationSec
+   * @param {THREE.Vector3} sourceDir
+   * @param {THREE.Vector3} listenerDir
+   */
+  startCastIncantation(sessionId, voiceFile, castDurationSec, sourceDir, listenerDir) {
+    const ctx = this.#ensureCtx();
+    if (!ctx || !sourceDir || !listenerDir) return;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+
+    this.stopCastIncantation(sessionId, 0);
+
+    const bgUrl = INCANTATION_DIR + INCANTATION_BG;
+    const bgBuf = this._incantationBuffers.get(bgUrl);
+    if (!bgBuf) {
+      this.#loadIncantation(bgUrl).then((buf) => {
+        if (buf && !this._castSessions.has(sessionId)) {
+          this.startCastIncantation(sessionId, voiceFile, castDurationSec, sourceDir, listenerDir);
+        }
+      });
+      return;
+    }
+
+    const spatialMul = this.#spatialMul(sourceDir, listenerDir);
+    const now = ctx.currentTime;
+    const fadeStart = now + Math.max(0, castDurationSec);
+    const fadeEnd = fadeStart + CAST_BG_FADE;
+
+    const spatialGain = ctx.createGain();
+    spatialGain.gain.value = spatialMul;
+
+    const bgEnvelope = ctx.createGain();
+    bgEnvelope.gain.setValueAtTime(CAST_BG_VOL, now);
+    bgEnvelope.gain.setValueAtTime(CAST_BG_VOL, fadeStart);
+    bgEnvelope.gain.linearRampToValueAtTime(0, fadeEnd);
+
+    const bgSource = ctx.createBufferSource();
+    bgSource.buffer = bgBuf;
+    bgSource.loop = true;
+    bgSource.connect(bgEnvelope);
+    bgEnvelope.connect(spatialGain);
+    spatialGain.connect(this.master);
+    bgSource.start(now);
+    bgSource.stop(fadeEnd + 0.05);
+
+    const handle = {
+      sessionId,
+      sourceDir: sourceDir.clone(),
+      spatialGain,
+      bgEnvelope,
+      bgSource,
+      voiceNodes: [],
+      voiceWetGain: null,
+      echoConvolver: null
+    };
+    this._castSessions.set(sessionId, handle);
+
+    if (!voiceFile) return;
+
+    const voiceUrl = INCANTATION_DIR + voiceFile;
+    const voiceBuf = this._incantationBuffers.get(voiceUrl);
+    if (!voiceBuf) {
+      this.#loadIncantation(voiceUrl).then(() => {
+        if (this._castSessions.get(sessionId) === handle) {
+          this.#playWindVoice(handle, voiceUrl, now + CAST_VOICE_DELAY);
+        }
+      });
+      return;
+    }
+    this.#playWindVoice(handle, voiceUrl, now + CAST_VOICE_DELAY);
+  }
+
+  /** Aktualizuje hlasitost probíhajících zaříkávání podle vzdálenosti od kamery. */
+  updateCastSpatial(listenerDir, getSourceDir) {
+    const ctx = this.ctx;
+    if (!ctx || !listenerDir || !this._castSessions.size) return;
+    const t = ctx.currentTime;
+    for (const [id, handle] of this._castSessions) {
+      const src = getSourceDir?.(id);
+      if (src) handle.sourceDir.copy(src);
+      const mul = this.#spatialMul(handle.sourceDir, listenerDir);
+      handle.spatialGain.gain.setTargetAtTime(mul, t, 0.04);
+    }
+  }
+
+  #playWindVoice(handle, voiceUrl, startTime) {
+    const ctx = this.#ensureCtx();
+    if (!ctx || !handle) return;
+    const buffer = this._incantationBuffers.get(voiceUrl);
+    if (!buffer) return;
+
+    const echo = this.#createEchoConvolver();
+    if (!echo) return;
+
+    const voiceWetGain = ctx.createGain();
+    voiceWetGain.gain.value = 0.35;
+    echo.connect(voiceWetGain);
+    voiceWetGain.connect(handle.spatialGain);
+    handle.echoConvolver = echo;
+    handle.voiceWetGain = voiceWetGain;
+
+    const dryGain = ctx.createGain();
+    dryGain.gain.value = 0.75;
+    dryGain.connect(handle.spatialGain);
+
+    const mainL = ctx.createBufferSource();
+    mainL.buffer = buffer;
+    mainL.playbackRate.value = 0.81;
+
+    const mainR = ctx.createBufferSource();
+    mainR.buffer = buffer;
+    mainR.playbackRate.value = 0.77;
+
+    const pannerL = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    const pannerR = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    if (pannerL) pannerL.pan.value = -0.4;
+    if (pannerR) pannerR.pan.value = 0.4;
+
+    mainL.connect(pannerL || dryGain);
+    if (pannerL) pannerL.connect(dryGain);
+    mainR.connect(pannerR || dryGain);
+    if (pannerR) pannerR.connect(dryGain);
+    mainL.connect(echo);
+
+    mainL.start(startTime);
+    mainR.start(startTime + 0.012);
+
+    const duration = buffer.duration / 0.79;
+    handle.voiceNodes.push(mainL, mainR, dryGain, voiceWetGain, echo);
+    try {
+      mainL.stop(startTime + duration + 0.1);
+      mainR.stop(startTime + duration + 0.12);
+    } catch (_) {
+      /* noop */
+    }
+  }
+
+  /** Ukončí podkres castu (fade). Hlášku nechá doběhnout, pokud stopVoice === false. */
+  stopCastIncantation(sessionId, fadeSec = CAST_BG_FADE, stopVoice = true) {
+    const handle = this._castSessions.get(String(sessionId));
+    if (!handle) return;
+
+    const ctx = this.#ensureCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+
+    if (handle.bgEnvelope) {
+      const cur = handle.bgEnvelope.gain.value;
+      handle.bgEnvelope.gain.cancelScheduledValues(t);
+      handle.bgEnvelope.gain.setValueAtTime(cur, t);
+      handle.bgEnvelope.gain.linearRampToValueAtTime(0, t + fadeSec);
+      handle.bgEnvelope = null;
+    }
+    if (handle.bgSource) {
+      try {
+        handle.bgSource.stop(t + fadeSec + 0.05);
+      } catch (_) {
+        /* already stopped */
+      }
+      handle.bgSource = null;
+    }
+
+    if (stopVoice) {
+      for (const node of handle.voiceNodes || []) {
+        if (node?.stop) {
+          try {
+            node.stop(t + 0.02);
+          } catch (_) {
+            /* noop */
+          }
+        }
+      }
+      handle.voiceNodes = [];
+      this._castSessions.delete(String(sessionId));
+    } else if (!handle.voiceNodes?.length) {
+      this._castSessions.delete(String(sessionId));
+    }
+  }
+
+  /** Konec vyvolávání — podkres fade, hláška dohraje. */
+  stopCastBackground(sessionId, fadeSec = CAST_BG_FADE) {
+    this.stopCastIncantation(sessionId, fadeSec, false);
   }
 
   async #loadOne(id) {
@@ -175,6 +459,11 @@ export class GameAudio {
     src.connect(gain);
     gain.connect(this.master);
     src.start(0);
+  }
+
+  playRandomScream(sourceDir, listenerDir, opts = {}) {
+    const id = SCREAM_IDS[(Math.random() * SCREAM_IDS.length) | 0];
+    this.playAt(id, sourceDir, listenerDir, opts);
   }
 
   /**

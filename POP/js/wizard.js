@@ -260,6 +260,12 @@ export class Wizard {
     this._lastKnockSeqApplied = 0;
     /** MP — po knockdownu pošle intent (nastaví main.js). */
     this.onKnockdown = null;
+    /** Ukončení cast audia při #endCast (main.js). */
+    this.onCastAudioStop = null;
+    /** Dopad na zem — bodyfall (main.js). */
+    this.onBodyFall = null;
+    /** Výkřik při velkém zásahu / letu z tornáda (main.js). */
+    this.onScream = null;
 
     this.mesh.traverse((ch) => {
       if (!ch.isMesh || !ch.material || ch === this._softShadow) return;
@@ -478,6 +484,8 @@ export class Wizard {
     this.hp = Math.max(0, this.hp - amount);
     this.#syncHealthUi();
 
+    if (amount > 30) this.onScream?.();
+
     const fromDir = opts.fromDir;
     const canKnock =
       opts.knock !== false &&
@@ -539,6 +547,7 @@ export class Wizard {
 
     this._lastKnockSeqApplied = nextSeq;
     this.breakInvisibility();
+    if (this.remote && amount > 30) this.onScream?.();
     this.#clearTarget();
     if (this.casting) this.#endCast();
     this.wantsWalk = false;
@@ -626,6 +635,7 @@ export class Wizard {
         kd.phase = "roll";
         kd.sideZ = fallEnd;
         kd.t = 0;
+        this.onBodyFall?.();
       }
       return;
     }
@@ -862,7 +872,9 @@ export class Wizard {
   }
 
   #endCast() {
+    const wasCasting = this.casting;
     this.casting = false;
+    if (wasCasting && !this.remote) this.onCastAudioStop?.();
     const cb = this._onCastComplete;
     this._onCastComplete = null;
     const parts = this.mesh.userData.parts;

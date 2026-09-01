@@ -12,6 +12,7 @@ import { spawnVolcano as doSpawnVolcano, updateVolcanos, disposeVolcanos } from 
 import { spawnEarthquake as doSpawnEarthquake, updateEarthquakes, disposeEarthquakes } from "./earthquake.js";
 import { updateWaterFx } from "./water-fx.js";
 import { applyInvisibility } from "./invisibility.js";
+import { incantationFileForSpell } from "../incantations.js";
 
 export class SpellSystem {
   constructor(planetGroup, terrain, wizard, getWizards = null) {
@@ -368,6 +369,25 @@ export class SpellSystem {
       onDone?.();
     };
 
+    const beginCast = (duration, onComplete) => {
+      if (!wizard.startCast(target, duration, onComplete)) {
+        this.clearSpiral(spiral);
+        restore();
+        return false;
+      }
+      const listener = this.getListenerDir?.();
+      if (listener) {
+        this.audio?.startCastIncantation(
+          wizard.id,
+          incantationFileForSpell(spellId),
+          duration,
+          wizard.dir,
+          listener
+        );
+      }
+      return true;
+    };
+
     if (spellId === "elevate" || spellId === "depress") {
       const sign = spellId === "elevate" ? 1 : -1;
       if (!this.terrain.beginMorph(target, sign, def.castTime)) {
@@ -375,14 +395,11 @@ export class SpellSystem {
         restore();
         return;
       }
-      if (!wizard.startCast(target, def.castTime, () => {
+      beginCast(def.castTime, () => {
         this.clearSpiral(spiral);
         restore();
         onDone?.();
-      })) {
-        this.clearSpiral(spiral);
-        restore();
-      }
+      });
       return;
     }
 
@@ -390,7 +407,7 @@ export class SpellSystem {
       const morphDur = def.morphDuration ?? CONFIG.spellDuration;
       const prepTime = def.castPrepTime ?? 3;
 
-      if (!wizard.startCast(target, prepTime, () => {
+      if (!beginCast(prepTime, () => {
         this.clearSpiral(spiral);
         if (!this.terrain.beginVolcanoMorph(target, {
           coneRadius: def.coneRadius,
@@ -408,16 +425,19 @@ export class SpellSystem {
           onDone?.();
         }
       })) {
-        this.clearSpiral(spiral);
-        restore();
+        return;
       }
       return;
     }
 
-    if (!wizard.startCast(target, def.castTime, finishFx)) {
-      this.clearSpiral(spiral);
-      restore();
+    if (!beginCast(def.castTime, finishFx)) {
+      return;
     }
+  }
+
+  #castDuration(spellId, def) {
+    if (spellId === "volcano") return def.castPrepTime ?? 3;
+    return def.castTime ?? CONFIG.spellDuration;
   }
 
   #updateProjectiles(dt) {

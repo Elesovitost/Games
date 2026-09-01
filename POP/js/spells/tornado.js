@@ -401,6 +401,7 @@ function beginThrow(w, td) {
   td.spinVel = 16;
   td.rollVel = 18;
   td.source = null;
+  w.onScream?.();
 }
 
 function decayFlightSpin(td, dt) {
@@ -539,6 +540,7 @@ function updateCapturedWizard(w, tornadoDir, pathT, bendPhase, dt, linkedTornado
     const groundH = terrainFloor(terrain, w.dir);
     if (len <= groundH + 0.12) {
       w.mesh.position.copy(w.dir).multiplyScalar(groundH);
+      w.onBodyFall?.();
       if (!w.remote) {
         w.takeDamage(SPELLS.tornado.fallDamage, { fromDir: td.centerDir, knock: false });
       }
