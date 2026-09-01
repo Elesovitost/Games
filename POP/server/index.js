@@ -42,11 +42,6 @@ function roomPublic(room) {
 }
 
 function assignRandomSpawns(room, slotCount = 4) {
-  const players = [...room.players.values()];
-  if (players.length <= 2) {
-    for (const p of players) p.spawn = 0;
-    return;
-  }
   const slots = Array.from({ length: slotCount }, (_, i) => i);
   for (let i = slots.length - 1; i > 0; i--) {
     const j = (Math.random() * (i + 1)) | 0;

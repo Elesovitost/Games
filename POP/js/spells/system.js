@@ -348,7 +348,7 @@ export class SpellSystem {
     this.wizard = wizard;
     this._castOwnerId = wizard.id;
     const target = targetDir.clone().normalize();
-    const spiral = this.startSpiral(target, spellId);
+    const spiral = wizard.remote ? null : this.startSpiral(target, spellId);
     if (!wizard.remote) this.aim.hide();
 
     const restore = () => {
