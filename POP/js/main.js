@@ -158,8 +158,14 @@ class Game {
 
     const list = Array.isArray(players) ? players : [];
     const me = String(localId);
-    for (const p of list) {
-      const slot = Number.isInteger(p.spawn) ? p.spawn % this.landSpawns.length : 0;
+    const nSpawns = Math.max(1, this.landSpawns.length);
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+      const raw = Number(p.spawn);
+      const slot =
+        Number.isInteger(raw) && raw >= 0
+          ? raw % nSpawns
+          : i % nSpawns;
       const spawn = this.landSpawns[slot];
       const pid = String(p.id);
       const isLocal = pid === me;
@@ -292,12 +298,6 @@ class Game {
         this.wizard.setGodMode(next);
         if (next) {
           this._spawnCamIdx = this.#spawnIndexForDir(this.wizard.dir);
-        } else {
-          placeCamera(this.camera, [
-            this.wizard.dir.x,
-            this.wizard.dir.y,
-            this.wizard.dir.z
-          ]);
         }
         e.preventDefault();
         return;

@@ -53,11 +53,6 @@ def room_public(room: dict) -> dict:
 
 
 def assign_random_spawns(room: dict, slot_count: int = 4) -> None:
-    players = list(room["players"].values())
-    if len(players) <= 2:
-        for p in players:
-            p["spawn"] = 0
-        return
     slots = list(range(slot_count))
     random.shuffle(slots)
     for i, p in enumerate(room["players"].values()):
