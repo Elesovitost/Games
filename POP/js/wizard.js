@@ -420,8 +420,8 @@ export class Wizard {
       fromDirArr instanceof THREE.Vector3
         ? fromDirArr
         : new THREE.Vector3(fromDirArr[0], fromDirArr[1], fromDirArr[2]);
-    if (from.lengthSq() < 1e-8) return;
-    this.#startKnockdown(amount, from, opts.seq);
+    if (from.lengthSq() < 1e-8 && !opts.awayFrom) return;
+    this.#startKnockdown(amount, from, opts.seq, opts);
   }
 
   /** Testovací GOD MODE — nesmrtelnost, 3× rychlost, záře. */
@@ -517,18 +517,22 @@ export class Wizard {
   }
 
   #knockMove(kd, step) {
-    if (this.remote || step <= 1e-5) return;
+    if (this.remote || step <= 1e-5) return 0;
+    const before = this._slopeSample.copy(this.dir);
     this._trial.copy(this.mesh.position).addScaledVector(kd.rollDir, step);
     if (this._trial.lengthSq() > 1e-8) {
       this._trial.normalize();
       if (this.#isWalkable(this._trial)) {
         this.#snap(this._trial);
         this.facing.copy(kd.rollDir);
+        const d = Math.min(1, Math.max(-1, before.dot(this.dir)));
+        return Math.acos(d) * CONFIG.planetR;
       }
     }
+    return 0;
   }
 
-  #startKnockdown(amount, fromDir, seq = null) {
+  #startKnockdown(amount, fromDir, seq = null, opts = {}) {
     const nextSeq = seq ?? ++this._knockSeq;
     if (this.knockdown?.seq === nextSeq) return;
     if (nextSeq <= this._lastKnockSeqApplied) return;
@@ -542,15 +546,40 @@ export class Wizard {
 
     const ratio = Math.min(1, amount / this.maxHp);
     const rollDir = new THREE.Vector3();
-    this.#computeKnockRollDir(fromDir, rollDir);
+    if (opts.awayFrom) {
+      // Po tečně směrem od epicentra
+      const c =
+        opts.awayFrom instanceof THREE.Vector3
+          ? opts.awayFrom
+          : new THREE.Vector3(opts.awayFrom[0], opts.awayFrom[1], opts.awayFrom[2]);
+      rollDir.copy(c).addScaledVector(this.dir, -c.dot(this.dir));
+      if (rollDir.lengthSq() < 1e-8) tangentFrame(this.dir, tmp.east, rollDir);
+      else rollDir.normalize();
+      // Geodeticky pryč od středu: -(projekce epicentra na tečnu)
+      rollDir.negate();
+    } else {
+      this.#computeKnockRollDir(fromDir, rollDir);
+    }
     this.facing.copy(rollDir);
 
-    const rotCount = 1 + ratio * CONFIG.wizardKnockExtraRotationsMax;
+    const rotCount =
+      typeof opts.rotations === "number"
+        ? Math.max(0.5, opts.rotations)
+        : 1 + ratio * CONFIG.wizardKnockExtraRotationsMax;
     const rollR = this.#knockRollRadius();
     const minRot = Math.PI * 2 * rotCount;
-    const rollDist = minRot * rollR;
-    // Počáteční rychlost tak, aby tření stihlo projet celou vzdálenost sudů
-    const slideVel = rollDist * CONFIG.wizardKnockSlideFriction * 1.2;
+    const rollDist =
+      typeof opts.rollDistance === "number"
+        ? Math.max(0.5, opts.rollDistance)
+        : minRot * rollR;
+    const slideVel = rollDist * CONFIG.wizardKnockSlideFriction * 1.15;
+
+    const fromStored =
+      opts.awayFrom
+        ? (opts.awayFrom instanceof THREE.Vector3
+            ? opts.awayFrom.clone().normalize()
+            : new THREE.Vector3(opts.awayFrom[0], opts.awayFrom[1], opts.awayFrom[2]).normalize())
+        : fromDir.clone().normalize();
 
     this.knockdown = {
       seq: nextSeq,
@@ -558,7 +587,7 @@ export class Wizard {
       t: 0,
       fallT: 0,
       amount,
-      fromDir: fromDir.clone().normalize(),
+      fromDir: fromStored,
       rollDir,
       sideZ: 0,
       barrelY: 0,
@@ -566,6 +595,8 @@ export class Wizard {
       slideDist: 0,
       rollDist,
       minRot,
+      rotations: rotCount,
+      away: !!opts.awayFrom,
       riseDur: CONFIG.wizardKnockRiseDur
     };
 
@@ -587,9 +618,10 @@ export class Wizard {
       kd.sideZ = ease * fallEnd;
       const rollBlend = Math.max(0, (u - 0.4) / 0.6);
       const step = kd.slideVel * dt * (0.12 + 0.88 * rollBlend);
-      kd.slideDist += step;
-      kd.barrelY += (step / Math.max(r, 0.08)) * rollBlend;
-      this.#knockMove(kd, step);
+      const moved = this.#knockMove(kd, step);
+      kd.slideDist += moved;
+      // Rotace úměrná uražené vzdálenosti → přesný počet otoček na rollDist
+      kd.barrelY += moved * (kd.minRot / Math.max(kd.rollDist, 0.01));
       if (u >= 1) {
         kd.phase = "roll";
         kd.sideZ = fallEnd;
@@ -602,12 +634,15 @@ export class Wizard {
       kd.sideZ = fallEnd;
       kd.slideVel *= Math.exp(-CONFIG.wizardKnockSlideFriction * dt);
       const step = kd.slideVel * dt;
-      kd.slideDist += step;
-      kd.barrelY += step / Math.max(r, 0.08);
-      this.#knockMove(kd, step);
+      const moved = this.#knockMove(kd, step);
+      kd.slideDist += moved;
+      kd.barrelY += moved * (kd.minRot / Math.max(kd.rollDist, 0.01));
 
-      const slowed = kd.slideVel < 0.35;
-      if (slowed || kd.t > 4) {
+      const doneDist = kd.slideDist >= kd.rollDist * 0.98;
+      const doneRot = kd.barrelY >= kd.minRot * 0.98;
+      const stalled = moved < 1e-4 && kd.t > 0.35;
+      if (doneDist || doneRot || stalled || kd.t > 4) {
+        kd.barrelY = kd.minRot;
         kd.phase = "rise";
         kd.t = 0;
       }
@@ -618,7 +653,7 @@ export class Wizard {
       const u = Math.min(1, kd.t / kd.riseDur);
       const e = u * u * (3 - 2 * u);
       const full = Math.PI * 2;
-      const barrelTarget = Math.round(kd.barrelY / full) * full;
+      const barrelTarget = Math.round(kd.minRot / full) * full;
       kd.barrelY += (barrelTarget - kd.barrelY) * Math.min(1, dt * (6 + e * 10));
       kd.sideZ *= 1 - Math.min(1, dt * (5 + e * 8));
       if (u >= 1) {

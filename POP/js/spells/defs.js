@@ -96,5 +96,19 @@ export const SPELLS = {
     remoteOpacity: 0,
     color: 0xc8b8e8,
     hint: "Klikni — 3 s kouzlení, pak 10 s neviditelnost. Kouzlení zruší efekt."
+  },
+  earthquake: {
+    id: "earthquake",
+    range: 18,
+    castTime: 3,
+    effectRadius: 20,
+    duration: 5,
+    fallDamage: 10,
+    walkGrace: 0.5,
+    /** Jedna otočka, posun od epicentra */
+    fallRotations: 1,
+    fallDistance: 3,
+    color: 0xc4a060,
+    hint: "Klikni v dosahu — 20 m praskliny, 5 s třesení. V zóně padáš (−10 HP) dokud nevyjdeš."
   }
 };

@@ -260,6 +260,28 @@ html, body {
   box-shadow: 0 0 0 1px rgba(200, 190, 240, 0.35);
   opacity: 0.55;
 }
+.spell-icon.earthquake {
+  background: linear-gradient(180deg, #6a5040 0%, #3a2818 100%);
+  border-radius: 3px;
+}
+.spell-icon.earthquake::before,
+.spell-icon.earthquake::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  background: #1a1008;
+  transform: rotate(-18deg);
+  box-shadow: 0 0 0 1px rgba(196, 160, 96, 0.25);
+}
+.spell-icon.earthquake::before {
+  top: 8px;
+}
+.spell-icon.earthquake::after {
+  top: 14px;
+  transform: rotate(12deg);
+}
 .spell-label {
   letter-spacing: 0.02em;
 }

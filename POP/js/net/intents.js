@@ -19,7 +19,10 @@ export function createGameIntentHandlers(game) {
       if (!w || !w.remote) return;
       w.applyKnockdown(intent.amt, intent.from, {
         seq: intent.seq,
-        hp: intent.hp
+        hp: intent.hp,
+        rotations: intent.rotations ?? undefined,
+        rollDistance: intent.rollDistance ?? undefined,
+        awayFrom: intent.away ? intent.from : undefined
       });
     },
 

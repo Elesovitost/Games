@@ -9,6 +9,7 @@ import { launchIceball as doLaunchIceball, updateIceball, updateIceDebris } from
 import { strikeLightning as doStrikeLightning, updateBolts } from "./lightning.js";
 import { spawnTornado as doSpawnTornado, updateTornados, prepareTornadoEffects as doPrepareTornadoEffects, updateTornadoPull, updateTornadoVictims, disposeTornados } from "./tornado.js";
 import { spawnVolcano as doSpawnVolcano, updateVolcanos, disposeVolcanos } from "./volcano.js";
+import { spawnEarthquake as doSpawnEarthquake, updateEarthquakes, disposeEarthquakes } from "./earthquake.js";
 import { updateWaterFx } from "./water-fx.js";
 import { applyInvisibility } from "./invisibility.js";
 
@@ -35,6 +36,7 @@ export class SpellSystem {
     this.waterSpray = [];
     this.tornados = [];
     this.volcanos = [];
+    this.earthquakes = [];
     this.activeSpellId = null;
 
     this._tmp = new THREE.Vector3();
@@ -198,6 +200,7 @@ export class SpellSystem {
     this.waterSpray.length = 0;
     disposeTornados(this);
     disposeVolcanos(this);
+    disposeEarthquakes(this);
   }
 
   /** Výška nad referenční rovinou (m) — bonus k dosahu kouzel. */
@@ -307,6 +310,7 @@ export class SpellSystem {
     updateTornadoPull(this, dt);
     updateTornadoVictims(this, dt);
     updateVolcanos(this, dt);
+    updateEarthquakes(this, dt);
     updateBolts(this, dt);
     this.#updateProjectiles(dt);
     updateBursts(this, dt);
@@ -354,6 +358,7 @@ export class SpellSystem {
 
     const finishFx = () => {
       if (spellId === "tornado") doSpawnTornado(this, target);
+      if (spellId === "earthquake") doSpawnEarthquake(this, target);
       this.clearSpiral(spiral);
       if (spellId === "lightning") this.strikeLightning(target);
       else if (spellId === "fireball") this.launchFireball(target);

@@ -121,7 +121,10 @@ class Game {
         amt: kd.amount,
         from: [kd.fromDir.x, kd.fromDir.y, kd.fromDir.z],
         seq: kd.seq,
-        hp: w.hp
+        hp: w.hp,
+        rotations: kd.rotations ?? null,
+        rollDistance: kd.rollDist ?? null,
+        away: !!kd.away
       });
     };
   }

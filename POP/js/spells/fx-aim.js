@@ -133,6 +133,16 @@ function buildSpellGlyph(spellId) {
     cone.rotation.x = Math.PI / 2;
     cone.position.z = 0.28;
     g.add(cone);
+  } else if (spellId === "earthquake") {
+    const crackMat = glyphMat(0xc4a060, 0.9);
+    for (let i = 0; i < 3; i++) {
+      const geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-0.35 + i * 0.08, -0.3, 0.2),
+        new THREE.Vector3(-0.1 + i * 0.05, 0.05, 0.32),
+        new THREE.Vector3(0.3 - i * 0.06, 0.32, 0.22)
+      ]);
+      g.add(new THREE.Line(geo, crackMat));
+    }
   }
 
   g.position.z = AIM_GLYPH_LIFT;
@@ -274,7 +284,7 @@ export class AimReticle {
     this.glyphRoot = new THREE.Group();
     this.glyphs = {};
     this._glyphMats = [];
-    for (const id of ["elevate", "depress", "lightning", "fireball", "iceball", "tornado", "volcano"]) {
+    for (const id of ["elevate", "depress", "lightning", "fireball", "iceball", "tornado", "volcano", "earthquake"]) {
       const glyph = buildSpellGlyph(id);
       glyph.visible = false;
       this.glyphs[id] = glyph;

@@ -105,7 +105,10 @@ export function buildPosePacket(w) {
       ? {
           seq: w.knockdown.seq,
           amt: w.knockdown.amount,
-          from: [w.knockdown.fromDir.x, w.knockdown.fromDir.y, w.knockdown.fromDir.z]
+          from: [w.knockdown.fromDir.x, w.knockdown.fromDir.y, w.knockdown.fromDir.z],
+          rotations: w.knockdown.rotations ?? null,
+          rollDistance: w.knockdown.rollDist ?? null,
+          away: !!w.knockdown.away
         }
       : null,
     fx: serializeFx(w)
@@ -187,5 +190,11 @@ export function poseSnapshotFromIntent(flags, dirArr, facingArr) {
 export function applyKnockFromSnapshot(w, knock, hp) {
   if (!knock || knock.seq <= w._lastKnockSeqApplied) return;
   if (w.knockdown?.seq === knock.seq) return;
-  w.applyKnockdown(knock.amt, knock.from, { seq: knock.seq, hp });
+  w.applyKnockdown(knock.amt, knock.from, {
+    seq: knock.seq,
+    hp,
+    rotations: knock.rotations ?? undefined,
+    rollDistance: knock.rollDistance ?? undefined,
+    awayFrom: knock.away ? knock.from : undefined
+  });
 }
