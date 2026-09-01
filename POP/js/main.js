@@ -15,6 +15,7 @@ import { LobbyUI } from "./net/lobby.js";
 import { createIntentRouter, createGameIntentHandlers } from "./net/intents.js";
 import { mountGameVersion } from "./game-version.js";
 import { GameAudio } from "./audio.js";
+import { WIZARD_COLORS, loadProfile, saveProfile, loadMusicEnabled, saveMusicEnabled } from "./net/client.js";
 
 class Game {
   constructor() {
@@ -34,10 +35,12 @@ class Game {
     mountGameVersion(document.getElementById("game-version"));
 
     this.audio = new GameAudio();
+    this.audio.setMusicEnabled(loadMusicEnabled());
     this.audio.preload();
     const unlockAudio = () => this.audio.unlock();
     window.addEventListener("pointerdown", unlockAudio, { once: true });
     window.addEventListener("keydown", unlockAudio, { once: true });
+    this._wizardColorIdx = this.#colorIndexFor(loadProfile().color);
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
@@ -92,6 +95,8 @@ class Game {
     this.#applyRendererSize();
     this.#bindInput();
     this.#bindSpells();
+    this.#bindGameBar();
+    this.#updateColorSwatch();
     window.addEventListener("resize", () => this.#applyRendererSize());
     this.#hideLoader();
     this.#loop();
@@ -156,10 +161,11 @@ class Game {
     this.planetGroup.rotation.set(0, 0, 0);
     this.#clearWizards();
     const start = pickRandomSpawn(this.landSpawns);
+    const profile = loadProfile();
     const w = new Wizard(this.planetGroup, this.terrain, start, {
       id: "local",
       name: "Ty",
-      color: 0x4a2d7a
+      color: profile.color
     });
     this.wizards.set(w.id, w);
     this.wizard = w;
@@ -215,6 +221,8 @@ class Game {
     }
     this.#selectSpell(null);
     this.lobby?.hide();
+    document.getElementById("btn-1p")?.classList.add("active");
+    document.getElementById("btn-mp")?.classList.remove("active");
   }
 
   applyRemoteIntent(fromId, intent) {
@@ -245,7 +253,7 @@ class Game {
   }
 
   #bindSpells() {
-    const bar = document.getElementById("spells");
+    const bar = document.getElementById("spell-bar");
     if (!bar) return;
     bar.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-spell]");
@@ -281,18 +289,71 @@ class Game {
 
   #selectSpell(id) {
     this.selectedSpell = id;
-    document.querySelectorAll("#spells .spell").forEach((el) => {
+    document.querySelectorAll("#spell-bar .spell").forEach((el) => {
       el.classList.toggle("active", el.getAttribute("data-spell") === id);
     });
-    const hint = document.getElementById("spell-hint");
-    const def = id ? SPELLS[id] : null;
-    if (hint) {
-      hint.textContent = def
-        ? def.hint
-        : "Levý klik = chůze · vyber kouzlo a levým sesílej · pravý klik zruší kouzlo.";
-    }
-    if (def && this.wizard) this.spells.showRange(id);
+    if (id && this.wizard) this.spells.showRange(id);
     else this.spells.hideRange();
+  }
+
+  #colorIndexFor(hex) {
+    const i = WIZARD_COLORS.findIndex((c) => c.hex === Number(hex));
+    return i >= 0 ? i : 0;
+  }
+
+  #updateColorSwatch() {
+    const dot = document.getElementById("color-swatch");
+    if (!dot) return;
+    const hex = WIZARD_COLORS[this._wizardColorIdx]?.hex ?? loadProfile().color;
+    dot.style.background = "#" + Number(hex).toString(16).padStart(6, "0");
+  }
+
+  #cycleWizardColor() {
+    this._wizardColorIdx = (this._wizardColorIdx + 1) % WIZARD_COLORS.length;
+    const hex = WIZARD_COLORS[this._wizardColorIdx].hex;
+    saveProfile({ color: hex });
+    this.lobby.selectedColor = hex;
+    if (this.wizard && !this.wizard.remote) this.wizard.setRobeColor(hex);
+    this.#updateColorSwatch();
+  }
+
+  #bindGameBar() {
+    const btn1p = document.getElementById("btn-1p");
+    const btnMp = document.getElementById("btn-mp");
+    const btnMusic = document.getElementById("btn-music");
+
+    btn1p?.addEventListener("click", () => {
+      btn1p.classList.add("active");
+      btnMp?.classList.remove("active");
+      this.lobby.hide();
+      if (this.session.isMp) this.session.leave();
+      this.enterSolo();
+    });
+
+    btnMp?.addEventListener("click", () => {
+      btnMp.classList.add("active");
+      btn1p?.classList.remove("active");
+      this.lobby.show();
+      this.lobby.refreshProfile();
+    });
+
+    const syncMusicBtn = () => {
+      const on = this.audio.isMusicEnabled();
+      btnMusic?.classList.toggle("off", !on);
+      btnMusic?.setAttribute("aria-pressed", on ? "true" : "false");
+    };
+    syncMusicBtn();
+
+    btnMusic?.addEventListener("click", () => {
+      const on = !this.audio.isMusicEnabled();
+      saveMusicEnabled(on);
+      this.audio.setMusicEnabled(on);
+      syncMusicBtn();
+    });
+
+    document.getElementById("btn-color")?.addEventListener("click", () => {
+      this.#cycleWizardColor();
+    });
   }
 
   #spawnIndexForDir(dir) {
@@ -427,11 +488,7 @@ class Game {
     if (!def) return;
 
     const dir = tmp.dir.copy(localPoint).normalize();
-    if (!this.spells.inRange(spellId, dir)) {
-      const hint = document.getElementById("spell-hint");
-      if (hint) hint.textContent = "Mimo dosah — klikni uvnitř kruhu.";
-      return;
-    }
+    if (!this.spells.inRange(spellId, dir)) return;
 
     const target = dir.clone();
     this.session.sendIntent({

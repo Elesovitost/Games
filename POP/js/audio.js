@@ -1,9 +1,18 @@
 import { CONFIG } from "./config.js";
+import { loadMusicEnabled } from "./net/client.js";
 import { allIncantationUrls, INCANTATION_DIR, INCANTATION_BG, INCANTATION_BG_REMOTE } from "./incantations.js";
 
 const CAST_BG_VOL = 0.1;
 const CAST_VOICE_DELAY = 0.2;
 const CAST_BG_FADE = 0.2;
+const AMBIENT_VOL = 0.05;
+
+/** Ambientní hudba — pořadí 1→2→3, start náhodný. */
+const AMBIENT_TRACKS = [
+  "./audio/ambient1.mp3",
+  "./audio/ambient2.mp3",
+  "./audio/ambient3.mp3"
+];
 
 /** Katalog SFX — refDist = plná hlasitost, halfDist = −50 % / N m. */
 export const SFX = {
@@ -149,6 +158,16 @@ export class GameAudio {
     this._incantationBuffers = new Map();
     this._incantationLoading = new Map();
     this._castSessions = new Map();
+    this._ambientBuffers = [];
+    this._ambientLoading = null;
+    this._ambientReady = false;
+    this._ambientStarted = false;
+    this._ambientPendingStart = false;
+    this._ambientGain = null;
+    this._ambientSource = null;
+    this._ambientOrder = [0, 1, 2];
+    this._ambientPtr = 0;
+    this._musicEnabled = loadMusicEnabled();
   }
 
   #ensureCtx() {
@@ -200,7 +219,156 @@ export class GameAudio {
   unlock() {
     const ctx = this.#ensureCtx();
     if (!ctx) return;
-    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    const start = () => this.startAmbient();
+    if (ctx.state === "suspended") ctx.resume().then(start).catch(() => {});
+    else start();
+  }
+
+  async #loadAmbient(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Ambient load failed: ${url} (${res.status})`);
+    const raw = await res.arrayBuffer();
+    return this.ctx.decodeAudioData(raw.slice(0));
+  }
+
+  async preloadAmbient() {
+    const ctx = this.#ensureCtx();
+    if (!ctx) return;
+    if (this._ambientLoading) return this._ambientLoading;
+
+    this._ambientLoading = (async () => {
+      const bufs = await Promise.all(
+        AMBIENT_TRACKS.map((url) =>
+          this.#loadAmbient(url).catch((err) => {
+            console.warn("[audio]", err);
+            return null;
+          })
+        )
+      );
+      this._ambientBuffers = bufs;
+      this._ambientReady = bufs.some(Boolean);
+      this._ambientLoading = null;
+      if (this._ambientPendingStart) this.startAmbient();
+    })();
+
+    return this._ambientLoading;
+  }
+
+  #ensureAmbientGain() {
+    const ctx = this.ctx;
+    if (!ctx) return null;
+    if (!this._ambientGain) {
+      this._ambientGain = ctx.createGain();
+      // Vlastní větev — nezávislá na SFX masteru (bez „duckingu“ při kouzlení).
+      this._ambientGain.connect(ctx.destination);
+    }
+    const t = ctx.currentTime;
+    this._ambientGain.gain.cancelScheduledValues(t);
+    this._ambientGain.gain.setValueAtTime(AMBIENT_VOL, t);
+    return this._ambientGain;
+  }
+
+  /** Náhodná skladba, pak 1→2→3 v cyklu. Vyžaduje unlock (user gesture). */
+  startAmbient() {
+    if (!this._musicEnabled) return;
+    if (this._ambientStarted) return;
+    if (!this._ambientReady) {
+      this._ambientPendingStart = true;
+      return;
+    }
+    const ctx = this.#ensureCtx();
+    if (!ctx || ctx.state === "suspended") {
+      this._ambientPendingStart = true;
+      return;
+    }
+
+    this._ambientStarted = true;
+    this._ambientPendingStart = false;
+    const start = (Math.random() * AMBIENT_TRACKS.length) | 0;
+    this._ambientOrder = [
+      start,
+      (start + 1) % AMBIENT_TRACKS.length,
+      (start + 2) % AMBIENT_TRACKS.length
+    ];
+    this._ambientPtr = 0;
+    this.#playAmbientTrack();
+  }
+
+  #playAmbientTrack() {
+    const ctx = this.ctx;
+    if (!ctx || !this._ambientStarted) return;
+
+    const idx = this._ambientOrder[this._ambientPtr];
+    const buf = this._ambientBuffers[idx];
+    if (!buf) {
+      this._ambientPtr = (this._ambientPtr + 1) % AMBIENT_TRACKS.length;
+      if (this._ambientPtr !== 0) this.#playAmbientTrack();
+      return;
+    }
+
+    const gain = this.#ensureAmbientGain();
+    if (!gain) return;
+
+    if (this._ambientSource) {
+      try {
+        this._ambientSource.onended = null;
+        this._ambientSource.stop();
+      } catch (_) {
+        /* noop */
+      }
+      this._ambientSource = null;
+    }
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(gain);
+    src.onended = () => {
+      if (!this._ambientStarted) return;
+      this._ambientPtr = (this._ambientPtr + 1) % AMBIENT_TRACKS.length;
+      this.#playAmbientTrack();
+    };
+    this._ambientSource = src;
+    src.start();
+  }
+
+  stopAmbient(fade = 0.8) {
+    if (!this._ambientStarted) return;
+    this._ambientStarted = false;
+    this._ambientPendingStart = false;
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    if (this._ambientGain) {
+      const cur = this._ambientGain.gain.value;
+      this._ambientGain.gain.cancelScheduledValues(t);
+      this._ambientGain.gain.setValueAtTime(cur, t);
+      this._ambientGain.gain.linearRampToValueAtTime(0, t + fade);
+    }
+    if (this._ambientSource) {
+      try {
+        this._ambientSource.onended = null;
+        this._ambientSource.stop(t + fade + 0.05);
+      } catch (_) {
+        /* noop */
+      }
+      this._ambientSource = null;
+    }
+  }
+
+  isMusicEnabled() {
+    return this._musicEnabled;
+  }
+
+  setMusicEnabled(on) {
+    this._musicEnabled = !!on;
+    if (this._musicEnabled) {
+      if (this.ctx?.state === "running") this.startAmbient();
+      else this._ambientPendingStart = true;
+    } else {
+      this.stopAmbient(0.2);
+      this._ambientStarted = false;
+      this._ambientPendingStart = false;
+    }
   }
 
   async preload(ids = Object.keys(SFX)) {
@@ -210,7 +378,8 @@ export class GameAudio {
     const withUrl = ids.filter((id) => SFX[id]?.url);
     await Promise.all([
       ...withUrl.map((id) => this.#loadOne(id)),
-      this.preloadIncantations()
+      this.preloadIncantations(),
+      this.preloadAmbient()
     ]);
     this._ready = true;
   }

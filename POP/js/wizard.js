@@ -43,6 +43,8 @@ export function createWizardMesh(robeColor = ROBE) {
   const robeDark = new THREE.Color(robe).multiplyScalar(0.42).getHex();
   const robeMat = mat(robe);
   const robeDarkMat = mat(robeDark);
+  robeMat.userData.robeRole = "main";
+  robeDarkMat.userData.robeRole = "dark";
   const goldMat = mat(GOLD, { roughness: 0.55, metalness: 0.35 });
   const goldDimMat = mat(GOLD_DIM, { roughness: 0.6, metalness: 0.25 });
   const voidMat = mat(FACE_VOID, { roughness: 1 });
@@ -292,6 +294,28 @@ export class Wizard {
     this.facing.copy(tmp.north);
     this.#applyPose();
     if (!this.remote) this.#syncHealthUi();
+  }
+
+  /** Změna barvy hábitu (solo / před MP). */
+  setRobeColor(hex) {
+    this.color = Number(hex) || ROBE;
+    const dark = new THREE.Color(this.color).multiplyScalar(0.42);
+    for (const m of this._bodyMats) {
+      if (m.userData.robeRole === "main") m.color.setHex(this.color);
+      else if (m.userData.robeRole === "dark") m.color.copy(dark);
+    }
+    const parts = this.mesh.userData.parts;
+    if (parts?.castOrbs) {
+      const castBase = new THREE.Color(this.color);
+      const castBright = castBase.clone().lerp(new THREE.Color(0xffffff), 0.4);
+      const castSoft = castBase.clone().lerp(new THREE.Color(0x000000), 0.15);
+      for (let i = 0; i < parts.castOrbs.length; i++) {
+        const o = parts.castOrbs[i];
+        if (!o.mesh?.material) continue;
+        const bright = i % 3 !== 2;
+        o.mesh.material.color.setHex(bright ? castBright.getHex() : castSoft.getHex());
+      }
+    }
   }
 
   dispose() {

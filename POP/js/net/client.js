@@ -3,6 +3,7 @@ import { CONFIG } from "../config.js";
 const LS_NAME = "populous.mp.name";
 const LS_COLOR = "populous.mp.color";
 const LS_HOST = "populous.mp.host";
+const LS_MUSIC = "populous.music.enabled";
 
 export const WIZARD_COLORS = [
   { id: "red", hex: 0xc41c12, label: "Červená" },
@@ -18,6 +19,15 @@ export function loadProfile() {
   const color = Number(localStorage.getItem(LS_COLOR)) || WIZARD_COLORS[0].hex;
   const host = localStorage.getItem(LS_HOST) || "localhost";
   return { name, color, host };
+}
+
+export function loadMusicEnabled() {
+  const v = localStorage.getItem(LS_MUSIC);
+  return v === null ? true : v === "1";
+}
+
+export function saveMusicEnabled(on) {
+  localStorage.setItem(LS_MUSIC, on ? "1" : "0");
 }
 
 export function saveProfile(p) {
