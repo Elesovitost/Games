@@ -408,7 +408,8 @@ export class SpellSystem {
           incantationFileForSpell(spellId),
           duration,
           wizard.dir,
-          listener
+          listener,
+          { remote: wizard.remote }
         );
       }
       return true;

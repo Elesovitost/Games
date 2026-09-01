@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { allIncantationUrls, INCANTATION_DIR, INCANTATION_BG } from "./incantations.js";
+import { allIncantationUrls, INCANTATION_DIR, INCANTATION_BG, INCANTATION_BG_REMOTE } from "./incantations.js";
 
 const CAST_BG_VOL = 0.1;
 const CAST_VOICE_DELAY = 0.2;
@@ -271,20 +271,30 @@ export class GameAudio {
    * @param {number} castDurationSec
    * @param {THREE.Vector3} sourceDir
    * @param {THREE.Vector3} listenerDir
+   * @param {{ remote?: boolean }} [opts] — cizí kouzelník: vyšší hlas + background2
    */
-  startCastIncantation(sessionId, voiceFile, castDurationSec, sourceDir, listenerDir) {
+  startCastIncantation(sessionId, voiceFile, castDurationSec, sourceDir, listenerDir, opts = {}) {
+    const remote = !!opts.remote;
     const ctx = this.#ensureCtx();
     if (!ctx || !sourceDir || !listenerDir) return;
     if (ctx.state === "suspended") ctx.resume().catch(() => {});
 
     this.stopCastIncantation(sessionId, 0);
 
-    const bgUrl = INCANTATION_DIR + INCANTATION_BG;
+    const bgFile = remote ? INCANTATION_BG_REMOTE : INCANTATION_BG;
+    const bgUrl = INCANTATION_DIR + bgFile;
     const bgBuf = this._incantationBuffers.get(bgUrl);
     if (!bgBuf) {
       this.#loadIncantation(bgUrl).then((buf) => {
         if (buf && !this._castSessions.has(sessionId)) {
-          this.startCastIncantation(sessionId, voiceFile, castDurationSec, sourceDir, listenerDir);
+          this.startCastIncantation(
+            sessionId,
+            voiceFile,
+            castDurationSec,
+            sourceDir,
+            listenerDir,
+            opts
+          );
         }
       });
       return;
@@ -314,6 +324,7 @@ export class GameAudio {
 
     const handle = {
       sessionId,
+      remote,
       sourceDir: sourceDir.clone(),
       spatialGain,
       bgEnvelope,
@@ -331,12 +342,12 @@ export class GameAudio {
     if (!voiceBuf) {
       this.#loadIncantation(voiceUrl).then(() => {
         if (this._castSessions.get(sessionId) === handle) {
-          this.#playWindVoice(handle, voiceUrl, now + CAST_VOICE_DELAY);
+          this.#playWindVoice(handle, voiceUrl, now + CAST_VOICE_DELAY, remote);
         }
       });
       return;
     }
-    this.#playWindVoice(handle, voiceUrl, now + CAST_VOICE_DELAY);
+    this.#playWindVoice(handle, voiceUrl, now + CAST_VOICE_DELAY, remote);
   }
 
   /** Aktualizuje hlasitost probíhajících zaříkávání podle vzdálenosti od kamery. */
@@ -352,7 +363,7 @@ export class GameAudio {
     }
   }
 
-  #playWindVoice(handle, voiceUrl, startTime) {
+  #playWindVoice(handle, voiceUrl, startTime, remote = false) {
     const ctx = this.#ensureCtx();
     if (!ctx || !handle) return;
     const buffer = this._incantationBuffers.get(voiceUrl);
@@ -362,28 +373,31 @@ export class GameAudio {
     if (!echo) return;
 
     const voiceWetGain = ctx.createGain();
-    voiceWetGain.gain.value = 0.35;
+    voiceWetGain.gain.value = remote ? 0.28 : 0.35;
     echo.connect(voiceWetGain);
     voiceWetGain.connect(handle.spatialGain);
     handle.echoConvolver = echo;
     handle.voiceWetGain = voiceWetGain;
 
     const dryGain = ctx.createGain();
-    dryGain.gain.value = 0.75;
+    dryGain.gain.value = remote ? 0.82 : 0.75;
     dryGain.connect(handle.spatialGain);
+
+    const rateL = remote ? 1.12 : 0.81;
+    const rateR = remote ? 1.07 : 0.77;
 
     const mainL = ctx.createBufferSource();
     mainL.buffer = buffer;
-    mainL.playbackRate.value = 0.81;
+    mainL.playbackRate.value = rateL;
 
     const mainR = ctx.createBufferSource();
     mainR.buffer = buffer;
-    mainR.playbackRate.value = 0.77;
+    mainR.playbackRate.value = rateR;
 
     const pannerL = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
     const pannerR = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-    if (pannerL) pannerL.pan.value = -0.4;
-    if (pannerR) pannerR.pan.value = 0.4;
+    if (pannerL) pannerL.pan.value = remote ? -0.28 : -0.4;
+    if (pannerR) pannerR.pan.value = remote ? 0.28 : 0.4;
 
     mainL.connect(pannerL || dryGain);
     if (pannerL) pannerL.connect(dryGain);
@@ -394,7 +408,8 @@ export class GameAudio {
     mainL.start(startTime);
     mainR.start(startTime + 0.012);
 
-    const duration = buffer.duration / 0.79;
+    const avgRate = (rateL + rateR) * 0.5;
+    const duration = buffer.duration / avgRate;
     handle.voiceNodes.push(mainL, mainR, dryGain, voiceWetGain, echo);
     try {
       mainL.stop(startTime + duration + 0.1);

@@ -27,12 +27,19 @@ export const INCANTATION_RESERVE = [
 ];
 
 export const INCANTATION_BG = "background1.mp3";
+/** Podkres zaříkávání cizích kouzelníků (10 %). */
+export const INCANTATION_BG_REMOTE = "background2.mp3";
 
 export function incantationFileForSpell(spellId) {
   return SPELL_INCANTATIONS[spellId] ?? null;
 }
 
 export function allIncantationUrls() {
-  const files = new Set([INCANTATION_BG, ...Object.values(SPELL_INCANTATIONS), ...INCANTATION_RESERVE]);
+  const files = new Set([
+    INCANTATION_BG,
+    INCANTATION_BG_REMOTE,
+    ...Object.values(SPELL_INCANTATIONS),
+    ...INCANTATION_RESERVE
+  ]);
   return [...files].map((f) => INCANTATION_DIR + f);
 }
