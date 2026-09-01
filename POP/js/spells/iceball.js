@@ -3,6 +3,7 @@ import { CONFIG } from "../config.js";
 import { tangentFrame, tmp } from "../utils.js";
 import { SPELLS } from "./defs.js";
 import { disposeProjectile, spawnBurst, surfaceDist } from "./fx-common.js";
+import { isWaterAt, spawnWaterSplash } from "./water-fx.js";
 
 const _yUp = new THREE.Vector3(0, 1, 0);
 const _quat = new THREE.Quaternion();
@@ -61,7 +62,14 @@ function spawnIceShards(sys, pos, normalDir, count = 78) {
   }
 }
 
-function shatterIceball(sys, pos, dir) {
+function shatterIceball(sys, pos, dir, projectile = null) {
+  if (projectile?.sfxRoll) {
+    sys.audio?.stopIceRoll(projectile.sfxRoll, 0.04);
+    projectile.sfxRoll = null;
+  }
+  const listener = sys.getListenerDir?.();
+  if (listener) sys.audio?.playAt("icebreak", dir, listener);
+
   spawnBurst(sys, pos, dir, 0xffffff, 0.42);
   spawnBurst(sys, pos, dir, 0xb8dcff, 0.28);
   spawnIceShards(sys, pos, dir);
@@ -72,7 +80,7 @@ export function updateIceball(sys, p, dt) {
   const step = SPELLS.iceball.speed * dt;
   p.moveDir.addScaledVector(p.dir, -p.moveDir.dot(p.dir));
   if (p.moveDir.lengthSq() < 1e-10) {
-    shatterIceball(sys, p.ball.position.clone(), p.dir.clone());
+    shatterIceball(sys, p.ball.position.clone(), p.dir.clone(), p);
     disposeProjectile(sys, p);
     return false;
   }
@@ -83,7 +91,29 @@ export function updateIceball(sys, p, dt) {
   const h = sys.terrain.height(p.dir);
   p.ball.position.copy(p.dir).multiplyScalar(h + p.radius);
   p.traveled += step;
+
+  if (isWaterAt(sys, p.dir)) {
+    const splashPos = p.dir.clone().multiplyScalar(CONFIG.waterLevel + p.radius * 0.12);
+    spawnWaterSplash(sys, p.dir, p.radius);
+    shatterIceball(sys, splashPos, p.dir.clone(), p);
+    disposeProjectile(sys, p);
+    return false;
+  }
+
   sys.terrain.paintIceTrail(p.dir, p.radius * 1.15);
+
+  if (p.sfxRoll) {
+    const listener = sys.getListenerDir?.();
+    if (listener) {
+      sys.audio?.updateIceRoll(
+        p.sfxRoll,
+        p.dir,
+        listener,
+        dt,
+        SPELLS.iceball.speed
+      );
+    }
+  }
 
   if (p.traveled > 2.5) {
     const touchR = p.radius + 0.45;
@@ -94,7 +124,7 @@ export function updateIceball(sys, p, dt) {
         if (!w.remote) {
           w.takeDamage(SPELLS.iceball.contactDamage, { fromDir: p.dir.clone() });
         }
-        shatterIceball(sys, p.ball.position.clone(), p.dir.clone());
+        shatterIceball(sys, p.ball.position.clone(), p.dir.clone(), p);
         disposeProjectile(sys, p);
         return false;
       }
@@ -109,7 +139,7 @@ export function updateIceball(sys, p, dt) {
   }
 
   if (p.traveled >= p.maxTravel || p.life <= 0) {
-    shatterIceball(sys, p.ball.position.clone(), p.dir.clone());
+    shatterIceball(sys, p.ball.position.clone(), p.dir.clone(), p);
     disposeProjectile(sys, p);
     return false;
   }
@@ -226,6 +256,12 @@ export function launchIceball(sys, targetDir) {
   ball.frustumCulled = false;
   sys.planetGroup.add(ball);
 
+  const listener = sys.getListenerDir?.();
+  const sfxRoll =
+    listener && sys.audio
+      ? sys.audio.startIceRoll(startDir, listener, { speed: SPELLS.iceball.speed, radius })
+      : null;
+
   sys.projectiles.push({
     kind: "iceball",
     ball,
@@ -237,6 +273,7 @@ export function launchIceball(sys, targetDir) {
     traveled: 0,
     maxTravel: SPELLS.iceball.travel,
     life: 12,
-    roll: 0
+    roll: 0,
+    sfxRoll
   });
 }

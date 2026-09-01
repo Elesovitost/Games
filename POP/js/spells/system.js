@@ -39,6 +39,7 @@ export class SpellSystem {
     this.volcanos = [];
     this.earthquakes = [];
     this.activeSpellId = null;
+    this._sfxLoops = new Set();
 
     this._tmp = new THREE.Vector3();
     this._tmp2 = new THREE.Vector3();
@@ -202,6 +203,30 @@ export class SpellSystem {
     disposeTornados(this);
     disposeVolcanos(this);
     disposeEarthquakes(this);
+    for (const h of this._sfxLoops) this.audio?.stopSfxLoop(h, 0.05);
+    this._sfxLoops.clear();
+  }
+
+  #startTrackedLoop(id, dir, opts = {}) {
+    const listener = this.getListenerDir?.();
+    if (!listener || !this.audio) return null;
+    const handle = this.audio.startSfxLoop(id, dir, listener, opts);
+    if (handle) this._sfxLoops.add(handle);
+    return handle;
+  }
+
+  #stopTrackedLoop(handle, fade = 0.25) {
+    if (!handle) return;
+    this._sfxLoops.delete(handle);
+    this.audio?.stopSfxLoop(handle, fade);
+  }
+
+  #updateTrackedLoops() {
+    const listener = this.getListenerDir?.();
+    if (!listener || !this._sfxLoops.size) return;
+    for (const h of this._sfxLoops) {
+      if (h.alive) this.audio?.updateSfxLoop(h, h.sourceDir, listener);
+    }
   }
 
   /** Výška nad referenční rovinou (m) — bonus k dosahu kouzel. */
@@ -312,6 +337,7 @@ export class SpellSystem {
     updateTornadoVictims(this, dt);
     updateVolcanos(this, dt);
     updateEarthquakes(this, dt);
+    this.#updateTrackedLoops();
     updateBolts(this, dt);
     this.#updateProjectiles(dt);
     updateBursts(this, dt);
@@ -395,7 +421,9 @@ export class SpellSystem {
         restore();
         return;
       }
+      const moveSfx = this.#startTrackedLoop("groundmove", target);
       beginCast(def.castTime, () => {
+        this.#stopTrackedLoop(moveSfx);
         this.clearSpiral(spiral);
         restore();
         onDone?.();
@@ -409,6 +437,7 @@ export class SpellSystem {
 
       if (!beginCast(prepTime, () => {
         this.clearSpiral(spiral);
+        const growSfx = this.#startTrackedLoop("volcanogrow", target);
         if (!this.terrain.beginVolcanoMorph(target, {
           coneRadius: def.coneRadius,
           coneHeight: def.coneHeight,
@@ -416,11 +445,13 @@ export class SpellSystem {
           craterDepth: def.craterDepth,
           duration: morphDur,
           onComplete: () => {
+            this.#stopTrackedLoop(growSfx);
             doSpawnVolcano(this, target);
             restore();
             onDone?.();
           }
         })) {
+          this.#stopTrackedLoop(growSfx);
           restore();
           onDone?.();
         }

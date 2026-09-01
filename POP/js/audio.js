@@ -21,6 +21,20 @@ export const SFX = {
     maxDist: CONFIG.sfxMaxDist,
     gain: 1
   },
+  icebreak: {
+    url: "./audio/icebreak.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1
+  },
+  /** Procedurální kutálení ledové koule — bez url */
+  iceballRoll: {
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 0.8
+  },
   /** Procedurální syčení letu — bez url */
   fireballHiss: {
     refDist: CONFIG.sfxRefDist,
@@ -62,6 +76,41 @@ export const SFX = {
     halfDist: CONFIG.sfxHalfDist,
     maxDist: CONFIG.sfxMaxDist,
     gain: 1
+  },
+  /** Procedurální kroky — lokální hráč, útlum podle kamery */
+  footstep: {
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 0.9
+  },
+  groundmove: {
+    url: "./audio/groundmove.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 0.95
+  },
+  volcanogrow: {
+    url: "./audio/volcanogrow.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1
+  },
+  lava: {
+    url: "./audio/lava.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1
+  },
+  earthquake: {
+    url: "./audio/earthquake.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1
   }
 };
 
@@ -85,8 +134,8 @@ export function distanceVolume(distM, refDist, maxDist, halfDist = 10) {
 }
 
 /**
- * Web Audio SFX — přehrává lokálně s útlumem podle vzdálenosti
- * od místa, kam se hráč dívá (listenerDir).
+ * Web Audio SFX — všechny zvuky útlumují podle vzdálenosti od místa,
+ * kam se hráč dívá (listenerDir), přes #spatialVolume / CONFIG.sfx*.
  * V MP každý klient slyší se svou kamerou; sync přes síť není potřeba.
  */
 export class GameAudio {
@@ -131,18 +180,18 @@ export class GameAudio {
     return buf;
   }
 
-  #spatialGain(id, sourceDir, listenerDir, mul = 1) {
-    const def = SFX[id];
-    if (!def || !sourceDir || !listenerDir) return 0;
+  #spatialVolume(sourceDir, listenerDir, { id, mul = 1 } = {}) {
+    if (!sourceDir || !listenerDir) return 0;
+    const def = id ? SFX[id] : null;
     const dist = surfaceDist(sourceDir, listenerDir);
     return (
       distanceVolume(
         dist,
-        def.refDist,
-        def.maxDist,
-        def.halfDist ?? CONFIG.sfxHalfDist
+        def?.refDist ?? CONFIG.sfxRefDist,
+        def?.maxDist ?? CONFIG.sfxMaxDist,
+        def?.halfDist ?? CONFIG.sfxHalfDist
       ) *
-      (def.gain ?? 1) *
+      (def?.gain ?? 1) *
       mul
     );
   }
@@ -195,14 +244,7 @@ export class GameAudio {
   }
 
   #spatialMul(sourceDir, listenerDir) {
-    if (!sourceDir || !listenerDir) return 0;
-    const dist = surfaceDist(sourceDir, listenerDir);
-    return distanceVolume(
-      dist,
-      CONFIG.sfxRefDist,
-      CONFIG.sfxMaxDist,
-      CONFIG.sfxHalfDist
-    );
+    return this.#spatialVolume(sourceDir, listenerDir);
   }
 
   #createEchoConvolver() {
@@ -447,7 +489,10 @@ export class GameAudio {
 
     if (ctx.state === "suspended") ctx.resume().catch(() => {});
 
-    const vol = this.#spatialGain(id, sourceDir, listenerDir, opts.volume ?? 1);
+    const vol = this.#spatialVolume(sourceDir, listenerDir, {
+      id,
+      mul: opts.volume ?? 1
+    });
     if (vol < 0.01) return;
 
     const src = ctx.createBufferSource();
@@ -464,6 +509,71 @@ export class GameAudio {
   playRandomScream(sourceDir, listenerDir, opts = {}) {
     const id = SCREAM_IDS[(Math.random() * SCREAM_IDS.length) | 0];
     this.playAt(id, sourceDir, listenerDir, opts);
+  }
+
+  /**
+   * Smyčka z MP3 — útlum podle kamery (elevace, sopka, láva, zemětřesení…).
+   * @returns {object|null} handle pro update/stop
+   */
+  startSfxLoop(id, sourceDir, listenerDir, opts = {}) {
+    const def = SFX[id];
+    const buf = this.buffers.get(id);
+    const ctx = this.#ensureCtx();
+    if (!def?.url || !buf || !ctx || !sourceDir || !listenerDir) return null;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    if (opts.rate != null) src.playbackRate.value = opts.rate;
+
+    const gain = ctx.createGain();
+    const base = opts.volume ?? 1;
+    const vol = this.#spatialVolume(sourceDir, listenerDir, { id, mul: base });
+    gain.gain.value = Math.max(0, Math.min(1, vol));
+
+    src.connect(gain);
+    gain.connect(this.master);
+    src.start();
+
+    return {
+      kind: "sfxLoop",
+      id,
+      sourceDir: sourceDir.clone(),
+      src,
+      gain,
+      base,
+      alive: true
+    };
+  }
+
+  updateSfxLoop(handle, sourceDir, listenerDir, fadeMul = 1) {
+    if (!handle?.alive) return;
+    const ctx = this.ctx;
+    if (!ctx || !listenerDir) return;
+    if (sourceDir) handle.sourceDir.copy(sourceDir);
+    const vol = this.#spatialVolume(handle.sourceDir, listenerDir, {
+      id: handle.id,
+      mul: handle.base * Math.max(0, fadeMul)
+    });
+    handle.gain.gain.setTargetAtTime(Math.min(1, vol), ctx.currentTime, 0.04);
+  }
+
+  stopSfxLoop(handle, fade = 0.3) {
+    if (!handle?.alive) return;
+    handle.alive = false;
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const cur = handle.gain.gain.value;
+    handle.gain.gain.cancelScheduledValues(t);
+    handle.gain.gain.setValueAtTime(cur, t);
+    handle.gain.gain.linearRampToValueAtTime(0, t + fade);
+    try {
+      handle.src.stop(t + fade + 0.05);
+    } catch (_) {
+      /* already stopped */
+    }
   }
 
   /**
@@ -490,7 +600,10 @@ export class GameAudio {
 
     const gain = ctx.createGain();
     const base = opts.volume ?? 1;
-    const vol = this.#spatialGain("fireballHiss", sourceDir, listenerDir, base);
+    const vol = this.#spatialVolume(sourceDir, listenerDir, {
+      id: "fireballHiss",
+      mul: base
+    });
     gain.gain.value = Math.min(1, vol);
 
     src.connect(hipass);
@@ -517,12 +630,10 @@ export class GameAudio {
     if (!ctx) return;
     handle.t += dt;
 
-    const vol = this.#spatialGain(
-      "fireballHiss",
-      sourceDir,
-      listenerDir,
-      handle.base
-    );
+    const vol = this.#spatialVolume(sourceDir, listenerDir, {
+      id: "fireballHiss",
+      mul: handle.base
+    });
     handle.gain.gain.setTargetAtTime(Math.min(1, vol), ctx.currentTime, 0.04);
 
     // Lehké „whoosh“ — filtr stoupá s letem
@@ -532,6 +643,109 @@ export class GameAudio {
 
   /** Zastaví syčení (krátký fade do výbuchu). */
   stopHiss(handle, fade = 0.06) {
+    if (!handle?.alive) return;
+    handle.alive = false;
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const cur = handle.gain.gain.value;
+    handle.gain.gain.cancelScheduledValues(t);
+    handle.gain.gain.setValueAtTime(cur, t);
+    handle.gain.gain.linearRampToValueAtTime(0, t + fade);
+    try {
+      handle.src.stop(t + fade + 0.02);
+    } catch (_) {
+      /* already stopped */
+    }
+  }
+
+  /**
+   * Procedurální dunění/křupání kutálející se ledové koule.
+   */
+  startIceRoll(sourceDir, listenerDir, opts = {}) {
+    const ctx = this.#ensureCtx();
+    const noise = this.#noiseBuffer();
+    if (!ctx || !noise) return null;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+
+    const src = ctx.createBufferSource();
+    src.buffer = noise;
+    src.loop = true;
+
+    const low = ctx.createBiquadFilter();
+    low.type = "lowpass";
+    low.frequency.value = 360;
+    low.Q.value = 0.65;
+
+    const crunch = ctx.createBiquadFilter();
+    crunch.type = "bandpass";
+    crunch.frequency.value = 1050;
+    crunch.Q.value = 1.15;
+
+    const gLow = ctx.createGain();
+    gLow.gain.value = 0.58;
+    const gCrunch = ctx.createGain();
+    gCrunch.gain.value = 0.42;
+
+    const gain = ctx.createGain();
+    const base = opts.volume ?? 1;
+    const vol = this.#spatialVolume(sourceDir, listenerDir, {
+      id: "iceballRoll",
+      mul: base
+    });
+    gain.gain.value = Math.max(0, Math.min(1, vol));
+
+    src.connect(low);
+    src.connect(crunch);
+    low.connect(gLow);
+    crunch.connect(gCrunch);
+    gLow.connect(gain);
+    gCrunch.connect(gain);
+    gain.connect(this.master);
+    src.start();
+
+    return {
+      kind: "iceRoll",
+      src,
+      gain,
+      gLow,
+      gCrunch,
+      low,
+      crunch,
+      base,
+      speed: opts.speed ?? 16,
+      radius: opts.radius ?? 1.5,
+      alive: true,
+      t: 0
+    };
+  }
+
+  updateIceRoll(handle, sourceDir, listenerDir, dt = 0.016, speed) {
+    if (!handle?.alive) return;
+    const ctx = this.ctx;
+    if (!ctx) return;
+    handle.t += dt;
+    if (speed != null) handle.speed = speed;
+
+    const hz = handle.speed / (Math.PI * 2 * Math.max(0.4, handle.radius));
+    const pulse = 0.5 + 0.5 * Math.pow(Math.abs(Math.sin(handle.t * hz * Math.PI * 2)), 1.35);
+    const vol = this.#spatialVolume(sourceDir, listenerDir, {
+      id: "iceballRoll",
+      mul: handle.base * (0.72 + 0.28 * pulse)
+    });
+    handle.gain.gain.setTargetAtTime(Math.min(1, vol), ctx.currentTime, 0.04);
+
+    const wobble = Math.sin(handle.t * 19.5) * 0.08 + Math.sin(handle.t * 37) * 0.05;
+    handle.crunch.frequency.setTargetAtTime(
+      780 + 620 * pulse + wobble * 120,
+      ctx.currentTime,
+      0.06
+    );
+    handle.low.frequency.setTargetAtTime(280 + 140 * pulse, ctx.currentTime, 0.08);
+    handle.gCrunch.gain.setTargetAtTime(0.32 + 0.22 * pulse, ctx.currentTime, 0.05);
+  }
+
+  stopIceRoll(handle, fade = 0.06) {
     if (!handle?.alive) return;
     handle.alive = false;
     const ctx = this.ctx;
@@ -586,7 +800,10 @@ export class GameAudio {
 
     const gain = ctx.createGain();
     const base = opts.volume ?? 1;
-    const vol = this.#spatialGain("tornadoRumble", sourceDir, listenerDir, base);
+    const vol = this.#spatialVolume(sourceDir, listenerDir, {
+      id: "tornadoRumble",
+      mul: base
+    });
     gain.gain.value = Math.max(0.01, vol);
 
     src.connect(low);
@@ -624,8 +841,10 @@ export class GameAudio {
     handle.t += dt;
 
     const vol =
-      this.#spatialGain("tornadoRumble", sourceDir, listenerDir, handle.base) *
-      Math.max(0, fadeMul);
+      this.#spatialVolume(sourceDir, listenerDir, {
+        id: "tornadoRumble",
+        mul: handle.base
+      }) * Math.max(0, fadeMul);
     handle.gain.gain.setTargetAtTime(vol, ctx.currentTime, 0.08);
 
     const t = handle.t;
@@ -666,6 +885,110 @@ export class GameAudio {
       handle.src.stop(t + fade + 0.05);
     } catch (_) {
       /* already stopped */
+    }
+  }
+
+  /**
+   * Kroky lokálního hráče — tiše podle rychlosti, útlum podle vzdálenosti kamery.
+   * @param {THREE.Vector3} sourceDir
+   * @param {THREE.Vector3} listenerDir
+   */
+  playFootstep({
+    inWater = false,
+    speed = 0,
+    walkBlend = 1,
+    sourceDir,
+    listenerDir
+  } = {}) {
+    const ctx = this.#ensureCtx();
+    if (!ctx || !sourceDir || !listenerDir) return;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+
+    const norm = Math.min(1, speed / (CONFIG.wizardSpeed * 1.8));
+    const baseVol = Math.min(0.3, (0.09 + 0.2 * norm) * walkBlend);
+    const vol = this.#spatialVolume(sourceDir, listenerDir, {
+      id: "footstep",
+      mul: baseVol
+    });
+    if (vol < 0.01) return;
+
+    const rate = 0.9 + norm * 0.2 + (Math.random() - 0.5) * 0.07;
+
+    if (inWater) this.#playWaterFootstep(vol, rate);
+    else this.#playSoftFootstep(vol, rate);
+  }
+
+  #playSoftFootstep(vol, rate = 1) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const dur = 0.1 / rate;
+    const len = Math.ceil(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      const x = i / len;
+      const env = Math.exp(-x * 42) * (1 - x * 0.35);
+      const noise = (Math.random() * 2 - 1) * 0.45;
+      const thump = Math.sin(x * Math.PI * 3.2) * Math.exp(-x * 28);
+      data[i] = (noise + thump * 0.75) * env;
+    }
+
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 520;
+    lp.Q.value = 0.7;
+
+    const gain = ctx.createGain();
+    gain.gain.value = vol;
+
+    src.connect(lp);
+    lp.connect(gain);
+    gain.connect(this.master);
+    src.start(t);
+    src.stop(t + dur + 0.05);
+  }
+
+  #playWaterFootstep(vol, rate = 1) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const t = ctx.currentTime;
+    const bubbles = 2 + ((Math.random() * 2) | 0);
+
+    for (let i = 0; i < bubbles; i++) {
+      const delay = (i * (0.02 + Math.random() * 0.018)) / rate;
+      const start = t + delay;
+      const blubDur = (0.07 + Math.random() * 0.04) / rate;
+      const bubbleVol = (vol * (0.55 + Math.random() * 0.35)) / Math.sqrt(bubbles);
+
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      const fHi = 220 + Math.random() * 180;
+      const fLo = 55 + Math.random() * 45;
+      osc.frequency.setValueAtTime(fHi, start);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(35, fLo), start + blubDur * 0.85);
+
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.setValueAtTime(520, start);
+      lp.frequency.exponentialRampToValueAtTime(180, start + blubDur);
+      lp.Q.value = 1.1;
+
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.linearRampToValueAtTime(bubbleVol, start + 0.006 / rate);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + blubDur);
+
+      osc.connect(lp);
+      lp.connect(gain);
+      gain.connect(this.master);
+      osc.start(start);
+      osc.stop(start + blubDur + 0.02);
     }
   }
 }

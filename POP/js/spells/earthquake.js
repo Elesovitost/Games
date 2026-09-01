@@ -254,6 +254,12 @@ export function spawnEarthquake(sys, targetDir) {
   const centerDir = targetDir.clone().normalize();
   const { group, lines } = spawnCrackVisuals(sys, centerDir, def.effectRadius);
 
+  const listener = sys.getListenerDir?.();
+  const sfx =
+    listener && sys.audio
+      ? sys.audio.startSfxLoop("earthquake", centerDir, listener)
+      : null;
+
   if (!sys.earthquakes) sys.earthquakes = [];
   sys.earthquakes.push({
     centerDir,
@@ -265,12 +271,14 @@ export function spawnEarthquake(sys, targetDir) {
     duration: def.duration,
     shaking: true,
     victims: new Map(),
-    seed: Math.random() * 100
+    seed: Math.random() * 100,
+    sfx
   });
 }
 
 export function updateEarthquakes(sys, dt) {
   if (!sys.earthquakes?.length) return;
+  const listener = sys.getListenerDir?.();
   for (const q of sys.earthquakes) {
     if (!q.shaking) continue;
 
@@ -278,11 +286,17 @@ export function updateEarthquakes(sys, dt) {
     q.elapsed += dt;
     q.life -= dt;
 
+    if (q.sfx?.alive && listener) {
+      sys.audio?.updateSfxLoop(q.sfx, q.centerDir, listener);
+    }
+
     shakeCracks(q, q.t);
     if (q.life > 0) updateVictims(sys, q);
 
     if (q.life <= 0) {
       q.shaking = false;
+      sys.audio?.stopSfxLoop(q.sfx);
+      q.sfx = null;
       q.victims.clear();
       restoreCrackRest(q);
       // Prstenec zóny zmizí, praskliny zůstanou
@@ -301,6 +315,8 @@ export function updateEarthquakes(sys, dt) {
 }
 
 function disposeOneEarthquake(sys, q) {
+  sys.audio?.stopSfxLoop(q.sfx, 0.05);
+  q.sfx = null;
   if (q.group) {
     sys.planetGroup.remove(q.group);
     for (const line of q.lines || []) {

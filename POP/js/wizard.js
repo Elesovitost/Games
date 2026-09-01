@@ -215,6 +215,7 @@ export class Wizard {
     this.targetDir = new THREE.Vector3();
     this.hasTarget = false;
     this.walkPhase = 0;
+    this._lastStepHalf = -1;
     this.walkBlend = 0;
     this.wantsWalk = false;
     this.moving = false;
@@ -266,6 +267,8 @@ export class Wizard {
     this.onBodyFall = null;
     /** Výkřik při velkém zásahu / letu z tornáda (main.js). */
     this.onScream = null;
+    /** Kroky — jen lokální hráč (main.js). */
+    this.onFootstep = null;
 
     this.mesh.traverse((ch) => {
       if (!ch.isMesh || !ch.material || ch === this._softShadow) return;
@@ -1197,7 +1200,31 @@ export class Wizard {
       this.casting || this.dead || this.knockdown || this.tornado ? 0 : this.wantsWalk ? 1 : 0;
     const rate = target > this.walkBlend ? 3.2 : 5;
     this.walkBlend += (target - this.walkBlend) * Math.min(1, dt * rate);
-    if (this.walkBlend < 0.003 && target === 0) this.walkBlend = 0;
+    if (this.walkBlend < 0.003 && target === 0) {
+      this.walkBlend = 0;
+      this._lastStepHalf = -1;
+    }
+  }
+
+  /** Jedna noha na zem — volá onFootstep při každé půl-periodě chůze. */
+  #maybeFootstep() {
+    if (this.remote || this.walkBlend < 0.06 || !this.onFootstep) return;
+    const half = Math.floor(this.walkPhase / Math.PI);
+    if (half === this._lastStepHalf) return;
+    this._lastStepHalf = half;
+    const god = this.godMode ? CONFIG.godModeSpeedMul : 1;
+    const speed =
+      CONFIG.wizardSpeed *
+      god *
+      this._speedMul *
+      this._tornadoMoveMul *
+      this._lavaMoveMul *
+      this.walkBlend;
+    this.onFootstep({
+      inWater: this.#isInWater(),
+      speed,
+      walkBlend: this.walkBlend
+    });
   }
 
   #animate(dt) {
@@ -1288,5 +1315,7 @@ export class Wizard {
     if (parts.body) {
       parts.body.position.y = Math.abs(Math.sin(this.walkPhase * 2)) * 0.04 * b;
     }
+
+    this.#maybeFootstep();
   }
 }

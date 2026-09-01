@@ -120,6 +120,20 @@ class Game {
     w.onScream = () => this.audio?.playRandomScream(w.dir, listener());
   }
 
+  /** Kroky slyší jen vlastní kouzelník; hlasitost podle vzdálenosti kamery. */
+  #wireLocalFootsteps(w) {
+    if (!w || w.remote) return;
+    const listener = () => this.spells.getListenerDir(this._listenerDir);
+    w.onFootstep = ({ inWater, speed, walkBlend }) =>
+      this.audio?.playFootstep({
+        inWater,
+        speed,
+        walkBlend,
+        sourceDir: w.dir,
+        listenerDir: listener()
+      });
+  }
+
   #wireWizardNet(w) {
     if (!w || w.remote) return;
     w.onKnockdown = (kd) => {
@@ -152,6 +166,7 @@ class Game {
     this.spells.wizard = w;
     this.spells._castOwnerId = w.id;
     this.#wireWizardAudio(w);
+    this.#wireLocalFootsteps(w);
     this.#wireWizardNet(w);
     placeCamera(this.camera, start);
     this.spawnMarkers?.show();
@@ -190,6 +205,7 @@ class Game {
         this.wizard = w;
         this.spells.wizard = w;
         this.spells._castOwnerId = w.id;
+        this.#wireLocalFootsteps(w);
         this.#wireWizardNet(w);
         placeCamera(this.camera, spawn);
       }

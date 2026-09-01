@@ -261,12 +261,18 @@ export function spawnVolcano(sys, targetDir) {
     segReach,
     lava,
     light,
-    seed
+    seed,
+    sfxLava: null
   };
   for (let i = 0; i < SEGS; i++) {
     volcano.segReach[i] = segmentReach(volcano, i);
   }
   refreshLavaGeometry(sys.terrain, lava, volcano.segReach);
+
+  const listener = sys.getListenerDir?.();
+  if (listener && sys.audio) {
+    volcano.sfxLava = sys.audio.startSfxLoop("lava", dir, listener);
+  }
 
   sys.volcanos.push(volcano);
 }
@@ -275,6 +281,7 @@ export function updateVolcanos(sys, dt) {
   if (!sys.volcanos?.length) return;
   const def = SPELLS.volcano;
   const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
+  const listener = sys.getListenerDir?.();
 
   for (const w of list) {
     if (w) w._lavaMoveMul = 1;
@@ -286,8 +293,11 @@ export function updateVolcanos(sys, dt) {
 
     const activeEnd = def.lavaFillTime + def.lavaFlowTime + def.lavaDuration;
     const totalLife = activeEnd + def.lavaFadeTime;
+    const fadeStart = activeEnd;
 
     if (volcano.elapsed >= totalLife) {
+      sys.audio?.stopSfxLoop(volcano.sfxLava);
+      volcano.sfxLava = null;
       finalizeVolcanoAsScorch(sys, volcano);
       sys.volcanos.splice(v, 1);
       continue;
@@ -299,7 +309,14 @@ export function updateVolcanos(sys, dt) {
     }
     refreshLavaGeometry(sys.terrain, volcano.lava, volcano.segReach);
 
-    const fadeStart = activeEnd;
+    let fadeMul = 1;
+    if (volcano.elapsed > fadeStart) {
+      fadeMul = 1 - smoothstep((volcano.elapsed - fadeStart) / def.lavaFadeTime);
+    }
+    if (volcano.sfxLava?.alive && listener) {
+      sys.audio.updateSfxLoop(volcano.sfxLava, volcano.dir, listener, fadeMul);
+    }
+
     let opacity = 0.95;
     let lightI = 1.8;
     let cool = 0;
@@ -367,6 +384,8 @@ function finalizeVolcanoAsScorch(sys, volcano) {
 }
 
 function disposeVolcano(sys, volcano) {
+  sys.audio?.stopSfxLoop(volcano.sfxLava, 0.05);
+  volcano.sfxLava = null;
   sys.planetGroup.remove(volcano.lava.mesh);
   volcano.lava.mesh.geometry.dispose();
   volcano.lava.mat.dispose();
