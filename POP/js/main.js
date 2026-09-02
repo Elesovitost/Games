@@ -7,6 +7,8 @@ import { SPAWN_SEEDS, resolveLandSpawns, pickRandomSpawn } from "./maps.js";
 import { SpawnMarkers } from "./spawns.js";
 import { Trees } from "./trees.js";
 import { CritterHerd } from "./critter.js";
+import { WaterLife } from "./water-life.js";
+import { LongneckHerd } from "./longneck.js";
 import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
 import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./visibility.js";
@@ -86,6 +88,9 @@ class Game {
     this.spawnMarkers = new SpawnMarkers(this.planetGroup, this.terrain, this.landSpawns);
     this.trees = new Trees(this.planetGroup, this.terrain);
     this.critters = new CritterHerd(this.planetGroup, this.terrain);
+    this.waterLife = new WaterLife(this.planetGroup, this.terrain);
+    this.longnecks = new LongneckHerd(this.planetGroup, this.terrain);
+    this.longnecks.trees = this.trees;
 
     this.wizard = null;
     this.spells = new SpellSystem(
@@ -96,6 +101,7 @@ class Game {
     );
     this.spells.critters = this.critters;
     this.spells.trees = this.trees;
+    this.spells.longnecks = this.longnecks;
     this.spells.audio = this.audio;
     this.spells.getListenerDir = (out = this._listenerDir) =>
       getPlanetViewAxis(this.camera, this.planetGroup, out);
@@ -143,6 +149,8 @@ class Game {
     this.trees?.clearBurns();
     this.trees?.refresh();
     this.critters?.spawn();
+    this.waterLife?.spawn();
+    this.longnecks?.spawn();
   }
 
   #wireWizardAudio(w) {
@@ -205,6 +213,7 @@ class Game {
     this.#setCameraFocus(start, true);
     this.spawnMarkers?.show();
     this.critters?.spawn();
+    this.longnecks?.spawn();
     this.#selectSpell(null);
   }
 
@@ -749,6 +758,8 @@ class Game {
     }
     this.#updatePendingCast();
     this.critters?.update(dt, [...this.wizards.values()]);
+    this.longnecks?.update(dt);
+    this.waterLife?.update(dt);
     this.trees?.update(dt);
     this.spells.update(dt);
     this.spawnMarkers.update(dt);

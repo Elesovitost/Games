@@ -4,7 +4,7 @@ import { tangentFrame, surfaceOffsetDir, slerpDirection } from "./utils.js";
 import { surfaceDist } from "./spells/fx-common.js";
 import { BURN_DURATION, CHAR_COLOR, attachFire, tintMeshBlack, setBurnGlow } from "./burn.js";
 
-const COUNT = 8;
+const COUNT = 16;
 const WALK_SPEED = 0.7;
 const FLEE_SPEED = 4.2;
 const FLEE_START = 6.5;
@@ -45,8 +45,18 @@ function mat(color, opts = {}) {
   return m;
 }
 
-function box(w, h, d, material, x, y, z) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+function sph(geo, material, rx, ry, rz, x, y, z) {
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.scale.set(rx, ry, rz);
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+function cyl(geo, material, r, h, x, y, z) {
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.scale.set(r, h, r);
   mesh.position.set(x, y, z);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
@@ -57,51 +67,56 @@ function box(w, h, d, material, x, y, z) {
  * Mimozemský "trojnohý šnekokrak" — zploštělé tělo, šroubovitý krk,
  * tři oční stonky, hřbetní plachty a šest nestejných nohou.
  */
-export function createCritterMesh(mats) {
+export function createCritterMesh(mats, geos) {
   const root = new THREE.Group();
   const body = new THREE.Group();
+  const S = geos.sphere;
+  const C = geos.cyl;
+  const N = geos.cone;
 
-  body.add(box(0.72, 0.38, 1.05, mats.hide, 0, 0.42, 0.05));
-  body.add(box(0.58, 0.16, 0.9, mats.belly, 0, 0.22, 0.08));
-  body.add(box(0.22, 0.28, 0.22, mats.hide, 0.38, 0.55, -0.12));
-  body.add(box(0.18, 0.34, 0.18, mats.sail, -0.36, 0.62, 0.18));
+  body.add(sph(S, mats.hide, 0.38, 0.22, 0.52, 0, 0.42, 0.04));
+  body.add(sph(S, mats.belly, 0.3, 0.1, 0.44, 0, 0.24, 0.06));
+  body.add(sph(S, mats.hide, 0.12, 0.14, 0.12, 0.32, 0.52, -0.1));
+  body.add(sph(S, mats.sail, 0.1, 0.16, 0.1, -0.3, 0.56, 0.14));
 
   const sails = [];
   for (let i = 0; i < 5; i++) {
-    const sail = box(0.04, 0.42 + (i % 2) * 0.12, 0.22, mats.sail, 0, 0.72, -0.28 + i * 0.16);
+    const sail = new THREE.Mesh(N, mats.sail);
+    const h = 0.38 + (i % 2) * 0.1;
+    sail.scale.set(0.09, h, 0.14);
+    sail.position.set(0, 0.58 + h * 0.35, -0.28 + i * 0.16);
     sail.rotation.z = (i - 2) * 0.18;
+    sail.castShadow = true;
     body.add(sail);
     sails.push(sail);
   }
 
   const neck = new THREE.Group();
-  neck.position.set(0, 0.52, 0.48);
-  neck.add(box(0.16, 0.16, 0.38, mats.hide, 0, 0.04, 0.16));
+  neck.position.set(0, 0.5, 0.46);
+  neck.add(sph(S, mats.hide, 0.1, 0.09, 0.2, 0, 0.04, 0.14));
   const neck2 = new THREE.Group();
-  neck2.position.set(0, 0.02, 0.34);
-  neck2.add(box(0.2, 0.18, 0.32, mats.hide, 0, 0.06, 0.12));
+  neck2.position.set(0, 0.02, 0.32);
+  neck2.add(sph(S, mats.hide, 0.12, 0.1, 0.16, 0, 0.05, 0.1));
   neck.add(neck2);
 
   const head = new THREE.Group();
-  head.position.set(0, 0.08, 0.32);
-  head.add(box(0.36, 0.3, 0.34, mats.hide, 0, 0.06, 0.04));
-  head.add(box(0.12, 0.18, 0.06, mats.dark, 0, 0.0, 0.2));
-  head.add(box(0.08, 0.08, 0.22, mats.belly, 0, -0.08, 0.12));
+  head.position.set(0, 0.08, 0.28);
+  head.add(sph(S, mats.hide, 0.2, 0.16, 0.18, 0, 0.05, 0.02));
+  head.add(sph(S, mats.dark, 0.06, 0.08, 0.05, 0, 0.02, 0.16));
+  head.add(sph(S, mats.belly, 0.05, 0.04, 0.12, 0, -0.06, 0.1));
 
   const stalks = [];
   const stalkDefs = [
-    { x: -0.12, y: 0.22, z: 0.02, tilt: -0.35 },
-    { x: 0.12, y: 0.24, z: -0.04, tilt: 0.4 },
-    { x: 0.0, y: 0.28, z: 0.1, tilt: 0.05 }
+    { x: -0.1, y: 0.18, z: 0.02, tilt: -0.35, h: 0.28 },
+    { x: 0.1, y: 0.2, z: -0.04, tilt: 0.4, h: 0.3 },
+    { x: 0.0, y: 0.24, z: 0.08, tilt: 0.05, h: 0.26 }
   ];
   for (const s of stalkDefs) {
     const g = new THREE.Group();
     g.position.set(s.x, s.y, s.z);
     g.rotation.z = s.tilt;
-    g.add(box(0.045, 0.28, 0.045, mats.sail, 0, 0.14, 0));
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 5), mats.eye);
-    eye.position.set(0, 0.3, 0.02);
-    eye.castShadow = true;
+    g.add(cyl(C, mats.sail, 0.028, s.h, 0, s.h * 0.5, 0));
+    const eye = sph(S, mats.eye, 0.055, 0.055, 0.055, 0, s.h + 0.02, 0.02);
     g.add(eye);
     head.add(g);
     stalks.push(g);
@@ -110,27 +125,25 @@ export function createCritterMesh(mats) {
   body.add(neck);
 
   const tail = new THREE.Group();
-  tail.position.set(0, 0.38, -0.52);
+  tail.position.set(0, 0.36, -0.48);
   for (let i = 0; i < 4; i++) {
-    const seg = box(0.14 - i * 0.02, 0.14, 0.2, i % 2 ? mats.sail : mats.hide, 0, 0, -0.12);
-    seg.position.set(Math.sin(i * 0.9) * 0.08, Math.cos(i * 0.7) * 0.06, -i * 0.16);
-    seg.rotation.y = i * 0.45;
+    const r = 0.09 - i * 0.012;
+    const seg = sph(S, i % 2 ? mats.sail : mats.hide, r, r, r * 1.15, Math.sin(i * 0.9) * 0.07, Math.cos(i * 0.7) * 0.05, -i * 0.15);
     tail.add(seg);
   }
   body.add(tail);
 
   const legs = [];
-  const hipZ = [-0.28, 0.05, 0.36];
+  const hipZ = [-0.26, 0.04, 0.34];
   for (let side = -1; side <= 1; side += 2) {
     for (let k = 0; k < 3; k++) {
       const hip = new THREE.Group();
-      hip.position.set(side * 0.28, 0.32, hipZ[k]);
-      const upper = box(0.08, 0.28, 0.08, mats.hide, 0, -0.12, 0);
+      hip.position.set(side * 0.26, 0.3, hipZ[k]);
+      const upper = cyl(C, mats.hide, 0.045, 0.26, 0, -0.12, 0);
       const shin = new THREE.Group();
-      shin.position.set(0, -0.26, 0);
-      shin.add(box(0.07, 0.26, 0.07, mats.dark, 0, -0.1, 0));
-      const foot = box(0.14, 0.06, 0.18, mats.belly, 0, -0.24, 0.04);
-      shin.add(foot);
+      shin.position.set(0, -0.24, 0);
+      shin.add(cyl(C, mats.dark, 0.036, 0.24, 0, -0.1, 0));
+      shin.add(sph(S, mats.belly, 0.08, 0.04, 0.1, 0, -0.22, 0.03));
       hip.add(upper, shin);
       body.add(hip);
       legs.push({ hip, shin, side, k });
@@ -171,7 +184,10 @@ class Critter {
     this.herd = herd;
     this.id = id;
     this.terrain = herd.terrain;
-    this.mesh = createCritterMesh(herd.mats);
+    this.mesh = createCritterMesh(herd.mats, herd.geos);
+    const size = 0.25 + rng() * 1;
+    this.mesh.scale.multiplyScalar(size);
+    this.size = size;
     herd.planetGroup.add(this.mesh);
     this.parts = this.mesh.userData.parts;
 
@@ -619,9 +635,6 @@ class Critter {
     for (const m of this._burnMats) m.dispose();
     this._burnMats.length = 0;
     this.herd.planetGroup.remove(this.mesh);
-    this.mesh.traverse((ch) => {
-      if (ch.geometry) ch.geometry.dispose();
-    });
   }
 }
 
@@ -632,6 +645,11 @@ export class CritterHerd {
     this.seed = seed + 7741;
     this.list = [];
     this.onDied = null;
+    this.geos = {
+      sphere: new THREE.SphereGeometry(1, 12, 10),
+      cyl: new THREE.CylinderGeometry(1, 1, 1, 8),
+      cone: new THREE.ConeGeometry(1, 1, 8)
+    };
     this.mats = {
       hide: mat(0x6a3d7a),
       belly: mat(0xc4d45a),
@@ -648,7 +666,7 @@ export class CritterHerd {
     const east = new THREE.Vector3();
     const north = new THREE.Vector3();
     let guard = 0;
-    while (this.list.length < COUNT && guard++ < 800) {
+    while (this.list.length < COUNT && guard++ < 1600) {
       const dir = randomSphereDir(rng);
       tangentFrame(dir, east, north);
       if (!isWalkable(this.terrain, dir, east, north)) continue;
@@ -666,6 +684,7 @@ export class CritterHerd {
   dispose() {
     this.clear();
     for (const m of Object.values(this.mats)) m.dispose();
+    for (const g of Object.values(this.geos)) g.dispose();
   }
 
   /** Zásah v rádiusu — zabije. Vrací true, pokud někdo umřel. */
