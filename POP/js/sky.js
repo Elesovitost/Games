@@ -188,7 +188,8 @@ export function createSun(planetGroup) {
   return sun;
 }
 
-export function cameraPose(focusDir) {
+export function cameraPose(focusDir, zoom = 1) {
+  const z = Number.isFinite(zoom) ? zoom : 1;
   const up = focusDir.clone().normalize();
   const focus = up.clone().multiplyScalar(CONFIG.planetR);
   let east = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), up);
@@ -196,15 +197,15 @@ export function cameraPose(focusDir) {
   east.normalize();
   const north = new THREE.Vector3().crossVectors(up, east).normalize();
   const position = focus.clone()
-    .addScaledVector(up, CONFIG.camHeight)
-    .addScaledVector(north, -CONFIG.camBack);
-  const target = focus.clone().addScaledVector(north, CONFIG.camLook);
+    .addScaledVector(up, CONFIG.camHeight * z)
+    .addScaledVector(north, -CONFIG.camBack * z);
+  const target = focus.clone().addScaledVector(north, CONFIG.camLook * z);
   return { position, up, target };
 }
 
-export function placeCamera(camera, focusArr) {
+export function placeCamera(camera, focusArr, zoom = 1) {
   const focus = new THREE.Vector3(focusArr[0], focusArr[1], focusArr[2]);
-  const pose = cameraPose(focus);
+  const pose = cameraPose(focus, zoom);
   camera.position.copy(pose.position);
   camera.up.copy(pose.up);
   camera.lookAt(pose.target);

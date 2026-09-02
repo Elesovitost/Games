@@ -37,6 +37,8 @@ class Game {
     this._orbitPointerId = null;
     this._lastOrbitX = 0;
     this._lastOrbitY = 0;
+    this._camFocus = CONFIG.focusDir.slice();
+    this._camZoom = 1;
 
     mountGameVersion(document.getElementById("game-version"));
 
@@ -193,7 +195,7 @@ class Game {
     this.#wireWizardAudio(w);
     this.#wireLocalFootsteps(w);
     this.#wireWizardNet(w);
-    placeCamera(this.camera, start);
+    this.#setCameraFocus(start, true);
     this.spawnMarkers?.show();
     this.critters?.spawn();
     this.#selectSpell(null);
@@ -233,7 +235,7 @@ class Game {
         this.spells._castOwnerId = w.id;
         this.#wireLocalFootsteps(w);
         this.#wireWizardNet(w);
-        placeCamera(this.camera, spawn);
+        this.#setCameraFocus(spawn, true);
       }
     }
     if (!this.wizard && list.length) {
@@ -399,7 +401,7 @@ class Game {
   #cycleSpawnCamera() {
     if (!this.landSpawns.length) return;
     this._spawnCamIdx = (this._spawnCamIdx + 1) % this.landSpawns.length;
-    placeCamera(this.camera, this.landSpawns[this._spawnCamIdx]);
+    this.#setCameraFocus(this.landSpawns[this._spawnCamIdx]);
   }
 
   #bindInput() {
@@ -447,11 +449,29 @@ class Game {
     this.canvas.addEventListener("pointerup", (e) => this.#onPointerUp(e));
     this.canvas.addEventListener("pointercancel", (e) => this.#onPointerUp(e));
     this.canvas.addEventListener("pointerleave", () => this.#onPointerLeave());
+    this.canvas.addEventListener("wheel", (e) => this.#onWheel(e), { passive: false });
     window.addEventListener("contextmenu", (e) => e.preventDefault());
   }
 
   #isUiTarget(target) {
     return !!target?.closest?.("#spell-bar, #game-bar, #mp-panel, #health");
+  }
+
+  #setCameraFocus(focusArr, resetZoom = false) {
+    this._camFocus = [focusArr[0], focusArr[1], focusArr[2]];
+    if (resetZoom) this._camZoom = 1;
+    placeCamera(this.camera, this._camFocus, this._camZoom);
+  }
+
+  #onWheel(e) {
+    if (this.#isUiTarget(e.target)) return;
+    e.preventDefault();
+    let dy = e.deltaY;
+    if (e.deltaMode === 1) dy *= 16;
+    else if (e.deltaMode === 2) dy *= 400;
+    const next = this._camZoom * Math.exp(dy * 0.0018);
+    this._camZoom = Math.min(CONFIG.camZoomMax, Math.max(CONFIG.camZoomMin, next));
+    if (this._camFocus) placeCamera(this.camera, this._camFocus, this._camZoom);
   }
 
   #applyOrbitDrag(dx, dy) {

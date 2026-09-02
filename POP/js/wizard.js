@@ -9,10 +9,8 @@ import {
 import { WalkFootprints } from "./spells/fx-aim.js";
 
 const ROBE = 0x1a2848;
-const ROBE_DARK = 0x0c1424;
 const GOLD = 0xd4a837;
 const GOLD_DIM = 0xa88628;
-const FACE_VOID = 0x060810;
 
 function mat(color, opts = {}) {
   const m = new THREE.MeshStandardMaterial({
@@ -27,72 +25,178 @@ function mat(color, opts = {}) {
   return m;
 }
 
-function box(w, h, d, material, x, y, z) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+function addMesh(parent, geo, material, x, y, z, rx = 0, ry = 0, rz = 0) {
+  const mesh = new THREE.Mesh(geo, material);
   mesh.position.set(x, y, z);
+  if (rx || ry || rz) mesh.rotation.set(rx, ry, rz);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  parent.add(mesh);
   return mesh;
 }
 
-/** Minecraft-style blokový kouzelník (lokální Y = nahoru od povrchu, +Z = obličej). */
+function mkBasic(color, opts = {}) {
+  return new THREE.MeshBasicMaterial({ color, ...opts });
+}
+
+/** Čaroděj v kápi (lokální Y = nahoru od povrchu, +Z = obličej). */
 export function createWizardMesh(robeColor = ROBE) {
   const root = new THREE.Group();
   const body = new THREE.Group();
   const robe = Number(robeColor) || ROBE;
-  const robeDark = new THREE.Color(robe).multiplyScalar(0.42).getHex();
-  const robeMat = mat(robe);
-  const robeDarkMat = mat(robeDark);
+  const robeDark = new THREE.Color(robe).multiplyScalar(0.38).getHex();
+  const robeDeeper = new THREE.Color(robe).multiplyScalar(0.22).getHex();
+  const robeMat = mat(robe, { roughness: 0.86 });
+  const robeDarkMat = mat(robeDark, { roughness: 0.9 });
+  const robeDeepMat = mat(robeDeeper, { roughness: 0.92 });
   robeMat.userData.robeRole = "main";
   robeDarkMat.userData.robeRole = "dark";
-  const goldMat = mat(GOLD, { roughness: 0.55, metalness: 0.35 });
-  const goldDimMat = mat(GOLD_DIM, { roughness: 0.6, metalness: 0.25 });
-  const voidMat = mat(FACE_VOID, { roughness: 1 });
+  robeDeepMat.userData.robeRole = "deeper";
+  const goldMat = mat(GOLD, { roughness: 0.48, metalness: 0.42 });
+  const goldDimMat = mat(GOLD_DIM, { roughness: 0.58, metalness: 0.28 });
+  const gloveMat = mat(0x1a1410, { roughness: 0.7 });
+  const bootMat = mat(0x14100c, { roughness: 0.78 });
+  const voidMat = mkBasic(0x000000);
+  const liningMat = mkBasic(0x040308, { side: THREE.BackSide });
+  const eyeGlowMat = mkBasic(0xffd56a);
 
   const leftLeg = new THREE.Group();
-  leftLeg.position.set(-0.12, 0.52, 0);
-  leftLeg.add(box(0.22, 0.34, 0.22, robeDarkMat, 0, -0.13, 0));
-  leftLeg.add(box(0.14, 0.32, 0.06, robeMat, 0.06, -0.2, 0.2));
-  leftLeg.add(box(0.26, 0.09, 0.32, robeDarkMat, 0, -0.36, 0.1));
+  leftLeg.position.set(-0.13, 0.78, 0.02);
+  addMesh(leftLeg, new THREE.CapsuleGeometry(0.072, 0.24, 4, 8), robeDarkMat, 0, -0.15, 0);
+  const leftShin = new THREE.Group();
+  leftShin.position.set(0, -0.3, 0);
+  leftLeg.add(leftShin);
+  addMesh(leftShin, new THREE.CapsuleGeometry(0.06, 0.22, 4, 8), robeDeepMat, 0, -0.14, 0);
+  addMesh(leftShin, new THREE.BoxGeometry(0.15, 0.09, 0.28), bootMat, 0, -0.32, 0.06);
 
   const rightLeg = new THREE.Group();
-  rightLeg.position.set(0.12, 0.52, 0);
-  rightLeg.add(box(0.22, 0.34, 0.22, robeDarkMat, 0, -0.13, 0));
-  rightLeg.add(box(0.14, 0.32, 0.06, robeMat, -0.06, -0.2, 0.2));
-  rightLeg.add(box(0.26, 0.09, 0.32, robeDarkMat, 0, -0.36, 0.1));
+  rightLeg.position.set(0.13, 0.78, 0.02);
+  addMesh(rightLeg, new THREE.CapsuleGeometry(0.072, 0.24, 4, 8), robeDarkMat, 0, -0.15, 0);
+  const rightShin = new THREE.Group();
+  rightShin.position.set(0, -0.3, 0);
+  rightLeg.add(rightShin);
+  addMesh(rightShin, new THREE.CapsuleGeometry(0.06, 0.22, 4, 8), robeDeepMat, 0, -0.14, 0);
+  addMesh(rightShin, new THREE.BoxGeometry(0.15, 0.09, 0.28), bootMat, 0, -0.32, 0.06);
 
-  // Dlouhý hábit
-  body.add(box(0.62, 1.12, 0.38, robeMat, 0, 0.72, 0));
-  body.add(box(0.66, 0.08, 0.42, goldMat, 0, 0.16, 0.01));
-  body.add(box(0.08, 1.05, 0.1, goldMat, 0, 0.7, 0.2));
-  body.add(box(0.58, 0.32, 0.34, robeMat, 0, 1.38, 0));
-  body.add(box(0.12, 0.18, 0.08, goldMat, 0, 1.52, 0.18));
-  body.add(box(0.26, 0.16, 0.3, robeMat, -0.34, 1.46, -0.03));
-  body.add(box(0.26, 0.16, 0.3, robeMat, 0.34, 1.46, -0.03));
-  body.add(box(0.22, 0.1, 0.28, goldDimMat, -0.34, 1.48, 0.02));
-  body.add(box(0.22, 0.1, 0.28, goldDimMat, 0.34, 1.48, 0.02));
+  const frontGap = 1.12;
+  const skirtPts = [
+    new THREE.Vector2(0.46, 0.2),
+    new THREE.Vector2(0.38, 0.36),
+    new THREE.Vector2(0.29, 0.6),
+    new THREE.Vector2(0.22, 0.86),
+    new THREE.Vector2(0.19, 1.12)
+  ];
+  addMesh(
+    body,
+    new THREE.LatheGeometry(skirtPts, 20, frontGap * 0.5, Math.PI * 2 - frontGap),
+    robeMat,
+    0, 0, 0
+  );
+  const innerPts = skirtPts.map((p) => new THREE.Vector2(Math.max(0.04, p.x - 0.018), p.y));
+  addMesh(
+    body,
+    new THREE.LatheGeometry(innerPts, 18, frontGap * 0.5, Math.PI * 2 - frontGap),
+    liningMat,
+    0, 0, 0
+  );
 
-  // Hlava v kápi — černý stín místo obličeje
-  body.add(box(0.4, 0.4, 0.38, voidMat, 0, 1.72, 0.04));
-  body.add(box(0.52, 0.46, 0.42, robeDarkMat, 0, 1.74, -0.05));
-  body.add(box(0.54, 0.14, 0.46, robeDarkMat, 0, 1.98, -0.02));
-  body.add(box(0.46, 0.22, 0.12, robeDarkMat, 0, 1.62, -0.22));
-  body.add(box(0.48, 0.06, 0.08, goldMat, 0, 1.58, 0.22));
-  body.add(box(0.06, 0.4, 0.08, goldMat, -0.22, 1.74, 0.22));
-  body.add(box(0.06, 0.4, 0.08, goldMat, 0.22, 1.74, 0.22));
-  body.add(box(0.44, 0.06, 0.08, goldMat, 0, 1.94, 0.18));
+  addMesh(body, new THREE.LatheGeometry([
+    new THREE.Vector2(0.18, 1.1),
+    new THREE.Vector2(0.22, 1.24),
+    new THREE.Vector2(0.25, 1.4),
+    new THREE.Vector2(0.23, 1.54),
+    new THREE.Vector2(0.13, 1.62)
+  ], 14), robeMat, 0, 0, 0);
+
+  addMesh(body, new THREE.SphereGeometry(0.155, 10, 8), robeMat, -0.22, 1.46, 0);
+  addMesh(body, new THREE.SphereGeometry(0.155, 10, 8), robeMat, 0.22, 1.46, 0);
+  addMesh(body, new THREE.TorusGeometry(0.195, 0.026, 6, 16), goldMat, 0, 1.14, 0.02, Math.PI / 2, 0, 0);
+  addMesh(body, new THREE.BoxGeometry(0.055, 0.38, 0.035), goldDimMat, 0, 1.36, 0.21);
+
+  const cloak = new THREE.Group();
+  cloak.position.set(0, 1.5, -0.04);
+  body.add(cloak);
+  const cloakPts = [
+    new THREE.Vector2(0.14, 0.04),
+    new THREE.Vector2(0.22, -0.28),
+    new THREE.Vector2(0.32, -0.7),
+    new THREE.Vector2(0.44, -1.12)
+  ];
+  addMesh(
+    cloak,
+    new THREE.LatheGeometry(cloakPts, 14, Math.PI - 1.15, 2.3),
+    robeDarkMat,
+    0, 0, 0
+  );
+  addMesh(
+    cloak,
+    new THREE.LatheGeometry(
+      cloakPts.map((p) => new THREE.Vector2(Math.max(0.04, p.x - 0.02), p.y)),
+      12,
+      Math.PI - 1.15,
+      2.3
+    ),
+    liningMat,
+    0, 0, 0
+  );
+
+  const head = new THREE.Group();
+  head.position.set(0, 1.64, 0.03);
+  body.add(head);
+
+  // Kápi: otevřená vpředu, uvnitř neosvětlená tma
+  const hoodOpen = 1.58;
+  const hoodPhi0 = Math.PI / 2 + hoodOpen * 0.5;
+  const hoodPhiLen = Math.PI * 2 - hoodOpen;
+  const cowl = addMesh(
+    head,
+    new THREE.SphereGeometry(0.255, 18, 14, hoodPhi0, hoodPhiLen),
+    robeDarkMat,
+    0, 0.1, -0.06
+  );
+  cowl.scale.set(1.04, 1.0, 1.12);
+  const cowlInner = addMesh(
+    head,
+    new THREE.SphereGeometry(0.242, 18, 14, hoodPhi0, hoodPhiLen),
+    liningMat,
+    0, 0.1, -0.06
+  );
+  cowlInner.scale.set(1.04, 1.0, 1.12);
+  addMesh(head, new THREE.SphereGeometry(0.12, 12, 10), robeDarkMat, 0, 0.26, -0.16).scale.set(0.92, 0.78, 1.08);
+  addMesh(head, new THREE.SphereGeometry(0.1, 10, 8), robeDarkMat, 0, 0.2, 0.0).scale.set(1.45, 0.38, 0.62);
+  addMesh(head, new THREE.SphereGeometry(0.095, 8, 6), robeDarkMat, -0.165, 0.05, 0.0);
+  addMesh(head, new THREE.SphereGeometry(0.095, 8, 6), robeDarkMat, 0.165, 0.05, 0.0);
+  addMesh(head, new THREE.TorusGeometry(0.13, 0.018, 6, 20), goldMat, 0, 0.06, 0.11, 0.18, 0, 0);
+
+  const voidFill = addMesh(head, new THREE.SphereGeometry(0.13, 12, 10), voidMat, 0, 0.05, 0.02);
+  voidFill.scale.set(0.92, 0.95, 0.68);
+
+  const leftEye = addMesh(head, new THREE.SphereGeometry(0.028, 8, 6), eyeGlowMat, -0.038, 0.05, 0.122);
+  const rightEye = addMesh(head, new THREE.SphereGeometry(0.028, 8, 6), eyeGlowMat, 0.038, 0.05, 0.122);
+  for (const m of [leftEye, rightEye, voidFill, cowlInner]) {
+    m.castShadow = false;
+    m.receiveShadow = false;
+  }
 
   const leftArm = new THREE.Group();
-  leftArm.position.set(-0.38, 1.34, 0);
-  leftArm.add(box(0.22, 0.3, 0.22, robeMat, 0, -0.12, 0));
-  leftArm.add(box(0.24, 0.08, 0.24, goldMat, 0, -0.34, 0));
-  leftArm.add(box(0.2, 0.16, 0.2, robeDarkMat, 0, -0.48, 0));
+  leftArm.position.set(-0.32, 1.42, 0);
+  addMesh(leftArm, new THREE.CapsuleGeometry(0.055, 0.2, 4, 8), robeMat, 0, -0.13, 0);
+  addMesh(leftArm, new THREE.TorusGeometry(0.058, 0.016, 5, 10), goldDimMat, 0, -0.26, 0, Math.PI / 2, 0, 0);
+  const leftFore = new THREE.Group();
+  leftFore.position.set(0, -0.28, 0);
+  leftArm.add(leftFore);
+  addMesh(leftFore, new THREE.CapsuleGeometry(0.048, 0.18, 4, 8), robeDarkMat, 0, -0.11, 0);
+  addMesh(leftFore, new THREE.SphereGeometry(0.052, 8, 6), gloveMat, 0, -0.24, 0.015);
 
   const rightArm = new THREE.Group();
-  rightArm.position.set(0.38, 1.34, 0);
-  rightArm.add(box(0.22, 0.3, 0.22, robeMat, 0, -0.12, 0));
-  rightArm.add(box(0.24, 0.08, 0.24, goldMat, 0, -0.34, 0));
-  rightArm.add(box(0.2, 0.16, 0.2, robeDarkMat, 0, -0.48, 0));
+  rightArm.position.set(0.32, 1.42, 0);
+  addMesh(rightArm, new THREE.CapsuleGeometry(0.055, 0.2, 4, 8), robeMat, 0, -0.13, 0);
+  addMesh(rightArm, new THREE.TorusGeometry(0.058, 0.016, 5, 10), goldDimMat, 0, -0.26, 0, Math.PI / 2, 0, 0);
+  const rightFore = new THREE.Group();
+  rightFore.position.set(0, -0.28, 0);
+  rightArm.add(rightFore);
+  addMesh(rightFore, new THREE.CapsuleGeometry(0.048, 0.18, 4, 8), robeDarkMat, 0, -0.11, 0);
+  addMesh(rightFore, new THREE.SphereGeometry(0.052, 8, 6), gloveMat, 0, -0.24, 0.015);
 
   // Cast FX — krouží kolem těla v barvě hráče (ne světélko v ruce)
   const castFx = new THREE.Group();
@@ -187,10 +291,19 @@ export function createWizardMesh(robeColor = ROBE) {
 
   root.userData.parts = {
     body,
+    head,
+    cloak,
     leftLeg,
     rightLeg,
+    leftShin,
+    rightShin,
     leftArm,
     rightArm,
+    leftFore,
+    rightFore,
+    leftEye,
+    rightEye,
+    eyeGlowMat,
     castFx,
     castOrbs,
     castRings,
@@ -219,6 +332,9 @@ export class Wizard {
     this.walkPhase = 0;
     this._lastStepHalf = -1;
     this.walkBlend = 0;
+    this._idleT = Math.random() * 20;
+    this._idleWait = 1.8 + Math.random() * 2.8;
+    this._idleAct = null;
     this.wantsWalk = false;
     this.moving = false;
     this.casting = false;
@@ -300,10 +416,12 @@ export class Wizard {
   /** Změna barvy hábitu (solo / před MP). */
   setRobeColor(hex) {
     this.color = Number(hex) || ROBE;
-    const dark = new THREE.Color(this.color).multiplyScalar(0.42);
+    const dark = new THREE.Color(this.color).multiplyScalar(0.38);
+    const deeper = new THREE.Color(this.color).multiplyScalar(0.22);
     for (const m of this._bodyMats) {
       if (m.userData.robeRole === "main") m.color.setHex(this.color);
       else if (m.userData.robeRole === "dark") m.color.copy(dark);
+      else if (m.userData.robeRole === "deeper") m.color.copy(deeper);
     }
     const parts = this.mesh.userData.parts;
     if (parts?.castOrbs) {
@@ -549,9 +667,13 @@ export class Wizard {
   #knockLift(kd) {
     if (!kd) return 0;
     const r = this.#knockRollRadius();
-    const onSide = kd.sideZ >= Math.PI * 0.4;
-    if (onSide) return r * (0.4 + 0.6 * Math.abs(Math.sin(kd.barrelY)));
-    return r * Math.sin(Math.min(kd.sideZ, Math.PI * 0.5));
+    if (kd.phase === "fall" || kd.phase === "roll") {
+      const onSide = kd.sideZ >= Math.PI * 0.4;
+      if (onSide) return r * (0.4 + 0.6 * Math.abs(Math.sin(kd.barrelY)));
+      return r * Math.sin(Math.min(kd.sideZ, Math.PI * 0.5));
+    }
+    const z = Math.min(Math.max(kd.sideZ, 0), Math.PI * 0.5);
+    return r * Math.sin(z);
   }
 
   #knockMove(kd, step) {
@@ -636,7 +758,8 @@ export class Wizard {
       minRot,
       rotations: rotCount,
       away: !!opts.awayFrom,
-      riseDur: CONFIG.wizardKnockRiseDur
+      riseDur: CONFIG.wizardKnockRiseDur,
+      lieDur: CONFIG.wizardKnockLieDur
     };
 
     if (!this.remote && this.onKnockdown) this.onKnockdown(this.knockdown);
@@ -683,24 +806,101 @@ export class Wizard {
       const stalled = moved < 1e-4 && kd.t > 0.35;
       if (doneDist || doneRot || stalled || kd.t > 4) {
         kd.barrelY = kd.minRot;
+        kd.phase = "lie";
+        kd.t = 0;
+      }
+      return;
+    }
+
+    if (kd.phase === "lie") {
+      kd.sideZ = fallEnd;
+      if (kd.t >= (kd.lieDur ?? CONFIG.wizardKnockLieDur)) {
         kd.phase = "rise";
         kd.t = 0;
+        kd.riseFromY = kd.barrelY;
       }
       return;
     }
 
     if (kd.phase === "rise") {
       const u = Math.min(1, kd.t / kd.riseDur);
-      const e = u * u * (3 - 2 * u);
       const full = Math.PI * 2;
       const barrelTarget = Math.round(kd.minRot / full) * full;
-      kd.barrelY += (barrelTarget - kd.barrelY) * Math.min(1, dt * (6 + e * 10));
-      kd.sideZ *= 1 - Math.min(1, dt * (5 + e * 8));
+      const unwind = Math.min(1, u / 0.22);
+      const ue = unwind * unwind * (3 - 2 * unwind);
+      kd.barrelY = (kd.riseFromY ?? kd.minRot) + (barrelTarget - (kd.riseFromY ?? kd.minRot)) * ue;
+      kd.sideZ = this.#getUpSideZ(u);
       if (u >= 1) {
         kd.sideZ = 0;
         kd.barrelY = barrelTarget;
         this.knockdown = null;
       }
+    }
+  }
+
+  #getUpSideZ(u) {
+    const fall = Math.PI * 0.5;
+    const x = Math.min(1, Math.max(0, u));
+    if (x < 0.16) return fall * (1 - 0.06 * (x / 0.16));
+    if (x < 0.46) {
+      const t = (x - 0.16) / 0.3;
+      const e = t * t * (3 - 2 * t);
+      return fall * (0.94 - 0.4 * e);
+    }
+    if (x < 0.8) {
+      const t = (x - 0.46) / 0.34;
+      const e = 1 - (1 - t) ** 3;
+      return fall * 0.54 * (1 - e) + 0.1 * (1 - e);
+    }
+    const t = (x - 0.8) / 0.2;
+    const e = t * t * (3 - 2 * t);
+    return 0.1 * (1 - e);
+  }
+
+  #getUpPitch(u) {
+    const x = Math.min(1, Math.max(0, u));
+    if (x < 0.2) return 0.08 + 0.12 * (x / 0.2);
+    if (x < 0.5) {
+      const t = (x - 0.2) / 0.3;
+      return 0.2 + 0.22 * (t * t * (3 - 2 * t));
+    }
+    if (x < 0.82) {
+      const t = (x - 0.5) / 0.32;
+      const e = 1 - (1 - t) ** 2;
+      return 0.42 * (1 - e) - 0.04 * e;
+    }
+    const t = (x - 0.82) / 0.18;
+    return -0.04 * (1 - t * t * (3 - 2 * t));
+  }
+
+  #applyGetUpLimbs(parts, u) {
+    const plant = Math.sin(Math.min(1, Math.max(0, u / 0.5)) * Math.PI);
+    const crouch =
+      u < 0.22
+        ? (u / 0.22) * 0.5
+        : u < 0.58
+          ? 0.5 + ((u - 0.22) / 0.36) * 0.42
+          : u < 0.9
+            ? 0.92 * (1 - (u - 0.58) / 0.32)
+            : 0;
+    const headLift = 1 - Math.min(1, u / 0.7);
+
+    parts.leftArm.rotation.set(-0.15 - 1.05 * plant, 0.08 * plant, 0.28 + 0.45 * plant);
+    parts.rightArm.rotation.set(-0.25 - 1.2 * plant, -0.1 * plant, -0.35 - 0.4 * plant);
+    if (parts.leftFore) parts.leftFore.rotation.set(-0.35 - 0.7 * plant, 0, 0);
+    if (parts.rightFore) parts.rightFore.rotation.set(-0.45 - 0.85 * plant, 0, 0);
+
+    parts.leftLeg.rotation.set(0.12 + 0.72 * crouch, 0, 0.06 * crouch);
+    parts.rightLeg.rotation.set(0.08 + 0.58 * crouch, 0, -0.04 * crouch);
+    if (parts.leftShin) parts.leftShin.rotation.set(0.2 + 0.7 * crouch, 0, 0);
+    if (parts.rightShin) parts.rightShin.rotation.set(0.18 + 0.62 * crouch, 0, 0);
+
+    if (parts.head) {
+      parts.head.rotation.set(0.42 * headLift - 0.06 * plant, 0.1 * Math.sin(u * Math.PI), 0);
+    }
+    if (parts.cloak) parts.cloak.rotation.set(0.12 * crouch, 0, 0);
+    if (parts.body) {
+      parts.body.position.y = 0.04 * plant + 0.03 * Math.sin(Math.min(1, u) * Math.PI);
     }
   }
 
@@ -716,11 +916,34 @@ export class Wizard {
     parts.rightLeg.rotation.set(0, 0, 0);
     parts.leftArm.rotation.set(0, 0, 0);
     parts.rightArm.rotation.set(0, 0, 0);
+    this.#zeroExtraJoints(parts);
 
     if (kd.phase === "roll") {
       const tuck = 0.32 * Math.sin(kd.barrelY * 2);
       parts.leftLeg.rotation.x = tuck;
       parts.rightLeg.rotation.x = tuck;
+      if (parts.leftShin) parts.leftShin.rotation.x = Math.abs(tuck) * 0.7;
+      if (parts.rightShin) parts.rightShin.rotation.x = Math.abs(tuck) * 0.7;
+    }
+
+    if (kd.phase === "lie") {
+      const stir = Math.sin(kd.t * 2.4) * 0.04;
+      parts.body.rotation.x = 0.1 + stir;
+      parts.leftLeg.rotation.set(0.28 + stir, 0, 0.05);
+      parts.rightLeg.rotation.set(0.22, 0, -0.04);
+      if (parts.leftShin) parts.leftShin.rotation.set(0.45, 0, 0);
+      if (parts.rightShin) parts.rightShin.rotation.set(0.38, 0, 0);
+      parts.leftArm.rotation.set(-0.35, 0, 0.45);
+      parts.rightArm.rotation.set(0.25, 0, -0.7);
+      if (parts.leftFore) parts.leftFore.rotation.set(-0.4, 0, 0);
+      if (parts.rightFore) parts.rightFore.rotation.set(-0.15, 0, 0);
+      if (parts.head) parts.head.rotation.set(0.45 + stir, 0.12, 0);
+    }
+
+    if (kd.phase === "rise") {
+      const u = Math.min(1, kd.t / Math.max(0.001, kd.riseDur));
+      parts.body.rotation.x = this.#getUpPitch(u);
+      this.#applyGetUpLimbs(parts, u);
     }
 
     if (parts.castFx) parts.castFx.visible = false;
@@ -736,6 +959,7 @@ export class Wizard {
     parts.rightLeg.rotation.set(0, 0, 0);
     parts.leftArm.rotation.set(0, 0, 0);
     parts.rightArm.rotation.set(0, 0, 0);
+    this.#zeroExtraJoints(parts);
 
     const side = td.sideZ ?? 0;
     const phase = td.phase;
@@ -753,12 +977,32 @@ export class Wizard {
         const tuck = 0.25 * Math.sin((td.bodyRoll || 0) * 2);
         parts.leftLeg.rotation.x = tuck;
         parts.rightLeg.rotation.x = tuck;
+        if (parts.leftShin) parts.leftShin.rotation.x = Math.abs(tuck) * 0.7;
+        if (parts.rightShin) parts.rightShin.rotation.x = Math.abs(tuck) * 0.7;
       }
-    } else if (phase === "air" || phase === "lie" || phase === "rise") {
+    } else if (phase === "air") {
       parts.body.rotation.set(0, td.bodyRoll || 0, -side);
       const tuck = 0.28 * Math.sin((td.bodyRoll || 0) * 2);
       parts.leftLeg.rotation.x = tuck;
       parts.rightLeg.rotation.x = tuck;
+      if (parts.leftShin) parts.leftShin.rotation.x = Math.abs(tuck) * 0.7;
+      if (parts.rightShin) parts.rightShin.rotation.x = Math.abs(tuck) * 0.7;
+    } else if (phase === "lie") {
+      const stir = Math.sin((td.t || 0) * 2.4) * 0.04;
+      parts.body.rotation.set(0.1 + stir, td.bodyRoll || 0, -side);
+      parts.leftLeg.rotation.set(0.28 + stir, 0, 0.05);
+      parts.rightLeg.rotation.set(0.22, 0, -0.04);
+      if (parts.leftShin) parts.leftShin.rotation.set(0.45, 0, 0);
+      if (parts.rightShin) parts.rightShin.rotation.set(0.38, 0, 0);
+      parts.leftArm.rotation.set(-0.35, 0, 0.45);
+      parts.rightArm.rotation.set(0.25, 0, -0.7);
+      if (parts.leftFore) parts.leftFore.rotation.set(-0.4, 0, 0);
+      if (parts.rightFore) parts.rightFore.rotation.set(-0.15, 0, 0);
+      if (parts.head) parts.head.rotation.set(0.45 + stir, 0.12, 0);
+    } else if (phase === "rise") {
+      const u = Math.min(1, (td.t || 0) / (td.riseDur || CONFIG.wizardKnockRiseDur));
+      parts.body.rotation.set(this.#getUpPitch(u), td.bodyRoll || 0, -side);
+      this.#applyGetUpLimbs(parts, u);
     }
 
     if (parts.castFx) parts.castFx.visible = false;
@@ -942,6 +1186,7 @@ export class Wizard {
       if (parts.castFx) parts.castFx.visible = false;
       parts.rightArm.rotation.set(0, 0, 0);
       parts.leftArm.rotation.set(0, 0, 0);
+      this.#zeroExtraJoints(parts);
     }
     if (cb) cb();
   }
@@ -1295,6 +1540,165 @@ export class Wizard {
     });
   }
 
+  #zeroExtraJoints(parts) {
+    if (!parts) return;
+    if (parts.head) parts.head.rotation.set(0, 0, 0);
+    if (parts.cloak) parts.cloak.rotation.set(0, 0, 0);
+    if (parts.leftFore) parts.leftFore.rotation.set(0, 0, 0);
+    if (parts.rightFore) parts.rightFore.rotation.set(0, 0, 0);
+    if (parts.leftShin) parts.leftShin.rotation.set(0, 0, 0);
+    if (parts.rightShin) parts.rightShin.rotation.set(0, 0, 0);
+  }
+
+  #pulseEyes(parts, dt) {
+    this._idleT += dt;
+    if (this.godMode || !parts.eyeGlowMat) return;
+    const t = 0.5 + 0.5 * Math.sin(this._idleT * 2.35);
+    parts.eyeGlowMat.color.setRGB(1, 0.72 + 0.16 * t, 0.22 + 0.18 * t);
+  }
+
+  #idlePose(dt, walking) {
+    const pose = {
+      headX: Math.sin(this._idleT * 1.15) * 0.03,
+      headY: 0,
+      bodyX: Math.sin(this._idleT * 1.65) * 0.018,
+      bodyZ: 0,
+      cloakX: Math.sin(this._idleT * 0.85) * 0.04,
+      armLX: 0.06,
+      armLZ: 0.08,
+      armRX: 0.06,
+      armRZ: -0.08,
+      foreL: 0.12,
+      foreR: 0.12,
+      armLY: 0,
+      armRY: 0
+    };
+
+    if (walking) {
+      this._idleAct = null;
+      this._idleWait = 1.6 + Math.random() * 2.4;
+      return pose;
+    }
+
+    this._idleWait -= dt;
+    if (this._idleWait <= 0 && !this._idleAct) {
+      const kinds = ["glance", "look", "hood", "shift", "clasp", "nod"];
+      this._idleAct = {
+        kind: kinds[(Math.random() * kinds.length) | 0],
+        t: 0,
+        dur: 1.35 + Math.random() * 1.5,
+        sign: Math.random() < 0.5 ? -1 : 1
+      };
+    }
+
+    if (!this._idleAct) return pose;
+
+    this._idleAct.t += dt;
+    const u = Math.min(1, this._idleAct.t / this._idleAct.dur);
+    const env = Math.sin(u * Math.PI);
+    const s = this._idleAct.sign;
+    switch (this._idleAct.kind) {
+      case "glance":
+        pose.headY = s * 0.55 * env;
+        pose.headX = -0.08 * env;
+        break;
+      case "look":
+        pose.headY = s * 0.7 * Math.sin(u * Math.PI * 2);
+        pose.headX = 0.12 * Math.sin(u * Math.PI);
+        break;
+      case "hood":
+        pose.armRX = -1.35 * env;
+        pose.armRZ = -0.35 * env;
+        pose.foreR = -0.85 * env;
+        pose.headX = 0.18 * env;
+        pose.headY = s * 0.12 * env;
+        break;
+      case "shift":
+        pose.bodyZ = s * 0.04 * env;
+        pose.armLZ = 0.08 + s * 0.08 * env;
+        pose.armRZ = -0.08 - s * 0.08 * env;
+        break;
+      case "clasp":
+        pose.armLX = -0.45 * env;
+        pose.armRX = -0.5 * env;
+        pose.armLZ = 0.42 * env;
+        pose.armRZ = -0.42 * env;
+        pose.foreL = -0.55 * env;
+        pose.foreR = -0.6 * env;
+        pose.headX = 0.12 * env;
+        break;
+      case "nod":
+        pose.headX = 0.28 * Math.sin(u * Math.PI * 2);
+        break;
+    }
+
+    if (this._idleAct.t >= this._idleAct.dur) {
+      this._idleAct = null;
+      this._idleWait = 2.4 + Math.random() * 5;
+    }
+    return pose;
+  }
+
+  #animateCast(dt, parts) {
+    const t = this.castT;
+    const dur = Math.max(0.001, this.castDuration);
+    const u = Math.min(1, t / dur);
+    const raise = u < 0.14 ? u / 0.14 : u > 0.86 ? (1 - u) / 0.14 : 1;
+    const weave = Math.sin(t * 6.4);
+    const weave2 = Math.cos(t * 5.1);
+    const pulse = 0.5 + 0.5 * Math.sin(t * 9);
+
+    parts.body.rotation.set(-0.1 * raise, weave * 0.04 * raise, 0);
+    parts.body.position.y = 0.02 * raise;
+    if (parts.head) {
+      parts.head.rotation.set(-0.28 * raise + weave2 * 0.05, weave * 0.1, 0);
+    }
+    if (parts.cloak) parts.cloak.rotation.set(0.18 * raise, 0, weave * 0.05);
+
+    parts.leftArm.rotation.set(
+      -0.4 - 1.05 * raise,
+      weave * 0.12 * raise,
+      0.28 + 0.42 * raise + weave2 * 0.1
+    );
+    parts.rightArm.rotation.set(
+      -0.48 - 1.12 * raise,
+      -weave * 0.12 * raise,
+      -0.32 - 0.48 * raise - weave * 0.1
+    );
+    if (parts.leftFore) parts.leftFore.rotation.set(-0.35 - 0.45 * weave * raise, 0, 0);
+    if (parts.rightFore) parts.rightFore.rotation.set(-0.4 - 0.4 * weave2 * raise, 0, 0);
+    parts.leftLeg.rotation.set(0.04, 0, 0);
+    parts.rightLeg.rotation.set(-0.04, 0, 0);
+    if (parts.leftShin) parts.leftShin.rotation.set(0.08, 0, 0);
+    if (parts.rightShin) parts.rightShin.rotation.set(0.08, 0, 0);
+
+    if (parts.castFx) {
+      if (parts.castOrbs) {
+        for (const o of parts.castOrbs) {
+          const a = t * o.speed + o.phase;
+          const y = o.y0 + Math.sin(t * o.spin + o.phase) * o.bob;
+          o.mesh.position.set(Math.cos(a) * o.r, y, Math.sin(a) * o.r);
+          if (o.kind === "shard") {
+            o.mesh.rotation.set(t * o.spin, a, t * 1.7);
+          }
+          const s = 0.75 + pulse * 0.45;
+          o.mesh.scale.setScalar(s);
+          if (o.mesh.material) {
+            o.mesh.material.opacity = 0.4 + pulse * 0.45;
+          }
+        }
+      }
+      if (parts.castRings) {
+        for (const r of parts.castRings) {
+          r.mesh.rotation.y = t * r.speed;
+          r.mesh.rotation.z += dt * r.speed * 0.35;
+          r.mesh.scale.setScalar(0.92 + pulse * 0.14);
+          if (r.mesh.material) r.mesh.material.opacity = 0.22 + pulse * 0.28;
+        }
+      }
+    }
+  }
+
   #animate(dt) {
     const parts = this.mesh.userData.parts;
     if (!parts) return;
@@ -1309,79 +1713,66 @@ export class Wizard {
       return;
     }
 
+    this.#pulseEyes(parts, dt);
+
     if (this.casting) {
-      if (parts.body) {
-        parts.body.rotation.set(0, 0, 0);
-        parts.body.position.y = 0;
-      }
-      const t = this.castT;
-      const pulse = 0.5 + 0.5 * Math.sin(t * 9);
-
-      // Obě ruce mírně od těla — channeling, ne světélko v dlani
-      parts.rightArm.rotation.x = -0.55 + Math.sin(t * 1.4) * 0.05;
-      parts.rightArm.rotation.z = -0.55 + Math.sin(t * 2.1) * 0.08;
-      parts.leftArm.rotation.x = -0.55 + Math.cos(t * 1.4) * 0.05;
-      parts.leftArm.rotation.z = 0.55 + Math.cos(t * 2.1) * 0.08;
-      parts.leftLeg.rotation.x = 0;
-      parts.rightLeg.rotation.x = 0;
-
-      if (parts.castFx) {
-        if (parts.castOrbs) {
-          for (const o of parts.castOrbs) {
-            const a = t * o.speed + o.phase;
-            const y = o.y0 + Math.sin(t * o.spin + o.phase) * o.bob;
-            o.mesh.position.set(Math.cos(a) * o.r, y, Math.sin(a) * o.r);
-            if (o.kind === "shard") {
-              o.mesh.rotation.set(t * o.spin, a, t * 1.7);
-            }
-            const s = 0.75 + pulse * 0.45;
-            o.mesh.scale.setScalar(s);
-            if (o.mesh.material) {
-              o.mesh.material.opacity = 0.4 + pulse * 0.45;
-            }
-          }
-        }
-        if (parts.castRings) {
-          for (const r of parts.castRings) {
-            r.mesh.rotation.y = t * r.speed;
-            r.mesh.rotation.z += dt * r.speed * 0.35;
-            r.mesh.scale.setScalar(0.92 + pulse * 0.14);
-            if (r.mesh.material) r.mesh.material.opacity = 0.22 + pulse * 0.28;
-          }
-        }
-      }
+      this.#animateCast(dt, parts);
       return;
     }
 
-    parts.rightArm.rotation.set(0, 0, 0);
-    parts.leftArm.rotation.set(0, 0, 0);
+    const b = this.walkBlend;
+    const idle = this.#idlePose(dt, b > 0.06);
+
+    parts.leftArm.rotation.set(idle.armLX, idle.armLY, idle.armLZ);
+    parts.rightArm.rotation.set(idle.armRX, idle.armRY, idle.armRZ);
     parts.leftLeg.rotation.set(0, 0, 0);
     parts.rightLeg.rotation.set(0, 0, 0);
+    if (parts.leftFore) parts.leftFore.rotation.set(idle.foreL, 0, 0);
+    if (parts.rightFore) parts.rightFore.rotation.set(idle.foreR, 0, 0);
+    if (parts.leftShin) parts.leftShin.rotation.set(0.06, 0, 0);
+    if (parts.rightShin) parts.rightShin.rotation.set(0.06, 0, 0);
+    if (parts.head) parts.head.rotation.set(idle.headX, idle.headY, 0);
+    if (parts.cloak) parts.cloak.rotation.set(idle.cloakX, 0, 0);
     if (parts.body) {
-      parts.body.rotation.set(0, 0, 0);
+      parts.body.rotation.set(idle.bodyX, 0, idle.bodyZ);
       parts.body.position.y = 0;
     }
 
-    const b = this.walkBlend;
     if (b < 0.001) return;
 
-    this.walkPhase += dt * (5.5 + 4.2 * this._speedMul) * (0.35 + 0.65 * b);
-    const amp = (0.58 + 0.34 * this._speedMul) * b;
+    this.walkPhase += dt * (5.2 + 3.6 * this._speedMul) * (0.35 + 0.65 * b);
+    const amp = (0.42 + 0.22 * this._speedMul) * b;
     const s = Math.sin(this.walkPhase) * amp;
-    const lift = 0.22 * b;
+    const kneeL = Math.max(0, -s) * 1.05 + 0.08 * b;
+    const kneeR = Math.max(0, s) * 1.05 + 0.08 * b;
 
-    parts.leftLeg.rotation.x = s + Math.max(0, s) * lift;
-    parts.rightLeg.rotation.x = -s + Math.max(0, -s) * lift;
-    parts.leftLeg.rotation.z = s * 0.12;
-    parts.rightLeg.rotation.z = -s * 0.12;
+    parts.leftLeg.rotation.x = s;
+    parts.rightLeg.rotation.x = -s;
+    parts.leftLeg.rotation.z = 0;
+    parts.rightLeg.rotation.z = 0;
+    if (parts.leftShin) parts.leftShin.rotation.x = kneeL;
+    if (parts.rightShin) parts.rightShin.rotation.x = kneeR;
 
-    parts.leftArm.rotation.x = -s * 0.8;
-    parts.rightArm.rotation.x = s * 0.65;
-    parts.leftArm.rotation.z = s * 0.2;
-    parts.rightArm.rotation.z = -s * 0.16;
+    parts.leftArm.rotation.x = idle.armLX - s * 0.58;
+    parts.rightArm.rotation.x = idle.armRX + s * 0.52;
+    parts.leftArm.rotation.z = idle.armLZ + s * 0.06;
+    parts.rightArm.rotation.z = idle.armRZ - s * 0.05;
+    if (parts.leftFore) parts.leftFore.rotation.x = idle.foreL + Math.max(0, s) * 0.35;
+    if (parts.rightFore) parts.rightFore.rotation.x = idle.foreR + Math.max(0, -s) * 0.35;
 
+    if (parts.head) {
+      parts.head.rotation.x = idle.headX + b * 0.04;
+      parts.head.rotation.y = idle.headY - s * 0.04;
+    }
+    if (parts.cloak) {
+      parts.cloak.rotation.x = idle.cloakX + 0.08 * b;
+      parts.cloak.rotation.z = -s * 0.025;
+    }
     if (parts.body) {
-      parts.body.position.y = Math.abs(Math.sin(this.walkPhase * 2)) * 0.04 * b;
+      parts.body.rotation.x = idle.bodyX + 0.045 * b;
+      parts.body.rotation.y = s * 0.012;
+      parts.body.rotation.z = idle.bodyZ * (1 - b);
+      parts.body.position.y = Math.abs(Math.sin(this.walkPhase * 2)) * 0.022 * b;
     }
 
     this.#maybeFootstep();

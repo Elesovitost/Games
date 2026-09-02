@@ -22,6 +22,9 @@ export const CONFIG = {
   camHeight: 21,
   camBack: 17,
   camLook: 13,
+  /** Kolečko myši — 1 = výchozí pohled */
+  camZoomMin: 0.42,
+  camZoomMax: 2.6,
   focusDir: [1, 1, 1],
   rotSpeed: 0.18,
   wizardSpeed: 5,
@@ -67,7 +70,8 @@ export const CONFIG = {
   /** Min. damage pro knockdown */
   wizardKnockMinDamage: 10,
   wizardKnockFallDur: 0.08,
-  wizardKnockRiseDur: 0.45,
+  wizardKnockLieDur: 0.4,
+  wizardKnockRiseDur: 0.82,
   wizardKnockSlideImpulse: 10,
   wizardKnockSlideFriction: 3.2,
   wizardKnockDistMin: 2,

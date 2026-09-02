@@ -576,18 +576,20 @@ function updateCapturedWizard(w, tornadoDir, pathT, bendPhase, dt, linkedTornado
   if (td.phase === "lie") {
     decayFlightSpin(td, dt);
     w.mesh.position.copy(w.dir).multiplyScalar(terrainFloor(terrain, w.dir));
-    if (td.t >= 0.55) {
+    if (td.t >= 0.45) {
       td.phase = "rise";
       td.t = 0;
+      td.riseDur = 0.82;
     }
     return;
   }
 
   if (td.phase === "rise") {
     decayFlightSpin(td, dt);
-    const dur = 0.38;
+    const dur = td.riseDur || 0.82;
     const u = Math.min(1, td.t / dur);
-    const e = u * u * (3 - 2 * u);
+    const delayed = Math.max(0, (u - 0.14) / 0.86);
+    const e = delayed * delayed * (3 - 2 * delayed);
     td.sideZ = sideFull * (1 - e);
     w.mesh.position.copy(w.dir).multiplyScalar(terrainFloor(terrain, w.dir));
     if (u >= 1) w.endTornadoCapture();
