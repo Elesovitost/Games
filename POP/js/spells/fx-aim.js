@@ -399,7 +399,7 @@ export class AimReticle {
 const FOOT_LIFT = 0.2;
 const FOOT_SPACING = 0.2;
 const FOOT_STAGGER = 0.14;
-const FOOT_SCALE = 3;
+const FOOT_SCALE = 1.5;
 
 const _footTmp = {
   east: new THREE.Vector3(),
@@ -420,12 +420,11 @@ function createFootGeometry() {
   s.lineTo(-0.04, -0.01);
   s.lineTo(-0.055, 0.02);
   const geo = new THREE.ShapeGeometry(s);
-  geo.rotateX(-Math.PI / 2);
   geo.scale(FOOT_SCALE, FOOT_SCALE, FOOT_SCALE);
   return geo;
 }
 
-function placeFootOnSurface(terrain, footDir, lift, outPos, outNormal, outForward, fromDir) {
+function placeFootOnSurface(terrain, footDir, lift, outPos, outNormal) {
   const h = terrain.height(footDir);
   outPos.copy(footDir).multiplyScalar(h);
 
@@ -443,10 +442,6 @@ function placeFootOnSurface(terrain, footDir, lift, outPos, outNormal, outForwar
   if (outNormal.dot(footDir) < 0) outNormal.negate();
 
   outPos.addScaledVector(outNormal, lift);
-
-  outForward.copy(fromDir).addScaledVector(footDir, -footDir.dot(fromDir));
-  if (outForward.lengthSq() < 1e-8) outForward.copy(_footTmp.east);
-  else outForward.normalize();
 }
 
 /** Dvě pulzující stopy — cíl chůze, jen lokální hráč. */
@@ -526,15 +521,18 @@ export class WalkFootprints {
         this._footDir,
         FOOT_LIFT,
         this._pos,
-        this._normal,
-        this._forward,
-        this.fromDir
+        this._normal
       );
       o.mesh.position.copy(this._pos);
 
-      this._basisX.copy(this._forward);
+      // ShapeGeometry je v XY (Z = plocha). Stejná báze jako aim terč: X/Y v tečně, Z = normála terénu.
+      this._basisY.copy(this._forward).addScaledVector(this._normal, -this._forward.dot(this._normal));
+      if (this._basisY.lengthSq() < 1e-8) this._basisY.copy(this._east);
+      else this._basisY.normalize();
+      this._basisX.crossVectors(this._basisY, this._normal);
+      if (this._basisX.lengthSq() < 1e-8) this._basisX.crossVectors(this._east, this._normal);
+      this._basisX.normalize();
       this._basisY.crossVectors(this._normal, this._basisX).normalize();
-      this._basisX.crossVectors(this._basisY, this._normal).normalize();
       this._mat4.makeBasis(this._basisX, this._basisY, this._normal);
       o.mesh.quaternion.setFromRotationMatrix(this._mat4);
     }
