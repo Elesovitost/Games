@@ -31,6 +31,10 @@ class Game {
     this._spawnCamIdx = 0;
     this.wizards = new Map();
     this.inputEnabled = true;
+    this._orbitDrag = false;
+    this._orbitPointerId = null;
+    this._lastOrbitX = 0;
+    this._lastOrbitY = 0;
 
     mountGameVersion(document.getElementById("game-version"));
 
@@ -418,8 +422,51 @@ class Game {
 
     this.canvas.addEventListener("pointerdown", (e) => this.#onPointerDown(e));
     this.canvas.addEventListener("pointermove", (e) => this.#onPointerMove(e));
+    this.canvas.addEventListener("pointerup", (e) => this.#onPointerUp(e));
+    this.canvas.addEventListener("pointercancel", (e) => this.#onPointerUp(e));
     this.canvas.addEventListener("pointerleave", () => this.#onPointerLeave());
     window.addEventListener("contextmenu", (e) => e.preventDefault());
+  }
+
+  #isUiTarget(target) {
+    return !!target?.closest?.("#spell-bar, #game-bar, #mp-panel, #health");
+  }
+
+  #applyOrbitDrag(dx, dy) {
+    this.camRight.setFromMatrixColumn(this.camera.matrixWorld, 0).normalize();
+    this.camUp.setFromMatrixColumn(this.camera.matrixWorld, 1).normalize();
+    const sens = CONFIG.rotSpeed * 0.0065;
+    const rsSide = sens * 1.3;
+    this.planetGroup.rotateOnWorldAxis(this.camUp, dx * rsSide);
+    this.planetGroup.rotateOnWorldAxis(this.camRight, dy * sens);
+  }
+
+  #startOrbitDrag(e) {
+    this._orbitDrag = true;
+    this._orbitPointerId = e.pointerId;
+    this._lastOrbitX = e.clientX;
+    this._lastOrbitY = e.clientY;
+    this.canvas.style.cursor = "none";
+    try {
+      this.canvas.setPointerCapture(e.pointerId);
+    } catch (_) {
+      /* noop */
+    }
+    this.wizard?.hideWalkPreview?.();
+    this.spells.aim.hide();
+  }
+
+  #endOrbitDrag(e) {
+    if (!this._orbitDrag) return;
+    if (e && e.pointerId !== this._orbitPointerId) return;
+    this._orbitDrag = false;
+    this._orbitPointerId = null;
+    this.canvas.style.cursor = "";
+    try {
+      if (e) this.canvas.releasePointerCapture(e.pointerId);
+    } catch (_) {
+      /* noop */
+    }
   }
 
   #pickTerrain(e) {
@@ -435,6 +482,16 @@ class Game {
   }
 
   #onPointerMove(e) {
+    if (this._orbitDrag && e.pointerId === this._orbitPointerId) {
+      const dx = e.clientX - this._lastOrbitX;
+      const dy = e.clientY - this._lastOrbitY;
+      this._lastOrbitX = e.clientX;
+      this._lastOrbitY = e.clientY;
+      if (dx !== 0 || dy !== 0) this.#applyOrbitDrag(dx, dy);
+      e.preventDefault();
+      return;
+    }
+
     if (!this.inputEnabled || !this.wizard || this.wizard.isBusy) return;
     const hit = this.#pickTerrain(e);
 
@@ -450,19 +507,27 @@ class Game {
   }
 
   #onPointerLeave() {
+    if (this._orbitDrag) return;
     if (!this.wizard || this.wizard.hasTarget || this.selectedSpell) return;
     this.wizard.hideWalkPreview();
   }
 
+  #onPointerUp(e) {
+    if (e.button === 2) this.#endOrbitDrag(e);
+  }
+
   #onPointerDown(e) {
-    if (e.target.closest?.("#ui") || e.target.closest?.("#mp-panel")) return;
-    if (!this.inputEnabled || !this.wizard || this.wizard.isBusy) return;
+    if (this.#isUiTarget(e.target)) return;
 
     if (e.button === 2) {
+      if (!this.inputEnabled) return;
       if (this.selectedSpell) this.#selectSpell(null);
+      this.#startOrbitDrag(e);
+      e.preventDefault();
       return;
     }
 
+    if (!this.inputEnabled || !this.wizard || this.wizard.isBusy) return;
     if (e.button !== 0) return;
 
     const hit = this.#pickTerrain(e);

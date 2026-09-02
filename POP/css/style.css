@@ -55,9 +55,9 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   max-width: min(96vw, 920px);
-  padding: 8px 10px;
+  padding: 6px 8px;
   background: var(--panel);
   border: 1px solid var(--gold-dim);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
@@ -68,15 +68,15 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  min-width: 72px;
-  padding: 8px 6px 6px;
+  gap: 4px;
+  min-width: 64px;
+  padding: 6px 5px 5px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(0, 0, 0, 0.12) 100%);
   border: 1px solid rgba(138, 112, 64, 0.65);
   color: var(--ink);
   cursor: pointer;
   font-family: var(--ui-font);
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   transition: border-color 0.15s, background 0.15s, transform 0.1s;
@@ -90,14 +90,6 @@ html, body {
   border-color: var(--gold);
   background: rgba(212, 180, 106, 0.22);
   box-shadow: inset 0 0 0 1px rgba(212, 180, 106, 0.45), 0 0 12px rgba(212, 180, 106, 0.15);
-}
-.spell-icon {
-  width: 42px;
-  height: 42px;
-  display: block;
-  position: relative;
-  border-radius: 6px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 .spell-label {
   line-height: 1;
@@ -174,181 +166,246 @@ html, body {
   border: 1px solid rgba(255, 255, 255, 0.65);
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.45);
 }
-.spell-icon.elevate {
-  background:
-    radial-gradient(ellipse 70% 35% at 50% 78%, #5a8a3a 0%, #3d6a28 70%, transparent 71%),
-    linear-gradient(to top, transparent 20%, #c4a35a 20%, #c4a35a 22%, transparent 22%),
-    radial-gradient(circle at 50% 62%, #8bc34a 0 28%, transparent 29%);
-  border-radius: 4px;
+.spell-icon {
+  width: 36px;
+  height: 36px;
+  display: block;
+  position: relative;
+  overflow: visible;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+}
+.spell-icon::before,
+.spell-icon::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+/* Elevace — zelený kopec + zářící šipka nahoru */
+.spell-icon.elevate::before {
+  left: 50%;
+  bottom: 0;
+  width: 32px;
+  height: 15px;
+  margin-left: -16px;
+  border-radius: 50% 50% 0 0;
+  background: radial-gradient(ellipse at 50% 100%, #7ed45a 0%, #4a9e32 52%, #2d6a20 100%);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.18);
 }
 .spell-icon.elevate::after {
-  content: "";
-  position: absolute;
   left: 50%;
-  top: 8px;
+  top: 6px;
   width: 0;
   height: 0;
-  border-left: 7px solid transparent;
-  border-right: 7px solid transparent;
-  border-bottom: 12px solid #e8d48a;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 11px solid #d4f080;
   transform: translateX(-50%);
+  filter: drop-shadow(0 0 5px rgba(160, 240, 90, 0.85));
 }
+
+/* Deprese — propadlina v zemi + modrá šipka dolů */
 .spell-icon.depress {
   background:
-    radial-gradient(ellipse 75% 40% at 50% 55%, #2a4a6a 0%, #1a3048 55%, transparent 56%),
-    radial-gradient(ellipse 70% 30% at 50% 78%, #5a8a3a 0%, #3d6a28 70%, transparent 71%);
-  border-radius: 4px;
+    radial-gradient(ellipse 58% 38% at 50% 74%, #0a1420 0%, #152030 38%, transparent 39%),
+    radial-gradient(ellipse 95% 48% at 50% 100%, #4a8a38 0%, #2d5820 58%, transparent 59%);
+}
+.spell-icon.depress::before {
+  left: 50%;
+  top: 7px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 11px solid #b8e4ff;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 0 5px rgba(120, 200, 255, 0.85));
 }
 .spell-icon.depress::after {
-  content: "";
-  position: absolute;
   left: 50%;
-  top: 6px;
-  width: 0;
-  height: 0;
-  border-left: 7px solid transparent;
-  border-right: 7px solid transparent;
-  border-top: 12px solid #9ec8e8;
-  transform: translateX(-50%);
-}
-.spell-icon.lightning {
-  background: linear-gradient(160deg, #1a2a48 0%, #2a4068 100%);
-  border-radius: 4px;
-}
-.spell-icon.lightning::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 6px;
-  width: 10px;
-  height: 24px;
-  transform: translateX(-50%);
-  background:
-    linear-gradient(135deg, transparent 42%, #e8f6ff 42% 58%, transparent 58%),
-    linear-gradient(45deg, transparent 40%, #9ad4ff 40% 62%, transparent 62%);
-  clip-path: polygon(55% 0, 20% 45%, 48% 45%, 30% 100%, 80% 42%, 52% 42%);
-  background: #d8f0ff;
-}
-.spell-icon.fireball {
-  background: radial-gradient(circle at 50% 55%, #ffcc66 0%, #ff6a18 40%, #6a2010 72%, #2a1010 100%);
-  border-radius: 4px;
-}
-.spell-icon.fireball::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 10px;
-  width: 14px;
-  height: 14px;
-  margin-left: -7px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #fff3c0, #ff9020 55%, transparent 70%);
-}
-.spell-icon.iceball {
-  background: radial-gradient(circle at 40% 35%, #ffffff 0%, #d8ecff 45%, #7ab0d8 100%);
-  border-radius: 4px;
-}
-.spell-icon.iceball::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 9px;
-  width: 16px;
-  height: 16px;
-  margin-left: -8px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  background: radial-gradient(circle at 30% 30%, #fff, #b8d8f0 60%, transparent 70%);
-}
-.spell-icon.tornado {
-  background: linear-gradient(180deg, #d8e4ee 0%, #8a98a8 55%, #5a6468 100%);
-  border-radius: 3px;
-}
-.spell-icon.tornado::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 4px;
-  width: 6px;
-  height: 6px;
-  margin-left: -3px;
-  border-radius: 50%;
-  background: #c8b090;
-  box-shadow:
-    0 -6px 0 2px rgba(220, 230, 238, 0.55),
-    0 -12px 0 4px rgba(200, 212, 222, 0.35),
-    0 -18px 0 6px rgba(180, 195, 205, 0.2);
-}
-.spell-icon.volcano {
-  background:
-    radial-gradient(ellipse 80% 45% at 50% 78%, #3d2218 0%, #2a1510 60%, transparent 61%),
-    linear-gradient(180deg, #6a3020 0%, #4a2018 55%, #2a1208 100%);
-  border-radius: 4px;
-}
-.spell-icon.volcano::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 5px;
-  width: 0;
-  height: 0;
-  border-left: 9px solid transparent;
-  border-right: 9px solid transparent;
-  border-bottom: 16px solid #8a4030;
-  transform: translateX(-50%);
-  filter: drop-shadow(0 -3px 2px rgba(255, 120, 40, 0.75));
-}
-.spell-icon.volcano::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 3px;
+  top: 21px;
   width: 8px;
-  height: 5px;
+  height: 8px;
   margin-left: -4px;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 60%, #ff6620, #ff2200 70%);
-  box-shadow: 0 0 6px 2px rgba(255, 100, 30, 0.8);
+  background: radial-gradient(circle at 50% 40%, rgba(160, 210, 255, 0.5) 0%, transparent 72%);
 }
-.spell-icon.invisibility {
-  background: linear-gradient(160deg, rgba(200, 184, 232, 0.55) 0%, rgba(80, 70, 110, 0.25) 100%);
-  border-radius: 4px;
-  border: 1px dashed rgba(220, 210, 245, 0.55);
+
+/* Blesk — elektrický výboj */
+.spell-icon.lightning {
+  background: transparent;
 }
-.spell-icon.invisibility::after {
-  content: "";
-  position: absolute;
+.spell-icon.lightning::after {
+  left: 50%;
+  top: 5px;
+  width: 14px;
+  height: 24px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, #f8fcff 0%, #d8eeff 45%, #8ec8ff 100%);
+  clip-path: polygon(58% 0, 24% 44%, 46% 44%, 28% 100%, 78% 40%, 54% 40%);
+  filter: drop-shadow(0 0 4px rgba(180, 220, 255, 0.95)) drop-shadow(0 0 10px rgba(100, 170, 255, 0.55));
+}
+
+/* Fireball — ohnivá koule */
+.spell-icon.fireball {
+  background: transparent;
+}
+.spell-icon.fireball::before {
   left: 50%;
   top: 50%;
-  width: 10px;
-  height: 14px;
-  margin: -8px 0 0 -5px;
-  border-radius: 5px 5px 3px 3px;
-  background: rgba(232, 224, 255, 0.35);
-  box-shadow: 0 0 0 1px rgba(200, 190, 240, 0.35);
-  opacity: 0.55;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 110, 30, 0.55) 0%, rgba(255, 60, 0, 0.18) 48%, transparent 72%);
 }
+.spell-icon.fireball::after {
+  left: 50%;
+  top: 50%;
+  width: 17px;
+  height: 17px;
+  margin: -8.5px 0 0 -8.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, #fff8d8 0%, #ffd040 22%, #ff7800 52%, #e02800 78%, #801000 100%);
+  box-shadow:
+    0 0 6px 2px rgba(255, 120, 30, 0.9),
+    0 0 14px 4px rgba(255, 60, 0, 0.45);
+}
+
+/* Iceball — ledová koule s mrazivou aurou */
+.spell-icon.iceball {
+  background: transparent;
+}
+.spell-icon.iceball::before {
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(180, 220, 255, 0.35) 0%, transparent 68%);
+}
+.spell-icon.iceball::after {
+  left: 50%;
+  top: 50%;
+  width: 17px;
+  height: 17px;
+  margin: -8.5px 0 0 -8.5px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 28% 24%, #ffffff 0%, #d8eeff 28%, #88c8f0 58%, #3a78b0 85%, #1a4068 100%);
+  box-shadow:
+    0 0 6px 2px rgba(180, 220, 255, 0.75),
+    inset -2px -3px 4px rgba(40, 90, 140, 0.35);
+}
+
+/* Tornádo — vír nad zemí */
+.spell-icon.tornado {
+  background: transparent;
+}
+.spell-icon.tornado::before {
+  left: 50%;
+  bottom: 4px;
+  width: 10px;
+  height: 5px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: #8a7050;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.spell-icon.tornado::after {
+  left: 50%;
+  bottom: 7px;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: rgba(220, 230, 240, 0.85);
+  box-shadow:
+    0 -5px 0 1.5px rgba(205, 215, 228, 0.72),
+    0 -11px 0 3px rgba(185, 198, 215, 0.52),
+    0 -17px 0 4.5px rgba(165, 180, 200, 0.34),
+    0 -23px 0 6px rgba(145, 162, 185, 0.2);
+}
+
+/* Sopka — silueta s žhavým kráterem */
+.spell-icon.volcano {
+  background: transparent;
+}
+.spell-icon.volcano::before {
+  left: 50%;
+  bottom: 3px;
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-bottom: 22px solid #4a3028;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
+}
+.spell-icon.volcano::after {
+  left: 50%;
+  top: 7px;
+  width: 10px;
+  height: 6px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 60%, #ffe060 0%, #ff6020 45%, #cc1800 80%);
+  box-shadow:
+    0 0 8px 3px rgba(255, 90, 20, 0.85),
+    0 0 16px 5px rgba(255, 40, 0, 0.35);
+}
+
+/* Stín — průhledná silueta s fialovým leskem */
+.spell-icon.invisibility {
+  background: transparent;
+}
+.spell-icon.invisibility::before {
+  inset: 5px;
+  border-radius: 5px;
+  border: 1px dashed rgba(210, 190, 255, 0.28);
+  background: transparent;
+}
+.spell-icon.invisibility::after {
+  left: 50%;
+  top: 50%;
+  width: 11px;
+  height: 15px;
+  margin: -9px 0 0 -5.5px;
+  border-radius: 6px 6px 4px 4px;
+  background: linear-gradient(180deg, rgba(240, 230, 255, 0.55) 0%, rgba(160, 140, 210, 0.15) 100%);
+  box-shadow: 0 0 8px rgba(180, 150, 255, 0.35);
+  opacity: 0.72;
+}
+
+/* Zemětřesení — prasklá země */
 .spell-icon.earthquake {
-  background: linear-gradient(180deg, #6a5040 0%, #3a2818 100%);
-  border-radius: 3px;
+  background:
+    repeating-linear-gradient(
+      -18deg,
+      transparent 0 3px,
+      rgba(20, 12, 8, 0.55) 3px 4px
+    ),
+    linear-gradient(180deg, transparent 55%, #5a4432 55%, #3a2818 100%);
 }
 .spell-icon.earthquake::before,
 .spell-icon.earthquake::after {
-  content: "";
-  position: absolute;
-  left: 4px;
-  right: 4px;
+  left: 50%;
+  width: 22px;
   height: 2px;
-  background: #1a1008;
-  transform: rotate(-18deg);
-  box-shadow: 0 0 0 1px rgba(196, 160, 96, 0.25);
+  background: #f0c860;
+  border-radius: 1px;
+  box-shadow: 0 0 4px rgba(240, 200, 80, 0.55);
 }
 .spell-icon.earthquake::before {
-  top: 8px;
+  top: 17px;
+  transform: translateX(-50%) rotate(-22deg);
 }
 .spell-icon.earthquake::after {
-  top: 14px;
-  transform: rotate(12deg);
+  top: 22px;
+  transform: translateX(-50%) rotate(16deg);
 }
 
 #game-version {
@@ -529,13 +586,13 @@ html, body {
     padding: 6px;
   }
   .spell {
-    min-width: 58px;
-    padding: 6px 4px 4px;
-    font-size: 0.55rem;
+    min-width: 52px;
+    padding: 5px 4px 4px;
+    font-size: 0.52rem;
   }
   .spell-icon {
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
   }
   #health {
     min-width: 220px;
