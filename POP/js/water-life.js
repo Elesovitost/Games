@@ -10,6 +10,8 @@ const AMOEBA_DEPTH = 0.5;
 const AMOEBA_MAX = 56;
 const FISH_MAX = 32;
 const WHALE_MAX = 6;
+/** Konzervativní velikost při výběru místa — ať se tam vejde i velký kus. */
+const WHALE_SITE_SIZE = 1.15;
 
 function mulberry32(seed) {
   let s = seed >>> 0;
@@ -23,6 +25,34 @@ function mulberry32(seed) {
 
 function depthAt(terrain, dir) {
   return CONFIG.waterLevel - terrain.height(dir);
+}
+
+/**
+ * Velryba potřebuje hlubokou vodu kolem trupu a volný výhled — jinak vleze
+ * do zátoky, zasekne se a fitSubmerge ji začne házet nahoru/dolů.
+ */
+function whaleSiteOk(terrain, dir, size, east, north, trial) {
+  const hullDown = 0.78 * size;
+  const minD = hullDown + 1.35 * size;
+  const d = depthAt(terrain, dir);
+  if (d < minD || d > 14) return false;
+  tangentFrame(dir, east, north);
+  const need = hullDown + 0.55 * size;
+  const span = 3.55 * size;
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2;
+    const r = k % 2 === 0 ? span : span * 0.55;
+    surfaceOffsetDir(dir, east, north, a, r, trial);
+    if (depthAt(terrain, trial) < need) return false;
+  }
+  const reach = Math.max(7.5, 5.5 + span);
+  let open = 0;
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    surfaceOffsetDir(dir, east, north, a, reach, trial);
+    if (depthAt(terrain, trial) >= minD) open++;
+  }
+  return open >= 5;
 }
 
 function mat(color, opts = {}) {
@@ -319,6 +349,8 @@ class WaterCritter {
     this._move = new THREE.Vector3();
     this._prev = new THREE.Vector3();
     this._world = new THREE.Vector3();
+    this._probe = new THREE.Vector3();
+    this._stuckDir = new THREE.Vector3();
     this.phase = rng() * 100;
     this.stateT = 1 + rng() * 4;
     this.submerge = kind === "amoeba" ? AMOEBA_DEPTH * size : kind === "fish" ? 0.24 * size : 2.2 * size;
@@ -328,8 +360,11 @@ class WaterCritter {
     this.hullHalfLen = (built.hullHalfLen ?? 0.35) * size;
     this.hullHalfW = (built.hullHalfW ?? 0.2) * size;
     this.hullDown = (built.hullDown ?? 0.12) * size;
+    this._stuckT = 0;
 
     tangentFrame(this.dir, this._east, this.facing);
+    if (kind === "whale" && !this.#ok(this.dir)) this.#relocate();
+    this._stuckDir.copy(this.dir);
     this.#pickTarget();
     this.#applyPose();
   }
@@ -351,16 +386,7 @@ class WaterCritter {
     const d = depthAt(this.terrain, dir);
     if (d < this.#minDepth() || d > this.#maxDepth()) return false;
     if (this.kind !== "whale") return true;
-    tangentFrame(dir, this._east, this._north);
-    const need = this.hullDown + 0.55 * this.size;
-    const span = this.hullHalfLen;
-    for (let k = 0; k < 8; k++) {
-      const a = (k / 8) * Math.PI * 2;
-      const r = k % 2 === 0 ? span : span * 0.55;
-      surfaceOffsetDir(dir, this._east, this._north, a, r, this._trial);
-      if (depthAt(this.terrain, this._trial) < need) return false;
-    }
-    return true;
+    return whaleSiteOk(this.terrain, dir, this.size, this._east, this._north, this._probe);
   }
 
   #hullClear(dir, facing, submerge, margin = 0.28 * this.size) {
@@ -410,8 +436,7 @@ class WaterCritter {
       if (s < 0.28 * s0) break;
       if (this.#hullClear(this.dir, this.facing, s)) return s;
     }
-    this.#relocate();
-    return Math.min(desired, Math.max(0.3 * s0, depthAt(this.terrain, this.dir) - this.hullDown - 0.4 * s0));
+    return Math.max(0.28 * s0, Math.min(desired, cap));
   }
 
   #pickTarget() {
@@ -421,10 +446,28 @@ class WaterCritter {
       : this.kind === "fish"
         ? 4 + this.rng() * 9
         : 2 + this.rng() * 5;
-    for (let k = 0; k < 10; k++) {
-      const ang = this.rng() * Math.PI * 2;
-      surfaceOffsetDir(this.dir, this._east, this._north, ang, dist, this.targetDir);
-      if (this.#ok(this.targetDir)) return;
+    if (this.kind === "whale") {
+      let bestD = -1;
+      let found = false;
+      for (let k = 0; k < 16; k++) {
+        const ang = (k / 16) * Math.PI * 2 + this.rng() * 0.22;
+        const dlen = dist * (0.5 + this.rng() * 0.7);
+        surfaceOffsetDir(this.dir, this._east, this._north, ang, dlen, this._trial);
+        if (!this.#ok(this._trial)) continue;
+        const d = depthAt(this.terrain, this._trial);
+        if (d > bestD) {
+          bestD = d;
+          this.targetDir.copy(this._trial);
+          found = true;
+        }
+      }
+      if (found) return;
+    } else {
+      for (let k = 0; k < 10; k++) {
+        const ang = this.rng() * Math.PI * 2;
+        surfaceOffsetDir(this.dir, this._east, this._north, ang, dist, this.targetDir);
+        if (this.#ok(this.targetDir)) return;
+      }
     }
     surfaceOffsetDir(this.dir, this._east, this._north, this.rng() * Math.PI * 2, dist * 0.4, this.targetDir);
   }
@@ -443,7 +486,7 @@ class WaterCritter {
     }
     if (!this.#ok(this.dir)) {
       this.dir.copy(this._prev);
-      return true;
+      return false;
     }
     this._move.copy(target).addScaledVector(this.dir, -this.dir.dot(target));
     if (this._move.lengthSq() > 1e-8) {
@@ -470,16 +513,48 @@ class WaterCritter {
     tangentFrame(this.dir, this._east, this._north);
     let best = null;
     let bestD = -1;
-    for (let k = 0; k < 16; k++) {
-      const ang = (k / 16) * Math.PI * 2;
-      surfaceOffsetDir(this.dir, this._east, this._north, ang, 2.4 + (k % 4), this._trial);
+    const radii = [3.2, 5.5, 8, 12, 18, 28];
+    for (let r = 0; r < radii.length; r++) {
+      const rad = radii[r];
+      for (let k = 0; k < 16; k++) {
+        const ang = (k / 16) * Math.PI * 2;
+        surfaceOffsetDir(this.dir, this._east, this._north, ang, rad, this._trial);
+        if (!this.#ok(this._trial)) continue;
+        const d = depthAt(this.terrain, this._trial);
+        if (d > bestD) {
+          bestD = d;
+          if (!best) best = this._world;
+          best.copy(this._trial);
+        }
+      }
+      if (best && bestD > this.#minDepth() + 1.4) break;
+    }
+    if (best) {
+      this.dir.copy(best);
+      return;
+    }
+    const haven = this.life.pickWhaleHaven?.(this.rng);
+    if (haven) this.dir.copy(haven);
+  }
+
+  #nudgeToDeep(dt) {
+    tangentFrame(this.dir, this._east, this._north);
+    let bestD = depthAt(this.terrain, this.dir);
+    let found = false;
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2;
+      surfaceOffsetDir(this.dir, this._east, this._north, a, 3.4, this._trial);
+      if (!this.#ok(this._trial)) continue;
       const d = depthAt(this.terrain, this._trial);
-      if (d > bestD && this.#ok(this._trial)) {
+      if (d > bestD + 0.08) {
         bestD = d;
-        best = this._trial.clone();
+        this.targetDir.copy(this._trial);
+        found = true;
       }
     }
-    if (best) this.dir.copy(best);
+    if (!found) return false;
+    this.#stepToward(this.targetDir, 0.7 * dt, dt);
+    return true;
   }
 
   update(dt) {
@@ -541,9 +616,12 @@ class WaterCritter {
   #updateWhale(dt) {
     this.modeT -= dt;
     let desired = this.submerge;
+    this._world.copy(this.dir);
     if (this.mode === "cruise") {
       desired = (2.05 + Math.sin(this.phase * 0.35) * 0.12) * this.size;
-      if (this.#stepToward(this.targetDir, 0.7 * dt, dt)) this.#pickTarget();
+      const arrived = this.#stepToward(this.targetDir, 0.7 * dt, dt);
+      if (arrived) this.#pickTarget();
+      else if (this.dir.dot(this._world) > 0.99998) this.#nudgeToDeep(dt);
       if (this.modeT <= 0) {
         this.mode = "rise";
         this.modeT = 3.6;
@@ -578,7 +656,23 @@ class WaterCritter {
       }
     }
 
-    this.submerge = this.#fitSubmerge(desired);
+    if (this.dir.dot(this._stuckDir) > 0.9996) this._stuckT += dt;
+    else {
+      this._stuckT = 0;
+      this._stuckDir.copy(this.dir);
+    }
+    if (this._stuckT > 2.4) {
+      this.#relocate();
+      this.#pickTarget();
+      this.mode = "cruise";
+      this.modeT = 10 + this.rng() * 8;
+      this._stuckT = 0;
+      this._stuckDir.copy(this.dir);
+    }
+
+    const fitted = this.#fitSubmerge(desired);
+    const k = 1 - Math.exp(-dt * 3.2);
+    this.submerge += (fitted - this.submerge) * k;
     if ((this.mode === "rise" || this.mode === "look") && this.submerge > 1.15 * this.size) {
       this.mode = "cruise";
       this.modeT = 8 + this.rng() * 6;
@@ -607,6 +701,10 @@ export class WaterLife {
     this.terrain = terrain;
     this.seed = seed + 3301;
     this.list = [];
+    this.whaleHavens = [];
+    this._havenEast = new THREE.Vector3();
+    this._havenNorth = new THREE.Vector3();
+    this._havenTrial = new THREE.Vector3();
     this.geos = {
       sphere: new THREE.SphereGeometry(1, 14, 12),
       cyl: new THREE.CylinderGeometry(1, 1, 1, 8)
@@ -616,6 +714,7 @@ export class WaterLife {
 
   spawn() {
     this.clear();
+    this.whaleHavens = [];
     const rng = mulberry32(this.seed);
     const { bodies, pos } = findWaterBodies(this.terrain);
     const tmp = new THREE.Vector3();
@@ -657,22 +756,32 @@ export class WaterLife {
 
       if (!lakes || nW >= WHALE_MAX || body.maxDepth < 4.2) continue;
       const deep = body.deep.length ? body.deep : body.verts;
+      for (let i = 0; i < deep.length && this.whaleHavens.length < 28; i += Math.max(1, (deep.length / 12) | 0)) {
+        vertDir(pos, deep[i], tmp);
+        if (!whaleSiteOk(this.terrain, tmp, WHALE_SITE_SIZE, this._havenEast, this._havenNorth, this._havenTrial)) continue;
+        this.whaleHavens.push(tmp.clone());
+      }
       const whaleWant = Math.min(2, WHALE_MAX - nW);
       for (let w = 0; w < whaleWant; w++) {
         let wdir = null;
-        for (let t = 0; t < 16; t++) {
+        for (let t = 0; t < 28; t++) {
           const vi = deep[(rng() * deep.length) | 0];
           vertDir(pos, vi, tmp);
-          if (depthAt(this.terrain, tmp) > 3.6) {
-            wdir = tmp.clone();
-            break;
-          }
+          if (depthAt(this.terrain, tmp) <= 3.6) continue;
+          if (!whaleSiteOk(this.terrain, tmp, WHALE_SITE_SIZE, this._havenEast, this._havenNorth, this._havenTrial)) continue;
+          wdir = tmp.clone();
+          break;
         }
         if (!wdir) break;
         this.list.push(new WaterCritter(this, "whale", wdir, mulberry32(this.seed + 9000 + nW * 421), createWhale(this.geos, rng)));
         nW++;
       }
     }
+  }
+
+  pickWhaleHaven(rng) {
+    if (!this.whaleHavens.length) return null;
+    return this.whaleHavens[(rng() * this.whaleHavens.length) | 0];
   }
 
   clear() {
