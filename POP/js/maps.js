@@ -22,9 +22,122 @@ function smoothstep(edge0, edge1, x) {
   return t * t * (3 - 2 * t);
 }
 
+function norm3(x, y, z) {
+  const l = Math.hypot(x, y, z) || 1;
+  return [x / l, y / l, z / l];
+}
+
+/** Velká kružnice + tečný rám pro meandry podél pásu. */
+function beltFrame(axis) {
+  const [ax, ay, az] = norm3(axis[0], axis[1], axis[2]);
+  let rx = 1;
+  let ry = 0;
+  let rz = 0;
+  if (Math.abs(ax) > 0.72) {
+    rx = 0;
+    ry = 1;
+  }
+  let e1x = ay * rz - az * ry;
+  let e1y = az * rx - ax * rz;
+  let e1z = ax * ry - ay * rx;
+  const e1l = Math.hypot(e1x, e1y, e1z) || 1;
+  e1x /= e1l;
+  e1y /= e1l;
+  e1z /= e1l;
+  return {
+    ax,
+    ay,
+    az,
+    e1x,
+    e1y,
+    e1z,
+    e2x: ay * e1z - az * e1y,
+    e2y: az * e1x - ax * e1z,
+    e2z: ax * e1y - ay * e1x
+  };
+}
+
+/**
+ * Pásy kopců / hor — obepínají planetu (velké kružnice), kroutí se a mají sedla.
+ * width/foot = pološířka v |n·p| (~ radiány); na R=80 m je 0.15 ≈ 12 m.
+ */
+const BELTS = [
+  {
+    ...beltFrame([0.18, 0.94, 0.28]),
+    width: 0.15,
+    meander: 0.055,
+    foot: 0.33,
+    base: 3.4,
+    peak: 10.5,
+    footH: 2.0,
+    gap: -0.14,
+    along: 2.7,
+    sharp: 1.7,
+    ox: 2.1
+  },
+  {
+    ...beltFrame([0.91, 0.1, -0.4]),
+    width: 0.125,
+    meander: 0.048,
+    foot: 0.27,
+    base: 2.6,
+    peak: 8.0,
+    footH: 1.5,
+    gap: -0.06,
+    along: 3.3,
+    sharp: 1.9,
+    ox: 11.4
+  },
+  {
+    ...beltFrame([0.36, -0.6, 0.71]),
+    width: 0.26,
+    meander: 0.07,
+    foot: 0.44,
+    base: 1.5,
+    peak: 3.4,
+    footH: 1.15,
+    gap: -0.24,
+    along: 2.0,
+    sharp: 1.2,
+    ox: 7.7
+  },
+  {
+    ...beltFrame([-0.54, 0.47, 0.7]),
+    width: 0.11,
+    meander: 0.06,
+    foot: 0.24,
+    base: 2.0,
+    peak: 6.2,
+    footH: 1.25,
+    gap: 0.1,
+    along: 4.1,
+    sharp: 1.75,
+    ox: 19.2
+  }
+];
+
+function beltHeight(nx, ny, nz, noise, b) {
+  const u = nx * b.e1x + ny * b.e1y + nz * b.e1z;
+  const v = nx * b.e2x + ny * b.e2y + nz * b.e2z;
+  const meander = noise.fbm(u * 2.15 + b.ox, v * 2.15, 1.4) * b.meander;
+  const dist = Math.abs(nx * b.ax + ny * b.ay + nz * b.az - meander);
+  const core = smoothstep(b.width, b.width * 0.12, dist);
+  const feet = smoothstep(b.foot, b.width * 0.4, dist);
+  if (feet <= 0 && core <= 0) return 0;
+
+  const along = noise.fbm(u * b.along + b.ox, v * b.along, 4.2);
+  const present = smoothstep(b.gap, b.gap + 0.28, along);
+  if (present <= 0.02) return 0;
+
+  const peakN = Math.max(0, along - 0.12);
+  const ridge = Math.pow(core, b.sharp) * (b.base + peakN * peakN * b.peak);
+  const jag = noise.fbm(nx * 12 + b.ox, ny * 12, nz * 12);
+  return present * (ridge * (0.8 + jag * 0.32) + feet * b.footH);
+}
+
 /**
  * Pevnina s několika moři — dá se obejít po souši.
- * Lokální pánve = moře; hřebeny a vrcholy = hory.
+ * Hory jsou v pásech (řetězce), ne náhodně po celé kouli.
  */
 export function generateHeights(heights, pos, noise) {
   const W = CONFIG.waterLevel;
@@ -61,22 +174,17 @@ export function generateHeights(heights, pos, noise) {
       continue;
     }
 
-    // Základ pevniny
     const roll = noise.fbm(nx * 3.2 + 1.5, ny * 3.2, nz * 3.2);
-    const detail = noise.fbm(nx * 8.5 + 11, ny * 8.5 - 4, nz * 8.5) * 0.55
-      + noise.fbm(nx * 18 + 20, ny * 18, nz * 18) * 0.22;
+    const detail = noise.fbm(nx * 8.5 + 11, ny * 8.5 - 4, nz * 8.5) * 0.4
+      + noise.fbm(nx * 18 + 20, ny * 18, nz * 18) * 0.16;
+    const hills = Math.max(0, roll - 0.08) * 1.45;
 
-    // Hřebeny a hory
-    const ridge = Math.abs(noise.fbm(nx * 2.6 + 30, ny * 2.6, nz * 2.6));
-    const range = Math.max(0, ridge - 0.22) * 5.8;
-    const peakN = noise.fbm(nx * 5.5 + 41, ny * 5.5 - 9, nz * 5.5);
-    const peaks = Math.max(0, peakN - 0.38);
-    const mountains = peaks * peaks * 14 + Math.max(0, peakN - 0.5) * 3.5;
+    let ranges = 0;
+    for (let b = 0; b < BELTS.length; b++) {
+      ranges += beltHeight(nx, ny, nz, noise, BELTS[b]);
+    }
 
-    const hills = Math.max(0, roll - 0.05) * 2.8;
-
-    let h = W + 0.55 + hills + detail + range + mountains;
-    // Mírný pokles k moři
+    let h = W + 0.5 + hills + detail + ranges;
     h -= sea * 1.2;
 
     heights[i] = Math.min(CONFIG.maxR * 0.98, Math.max(W + 0.08, h));
