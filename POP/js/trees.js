@@ -1,6 +1,8 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, capWithMargin, dirNearCaps } from "./utils.js";
+import { surfaceDist } from "./spells/fx-common.js";
+import { BURN_DURATION, CHAR_COLOR, attachFire, setBurnGlow } from "./burn.js";
 
 const TREE_COUNT = 100;
 const VARIANTS = 6;
@@ -198,6 +200,8 @@ export class Trees {
     /** @type {{ dir: THREE.Vector3, variant: number, height: number, spin: number }[]} */
     this.placements = [];
     this.meshes = [];
+    /** @type {{ p: object, group: THREE.Group, leaf: THREE.Mesh, woodMat: THREE.Material, leafMat: THREE.Material, fire: ReturnType<typeof attachFire> | null, t: number, charred: boolean }[]} */
+    this.burns = [];
 
     this._east = new THREE.Vector3();
     this._north = new THREE.Vector3();
@@ -306,6 +310,12 @@ export class Trees {
   }
 
   #matrixForPlacement(p, out) {
+    if (p.burning) {
+      this._scale.set(0, 0, 0);
+      this._pos.set(0, 0, 0);
+      this._quat.set(0, 0, 0, 1);
+      return out.compose(this._pos, this._quat, this._scale);
+    }
     const dir = p.dir;
     const h = this.terrain.height(dir);
     this._pos.copy(dir).multiplyScalar(h);
@@ -318,6 +328,117 @@ export class Trees {
     return out.compose(this._pos, this._quat, this._scale);
   }
 
+  #poseBurnGroup(entry) {
+    const p = entry.p;
+    const h = this.terrain.height(p.dir);
+    this._pos.copy(p.dir).multiplyScalar(h);
+    this._quat.setFromUnitVectors(this._yUp, p.dir);
+    this._spinQ.setFromAxisAngle(this._yUp, p.spin);
+    this._quat.multiply(this._spinQ);
+    const s = p.height / 4;
+    entry.group.position.copy(this._pos);
+    entry.group.quaternion.copy(this._quat);
+    entry.group.scale.set(s, s, s);
+  }
+
+  /** Zapálí stromy v radiu (přímý zásah blesku / fireballu). */
+  igniteNear(centerDir, radiusM) {
+    if (!centerDir || radiusM <= 0) return;
+    for (const p of this.placements) {
+      if (p.burning) continue;
+      if (surfaceDist(p.dir, centerDir) <= radiusM) this.#ignitePlacement(p);
+    }
+  }
+
+  /** Zapálí stromy, kde predikát (láva) vrátí true. */
+  igniteWhere(pred) {
+    if (!pred) return;
+    for (const p of this.placements) {
+      if (p.burning) continue;
+      if (pred(p.dir)) this.#ignitePlacement(p);
+    }
+  }
+
+  #ignitePlacement(p) {
+    if (p.burning) return;
+    p.burning = true;
+    const proto = this.variants[p.variant];
+    const woodMat = this.woodMat.clone();
+    const leafMat = this.leafMat.clone();
+    leafMat.transparent = true;
+    const wood = new THREE.Mesh(proto.wood, woodMat);
+    const leaf = new THREE.Mesh(proto.leaf, leafMat);
+    wood.castShadow = true;
+    wood.receiveShadow = false;
+    leaf.castShadow = false;
+    const group = new THREE.Group();
+    group.frustumCulled = false;
+    group.add(wood, leaf);
+    const fire = attachFire(group, { pad: 1.22 });
+    this.planetGroup.add(group);
+
+    const entry = { p, group, leaf, woodMat, leafMat, fire, t: 0, charred: false };
+    this.burns.push(entry);
+    this.#poseBurnGroup(entry);
+    this.#hideInstance(p);
+  }
+
+  #hideInstance(p) {
+    this.#matrixForPlacement(p, this._mat4);
+    for (const { mesh, list } of this.meshes) {
+      const i = list.indexOf(p);
+      if (i < 0) continue;
+      mesh.setMatrixAt(i, this._mat4);
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  #charTree(entry) {
+    if (entry.charred) return;
+    entry.charred = true;
+    entry.leaf.visible = false;
+    entry.woodMat.color.setHex(CHAR_COLOR);
+    entry.woodMat.roughness = 0.97;
+    entry.woodMat.emissive.setHex(0x000000);
+    entry.woodMat.emissiveIntensity = 0;
+    entry.woodMat.needsUpdate = true;
+    if (entry.fire) {
+      entry.group.remove(entry.fire.group);
+      entry.fire.dispose();
+      entry.fire = null;
+    }
+  }
+
+  update(dt) {
+    for (const entry of this.burns) {
+      if (entry.charred) continue;
+      entry.t += dt;
+      const left = BURN_DURATION - entry.t;
+      if (entry.fire) {
+        entry.fire.setStrength(left < 1.2 ? Math.max(0, left / 1.2) : 1);
+        entry.fire.update(dt);
+      }
+      setBurnGlow([entry.woodMat, entry.leafMat], left < 1.2 ? Math.max(0, left / 1.2) : 1);
+      if (left < 1.4) {
+        entry.leafMat.opacity = Math.max(0, left / 1.4);
+        entry.leafMat.needsUpdate = true;
+      }
+      if (entry.t >= BURN_DURATION) this.#charTree(entry);
+    }
+  }
+
+  clearBurns() {
+    for (const entry of this.burns) {
+      if (entry.fire) entry.fire.dispose();
+      this.planetGroup.remove(entry.group);
+      entry.woodMat.dispose();
+      entry.leafMat.dispose();
+      entry.p.burning = false;
+    }
+    this.burns.length = 0;
+    this.refresh();
+  }
+
   refresh() {
     for (const { mesh, list } of this.meshes) {
       for (let i = 0; i < list.length; i++) {
@@ -326,6 +447,7 @@ export class Trees {
       }
       mesh.instanceMatrix.needsUpdate = true;
     }
+    for (const entry of this.burns) this.#poseBurnGroup(entry);
   }
 
   /**
@@ -349,9 +471,15 @@ export class Trees {
       }
       if (changed) mesh.instanceMatrix.needsUpdate = true;
     }
+    if (this.burns.length) {
+      for (const entry of this.burns) {
+        if (dirNearCaps(entry.p.dir, caps)) this.#poseBurnGroup(entry);
+      }
+    }
   }
 
   dispose() {
+    this.clearBurns();
     for (const { mesh } of this.meshes) {
       this.planetGroup.remove(mesh);
       mesh.geometry.dispose();

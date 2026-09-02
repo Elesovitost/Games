@@ -224,6 +224,7 @@ export function strikeLightning(sys, targetDir) {
     } else {
       spawnScorchMark(sys, dir, SPELLS.lightning.burnRadius);
       sys.terrain.scorch(dir, Math.max(2.6, SPELLS.lightning.burnRadius * 2.5), true);
+      sys.trees?.igniteNear(dir, SPELLS.lightning.burnRadius + 0.7);
     }
     applyAoeDamage(
       sys,

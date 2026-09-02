@@ -10,6 +10,8 @@ const SOURCES = [
   "./water.js",
   "./sky.js",
   "./trees.js",
+  "./burn.js",
+  "./critter.js",
   "./spells/system.js",
   "./spells/fireball.js",
   "./spells/iceball.js",

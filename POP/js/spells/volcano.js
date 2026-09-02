@@ -922,10 +922,15 @@ function updateVolcanoLight(volcano, heat, active) {
 
 function applyLavaDamage(sys, field, list, def, dt, hotFactor) {
   if (hotFactor <= 0.02) return;
+  const onHotLava = (dir) => {
+    if (!gridCoordAt(field, dir, _cell)) return false;
+    if (sampleGrid(field.vis, _cell.x, _cell.y) < 0.05) return false;
+    return sampleGrid(field.temp, _cell.x, _cell.y) > 0.12;
+  };
+
   for (const w of list) {
     if (!w || w.dead) continue;
-    if (!gridCoordAt(field, w.dir, _cell)) continue;
-    if (sampleGrid(field.vis, _cell.x, _cell.y) < 0.05) continue;
+    if (!onHotLava(w.dir)) continue;
     w._lavaMoveMul = CONFIG.wizardWaterSpeedMul;
     if (w.godMode || w.remote) continue;
     const hot = Math.max(0.35, sampleGrid(field.temp, _cell.x, _cell.y));
@@ -933,12 +938,13 @@ function applyLavaDamage(sys, field, list, def, dt, hotFactor) {
   }
   if (sys.critters) {
     for (const c of sys.critters.list) {
-      if (c.dead) continue;
-      if (!gridCoordAt(field, c.dir, _cell)) continue;
-      if (sampleGrid(field.vis, _cell.x, _cell.y) < 0.05) continue;
-      c.die({ fromDir: field.center });
+      if (c.charred) continue;
+      if (!onHotLava(c.dir)) continue;
+      c.ignite();
+      if (!c.dead) c.die({ fromDir: field.center, noSlide: true });
     }
   }
+  sys.trees?.igniteWhere(onHotLava);
 }
 
 /* ---------------------------------------------------- trvalá spálenina */

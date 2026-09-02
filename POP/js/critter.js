@@ -2,6 +2,7 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, slerpDirection } from "./utils.js";
 import { surfaceDist } from "./spells/fx-common.js";
+import { BURN_DURATION, CHAR_COLOR, attachFire, tintMeshBlack, setBurnGlow } from "./burn.js";
 
 const COUNT = 8;
 const WALK_SPEED = 0.7;
@@ -40,6 +41,7 @@ function mat(color, opts = {}) {
     m.emissive = new THREE.Color(opts.emissive);
     m.emissiveIntensity = opts.emissiveIntensity ?? 0.7;
   }
+  m.userData._sharedHerd = true;
   return m;
 }
 
@@ -192,6 +194,11 @@ class Critter {
     this.diesOnTornadoLand = true;
     this.remote = false;
     this.godMode = false;
+    this.burning = false;
+    this.charred = false;
+    this.burnT = 0;
+    this._fire = null;
+    this._burnMats = [];
     this._tornadoMoveMul = 1;
     this._tornadoPullSpeed = 0;
     this._tornadoPullDir = null;
@@ -294,16 +301,63 @@ class Critter {
       this.dir.copy(atDir).normalize();
       this.#snap();
     }
-    this.#setKnockFrom(fromDir);
-    if (this._knockAway.lengthSq() > 1e-8) {
-      this.slideLeft = 2.4 + this.rng() * 1.4;
-      this.slideSpeed = this.slideLeft / 0.52;
-    } else {
+    if (opts.ignite) this.ignite();
+    if (opts.noSlide) {
       this.slideLeft = 0;
       this.slideSpeed = 0;
+      this.#setKnockFrom(null);
+    } else {
+      this.#setKnockFrom(fromDir);
+      if (this._knockAway.lengthSq() > 1e-8) {
+        this.slideLeft = 2.4 + this.rng() * 1.4;
+        this.slideSpeed = this.slideLeft / 0.52;
+      } else {
+        this.slideLeft = 0;
+        this.slideSpeed = 0;
+      }
     }
     if (!opts.fromNet) this.herd.onDied?.(this);
     return true;
+  }
+
+  ignite() {
+    if (this.burning || this.charred) return;
+    this.burning = true;
+    this.burnT = 0;
+    this.mesh.traverse((ch) => {
+      if (!ch.isMesh || !ch.material) return;
+      const src = ch.material;
+      if (src.userData?._sharedHerd) {
+        const cloned = src.clone();
+        ch.material = cloned;
+        this._burnMats.push(cloned);
+      }
+    });
+    this._fire = attachFire(this.mesh, { pad: 1.25 });
+  }
+
+  #charBody() {
+    if (this.charred) return;
+    this.charred = true;
+    this.burning = false;
+    if (this._fire) {
+      this._fire.dispose();
+      this._fire = null;
+    }
+    if (this._burnMats.length) {
+      const col = new THREE.Color(CHAR_COLOR);
+      for (const m of this._burnMats) {
+        if (m.color) m.color.copy(col);
+        if (m.emissive) {
+          m.emissive.setHex(0x000000);
+          m.emissiveIntensity = 0;
+        }
+        if ("roughness" in m) m.roughness = 0.97;
+        m.needsUpdate = true;
+      }
+    } else {
+      tintMeshBlack(this.mesh);
+    }
   }
 
   #setKnockFrom(fromDir) {
@@ -427,6 +481,7 @@ class Critter {
         leg.shin.rotation.x = THREE.MathUtils.lerp(leg.shin.rotation.x, 0.08, 0.2);
       }
       this.#slideDead(dt);
+      this.#updateBurn(dt);
       this.#applyPose();
       return;
     }
@@ -544,7 +599,25 @@ class Critter {
     this.#applyPose();
   }
 
+  #updateBurn(dt) {
+    if (!this.burning || this.charred) return;
+    this.burnT += dt;
+    const left = BURN_DURATION - this.burnT;
+    if (this._fire) {
+      this._fire.setStrength(left < 1.2 ? Math.max(0, left / 1.2) : 1);
+      this._fire.update(dt);
+    }
+    if (this._burnMats.length) setBurnGlow(this._burnMats, left < 1.2 ? Math.max(0, left / 1.2) : 1);
+    if (this.burnT >= BURN_DURATION) this.#charBody();
+  }
+
   dispose() {
+    if (this._fire) {
+      this._fire.dispose();
+      this._fire = null;
+    }
+    for (const m of this._burnMats) m.dispose();
+    this._burnMats.length = 0;
     this.herd.planetGroup.remove(this.mesh);
     this.mesh.traverse((ch) => {
       if (ch.geometry) ch.geometry.dispose();

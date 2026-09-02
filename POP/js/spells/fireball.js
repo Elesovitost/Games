@@ -149,6 +149,7 @@ function explodeFireball(sys, pos, dir, casterId = null) {
       spawnScorchMark(sys, dir, def.burnRadius);
       sys.terrain.scorch(dir, Math.max(2.6, def.burnRadius * 2.5), true);
       spawnFireShards(sys, pos, dir);
+      sys.trees?.igniteNear(dir, def.burnRadius + 0.7);
     }
     applyAoeDamage(
       sys,

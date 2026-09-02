@@ -95,6 +95,7 @@ class Game {
       () => [...this.wizards.values()]
     );
     this.spells.critters = this.critters;
+    this.spells.trees = this.trees;
     this.spells.audio = this.audio;
     this.spells.getListenerDir = (out = this._listenerDir) =>
       getPlanetViewAxis(this.camera, this.planetGroup, out);
@@ -139,6 +140,7 @@ class Game {
     this.water.refreshShore();
     this._shoreRefreshAt = 0;
     this.spawnMarkers?.refresh();
+    this.trees?.clearBurns();
     this.trees?.refresh();
     this.critters?.spawn();
   }
@@ -747,6 +749,7 @@ class Game {
     }
     this.#updatePendingCast();
     this.critters?.update(dt, [...this.wizards.values()]);
+    this.trees?.update(dt);
     this.spells.update(dt);
     this.spawnMarkers.update(dt);
     this.water.update(dt);
