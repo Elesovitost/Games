@@ -122,7 +122,7 @@ export const SPELLS = {
     id: "earthquake",
     range: 18,
     castTime: 3,
-    effectRadius: 20,
+    effectRadius: 18,
     duration: 5,
     fallDamage: 10,
     walkGrace: 0.5,
@@ -130,6 +130,6 @@ export const SPELLS = {
     fallRotations: 1,
     fallDistance: 3,
     color: 0xc4a060,
-    hint: "Klikni v dosahu — 20 m praskliny, 5 s třesení. V zóně padáš (−10 HP) dokud nevyjdeš."
+    hint: "Klikni v dosahu — 18 m praskliny, 5 s třesení. V zóně padáš (−10 HP) dokud nevyjdeš."
   }
 };
