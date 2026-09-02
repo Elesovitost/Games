@@ -11,7 +11,8 @@ export const SPELL_INCANTATIONS = {
   depress: "propadni_se_pudo_rumpere_solum.mp3",
   iceball: "mrazem_tni_gelu_seca.mp3",
   invisibility: "chran_stine_protege_umbra.mp3",
-  volcano: "vypukni_ohni_erumpe_ignis.mp3"
+  volcano: "vypukni_ohni_erumpe_ignis.mp3",
+  immortality: "zmlkni_osude_tace_fatum.mp3"
 };
 
 /** Nepřiřazené — budoucí kouzla / variace. */
@@ -19,7 +20,6 @@ export const INCANTATION_RESERVE = [
   "vezmi_dusi_sume_animam.mp3",
   "odhod_vsechno_pelle_omnia.mp3",
   "zarvi_rychle_intona_cito.mp3",
-  "zmlkni_osude_tace_fatum.mp3",
   "prijd_demone_veni_daemon.mp3",
   "proklet_telo_maledic_corpus.mp3",
   "vstan_mrtvy_surge_mortuus.mp3",

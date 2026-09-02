@@ -424,7 +424,7 @@ function collectTossables(sys) {
 }
 
 function canBePulled(body) {
-  if (!body || body.dead || body.godMode || body.tornado) return false;
+  if (!body || body.dead || body.godMode || body.tornado || body.immortal) return false;
   if (body.remote) return false;
   if (body.casting || body.knockdown) return false;
   return true;

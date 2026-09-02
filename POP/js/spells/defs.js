@@ -104,6 +104,20 @@ export const SPELLS = {
     lavaDps: 20,
     hint: "3 s kouzlení, pak sopka — láva teče po spádu ~30 m, 20 HP/s. Zůstane spáleniště."
   },
+  immortality: {
+    id: "immortality",
+    selfCast: true,
+    range: 0,
+    castTime: 1,
+    holdTime: 5,
+    /** 2× rychlost chůze */
+    speed: 10,
+    travel: 100,
+    /** Poloměr koule kolem kouzelníka (m) */
+    radius: 1.18,
+    color: 0xffe08a,
+    hint: "1 s kouzlení, 5 s nesmrtelnost. Klik = kutálení 2× chůze; po 100 m nebo čase koule praskne."
+  },
   invisibility: {
     id: "invisibility",
     /** Klik na ikonu = rovnou cast (bez míření) */

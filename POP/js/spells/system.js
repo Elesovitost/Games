@@ -12,6 +12,7 @@ import { spawnVolcano as doSpawnVolcano, updateVolcanos, disposeVolcanos } from 
 import { spawnEarthquake as doSpawnEarthquake, updateEarthquakes, disposeEarthquakes } from "./earthquake.js";
 import { updateWaterFx } from "./water-fx.js";
 import { applyInvisibility } from "./invisibility.js";
+import { applyImmortality } from "./immortality.js";
 import { incantationFileForSpell } from "../incantations.js";
 
 export class SpellSystem {
@@ -391,6 +392,7 @@ export class SpellSystem {
       else if (spellId === "fireball") this.launchFireball(target);
       else if (spellId === "iceball") this.launchIceball(target);
       else if (spellId === "invisibility") applyInvisibility(this, wizard);
+      else if (spellId === "immortality") applyImmortality(this, wizard);
       restore();
       onDone?.();
     };

@@ -241,7 +241,7 @@ function triggerQuakeFall(w, centerDir) {
   const def = SPELLS.earthquake;
   const dmg = def.fallDamage;
   w.takeDamage(dmg, { fromDir: centerDir, knock: false });
-  if (!w.dead && !w.godMode) {
+  if (!w.dead && !w.godMode && !w.immortal) {
     w.applyKnockdown(dmg, centerDir, {
       awayFrom: centerDir,
       rotations: def.fallRotations ?? 1,
@@ -264,7 +264,7 @@ function updateVictims(sys, quake) {
   const active = new Set();
 
   for (const w of list) {
-    if (!w || w.dead || w.remote || w.godMode) continue;
+    if (!w || w.dead || w.remote || w.godMode || w.immortal) continue;
     if (isWaterAt(sys, w.dir)) {
       quake.victims.delete(victimKey(w));
       continue;

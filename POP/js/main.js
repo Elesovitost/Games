@@ -11,6 +11,7 @@ import { WaterLife } from "./water-life.js";
 import { LongneckHerd } from "./longneck.js";
 import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
+import { burstImmortalShell } from "./spells/immortality.js";
 import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./visibility.js";
 import { tmp } from "./utils.js";
 import { MultiplayerSession } from "./net/session.js";
@@ -158,6 +159,7 @@ class Game {
     const listener = () => this.spells.getListenerDir(this._listenerDir);
     w.onBodyFall = () => this.audio?.playAt("bodyfall", w.dir, listener());
     w.onScream = () => this.audio?.playRandomScream(w.dir, listener());
+    w.onImmortalPop = (wiz) => burstImmortalShell(this.spells, wiz);
   }
 
   /** Kroky slyší jen vlastní kouzelník; hlasitost podle vzdálenosti kamery. */
@@ -299,7 +301,7 @@ class Game {
       if (!btn) return;
       e.preventDefault();
       e.stopPropagation();
-      if (!this.inputEnabled || !this.wizard || this.wizard.isBusy) return;
+      if (!this.inputEnabled || !this.wizard || this.wizard.isBusy || this.wizard.immortal) return;
       const id = btn.getAttribute("data-spell");
       const def = SPELLS[id];
       if (def?.selfCast) {
@@ -313,7 +315,7 @@ class Game {
 
   /** Kouzlo bez cíle — cast rovnou na sebe. */
   #castSelfSpell(spellId) {
-    if (!this.wizard || this.wizard.isBusy) return;
+    if (!this.wizard || this.wizard.isBusy || this.wizard.immortal) return;
     const def = SPELLS[spellId];
     if (!def?.selfCast) return;
     const target = this.wizard.dir.clone();
@@ -671,6 +673,11 @@ class Game {
 
   #castSpell(spellId, localPoint) {
     if (!this.wizard || this.wizard.isBusy) return;
+    if (this.wizard.immortal) {
+      this.wizard.setDestination(localPoint);
+      this.#selectSpell(null);
+      return;
+    }
     const def = SPELLS[spellId];
     if (!def) return;
 
@@ -702,7 +709,7 @@ class Game {
   #updatePendingCast() {
     const p = this._pendingCast;
     if (!p || !this.wizard) return;
-    if (this.wizard.dead || this.wizard.knockdown || this.wizard.tornado) {
+    if (this.wizard.dead || this.wizard.knockdown || this.wizard.tornado || this.wizard.immortal) {
       this._pendingCast = null;
       return;
     }

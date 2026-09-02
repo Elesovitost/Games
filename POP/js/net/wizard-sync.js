@@ -20,6 +20,46 @@ function vecFromArr(out, arr) {
 }
 
 const FX_HANDLERS = {
+  immortality: {
+    serialize(w) {
+      const inv = w.immortal;
+      if (!inv) return null;
+      return {
+        type: "immortality",
+        t: inv.t,
+        hold: inv.hold,
+        spinZ: inv.spinZ,
+        rolling: !!inv.rolling
+      };
+    },
+    lerp(a, b, alpha) {
+      return {
+        type: "immortality",
+        t: a.t + (b.t - a.t) * alpha,
+        hold: b.hold,
+        spinZ: a.spinZ + (b.spinZ - a.spinZ) * alpha,
+        rolling: alpha >= 0.5 ? b.rolling : a.rolling
+      };
+    },
+    apply(w, fx) {
+      if (!w.immortal) {
+        w.beginImmortality({
+          hold: fx.hold,
+          t: fx.t,
+          spinZ: fx.spinZ,
+          rolling: fx.rolling
+        });
+      } else {
+        w.immortal.t = fx.t;
+        w.immortal.hold = fx.hold;
+        w.immortal.spinZ = fx.spinZ;
+        w.immortal.rolling = !!fx.rolling;
+      }
+    },
+    clear(w) {
+      if (w.immortal) w.endImmortality();
+    }
+  },
   tornado: {
     serialize(w) {
       const td = w.tornado;

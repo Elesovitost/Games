@@ -7,6 +7,10 @@ import {
   poseSnapshotFromIntent
 } from "./net/wizard-sync.js";
 import { WalkFootprints } from "./spells/fx-aim.js";
+import {
+  attachImmortalBubble,
+  detachImmortalBubble
+} from "./spells/immortality.js";
 
 const ROBE = 0x1a2848;
 const GOLD = 0xd4a837;
@@ -374,6 +378,7 @@ export class Wizard {
     this._godGlowT = 0;
     this.knockdown = null;
     this.tornado = null;
+    this.immortal = null;
     this.invis = null;
     this._bodyMats = [];
     this._knockSeq = 0;
@@ -388,6 +393,8 @@ export class Wizard {
     this.onScream = null;
     /** Kroky — jen lokální hráč (main.js). */
     this.onFootstep = null;
+    /** Prasknutí koule nesmrtelnosti (main.js). */
+    this.onImmortalPop = null;
 
     this.mesh.traverse((ch) => {
       if (!ch.isMesh || !ch.material || ch === this._softShadow) return;
@@ -521,12 +528,16 @@ export class Wizard {
     this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
   }
 
+  get isImmortal() {
+    return !!this.immortal;
+  }
+
   get isBusy() {
     return this.casting || this.dead || !!this.knockdown || !!this.tornado;
   }
 
   beginTornadoCapture(centerDir, source = null) {
-    if (this.tornado || this.dead || this.godMode || this.casting || this.knockdown) return false;
+    if (this.tornado || this.dead || this.godMode || this.casting || this.knockdown || this.immortal) return false;
     this.breakInvisibility();
     this.#clearTarget();
     this.wantsWalk = false;
@@ -554,7 +565,7 @@ export class Wizard {
 
   /** Vtah tornáda — posun po povrchu směrem k cíli (m). */
   pullOnSurface(towardDir, stepM) {
-    if (this.tornado || this.dead || this.godMode || this.casting || this.knockdown) return false;
+    if (this.tornado || this.dead || this.godMode || this.casting || this.knockdown || this.immortal) return false;
     const target = towardDir.clone().normalize();
     const dot = Math.min(1, Math.max(-1, this.dir.dot(target)));
     const angle = Math.acos(dot);
@@ -568,7 +579,7 @@ export class Wizard {
 
   /** Spustí pád a kotrmelce (MP / lokální sim). */
   applyKnockdown(amount, fromDirArr, opts = {}) {
-    if (this.godMode || this.dead || amount <= 0) return;
+    if (this.godMode || this.dead || this.immortal || amount <= 0) return;
     if (typeof opts.hp === "number") this.hp = opts.hp;
     const from =
       fromDirArr instanceof THREE.Vector3
@@ -628,7 +639,7 @@ export class Wizard {
 
   takeDamage(amount, opts = {}) {
     // Vzdálený hráč: HP/knock jen ze sítě (pose + knock intent), ne z lokální simulace.
-    if (this.remote || this.godMode || this.dead || amount <= 0) return;
+    if (this.remote || this.godMode || this.dead || this.immortal || amount <= 0) return;
     this.hp = Math.max(0, this.hp - amount);
     this.#syncHealthUi();
 
@@ -1008,6 +1019,27 @@ export class Wizard {
     if (parts.castFx) parts.castFx.visible = false;
   }
 
+  #applyImmortalPose(parts, dt = 0) {
+    const inv = this.immortal;
+    if (!inv || !parts) return;
+    this.#pulseEyes(parts, dt);
+    const a = inv.spinZ;
+    const cy = inv.sphere?.position.y ?? inv.radius;
+    parts.body.rotation.order = "XYZ";
+    parts.body.rotation.set(a, 0, 0);
+    parts.body.position.set(0, cy * (1 - Math.cos(a)), -cy * Math.sin(a));
+    parts.leftArm.rotation.set(0.08, 0, 0.1);
+    parts.rightArm.rotation.set(0.08, 0, -0.1);
+    parts.leftLeg.rotation.set(0, 0, 0);
+    parts.rightLeg.rotation.set(0, 0, 0);
+    this.#zeroExtraJoints(parts);
+    if (parts.leftShin) parts.leftShin.rotation.set(0.04, 0, 0);
+    if (parts.rightShin) parts.rightShin.rotation.set(0.04, 0, 0);
+    if (parts.head) parts.head.rotation.set(0, 0, 0);
+    if (parts.cloak) parts.cloak.rotation.set(0, 0, 0);
+    if (parts.castFx) parts.castFx.visible = false;
+  }
+
   #syncHealthUi() {
     if (this.remote) return;
     const fill = document.getElementById("health-fill");
@@ -1027,6 +1059,7 @@ export class Wizard {
     this.dead = true;
     this.knockdown = null;
     this.tornado = null;
+    this.endImmortality();
     this.#clearTarget();
     this.casting = false;
     this._onCastComplete = null;
@@ -1087,7 +1120,7 @@ export class Wizard {
   }
 
   #applyDrowning(dt) {
-    if (this.dead || this.godMode || !this.#isHeadSubmerged()) return;
+    if (this.dead || this.godMode || this.immortal || !this.#isHeadSubmerged()) return;
     this.takeDamage(CONFIG.wizardDrownHpPerSec * dt);
   }
 
@@ -1132,8 +1165,19 @@ export class Wizard {
   }
 
   setDestination(localPoint, opts = {}) {
-    if (this.isBusy) return false;
     this._trial.copy(localPoint).normalize();
+    if (this.immortal && !this.remote) {
+      const inv = this.immortal;
+      this._move.copy(this._trial).addScaledVector(this.dir, -this.dir.dot(this._trial));
+      if (this._move.lengthSq() < 1e-10) return false;
+      if (!inv.rollDir) inv.rollDir = new THREE.Vector3();
+      inv.rollDir.copy(this._move).normalize();
+      inv.rolling = true;
+      this.#clearTarget();
+      this.footprints?.hide();
+      return true;
+    }
+    if (this.isBusy) return false;
     if (!opts.allowUnwalkable && !this.#isWalkable(this._trial)) return false;
     this.targetDir.copy(this._trial);
     this.hasTarget = true;
@@ -1191,9 +1235,103 @@ export class Wizard {
     if (cb) cb();
   }
 
+  beginImmortality(opts = {}) {
+    if (this.dead) return;
+    this.breakInvisibility();
+    this.#clearTarget();
+    this.wantsWalk = false;
+    this.moving = false;
+    const radius = Math.max(0.4, opts.radius ?? 1.18);
+    if (!this.immortal) {
+      this.immortal = {
+        t: 0,
+        hold: opts.hold ?? 5,
+        speed: opts.speed ?? CONFIG.wizardSpeed * 2,
+        travel: opts.travel ?? 100,
+        radius,
+        spinZ: 0,
+        traveled: 0,
+        rolling: false,
+        rollDir: new THREE.Vector3(),
+        sphere: attachImmortalBubble(this, radius)
+      };
+    }
+    const inv = this.immortal;
+    if (opts.hold != null) inv.hold = opts.hold;
+    if (opts.speed != null) inv.speed = opts.speed;
+    if (opts.travel != null) inv.travel = opts.travel;
+    if (opts.t != null) inv.t = opts.t;
+    if (opts.spinZ != null) inv.spinZ = opts.spinZ;
+    if (opts.rolling != null) inv.rolling = !!opts.rolling;
+    if (!inv.sphere) inv.sphere = attachImmortalBubble(this, inv.radius);
+  }
+
+  endImmortality() {
+    const inv = this.immortal;
+    if (!inv) return;
+    this.onImmortalPop?.(this);
+    detachImmortalBubble(this, inv.sphere);
+    this.immortal = null;
+    this.moving = false;
+    const parts = this.mesh.userData.parts;
+    if (parts?.body) {
+      parts.body.rotation.set(0, 0, 0);
+      parts.body.position.set(0, 0, 0);
+    }
+    this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
+  }
+
+  #updateImmortality(dt) {
+    const inv = this.immortal;
+    if (!inv) return;
+    if (inv.sphere) {
+      const pulse = 1 + 0.04 * Math.sin(inv.t * 7.2);
+      inv.sphere.scale.setScalar(pulse);
+      inv.sphere.rotation.x = inv.rolling ? inv.spinZ : 0;
+    }
+    if (this.remote) {
+      inv.t += dt;
+      return;
+    }
+
+    inv.t += dt;
+    if (inv.t >= inv.hold) {
+      this.endImmortality();
+      return;
+    }
+
+    if (!inv.rolling || !inv.rollDir) return;
+
+    this._move.copy(inv.rollDir).addScaledVector(this.dir, -this.dir.dot(inv.rollDir));
+    if (this._move.lengthSq() < 1e-10) return;
+    this._move.normalize();
+    inv.rollDir.copy(this._move);
+
+    const remainDist = Math.max(0, inv.travel - inv.traveled);
+    const remainTime = Math.max(0, inv.hold - inv.t);
+    let step = inv.speed * dt;
+    step = Math.min(step, remainDist, remainTime * inv.speed);
+    if (step < 1e-6) {
+      this.endImmortality();
+      return;
+    }
+
+    this._stepDir.crossVectors(this.dir, this._move);
+    if (this._stepDir.lengthSq() < 1e-12) return;
+    this._stepDir.normalize();
+    this.dir.applyAxisAngle(this._stepDir, step / CONFIG.planetR).normalize();
+    this.facing.copy(this._move);
+    inv.traveled += step;
+    const ang = step / Math.max(0.2, inv.radius);
+    inv.spinZ += ang;
+    this.moving = true;
+
+    if (inv.traveled >= inv.travel - 1e-4) this.endImmortality();
+  }
+
   /** Začni vizuální show kouzlení směrem k cíli. onComplete po skončení. */
   startCast(targetDir, duration = CONFIG.spellDuration, onComplete = null) {
-    if (this.isBusy) return false;
+    if (this.isBusy || this.immortal) return false;
     // Kouzlení v neviditelnosti = okamžité zviditelnění
     this.breakInvisibility();
     this.#clearTarget();
@@ -1259,8 +1397,10 @@ export class Wizard {
 
     // Shadow-map stín umí jen zap/vyp — při neviditelnosti vypnout a použít měkký stín s opacity
     const fullyVisible = op >= 0.995;
+    const bubble = this.immortal?.sphere;
     this.mesh.traverse((ch) => {
       if (!ch.isMesh || ch === this._softShadow) return;
+      if (bubble && ch.parent === bubble) return;
       ch.castShadow = fullyVisible && !hidden;
     });
     this.#updateSoftShadow(op, hidden);
@@ -1364,6 +1504,7 @@ export class Wizard {
       }
       this.#updateNetPose();
       if (this.knockdown) this.#updateKnockdown(dt);
+      if (this.immortal) this.#updateImmortality(dt);
       this.#applyPose();
       this.#updateWalkBlend(dt);
       this.#animate(dt);
@@ -1401,6 +1542,17 @@ export class Wizard {
       this.#updateGodGlow(dt);
       this.#animate(dt);
       this.#updateInvisibility(dt);
+      this.footprints?.update(dt);
+      return;
+    }
+
+    if (this.immortal) this.#updateImmortality(dt);
+    if (this.immortal) {
+      this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
+      this.#applyPose();
+      this.#updateWalkBlend(dt);
+      this.#updateGodGlow(dt);
+      this.#animate(dt);
       this.footprints?.update(dt);
       return;
     }
@@ -1506,7 +1658,7 @@ export class Wizard {
   /** Plynulý rozjezd / dojezd chůze (0 = stojí, 1 = plná chůze). */
   #updateWalkBlend(dt) {
     const target =
-      this.casting || this.dead || this.knockdown || this.tornado ? 0 : this.wantsWalk ? 1 : 0;
+      this.casting || this.dead || this.knockdown || this.tornado || this.immortal ? 0 : this.wantsWalk ? 1 : 0;
     const rate = target > this.walkBlend ? 3.2 : 4;
     this.walkBlend += (target - this.walkBlend) * Math.min(1, dt * rate);
     if (this.walkBlend < 0.003 && target === 0) {
@@ -1710,6 +1862,11 @@ export class Wizard {
 
     if (this.tornado) {
       this.#applyTornadoPose(parts);
+      return;
+    }
+
+    if (this.immortal?.rolling) {
+      this.#applyImmortalPose(parts, dt);
       return;
     }
 
