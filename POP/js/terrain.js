@@ -1,10 +1,18 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
-import { lerp3, tangentFrame, tmp, surfaceOffsetDir } from "./utils.js";
+import {
+  lerp3,
+  tangentFrame,
+  tmp,
+  surfaceOffsetDir,
+  buildVertexFaceAdjacency,
+  recomputeNormalsPartial
+} from "./utils.js";
 import { createNoise } from "./noise.js";
 import { createIcosphereGeometry } from "./icosphere.js";
 import { generateHeights } from "./maps.js";
 import { applyCapClip, createCapUniforms } from "./cap-material.js";
+import { applyGrassDetail } from "./grass-material.js";
 
 export class Terrain {
   constructor(planetGroup) {
@@ -20,12 +28,37 @@ export class Terrain {
       metalness: 0.02
     });
     applyCapClip(this.material, this.capUniforms);
+    applyGrassDetail(this.material, 1.25);
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
     this.mesh.frustumCulled = false;
     this.group.add(this.mesh);
     this.#buildGrid();
+    /** Sousednost pro dílčí přepočet normál — jen dotčená oblast morphu, ne celá planeta. */
+    this.adjacency = buildVertexFaceAdjacency(this.geometry.index, this.geometry.attributes.position.count);
+    this._normalAccum = new Float32Array(this.geometry.attributes.position.count * 3);
+    this._touchedFaces = new Set();
+    this._touchedVerts = new Set();
+  }
+
+  /** Sada trojúhelníků/vrcholů dotčených danou sadou vrcholů (pro přepočet normál). */
+  #facesForIndices(indices) {
+    const faces = new Set();
+    for (let k = 0; k < indices.length; k++) {
+      const v = indices[k];
+      for (let j = this.adjacency.start[v]; j < this.adjacency.start[v + 1]; j++) {
+        faces.add(this.adjacency.list[j]);
+      }
+    }
+    const verts = new Set();
+    const idx = this.geometry.index;
+    for (const f of faces) {
+      verts.add(idx.getX(f * 3));
+      verts.add(idx.getX(f * 3 + 1));
+      verts.add(idx.getX(f * 3 + 2));
+    }
+    return { faces, verts };
   }
 
   setViewAxis(viewAxis) {
@@ -107,8 +140,18 @@ export class Terrain {
       grain = this.noise.fbm(x * inv * 34 + 41, y * inv * 34, z * inv * 34);
     }
     const sandW = 0.46 + beachN * 0.34;
+    /** Mokrý písek u čáry vody — tmavší, "prosycený" tón, plynule přejde do sucha. */
+    const wetW = Math.max(0.05, sandW * 0.3);
+    if (elev < wetW) {
+      const u = smoothFalloff(elev / wetW);
+      lerp3(out, [0.4, 0.34, 0.24], [0.68, 0.52, 0.34], u);
+      out[0] += grain * 0.04;
+      out[1] += grain * 0.03;
+      out[2] += grain * 0.018;
+      return out;
+    }
     if (elev < sandW) {
-      const u = smoothFalloff(elev / Math.max(sandW, 0.05));
+      const u = smoothFalloff((elev - wetW) / Math.max(sandW - wetW, 0.05));
       lerp3(out, [0.68, 0.52, 0.34], CONFIG.sandColor, u);
       out[0] += grain * 0.07;
       out[1] += grain * 0.05;
@@ -416,12 +459,15 @@ export class Terrain {
     }
     if (!indices.length) return false;
 
+    const { faces, verts } = this.#facesForIndices(indices);
     this.morphs.push({
       indices,
       startH,
       deltaH,
       duration,
       elapsed: 0,
+      normalFaces: faces,
+      normalVerts: verts,
       cap: { x: ndx, y: ndy, z: ndz, cos: cosR }
     });
     return true;
@@ -567,12 +613,15 @@ export class Terrain {
     }
     if (!indices.length) return null;
 
+    const { faces, verts } = this.#facesForIndices(indices);
     this.morphs.push({
       indices,
       startH,
       deltaH,
       duration,
       elapsed: 0,
+      normalFaces: faces,
+      normalVerts: verts,
       onComplete: opts.onComplete ?? null,
       cap: { x: center.x, y: center.y, z: center.z, cos: cosR }
     });
@@ -597,6 +646,8 @@ export class Terrain {
     const colAttr = this.geometry.attributes.color;
     const col = tmp.col;
     let any = false;
+    this._touchedFaces.clear();
+    this._touchedVerts.clear();
 
     for (let m = this.morphs.length - 1; m >= 0; m--) {
       const morph = this.morphs[m];
@@ -613,6 +664,8 @@ export class Terrain {
         this.#writeColor(i, h, col);
         colAttr.setXYZ(i, col[0], col[1], col[2]);
       }
+      for (const f of morph.normalFaces) this._touchedFaces.add(f);
+      for (const v of morph.normalVerts) this._touchedVerts.add(v);
       if (u >= 1) {
         const done = morph.onComplete;
         this.morphs.splice(m, 1);
@@ -624,7 +677,8 @@ export class Terrain {
 
     pos.needsUpdate = true;
     colAttr.needsUpdate = true;
-    this.geometry.computeVertexNormals();
+    /** Jen dotčená oblast — ne celá planeta (výrazně levnější na mobilu). */
+    recomputeNormalsPartial(this.geometry, this._touchedFaces, this._touchedVerts, this._normalAccum);
     this._morphDirty = true;
     return any || this.morphs.length > 0;
   }

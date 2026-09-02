@@ -1,6 +1,6 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
-import { tangentFrame } from "./utils.js";
+import { tangentFrame, capWithMargin, dirNearCaps } from "./utils.js";
 
 export const SPAWN_ZONE_RADIUS = 2;
 const RING_RADIUS = SPAWN_ZONE_RADIUS;
@@ -161,6 +161,23 @@ export class SpawnMarkers {
   /** Přepočítá pozice hub podle aktuálního terénu (po morphu / resetu). */
   refresh() {
     for (const entry of this.entries) this.#placeEntry(entry);
+  }
+
+  /**
+   * Přepočítá jen houby v okolí aktivních morphů terénu — margin navíc
+   * pokrývá poloměr kruhu hub (RING_RADIUS), aby se nezaseklo dosednutí
+   * u okraje. Bez morphů = plný refresh.
+   */
+  refreshNear(morphs, margin = RING_RADIUS + 2.2) {
+    if (!morphs?.length) {
+      this.refresh();
+      return;
+    }
+    const caps = morphs.map((m) => capWithMargin(m.cap, margin));
+    for (const entry of this.entries) {
+      if (!dirNearCaps(entry.ringDir, caps)) continue;
+      this.#placeEntry(entry);
+    }
   }
 
   /** Jen pulz emissive — pozice se mění jen přes refresh(). */

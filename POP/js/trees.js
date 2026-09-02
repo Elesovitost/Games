@@ -1,6 +1,6 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
-import { tangentFrame, surfaceOffsetDir } from "./utils.js";
+import { tangentFrame, surfaceOffsetDir, capWithMargin, dirNearCaps } from "./utils.js";
 
 const TREE_COUNT = 100;
 const VARIANTS = 6;
@@ -325,6 +325,29 @@ export class Trees {
         mesh.setMatrixAt(i, this._mat4);
       }
       mesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  /**
+   * Přepočítá jen stromy poblíž aktivních morphů terénu (`terrain.morphs`),
+   * ne všech 100 instancí každý frame. Bez morphů = plný refresh (dosednutí).
+   */
+  refreshNear(morphs, margin = 2.2) {
+    if (!morphs?.length) {
+      this.refresh();
+      return;
+    }
+    const caps = morphs.map((m) => capWithMargin(m.cap, margin));
+    for (const { mesh, list } of this.meshes) {
+      let changed = false;
+      for (let i = 0; i < list.length; i++) {
+        const p = list[i];
+        if (!dirNearCaps(p.dir, caps)) continue;
+        this.#matrixForPlacement(p, this._mat4);
+        mesh.setMatrixAt(i, this._mat4);
+        changed = true;
+      }
+      if (changed) mesh.instanceMatrix.needsUpdate = true;
     }
   }
 

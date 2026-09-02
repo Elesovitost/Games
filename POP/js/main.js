@@ -585,11 +585,11 @@ class Game {
     const morphing = this.terrain.updateMorphs(dt);
     if (this.terrain.consumeMorphDirty()) {
       this._shoreRefreshAt -= dt;
-      this.spawnMarkers?.refresh();
-      this.trees?.refresh();
+      this.spawnMarkers?.refreshNear(this.terrain.morphs);
+      this.trees?.refreshNear(this.terrain.morphs);
       this.spells.refreshScorchMarks();
       if (!morphing || this._shoreRefreshAt <= 0) {
-        this.water.refreshShore();
+        this.water.refreshShoreNear(this.terrain.morphs);
         this._shoreRefreshAt = morphing ? 0.45 : 0;
       }
     }
