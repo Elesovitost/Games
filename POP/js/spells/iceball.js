@@ -129,6 +129,11 @@ export function updateIceball(sys, p, dt) {
         return false;
       }
     }
+    if (sys.critters?.hurtNear(p.dir, touchR)) {
+      shatterIceball(sys, p.ball.position.clone(), p.dir.clone(), p);
+      disposeProjectile(sys, p);
+      return false;
+    }
   }
 
   sys._axis.crossVectors(p.dir, p.moveDir);

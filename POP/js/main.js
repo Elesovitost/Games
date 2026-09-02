@@ -6,6 +6,7 @@ import { Sky, createSun, placeCamera } from "./sky.js";
 import { SPAWN_SEEDS, resolveLandSpawns, pickRandomSpawn } from "./maps.js";
 import { SpawnMarkers } from "./spawns.js";
 import { Trees } from "./trees.js";
+import { CritterHerd } from "./critter.js";
 import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
 import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./visibility.js";
@@ -78,6 +79,7 @@ class Game {
     this.landSpawns = resolveLandSpawns(this.terrain, SPAWN_SEEDS);
     this.spawnMarkers = new SpawnMarkers(this.planetGroup, this.terrain, this.landSpawns);
     this.trees = new Trees(this.planetGroup, this.terrain);
+    this.critters = new CritterHerd(this.planetGroup, this.terrain);
 
     this.wizard = null;
     this.spells = new SpellSystem(
@@ -86,6 +88,7 @@ class Game {
       null,
       () => [...this.wizards.values()]
     );
+    this.spells.critters = this.critters;
     this.spells.audio = this.audio;
     this.spells.getListenerDir = (out = this._listenerDir) =>
       getPlanetViewAxis(this.camera, this.planetGroup, out);
@@ -93,6 +96,14 @@ class Game {
     this.session = new MultiplayerSession(this);
     this.lobby = new LobbyUI(this, this.session);
     this.#applyRemoteIntent = createIntentRouter(createGameIntentHandlers(this));
+    this.critters.onDied = (c) => {
+      this.session.sendIntent({
+        kind: "beast",
+        id: c.id,
+        dir: [c.dir.x, c.dir.y, c.dir.z],
+        from: c.knockFrom ? [c.knockFrom.x, c.knockFrom.y, c.knockFrom.z] : null
+      });
+    };
 
     this.enterSolo();
 
@@ -123,6 +134,7 @@ class Game {
     this._shoreRefreshAt = 0;
     this.spawnMarkers?.refresh();
     this.trees?.refresh();
+    this.critters?.spawn();
   }
 
   #wireWizardAudio(w) {
@@ -183,6 +195,7 @@ class Game {
     this.#wireWizardNet(w);
     placeCamera(this.camera, start);
     this.spawnMarkers?.show();
+    this.critters?.spawn();
     this.#selectSpell(null);
   }
 
@@ -648,6 +661,7 @@ class Game {
       }
     }
     this.#updatePendingCast();
+    this.critters?.update(dt, [...this.wizards.values()]);
     this.spells.update(dt);
     this.spawnMarkers.update(dt);
     this.water.update(dt);

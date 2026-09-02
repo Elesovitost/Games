@@ -29,6 +29,11 @@ export function createGameIntentHandlers(game) {
     /** Pose už nese pohyb; destination na remote se nepoužívá. */
     walk() {},
 
+    /** Mrtvé zvíře — jeden intent, idempotentní. AI jinak běží lokálně. */
+    beast(_fromId, intent) {
+      game.critters?.kill(intent.id, intent.dir, intent.from);
+    },
+
     cast(fromId, intent) {
       const w = game.wizards.get(String(fromId));
       if (!w) return;

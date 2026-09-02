@@ -900,7 +900,7 @@ export function updateVolcanos(sys, dt) {
       sys.audio.updateSfxLoop(volcano.sfxLava, volcano.dir, listener, 1 - freeze * 0.9);
     }
 
-    applyLavaDamage(field, list, def, dt, 1 - freeze);
+    applyLavaDamage(sys, field, list, def, dt, 1 - freeze);
   }
 }
 
@@ -920,7 +920,7 @@ function updateVolcanoLight(volcano, heat, active) {
   volcano.light.position.copy(_dir).multiplyScalar(surf);
 }
 
-function applyLavaDamage(field, list, def, dt, hotFactor) {
+function applyLavaDamage(sys, field, list, def, dt, hotFactor) {
   if (hotFactor <= 0.02) return;
   for (const w of list) {
     if (!w || w.dead) continue;
@@ -930,6 +930,14 @@ function applyLavaDamage(field, list, def, dt, hotFactor) {
     if (w.godMode || w.remote) continue;
     const hot = Math.max(0.35, sampleGrid(field.temp, _cell.x, _cell.y));
     w.takeDamage(def.lavaDps * hot * hotFactor * dt, { knock: false });
+  }
+  if (sys.critters) {
+    for (const c of sys.critters.list) {
+      if (c.dead) continue;
+      if (!gridCoordAt(field, c.dir, _cell)) continue;
+      if (sampleGrid(field.vis, _cell.x, _cell.y) < 0.05) continue;
+      c.die({ fromDir: field.center });
+    }
   }
 }
 

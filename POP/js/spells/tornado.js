@@ -413,48 +413,62 @@ function decayFlightSpin(td, dt) {
   if (Math.abs(td.rollVel) < 0.04) td.rollVel = 0;
 }
 
+function collectTossables(sys) {
+  const list = [];
+  const wizards = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
+  for (const w of wizards) if (w) list.push(w);
+  if (sys.critters?.list) {
+    for (const c of sys.critters.list) if (c) list.push(c);
+  }
+  return list;
+}
+
+function canBePulled(body) {
+  if (!body || body.dead || body.godMode || body.tornado) return false;
+  if (body.remote) return false;
+  if (body.casting || body.knockdown) return false;
+  return true;
+}
+
 function applyTornadoPull(sys, dt) {
   const def = SPELLS.tornado;
-  const innerR = def.innerRadius;
   const captureR = def.captureRadius;
-  const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
+  const list = collectTossables(sys);
 
-  for (const w of list) {
-    if (!w || w.dead || w.godMode || w.tornado) continue;
-    if (w.casting || w.knockdown) continue;
-    if (!w._tornadoPullSpeed || !w._tornadoSource) continue;
-    if (w.remote) continue;
+  for (const body of list) {
+    if (!canBePulled(body)) continue;
+    if (!body._tornadoPullSpeed || !body._tornadoSource) continue;
 
-    const t = w._tornadoSource;
+    const t = body._tornadoSource;
     if (t.fading) continue;
 
-    const dist = surfaceDist(t.dir, w.dir);
+    const dist = surfaceDist(t.dir, body.dir);
     if (dist > def.pullRadius) continue;
 
     if (dist <= captureR) {
-      if (!w.remote) w.beginTornadoCapture(t.dir, t);
+      body.beginTornadoCapture(t.dir, t);
       continue;
     }
 
-    w.pullOnSurface(t.dir, w._tornadoPullSpeed * dt);
+    body.pullOnSurface(t.dir, body._tornadoPullSpeed * dt);
   }
 }
 
 /** Před pohybem — nastaví zpomalení a rychlost vtahu podle vzdálenosti. */
 export function prepareTornadoEffects(sys, _dt) {
-  const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
+  const list = collectTossables(sys);
   const tornados = sys.tornados;
   const def = SPELLS.tornado;
   const pullR = def.pullRadius;
   const innerR = def.innerRadius;
 
-  for (const w of list) {
-    w._tornadoMoveMul = 1;
-    w._tornadoPullSpeed = 0;
-    w._tornadoPullDir = null;
-    w._tornadoSource = null;
+  for (const body of list) {
+    body._tornadoMoveMul = 1;
+    body._tornadoPullSpeed = 0;
+    body._tornadoPullDir = null;
+    body._tornadoSource = null;
 
-    if (!w || w.dead || w.godMode || w.tornado || w.casting || w.knockdown) continue;
+    if (!canBePulled(body)) continue;
     if (!tornados?.length) continue;
 
     let bestDist = Infinity;
@@ -462,7 +476,7 @@ export function prepareTornadoEffects(sys, _dt) {
 
     for (const t of tornados) {
       if (t.fading) continue;
-      const dist = surfaceDist(t.dir, w.dir);
+      const dist = surfaceDist(t.dir, body.dir);
       if (dist > pullR || dist >= bestDist) continue;
       bestDist = dist;
       bestT = t;
@@ -470,14 +484,14 @@ export function prepareTornadoEffects(sys, _dt) {
 
     if (!bestT) continue;
 
-    w._tornadoPullDir = bestT.dir;
-    w._tornadoSource = bestT;
-    w._tornadoPullSpeed = def.pullSpeed;
+    body._tornadoPullDir = bestT.dir;
+    body._tornadoSource = bestT;
+    body._tornadoPullSpeed = def.pullSpeed;
 
     if (bestDist <= innerR) {
-      w._tornadoMoveMul = 0;
+      body._tornadoMoveMul = 0;
     } else {
-      w._tornadoMoveMul = 0.5 * ((bestDist - innerR) / (pullR - innerR));
+      body._tornadoMoveMul = 0.5 * ((bestDist - innerR) / (pullR - innerR));
     }
   }
 }
@@ -541,6 +555,11 @@ function updateCapturedWizard(w, tornadoDir, pathT, bendPhase, dt, linkedTornado
     if (len <= groundH + 0.12) {
       w.mesh.position.copy(w.dir).multiplyScalar(groundH);
       w.onBodyFall?.();
+      if (w.diesOnTornadoLand) {
+        w.endTornadoCapture();
+        w.die({ fromDir: td.centerDir });
+        return;
+      }
       if (!w.remote) {
         w.takeDamage(SPELLS.tornado.fallDamage, { fromDir: td.centerDir, knock: false });
       }
@@ -603,7 +622,7 @@ function releaseTornadoVictims(list, t, forceThrow = false) {
 
 /** Let / ležení / vstávání — běží i po zmizení tornáda. */
 export function updateTornadoVictims(sys, dt) {
-  const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
+  const list = collectTossables(sys);
   for (const w of list) {
     const td = w.tornado;
     if (!td) continue;
@@ -644,7 +663,7 @@ export function updateTornados(sys, dt) {
 
   for (let i = sys.tornados.length - 1; i >= 0; i--) {
     const t = sys.tornados[i];
-    const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
+    const list = collectTossables(sys);
 
     if (!t.fading && t.t >= t.life) {
       t.fading = true;
@@ -730,7 +749,7 @@ export function updateTornados(sys, dt) {
 
 export function disposeTornados(sys) {
   if (!sys.tornados?.length) return;
-  const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
+  const list = collectTossables(sys);
   for (const t of sys.tornados) {
     releaseTornadoVictims(list, t, false);
     disposeTornado(sys, t);

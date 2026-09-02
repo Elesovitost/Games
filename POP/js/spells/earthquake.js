@@ -256,7 +256,8 @@ function victimKey(w) {
 
 function updateVictims(sys, quake) {
   const def = SPELLS.earthquake;
-  const radius = quake.front ?? 0;
+  const radius = quake.front ?? def.effectRadius;
+  sys.critters?.hurtNear(quake.centerDir, radius);
   const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
   const now = quake.elapsed;
   const active = new Set();
