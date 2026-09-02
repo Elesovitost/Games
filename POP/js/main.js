@@ -27,6 +27,7 @@ class Game {
     this._hitLocal = new THREE.Vector3();
     this._listenerDir = new THREE.Vector3();
     this.selectedSpell = null;
+    this._pendingCast = null;
     this._shoreRefreshAt = 0;
     this._spawnCamIdx = 0;
     this.wizards = new Map();
@@ -294,6 +295,12 @@ class Game {
   }
 
   #selectSpell(id) {
+    const keepPending = id && this._pendingCast && this._pendingCast.spellId === id;
+    if (!keepPending && this._pendingCast) {
+      this.wizard?.clearDestination();
+      this._pendingCast = null;
+    }
+    if (!id) this._pendingCast = null;
     this.selectedSpell = id;
     document.querySelectorAll("#spell-bar .spell").forEach((el) => {
       el.classList.toggle("active", el.getAttribute("data-spell") === id);
@@ -497,6 +504,16 @@ class Game {
     if (!this.inputEnabled || !this.wizard || this.wizard.isBusy) return;
     const hit = this.#pickTerrain(e);
 
+    if (this._pendingCast) {
+      this.spells.aim.show();
+      this.spells.aim.place(
+        this._pendingCast.targetDir,
+        this.spells.inRange(this._pendingCast.spellId, this._pendingCast.targetDir),
+        this.camera
+      );
+      return;
+    }
+
     if (this.selectedSpell) {
       if (hit) this.spells.updateAim(hit, this.camera);
       else this.spells.aim.hide();
@@ -554,10 +571,21 @@ class Game {
     const def = SPELLS[spellId];
     if (!def) return;
 
-    const dir = tmp.dir.copy(localPoint).normalize();
-    if (!this.spells.inRange(spellId, dir)) return;
+    const target = tmp.dir.copy(localPoint).normalize().clone();
+    if (this.spells.inRange(spellId, target)) {
+      this.#beginCast(spellId, target);
+      return;
+    }
 
-    const target = dir.clone();
+    /** Mimo dosah — dojde, až hranice dosahu sahá na cíl, a teprve pak kouzlí. */
+    this._pendingCast = { spellId, targetDir: target };
+    this.wizard.setDestination(target, { allowUnwalkable: true });
+    this.spells.aim.show();
+    this.spells.aim.place(target, false, this.camera);
+  }
+
+  #beginCast(spellId, target) {
+    this._pendingCast = null;
     this.session.sendIntent({
       kind: "cast",
       spell: spellId,
@@ -566,6 +594,24 @@ class Game {
     this.spells.aim.hide();
     this.spells.castAs(this.wizard, spellId, target);
     this.#selectSpell(null);
+  }
+
+  #updatePendingCast() {
+    const p = this._pendingCast;
+    if (!p || !this.wizard) return;
+    if (this.wizard.dead || this.wizard.knockdown || this.wizard.tornado) {
+      this._pendingCast = null;
+      return;
+    }
+    if (this.wizard.casting) return;
+    if (this.spells.inRange(p.spellId, p.targetDir)) {
+      this.#beginCast(p.spellId, p.targetDir);
+      return;
+    }
+    if (!this.wizard.hasTarget) {
+      this._pendingCast = null;
+      this.#selectSpell(null);
+    }
   }
 
   #loop() {
@@ -601,6 +647,7 @@ class Game {
         w.heal(CONFIG.spawnHealPerSec * dt);
       }
     }
+    this.#updatePendingCast();
     this.spells.update(dt);
     this.spawnMarkers.update(dt);
     this.water.update(dt);

@@ -883,10 +883,14 @@ export class Wizard {
     this.footprints?.hide();
   }
 
-  setDestination(localPoint) {
+  clearDestination() {
+    this.#clearTarget();
+  }
+
+  setDestination(localPoint, opts = {}) {
     if (this.isBusy) return false;
     this._trial.copy(localPoint).normalize();
-    if (!this.#isWalkable(this._trial)) return false;
+    if (!opts.allowUnwalkable && !this.#isWalkable(this._trial)) return false;
     this.targetDir.copy(this._trial);
     this.hasTarget = true;
     this.footprints?.show(this.targetDir, this.dir);
