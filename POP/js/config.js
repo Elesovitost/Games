@@ -27,6 +27,8 @@ export const CONFIG = {
   camZoomMax: 2.6,
   focusDir: [1, 1, 1],
   rotSpeed: 0.18,
+  /** Nebeská sféra: jedna otočka = jeden den (s) */
+  skySpinPeriodSec: 300,
   wizardSpeed: 5,
   /** Max. zrychlení z kopce */
   wizardDownhillBoost: 1.28,

@@ -71,12 +71,11 @@ class Game {
     this.scene.add(new THREE.HemisphereLight(0x9ec8f5, 0x6a5030, 0.28));
     this.scene.add(new THREE.AmbientLight(0xffe8c8, 0.09));
 
-    this.sun = createSun(this.planetGroup);
-    configureShadowFrustum(this.sun);
-
     this.terrain = new Terrain(this.planetGroup);
     this.water = new Water(this.planetGroup, this.terrain);
     this.sky = new Sky(this.planetGroup);
+    this.sun = createSun(this.planetGroup);
+    configureShadowFrustum(this.sun);
 
     this.landSpawns = resolveLandSpawns(this.terrain, SPAWN_SEEDS);
     this.spawnMarkers = new SpawnMarkers(this.planetGroup, this.terrain, this.landSpawns);
@@ -695,7 +694,6 @@ class Game {
 
     updateSunShadow(this.sun, this.planetGroup);
     this.sky.setSunDirection(this.sun);
-    this.renderer.shadowMap.autoUpdate = true;
 
     this.renderer.render(this.scene, this.camera);
     requestAnimationFrame(() => this.#loop());

@@ -138,6 +138,9 @@ export class Sky {
   constructor(planetGroup) {
     this.group = planetGroup;
     this.t = 0;
+    this.celestial = new THREE.Group();
+    planetGroup.add(this.celestial);
+
     const geo = new THREE.SphereGeometry(CONFIG.maxR * 3.2, 32, 18);
     this.skyMat = new THREE.ShaderMaterial({
       uniforms: {
@@ -151,18 +154,23 @@ export class Sky {
     });
     this.dome = new THREE.Mesh(geo, this.skyMat);
     this.dome.frustumCulled = false;
+    this.dome.castShadow = false;
+    this.dome.receiveShadow = false;
     this.dome.raycast = () => {};
-    this.group.add(this.dome);
+    this.celestial.add(this.dome);
   }
 
   update(dt) {
     this.t += dt;
     this.skyMat.uniforms.uTime.value = this.t;
+    const period = Math.max(1, CONFIG.skySpinPeriodSec);
+    this.celestial.rotation.y += (Math.PI * 2 * dt) / period;
   }
 
   setSunDirection(sun) {
-    if (!sun?.position) return;
-    _sunLocal.copy(sun.position).normalize();
+    const rest = sun?.userData.restPos;
+    if (!rest) return;
+    _sunLocal.copy(rest).normalize();
     this.skyMat.uniforms.uSunDir.value.copy(_sunLocal);
   }
 }
@@ -178,6 +186,7 @@ export function createSun(planetGroup) {
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.08;
   sun.target.position.set(0, 0, 0);
+  sun.userData.restPos = sun.position.clone();
   const cam = sun.shadow.camera;
   const sunDist = sun.position.length();
   const extent = CONFIG.shadowFrustumHalf + 8;
