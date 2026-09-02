@@ -126,7 +126,13 @@ export function spawnScorchMark(sys, dir, radiusM) {
     centerDir: [centerDir.x, centerDir.y, centerDir.z],
     ringDirs,
     lift,
-    segments
+    segments,
+    cap: {
+      x: centerDir.x,
+      y: centerDir.y,
+      z: centerDir.z,
+      cos: Math.cos((R * 0.95) / CONFIG.planetR)
+    }
   });
 }
 
@@ -152,13 +158,33 @@ function refreshScorchMark(terrain, mark) {
   mark.mesh.geometry.computeVertexNormals();
 }
 
-/** Přilepí spáleniny na aktuální tvar terénu (elevace / deprese). */
+/**
+ * Přilepí spáleniny na aktuální tvar terénu (elevace / deprese). Obnovuje se
+ * jen to, co běžící morph opravdu zasahuje — jinak by každý kráter na planetě
+ * přepočítával výšky při každém kouzlu.
+ */
 export function updateScorchMarks(sys) {
   if (!sys.scorchMarks?.length) return;
+  const morphs = sys.terrain.morphs;
   for (const mark of sys.scorchMarks) {
+    if (mark.cap && morphs?.length && !capsTouch(mark.cap, morphs)) continue;
     if (mark.refresh) mark.refresh(sys.terrain);
     else refreshScorchMark(sys.terrain, mark);
   }
+}
+
+/** Zasahuje kterýkoli morph kulovou čepičku spáleniny? */
+function capsTouch(cap, morphs) {
+  for (let m = 0; m < morphs.length; m++) {
+    const mc = morphs[m].cap;
+    if (!mc) return true;
+    const dot = cap.x * mc.x + cap.y * mc.y + cap.z * mc.z;
+    /** cos(α+β) = cosα·cosβ − sinα·sinβ, s rezervou na plynulý okraj morphu */
+    const sinA = Math.sqrt(Math.max(0, 1 - cap.cos * cap.cos));
+    const sinB = Math.sqrt(Math.max(0, 1 - mc.cos * mc.cos));
+    if (dot >= cap.cos * mc.cos - sinA * sinB - 0.02) return true;
+  }
+  return false;
 }
 
 export function disposeProjectile(sys, p) {

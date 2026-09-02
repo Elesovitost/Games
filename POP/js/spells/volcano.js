@@ -21,6 +21,12 @@ import { tangentFrame, surfaceOffsetDir } from "../utils.js";
  */
 const GRID = 192;
 const SUBSTEPS = 6;
+/**
+ * Okraj předvzorkovaného terénu kolem obálky. Tok se za snímek posune nejvýš
+ * o SUBSTEPS buněk, takže nikdy nenarazí na nevzorkovanou (a tedy zavřenou)
+ * buňku — jinak by se šíření zaseklo na hranici.
+ */
+const SAMPLE_MARGIN = SUBSTEPS + 2;
 /** Nadzdvižení nad terén proti z-fightingu (m) */
 const LIFT = 0.09;
 
@@ -45,7 +51,7 @@ function smoothstep(x) {
 
 /* --------------------------------------------------------------- mřížka */
 
-function createLavaField(terrain, centerDir, radiusM) {
+function createLavaField(centerDir, radiusM) {
   const n = GRID * GRID;
   const field = {
     center: centerDir.clone().normalize(),
@@ -65,8 +71,10 @@ function createLavaField(terrain, centerDir, radiusM) {
     flux: new Float32Array(n),
     drain: new Float32Array(n),
     heatIn: new Float32Array(n),
+    dirty: new Int32Array(n),
+    touch: new Uint8Array(n),
     open: new Uint8Array(n),
-    shore: new Uint8Array(n),
+    sampled: new Uint8Array(n),
     source: null,
     centerCell: (GRID >> 1) * GRID + (GRID >> 1),
     minX: GRID,
@@ -82,8 +90,6 @@ function createLavaField(terrain, centerDir, radiusM) {
 
   tangentFrame(field.center, field.east, field.north);
   buildCellDirs(field);
-  sampleTerrain(terrain, field);
-  markOpenCells(field);
   return field;
 }
 
@@ -107,64 +113,69 @@ function buildCellDirs(field) {
 }
 
 /**
- * Výšky terénu po buňkách přesně. Interpolace z hrubšího rasteru podstřelovala
- * strmý svah kužele, takže plát lávy skončil pod povrchem sopky.
+ * Výšky terénu po buňkách přesně, ale jen tam, kam se láva dostala. Vzorkovat
+ * celou mřížku najednou stálo 36 864 dotazů a zaseklo snímek na začátku
+ * erupce; interpolace z hrubšího rasteru zase podstřelovala strmý svah kužele,
+ * takže plát lávy skončil pod povrchem sopky.
  */
-function sampleTerrain(terrain, field) {
-  const { terr, dirs } = field;
-  for (let i = 0; i < terr.length; i++) {
-    const j = i * 3;
-    _dir.set(dirs[j], dirs[j + 1], dirs[j + 2]);
-    terr[i] = terrain.height(_dir);
-  }
-}
-
-/** Jen stopa lávy — ztuhlá kůra se přilepuje na terén každý snímek morfu. */
-function sampleTerrainCovered(terrain, field) {
-  const { terr, dirs, cover } = field;
-  const x0 = Math.max(0, field.minX - 2);
-  const x1 = Math.min(GRID - 1, field.maxX + 2);
-  const y0 = Math.max(0, field.minY - 2);
-  const y1 = Math.min(GRID - 1, field.maxY + 2);
-  for (let iy = y0; iy <= y1; iy++) {
-    for (let ix = x0; ix <= x1; ix++) {
-      const i = iy * GRID + ix;
-      if (cover[i] <= 0.02) continue;
-      const j = i * 3;
-      _dir.set(dirs[j], dirs[j + 1], dirs[j + 2]);
-      terr[i] = terrain.height(_dir);
-    }
-  }
-}
-
-/** Kam láva smí — v disku a nad hladinou. U vody se zastaví a syčí. */
-function markOpenCells(field) {
-  const { open, shore, terr, dist, cell, radius } = field;
+function ensureSampled(terrain, field, x0, x1, y0, y1) {
+  const { terr, dirs, dist, sampled, open, cell, radius } = field;
   const waterR = CONFIG.waterLevel + 0.02;
   const limit = radius - cell * 2;
-  for (let i = 0; i < open.length; i++) {
-    open[i] = dist[i] <= limit && terr[i] >= waterR ? 1 : 0;
-  }
-  for (let iy = 0; iy < GRID; iy++) {
-    for (let ix = 0; ix < GRID; ix++) {
+  const ax0 = Math.max(0, x0);
+  const ax1 = Math.min(GRID - 1, x1);
+  const ay0 = Math.max(0, y0);
+  const ay1 = Math.min(GRID - 1, y1);
+  for (let iy = ay0; iy <= ay1; iy++) {
+    for (let ix = ax0; ix <= ax1; ix++) {
       const i = iy * GRID + ix;
-      shore[i] = 0;
-      if (!open[i]) continue;
-      for (let k = 0; k < 8; k++) {
-        const jx = ix + NX[k];
-        const jy = iy + NY[k];
-        if (jx < 0 || jx >= GRID || jy < 0 || jy >= GRID) continue;
-        if (!open[jy * GRID + jx]) {
-          shore[i] = 1;
-          break;
-        }
-      }
+      if (sampled[i]) continue;
+      sampled[i] = 1;
+      const j = i * 3;
+      _dir.set(dirs[j], dirs[j + 1], dirs[j + 2]);
+      const h = terrain.height(_dir);
+      terr[i] = h;
+      open[i] = dist[i] <= limit && h >= waterR ? 1 : 0;
     }
   }
+}
+
+/** Předvzorkuje pás kolem obálky, aby tok měl kam expandovat. */
+function ensureEnvelope(terrain, field) {
+  ensureSampled(
+    terrain, field,
+    field.minX - SAMPLE_MARGIN, field.maxX + SAMPLE_MARGIN,
+    field.minY - SAMPLE_MARGIN, field.maxY + SAMPLE_MARGIN
+  );
+}
+
+/** Po morfu terénu se výšky v obálce přepočítají. */
+function resampleEnvelope(terrain, field) {
+  const x0 = Math.max(0, field.minX - SAMPLE_MARGIN);
+  const x1 = Math.min(GRID - 1, field.maxX + SAMPLE_MARGIN);
+  const y0 = Math.max(0, field.minY - SAMPLE_MARGIN);
+  const y1 = Math.min(GRID - 1, field.maxY + SAMPLE_MARGIN);
+  for (let iy = y0; iy <= y1; iy++) {
+    field.sampled.fill(0, iy * GRID + x0, iy * GRID + x1 + 1);
+  }
+  ensureSampled(terrain, field, x0, x1, y0, y1);
+}
+
+/** Břeh = otevřená buňka se zavřeným sousedem. Počítá se až při potřebě. */
+function isShore(field, ix, iy) {
+  const open = field.open;
+  if (!open[iy * GRID + ix]) return false;
+  for (let k = 0; k < 8; k++) {
+    const jx = ix + NX[k];
+    const jy = iy + NY[k];
+    if (jx < 0 || jx >= GRID || jy < 0 || jy >= GRID) continue;
+    if (!open[jy * GRID + jx]) return true;
+  }
+  return false;
 }
 
 /** Buňky pod jícnem, kam se láva vlévá. */
-function buildSourceCells(field, sourceRadius) {
+function buildSourceCells(terrain, field, sourceRadius) {
   const r = Math.max(field.cell * 1.4, sourceRadius);
   const src = [];
   for (let i = 0; i < field.dist.length; i++) {
@@ -175,6 +186,9 @@ function buildSourceCells(field, sourceRadius) {
   for (let k = 0; k < src.length; k++) {
     markWet(field, src[k] % GRID, (src[k] / GRID) | 0);
   }
+  ensureEnvelope(terrain, field);
+  /** Jícen je vždy průchodný, i kdyby kráter zůstal pod hladinou */
+  for (let k = 0; k < src.length; k++) field.open[src[k]] = 1;
 }
 
 function markWet(field, ix, iy) {
@@ -222,9 +236,9 @@ function gridCoordAt(field, dir, out) {
   return true;
 }
 
-function blurPass(read, write) {
-  for (let iy = 0; iy < GRID; iy++) {
-    for (let ix = 0; ix < GRID; ix++) {
+function blurPass(read, write, x0, x1, y0, y1) {
+  for (let iy = y0; iy <= y1; iy++) {
+    for (let ix = x0; ix <= x1; ix++) {
       const i = iy * GRID + ix;
       let sum = read[i] * 4;
       let w = 4;
@@ -237,20 +251,26 @@ function blurPass(read, write) {
   }
 }
 
-function blurGrid(src, dst, passes) {
+/** Rozmazává jen okolí stopy — mimo obálku je pole stejně nulové. */
+function blurGrid(src, dst, passes, field) {
+  const pad = passes + 1;
+  const x0 = Math.max(0, field.minX - pad);
+  const x1 = Math.min(GRID - 1, field.maxX + pad);
+  const y0 = Math.max(0, field.minY - pad);
+  const y1 = Math.min(GRID - 1, field.maxY + pad);
   const a = new Float32Array(src.length);
   const b = new Float32Array(src.length);
   let read = src;
   for (let p = 0; p < passes; p++) {
     const write = p === passes - 1 ? dst : (read === a ? b : a);
-    blurPass(read, write);
+    blurPass(read, write, x0, x1, y0, y1);
     read = write;
   }
 }
 
 /* -------------------------------------------------------------- fyzika */
 
-function injectLava(field, volume) {
+function injectLava(field, def, volume) {
   const src = field.source;
   const add = volume / (src.length * field.cell * field.cell);
   for (let k = 0; k < src.length; k++) {
@@ -258,6 +278,12 @@ function injectLava(field, volume) {
     if (!field.open[i]) continue;
     field.lava[i] += add;
     field.temp[i] = 1;
+    /** Jícen se musí zobrazit, i než hladina přeroste kůru a začne tečt */
+    const cov = Math.min(1, field.lava[i] / def.lavaCrust);
+    if (cov > field.cover[i]) {
+      if (field.cover[i] <= 0.02 && cov > 0.02) field.wetCount++;
+      field.cover[i] = cov;
+    }
   }
 }
 
@@ -268,7 +294,7 @@ function injectLava(field, volume) {
  * úchylku podle pořadí v mřížce.
  */
 function flowStep(field, def, dt, mobility) {
-  const { terr, lava, temp, flux, drain, heatIn, open, cover, cell } = field;
+  const { terr, lava, temp, flux, drain, heatIn, open, cover, cell, dirty, touch } = field;
   const crust = def.lavaCrust;
   const yieldH = def.lavaYield;
 
@@ -278,15 +304,10 @@ function flowStep(field, def, dt, mobility) {
   const y1 = Math.min(GRID - 1, field.maxY + 1);
   if (x1 < x0 || y1 < y0) return;
 
-  for (let iy = y0; iy <= y1; iy++) {
-    const row = iy * GRID;
-    flux.fill(0, row + x0, row + x1 + 1);
-    drain.fill(0, row + x0, row + x1 + 1);
-    heatIn.fill(0, row + x0, row + x1 + 1);
-  }
-
   const nb = field.nb || (field.nb = new Int32Array(8));
   const nw = field.nw || (field.nw = new Float32Array(8));
+  /** Místo nulování celé obálky se vede seznam dotčených buněk */
+  let dn = 0;
 
   for (let iy = y0; iy <= y1; iy++) {
     for (let ix = x0; ix <= x1; ix++) {
@@ -320,11 +341,24 @@ function flowStep(field, def, dt, mobility) {
       if (out > maxDrop * 0.85) out = maxDrop * 0.85;
       if (out <= 1e-6) continue;
 
+      if (!touch[i]) {
+        touch[i] = 1;
+        flux[i] = 0;
+        heatIn[i] = 0;
+        dirty[dn++] = i;
+      }
       drain[i] = out;
       const hot = temp[i];
       const scale = out / sum;
       for (let k = 0; k < count; k++) {
         const j = nb[k];
+        if (!touch[j]) {
+          touch[j] = 1;
+          flux[j] = 0;
+          heatIn[j] = 0;
+          drain[j] = 0;
+          dirty[dn++] = j;
+        }
         const share = nw[k] * scale;
         flux[j] += share;
         heatIn[j] += share * hot;
@@ -333,32 +367,61 @@ function flowStep(field, def, dt, mobility) {
     }
   }
 
+  for (let k = 0; k < dn; k++) {
+    const i = dirty[k];
+    touch[i] = 0;
+    const gain = flux[i];
+    const loss = drain[i];
+    drain[i] = 0;
+    if (gain > 1e-7) {
+      const kept = Math.max(0, lava[i] - loss);
+      const total = kept + gain;
+      temp[i] = (kept * temp[i] + heatIn[i]) / total;
+      lava[i] = total;
+    } else if (loss > 0) {
+      lava[i] = Math.max(0, lava[i] - loss);
+    }
+    const thick = lava[i];
+    if (thick <= 0) continue;
+    const cov = Math.min(1, thick / crust);
+    if (cov > cover[i]) {
+      if (cover[i] <= 0.02 && cov > 0.02) field.wetCount++;
+      cover[i] = cov;
+    }
+  }
+}
+
+/**
+ * Chladnutí je lineární v čase, takže stačí jednou za snímek přes obálku —
+ * ne šestkrát v každém podkroku.
+ */
+function coolStep(field, def, dt) {
+  const { lava, temp } = field;
+  const x0 = Math.max(0, field.minX - 1);
+  const x1 = Math.min(GRID - 1, field.maxX + 1);
+  const y0 = Math.max(0, field.minY - 1);
+  const y1 = Math.min(GRID - 1, field.maxY + 1);
+  if (x1 < x0 || y1 < y0) return;
+  const step = dt / def.lavaHeatTime;
   for (let iy = y0; iy <= y1; iy++) {
     for (let ix = x0; ix <= x1; ix++) {
       const i = iy * GRID + ix;
-      const gain = flux[i];
-      const loss = drain[i];
-      if (gain > 1e-7) {
-        const kept = Math.max(0, lava[i] - loss);
-        const total = kept + gain;
-        temp[i] = (kept * temp[i] + heatIn[i]) / total;
-        lava[i] = total;
-      } else if (loss > 0) {
-        lava[i] = Math.max(0, lava[i] - loss);
-      }
-      const thick = lava[i];
-      if (thick <= 0) continue;
-      if (temp[i] > 0) temp[i] = Math.max(0, temp[i] - dt / def.lavaHeatTime);
-      const cov = Math.min(1, thick / crust);
-      if (cov > cover[i]) {
-        if (cover[i] <= 0.02 && cov > 0.02) field.wetCount++;
-        cover[i] = cov;
-      }
+      const t = temp[i];
+      if (t <= 0 || lava[i] <= 0) continue;
+      temp[i] = t > step ? t - step : 0;
     }
   }
 }
 
 /* -------------------------------------------------------------- render */
+
+/** Částečný upload atributu (three r170: addUpdateRange). */
+function markAttrRange(attr, start, count) {
+  attr.needsUpdate = true;
+  if (typeof attr.clearUpdateRanges !== "function") return;
+  attr.clearUpdateRanges();
+  attr.addUpdateRange(start, count);
+}
 
 const LAVA_VERT = `
 attribute float aCover;
@@ -375,14 +438,8 @@ void main() {
 }
 `;
 
-const LAVA_FRAG = `
-uniform float uTime;
-uniform float uFreeze;
-uniform float uOpacity;
-varying float vCover;
-varying float vHeat;
-varying vec2 vCoord;
-
+/** Sdílený šum — ztuhlá spálenina z něj musí dostat identický vzor */
+const NOISE_GLSL = `
 float hash21(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
@@ -408,6 +465,17 @@ float fbm2(vec2 p) {
   }
   return s / 0.9375;
 }
+`;
+
+const LAVA_FRAG = `
+uniform float uTime;
+uniform float uFreeze;
+uniform float uOpacity;
+varying float vCover;
+varying float vHeat;
+varying vec2 vCoord;
+
+${NOISE_GLSL}
 
 void main() {
   float cov = clamp(vCover, 0.0, 1.0);
@@ -450,15 +518,72 @@ void main() {
 }
 `;
 
+/**
+ * Ztuhlá spálenina zůstává ve scéně navždy, takže má vlastní levný shader.
+ * Nízkofrekvenční skvrny i okraj se počítají ve vertex shaderu (jednou za
+ * vrchol, ne za pixel) stejným kódem jako v horké fázi, takže vzor přesně
+ * navazuje. Per-pixel zbyl jediný vnoise na zrno a díry — proti 2× fbm2,
+ * tedy 8 vnoise, v horkém shaderu.
+ */
+const SCORCH_VERT = `
+attribute float aCover;
+attribute vec2 aCoord;
+varying vec3 vChar;
+varying vec3 vMask;
+varying vec2 vCoord;
+
+${NOISE_GLSL}
+
+void main() {
+  float cov = clamp(aCover, 0.0, 1.0);
+  float coarse = fbm2(aCoord * 0.55 + 3.0);
+  float fine = fbm2(aCoord * 2.6 - 11.0);
+  float mottle = coarse * 0.62 + fine * 0.38;
+
+  vChar = mix(
+    vec3(0.016, 0.015, 0.014),
+    vec3(0.078, 0.076, 0.072),
+    smoothstep(0.22, 0.9, mottle)
+  );
+  vMask = vec3(smoothstep(0.05, 0.92, cov * (0.7 + 0.55 * coarse)), mottle, cov);
+  vCoord = aCoord;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+const SCORCH_FRAG = `
+varying vec3 vChar;
+varying vec3 vMask;
+varying vec2 vCoord;
+
+float hash21(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+float vnoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x),
+    mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x),
+    u.y
+  );
+}
+
+void main() {
+  float edge = vMask.x;
+  if (edge < 0.004) discard;
+  float speck = fract(vnoise(vCoord * 2.6 - 11.0) * 7.31 + vMask.y * 3.17);
+  float holes = smoothstep(0.3, 0.88, vMask.y * 0.65 + speck * 0.35 - vMask.z * 0.12);
+  gl_FragColor = vec4(vChar * (0.7 + 0.34 * speck), edge * mix(0.22, 0.96, holes));
+}
+`;
+
 function buildLavaRender(sys, field) {
   const n = GRID * GRID;
+  /** Pozice zapisuje refreshLavaMesh v obálce; mimo ni se nic nekreslí */
   const positions = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    const h = field.terr[i] + LIFT;
-    positions[i * 3] = field.dirs[i * 3] * h;
-    positions[i * 3 + 1] = field.dirs[i * 3 + 1] * h;
-    positions[i * 3 + 2] = field.dirs[i * 3 + 2] * h;
-  }
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
@@ -514,7 +639,7 @@ function rebuildLavaIndex(field, mesh) {
       c += 6;
     }
   }
-  mesh.geometry.index.needsUpdate = true;
+  markAttrRange(mesh.geometry.index, 0, c);
   mesh.geometry.setDrawRange(0, c);
 }
 
@@ -577,9 +702,12 @@ function refreshLavaMesh(field, render, thickMul) {
     }
   }
 
-  pos.needsUpdate = true;
-  covAttr.needsUpdate = true;
-  heatAttr.needsUpdate = true;
+  /** Nahrává se jen souvislý úsek obálky, ne celých 36 864 vrcholů */
+  const first = y0 * GRID + x0;
+  const span = (y1 - y0) * GRID + (x1 - x0) + 1;
+  markAttrRange(pos, first * 3, span * 3);
+  markAttrRange(covAttr, first, span);
+  markAttrRange(heatAttr, first, span);
 
   if (heatSum > 1e-4) {
     field.hotU = heatU / heatSum;
@@ -638,7 +766,8 @@ function steamFx(sys, field) {
   for (let iy = y0; iy <= y1; iy++) {
     for (let ix = x0; ix <= x1; ix++) {
       const i = iy * GRID + ix;
-      if (!field.shore[i] || field.lava[i] < 0.05 || field.temp[i] < 0.2) continue;
+      if (field.lava[i] < 0.05 || field.temp[i] < 0.2) continue;
+      if (!isShore(field, ix, iy)) continue;
       found++;
       if (Math.random() < 1 / found) pick = i;
     }
@@ -662,9 +791,9 @@ export function spawnVolcano(sys, targetDir, shape = null) {
   const def = SPELLS.volcano;
   const dir = targetDir.clone().normalize();
 
-  const field = createLavaField(sys.terrain, dir, def.lavaRadius);
+  const field = createLavaField(dir, def.lavaRadius);
   field.terrainVersion = sys.terrain.morphVersion;
-  buildSourceCells(field, (shape?.floorRadius ?? def.craterFloorRadius) * 0.85);
+  buildSourceCells(sys.terrain, field, (shape?.floorRadius ?? def.craterFloorRadius) * 0.85);
 
   const render = buildLavaRender(sys, field);
   /** Jedno světlo — drží se těžiště žhavé lávy, tedy putuje s výlevem */
@@ -720,9 +849,10 @@ export function updateVolcanos(sys, dt) {
 
     if (field.terrainVersion !== sys.terrain.morphVersion && !sys.terrain.morphs.length) {
       field.terrainVersion = sys.terrain.morphVersion;
-      sampleTerrain(sys.terrain, field);
-      markOpenCells(field);
+      resampleEnvelope(sys.terrain, field);
+      for (let k = 0; k < field.source.length; k++) field.open[field.source[k]] = 1;
     }
+    ensureEnvelope(sys.terrain, field);
 
     const erupting = volcano.elapsed < def.eruptTime;
     const after = Math.max(0, volcano.elapsed - def.eruptTime);
@@ -737,9 +867,10 @@ export function updateVolcanos(sys, dt) {
 
     const sub = dt / SUBSTEPS;
     for (let s = 0; s < SUBSTEPS; s++) {
-      if (erupting) injectLava(field, def.eruptRate * power * sub);
+      if (erupting) injectLava(field, def, def.eruptRate * power * sub);
       flowStep(field, def, sub, mobility);
     }
+    coolStep(field, def, dt);
 
     const freeze = smoothstep(
       (after - def.lavaFreezeTime * 0.35) / (def.lavaFreezeTime * 0.6)
@@ -804,15 +935,16 @@ function applyLavaDamage(field, list, def, dt, hotFactor) {
 
 /* ---------------------------------------------------- trvalá spálenina */
 
-/** Stopa lávy zůstane jako spáleniště — mesh kůry i barva vrcholů terénu. */
+/**
+ * Stopa lávy zůstane jako spáleniště. Mesh se přitom zkomprimuje jen na
+ * pokryté buňky a vzhled se zapeče do vrcholů, takže po sopce nezůstane
+ * ležet celá mřížka (3,2 MB) ani drahý shader, ale jen pár set kilobajtů.
+ */
 function freezeVolcano(sys, volcano) {
   const field = volcano.field;
-  const mat = volcano.render.mat;
-  mat.uniforms.uFreeze.value = 1;
 
   field.temp.fill(0);
   refreshLavaMesh(field, volcano.render, 0.45);
-  rebuildLavaIndex(field, volcano.render.mesh);
 
   sys.audio?.stopSfxLoop(volcano.sfxLava, 0.6);
   volcano.sfxLava = null;
@@ -821,26 +953,142 @@ function freezeVolcano(sys, volcano) {
 
   paintTerrainScorch(sys, field);
 
-  const render = volcano.render;
-  sys.scorchMarks.push({
-    kind: "lava",
-    mesh: render.mesh,
-    mat,
-    refresh: (terrain) => {
-      sampleTerrainCovered(terrain, field);
-      refreshLavaMesh(field, render, 0.45);
+  const mark = buildScorchMesh(sys, field);
+  sys.planetGroup.remove(volcano.render.mesh);
+  volcano.render.mesh.geometry.dispose();
+  volcano.render.mat.dispose();
+
+  if (mark) sys.scorchMarks.push(mark);
+}
+
+/** Zkomprimovaný mesh spáleniny + zapečené barvy. `null` = nic nepokryto. */
+function buildScorchMesh(sys, field) {
+  const { terr, dirs, coord, vis, visCover } = field;
+  const x0 = Math.max(0, field.minX - 2);
+  const x1 = Math.min(GRID - 2, field.maxX + 1);
+  const y0 = Math.max(0, field.minY - 2);
+  const y1 = Math.min(GRID - 2, field.maxY + 1);
+  if (x1 < x0 || y1 < y0) return null;
+
+  const remap = new Int32Array((x1 - x0 + 2) * (y1 - y0 + 2)).fill(-1);
+  const rw = x1 - x0 + 2;
+  const cells = [];
+  const quads = [];
+
+  const local = (ix, iy) => (iy - y0) * rw + (ix - x0);
+  const use = (ix, iy) => {
+    const l = local(ix, iy);
+    if (remap[l] < 0) {
+      remap[l] = cells.length;
+      cells.push(iy * GRID + ix);
     }
+    return remap[l];
+  };
+
+  for (let iy = y0; iy <= y1; iy++) {
+    for (let ix = x0; ix <= x1; ix++) {
+      const a = iy * GRID + ix;
+      if (visCover[a] + visCover[a + 1] + visCover[a + GRID] + visCover[a + GRID + 1] < 0.01) {
+        continue;
+      }
+      quads.push(
+        use(ix, iy), use(ix, iy + 1), use(ix + 1, iy + 1), use(ix + 1, iy)
+      );
+    }
+  }
+  if (!quads.length) return null;
+
+  const m = cells.length;
+  let reach = 0;
+  for (let k = 0; k < m; k++) {
+    const d = field.dist[cells[k]];
+    if (d > reach) reach = d;
+  }
+  const positions = new Float32Array(m * 3);
+  const covers = new Float32Array(m);
+  const coords = new Float32Array(m * 2);
+  const keepDirs = new Float32Array(m * 3);
+  const keepThick = new Float32Array(m);
+
+  for (let k = 0; k < m; k++) {
+    const i = cells[k];
+    const thick = vis[i] * 0.45;
+    const h = terr[i] + thick + LIFT;
+
+    positions[k * 3] = dirs[i * 3] * h;
+    positions[k * 3 + 1] = dirs[i * 3 + 1] * h;
+    positions[k * 3 + 2] = dirs[i * 3 + 2] * h;
+    keepDirs[k * 3] = dirs[i * 3];
+    keepDirs[k * 3 + 1] = dirs[i * 3 + 1];
+    keepDirs[k * 3 + 2] = dirs[i * 3 + 2];
+    keepThick[k] = thick;
+    coords[k * 2] = coord[i * 2];
+    coords[k * 2 + 1] = coord[i * 2 + 1];
+    covers[k] = visCover[i];
+  }
+
+  const idx = new Uint16Array((quads.length / 4) * 6);
+  for (let q = 0, c = 0; q < quads.length; q += 4, c += 6) {
+    idx[c] = quads[q];
+    idx[c + 1] = quads[q + 1];
+    idx[c + 2] = quads[q + 2];
+    idx[c + 3] = quads[q];
+    idx[c + 4] = quads[q + 2];
+    idx[c + 5] = quads[q + 3];
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute("aCover", new THREE.BufferAttribute(covers, 1));
+  geo.setAttribute("aCoord", new THREE.BufferAttribute(coords, 2));
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+
+  const mat = new THREE.ShaderMaterial({
+    vertexShader: SCORCH_VERT,
+    fragmentShader: SCORCH_FRAG,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4
   });
 
-  field.flux = null;
-  field.drain = null;
-  field.heatIn = null;
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.renderOrder = 0;
+  mesh.frustumCulled = false;
+  sys.planetGroup.add(mesh);
+
+  return {
+    kind: "lava",
+    mesh,
+    mat,
+    cap: {
+      x: field.center.x,
+      y: field.center.y,
+      z: field.center.z,
+      cos: Math.cos((reach + field.cell * 2) / CONFIG.planetR)
+    },
+    refresh: (terrain) => {
+      const pos = mesh.geometry.attributes.position;
+      const arr = pos.array;
+      for (let k = 0; k < m; k++) {
+        const j = k * 3;
+        _dir.set(keepDirs[j], keepDirs[j + 1], keepDirs[j + 2]);
+        const h = terrain.height(_dir) + keepThick[k] + LIFT;
+        arr[j] = keepDirs[j] * h;
+        arr[j + 1] = keepDirs[j + 1] * h;
+        arr[j + 2] = keepDirs[j + 2] * h;
+      }
+      pos.needsUpdate = true;
+    }
+  };
 }
 
 /** Rozmytá stopa do barvy terénu — nepravidelná šedo-černá s dírami. */
 function paintTerrainScorch(sys, field) {
   const halo = new Float32Array(GRID * GRID);
-  blurGrid(field.cover, halo, 3);
+  blurGrid(field.cover, halo, 3, field);
   sys.terrain.scorchField(field.center, field.radius, (dx, dy, dz) => {
     _dir.set(dx, dy, dz);
     if (!gridCoordAt(field, _dir, _cell)) return 0;

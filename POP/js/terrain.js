@@ -421,7 +421,8 @@ export class Terrain {
       startH,
       deltaH,
       duration,
-      elapsed: 0
+      elapsed: 0,
+      cap: { x: ndx, y: ndy, z: ndz, cos: cosR }
     });
     return true;
   }
@@ -572,7 +573,8 @@ export class Terrain {
       deltaH,
       duration,
       elapsed: 0,
-      onComplete: opts.onComplete ?? null
+      onComplete: opts.onComplete ?? null,
+      cap: { x: center.x, y: center.y, z: center.z, cos: cosR }
     });
 
     return {
