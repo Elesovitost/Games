@@ -107,6 +107,15 @@ function rebuildBoltTubes(b) {
   }
 }
 
+function playLightningSfx(sys, dir) {
+  const listener = sys.getListenerDir?.(tmp.dir2);
+  if (!listener) return;
+  sys.audio?.playEffectAt("lightning", dir, listener, {
+    casterId: sys._castOwnerId,
+    rate: 0.94 + Math.random() * 0.12
+  });
+}
+
 /** Blesk: silný kanál (trubice), odbočky, jiskry, spálenina. */
 export function strikeLightning(sys, targetDir) {
   const dir = targetDir.clone().normalize();
@@ -189,6 +198,8 @@ export function strikeLightning(sys, targetDir) {
   group.add(lightBolt);
 
   sys.planetGroup.add(group);
+  playLightningSfx(sys, dir);
+
   sys.bolts.push({
     group,
     tubes,
@@ -207,27 +218,21 @@ export function strikeLightning(sys, targetDir) {
     nextJitter: 0.12
   });
 
-  if (onWater) {
-    spawnWaterSplash(sys, dir, SPELLS.lightning.burnRadius * 1.8);
-  } else {
-    spawnScorchMark(sys, dir, SPELLS.lightning.burnRadius);
-    sys.terrain.scorch(dir, Math.max(2.6, SPELLS.lightning.burnRadius * 2.5), true);
-  }
-  applyAoeDamage(
-    sys,
-    dir,
-    SPELLS.lightning.damageRadius,
-    SPELLS.lightning.damageCenter,
-    SPELLS.lightning.damageEdge
-  );
-
-  // Lokálně u každého klienta — hlasitost podle vzdálenosti od jeho kamery
-  const listener = sys.getListenerDir?.(tmp.dir2);
-  if (listener) {
-    sys.audio?.playAt("lightning", dir, listener, {
-      rate: 0.94 + Math.random() * 0.12
-    });
-  }
+  queueMicrotask(() => {
+    if (onWater) {
+      spawnWaterSplash(sys, dir, SPELLS.lightning.burnRadius * 1.8);
+    } else {
+      spawnScorchMark(sys, dir, SPELLS.lightning.burnRadius);
+      sys.terrain.scorch(dir, Math.max(2.6, SPELLS.lightning.burnRadius * 2.5), true);
+    }
+    applyAoeDamage(
+      sys,
+      dir,
+      SPELLS.lightning.damageRadius,
+      SPELLS.lightning.damageCenter,
+      SPELLS.lightning.damageEdge
+    );
+  });
 }
 
 export function updateBolts(sys, dt) {

@@ -439,19 +439,26 @@ export class SpellSystem {
       if (!beginCast(prepTime, () => {
         this.clearSpiral(spiral);
         const growSfx = this.#startTrackedLoop("volcanogrow", target);
-        if (!this.terrain.beginVolcanoMorph(target, {
+        /** Tvar sopky se dočte až v onComplete — morph teprve poroste */
+        const shaped = { info: null };
+        shaped.info = this.terrain.beginVolcanoMorph(target, {
           coneRadius: def.coneRadius,
           coneHeight: def.coneHeight,
+          flankPow: def.flankPow,
           craterRadius: def.craterRadius,
           craterDepth: def.craterDepth,
+          craterFloorRadius: def.craterFloorRadius,
+          notchDrop: def.notchDrop,
+          secondaryNotchDrop: def.secondaryNotchDrop,
           duration: morphDur,
           onComplete: () => {
             this.#stopTrackedLoop(growSfx);
-            doSpawnVolcano(this, target);
+            doSpawnVolcano(this, target, shaped.info);
             restore();
             onDone?.();
           }
-        })) {
+        });
+        if (!shaped.info) {
           this.#stopTrackedLoop(growSfx);
           restore();
           onDone?.();

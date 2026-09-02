@@ -125,6 +125,9 @@ export const SFX = {
 
 const SCREAM_IDS = ["scream1", "scream2", "scream3"];
 
+/** Dopady — načíst jako první (malé soubory, kritické na timing). */
+const PRIORITY_SFX = ["lightning", "fireballImpact", "icebreak"];
+
 /** Vzdálenost po povrchu (m) mezi dvěma směry od středu planety. */
 function surfaceDist(a, b) {
   const d = Math.min(1, Math.max(-1, a.dot(b)));
@@ -154,6 +157,7 @@ export class GameAudio {
     this.buffers = new Map();
     this._loading = new Map();
     this._ready = false;
+    this._preloadPromise = null;
     this._noiseBuf = null;
     this._incantationBuffers = new Map();
     this._incantationLoading = new Map();
@@ -215,13 +219,52 @@ export class GameAudio {
     );
   }
 
-  /** Prohlížeče vyžadují user gesture před zvukem. */
+  /** Je daný SFX dekódovaný v RAM? */
+  hasBuffer(id) {
+    return this.buffers.has(id);
+  }
+
+  get ready() {
+    return this._ready;
+  }
+
+  /** Prohlížeče vyžadují user gesture — obnoví kontext, dohrát preload dopadů, warmup. */
   unlock() {
     const ctx = this.#ensureCtx();
-    if (!ctx) return;
-    const start = () => this.startAmbient();
-    if (ctx.state === "suspended") ctx.resume().then(start).catch(() => {});
-    else start();
+    if (!ctx) return Promise.resolve();
+    const resume =
+      ctx.state === "suspended" ? ctx.resume().catch(() => {}) : Promise.resolve();
+    return resume.then(async () => {
+      await Promise.all(PRIORITY_SFX.map((id) => this.#loadOne(id)));
+      this.#warmupPlayback();
+      if (!this._ready) void this.preload();
+      this.startAmbient();
+    });
+  }
+
+  /** První přehrání bez warmupu mívá desítky ms latence — „tichý“ takt. */
+  #warmupPlayback() {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== "running") return;
+    const buf =
+      this.buffers.get("lightning") ||
+      this.buffers.get("fireballImpact") ||
+      this.buffers.values().next().value;
+    if (!buf) return;
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    src.connect(gain);
+    gain.connect(this.master);
+    const t = ctx.currentTime;
+    src.start(t, 0, Math.min(0.002, buf.duration));
+    try {
+      src.stop(t + 0.004);
+    } catch (_) {
+      /* noop */
+    }
   }
 
   async #loadAmbient(url) {
@@ -372,12 +415,22 @@ export class GameAudio {
   }
 
   async preload(ids = Object.keys(SFX)) {
+    if (this._preloadPromise) return this._preloadPromise;
+    this._preloadPromise = this.#runPreload(ids);
+    return this._preloadPromise;
+  }
+
+  async #runPreload(ids) {
     const ctx = this.#ensureCtx();
     if (!ctx) return;
     this.#noiseBuffer();
     const withUrl = ids.filter((id) => SFX[id]?.url);
+    const priority = PRIORITY_SFX.filter((id) => withUrl.includes(id));
+    const rest = withUrl.filter((id) => !priority.includes(id));
+
+    await Promise.all(priority.map((id) => this.#loadOne(id)));
     await Promise.all([
-      ...withUrl.map((id) => this.#loadOne(id)),
+      ...rest.map((id) => this.#loadOne(id)),
       this.preloadIncantations(),
       this.preloadAmbient()
     ]);
@@ -635,6 +688,45 @@ export class GameAudio {
     this.stopCastIncantation(sessionId, fadeSec, false);
   }
 
+  /** Rychle ztlumí hlášku zaříkávání — dopad má vlastní SFX, ne čekat na konec MP3. */
+  fadeCastVoice(sessionId, fadeSec = 0.035) {
+    const handle = this._castSessions.get(String(sessionId));
+    if (!handle?.voiceNodes?.length) return;
+
+    const ctx = this.#ensureCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const end = t + fadeSec;
+
+    if (handle.voiceWetGain) {
+      const g = handle.voiceWetGain.gain;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(g.value, t);
+      g.linearRampToValueAtTime(0, end);
+    }
+
+    for (const node of handle.voiceNodes) {
+      if (node?.gain && node !== handle.voiceWetGain) {
+        const g = node.gain;
+        g.cancelScheduledValues(t);
+        g.setValueAtTime(g.value, t);
+        g.linearRampToValueAtTime(0, end);
+      }
+      if (node?.stop) {
+        try {
+          node.stop(end + 0.02);
+        } catch (_) {
+          /* noop */
+        }
+      }
+    }
+
+    handle.voiceNodes = [];
+    handle.echoConvolver = null;
+    handle.voiceWetGain = null;
+    if (!handle.bgSource) this._castSessions.delete(String(sessionId));
+  }
+
   async #loadOne(id) {
     if (this.buffers.has(id)) return this.buffers.get(id);
     if (this._loading.has(id)) return this._loading.get(id);
@@ -659,25 +751,15 @@ export class GameAudio {
     return p;
   }
 
-  /**
-   * @param {string} id
-   * @param {THREE.Vector3} sourceDir — směr místa efektu (normalizovaný)
-   * @param {THREE.Vector3} listenerDir — kam se hráč dívá (view axis)
-   * @param {{ volume?: number, rate?: number }} [opts]
-   */
-  playAt(id, sourceDir, listenerDir, opts = {}) {
-    const def = SFX[id];
-    const buf = this.buffers.get(id);
+  #playBufferAt(buf, def, id, sourceDir, listenerDir, opts = {}) {
     const ctx = this.#ensureCtx();
-    if (!def || !buf || !ctx || !sourceDir || !listenerDir) return;
-
-    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    if (!ctx || !buf || !sourceDir || !listenerDir) return false;
 
     const vol = this.#spatialVolume(sourceDir, listenerDir, {
       id,
       mul: opts.volume ?? 1
     });
-    if (vol < 0.01) return;
+    if (vol < 0.01) return false;
 
     const src = ctx.createBufferSource();
     src.buffer = buf;
@@ -687,7 +769,53 @@ export class GameAudio {
     gain.gain.value = Math.min(1, vol);
     src.connect(gain);
     gain.connect(this.master);
-    src.start(0);
+
+    const offset = Math.max(0, opts.offset ?? def.startOffset ?? 0);
+    const when = opts.when ?? ctx.currentTime;
+    src.start(when, offset);
+    return true;
+  }
+
+  /**
+   * @param {string} id
+   * @param {THREE.Vector3} sourceDir — směr místa efektu (normalizovaný)
+   * @param {THREE.Vector3} listenerDir — kam se hráč dívá (view axis)
+   * @param {{ volume?: number, rate?: number, offset?: number, when?: number }} [opts]
+   */
+  playAt(id, sourceDir, listenerDir, opts = {}) {
+    const def = SFX[id];
+    if (!def || !sourceDir || !listenerDir) return;
+
+    const playBuf = (buf) => {
+      const ctx = this.#ensureCtx();
+      if (!ctx || !buf) return;
+      if (ctx.state === "running") {
+        this.#playBufferAt(buf, def, id, sourceDir, listenerDir, opts);
+        return;
+      }
+      void ctx.resume().then(() => {
+        if (ctx.state === "running") {
+          this.#playBufferAt(buf, def, id, sourceDir, listenerDir, opts);
+        }
+      });
+    };
+
+    const buf = this.buffers.get(id);
+    if (buf) {
+      playBuf(buf);
+      return;
+    }
+    if (!def.url) return;
+    void this.#loadOne(id).then((loaded) => playBuf(loaded));
+  }
+
+  /**
+   * SFX dopadu — nezávislé na zaříkávání; hláška se ztlumí, buffer musí být v RAM.
+   * @param {{ casterId?: string, volume?: number, rate?: number, offset?: number }} [opts]
+   */
+  playEffectAt(id, sourceDir, listenerDir, opts = {}) {
+    if (opts.casterId != null) this.fadeCastVoice(opts.casterId);
+    this.playAt(id, sourceDir, listenerDir, opts);
   }
 
   playRandomScream(sourceDir, listenerDir, opts = {}) {

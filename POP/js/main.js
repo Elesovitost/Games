@@ -40,8 +40,10 @@ class Game {
 
     this.audio = new GameAudio();
     this.audio.setMusicEnabled(loadMusicEnabled());
-    this.audio.preload();
-    const unlockAudio = () => this.audio.unlock();
+    void this.audio.preload();
+    const unlockAudio = () => {
+      void this.audio.unlock();
+    };
     window.addEventListener("pointerdown", unlockAudio, { once: true });
     window.addEventListener("keydown", unlockAudio, { once: true });
     this._wizardColorIdx = this.#colorIndexFor(loadProfile().color);

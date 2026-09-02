@@ -1,6 +1,6 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
-import { lerp3, tmp } from "./utils.js";
+import { lerp3, tangentFrame, tmp, surfaceOffsetDir } from "./utils.js";
 import { createNoise } from "./noise.js";
 import { createIcosphereGeometry } from "./icosphere.js";
 import { generateHeights } from "./maps.js";
@@ -174,6 +174,7 @@ export class Terrain {
     this.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), CONFIG.maxR);
     this.morphs = [];
     this._morphDirty = false;
+    this.morphVersion = 0;
     this.scorchMask = new Float32Array(count);
     this.tornadoTrailMask = new Float32Array(count);
     this.iceTrailLife = new Float32Array(count);
@@ -297,6 +298,39 @@ export class Terrain {
     if (any) colAttr.needsUpdate = true;
   }
 
+  /**
+   * Spálenina podle libovolného pole — `field(dx, dy, dz)` vrací intenzitu 0..1
+   * pro směr vrcholu. Používá stopa lávy, která není kruhová.
+   */
+  scorchField(centerDir, radiusMeters, field) {
+    const clen = Math.hypot(centerDir.x, centerDir.y, centerDir.z) || 1;
+    const ndx = centerDir.x / clen;
+    const ndy = centerDir.y / clen;
+    const ndz = centerDir.z / clen;
+    const cosR = Math.cos(Math.min(Math.PI, radiusMeters / CONFIG.planetR));
+    const pos = this.geometry.attributes.position;
+    const colAttr = this.geometry.attributes.color;
+    const col = tmp.col;
+    let any = false;
+
+    for (let i = 0; i < pos.count; i++) {
+      const dx = this.dirs[i * 3];
+      const dy = this.dirs[i * 3 + 1];
+      const dz = this.dirs[i * 3 + 2];
+      if (dx * ndx + dy * ndy + dz * ndz < cosR) continue;
+      const mask = field(dx, dy, dz);
+      if (!(mask > 0.004)) continue;
+      const next = Math.min(1, Math.max(this.scorchMask[i], mask));
+      if (next <= this.scorchMask[i] + 1e-4) continue;
+      this.scorchMask[i] = next;
+      const h = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
+      this.#writeColor(i, h, col);
+      colAttr.setXYZ(i, col[0], col[1], col[2]);
+      any = true;
+    }
+    if (any) colAttr.needsUpdate = true;
+  }
+
   #writeColor(i, h, col) {
     const dx = this.dirs[i * 3];
     const dy = this.dirs[i * 3 + 1];
@@ -307,13 +341,17 @@ export class Terrain {
     const grain = this.noise.fbm(dx * inv * 34 + 41, dy * inv * 34, dz * inv * 34);
     const s = this.scorchMask[i];
     if (s > 0.001) {
-      const core = s * s * s;
-      const br = 0.008 + 0.1 * (1 - core);
-      const bg = 0.006 + 0.075 * (1 - core);
-      const bb = 0.005 + 0.06 * (1 - core);
-      col[0] = col[0] * (1 - s) + br * s;
-      col[1] = col[1] * (1 - s) + bg * s;
-      col[2] = col[2] * (1 - s) + bb * s;
+      const patch = grain * 0.56 + beachN * 0.44;
+      const mottle = patch * patch * (3 - 2 * patch);
+      const holes = 0.3 + 0.7 * this.noise.fbm(dx * inv * 52 + 9, dy * inv * 52, dz * inv * 52);
+      const eff = s * (0.42 + 0.58 * mottle) * holes;
+      const tone = 0.011 + mottle * 0.105;
+      const br = tone * (0.62 + 0.38 * holes);
+      const bg = tone * (0.97 + 0.03 * mottle);
+      const bb = tone * (0.9 + 0.08 * mottle);
+      col[0] = col[0] * (1 - eff) + br * eff;
+      col[1] = col[1] * (1 - eff) + bg * eff;
+      col[2] = col[2] * (1 - eff) + bb * eff;
     }
 
     const tornado = this.tornadoTrailMask[i];
@@ -388,68 +426,145 @@ export class Terrain {
     return true;
   }
 
+  /** Průměrná úroveň terénu na patě sopky — kráter pak stojí vodorovně. */
+  #volcanoBaseLevel(center, east, north, radiusM) {
+    const probe = new THREE.Vector3();
+    let sum = 0;
+    for (let k = 0; k < 24; k++) {
+      const az = (k / 24) * Math.PI * 2;
+      surfaceOffsetDir(center, east, north, az, radiusM, probe);
+      sum += Math.max(CONFIG.waterLevel, this.height(probe));
+    }
+    return sum / 24;
+  }
+
+  /** Azimut nejnižšího okolí — tam se prolomí okraj kráteru a poteče láva. */
+  #downhillAzimuth(center, east, north, radiusM) {
+    const probe = new THREE.Vector3();
+    let bestAz = 0;
+    let bestH = Infinity;
+    for (let k = 0; k < 32; k++) {
+      const az = (k / 32) * Math.PI * 2;
+      surfaceOffsetDir(center, east, north, az, radiusM, probe);
+      const h = this.height(probe);
+      if (h < bestH) {
+        bestH = h;
+        bestAz = az;
+      }
+    }
+    return bestAz;
+  }
+
   /**
-   * Sopka — strmý kužel s mírně konkávními svahy a malou proláklínou na vrcholu.
-   * @returns {boolean}
+   * Sopka — mírně konkávní svahy (nejstrmější pod okrajem, u paty splývají
+   * s terénem), vodorovný okraj kráteru, ploché dno a dva průlomy v okraji —
+   * hlavní na straně spádu terénu, menší protilehlý.
+   * @returns {{center:THREE.Vector3, baseLevel:number, rimLevel:number,
+   *   floorLevel:number, craterRadius:number, floorRadius:number,
+   *   coneRadius:number, notchAzimuth:number}|null}
    */
-  beginVolcanoMorph(centerDir, opts) {
-    const cx = centerDir.x;
-    const cy = centerDir.y;
-    const cz = centerDir.z;
-    const clen = Math.hypot(cx, cy, cz) || 1;
-    const ndx = cx / clen;
-    const ndy = cy / clen;
-    const ndz = cz / clen;
+  beginVolcanoMorph(centerDir, opts = {}) {
+    const center = new THREE.Vector3().copy(centerDir).normalize();
+    const east = new THREE.Vector3();
+    const north = new THREE.Vector3();
+    tangentFrame(center, east, north);
 
-    const baseR = opts.coneRadius ?? 11;
-    const height = opts.coneHeight ?? 9;
-    const craterR = opts.craterRadius ?? 2.2;
-    const craterD = opts.craterDepth ?? 1.8;
+    const coneR = opts.coneRadius ?? 14;
+    const rimH = opts.coneHeight ?? 7;
+    const craterR = opts.craterRadius ?? 3.4;
+    const craterD = opts.craterDepth ?? 2.4;
+    const floorR = opts.craterFloorRadius ?? craterR * 0.47;
+    /** >1 = konkávní svah; 1 = přímý kužel */
+    const flankPow = opts.flankPow ?? 1.4;
+    const notchDrop = opts.notchDrop ?? 1;
+    const secondaryNotchDrop = opts.secondaryNotchDrop ?? notchDrop * 0.45;
+    const gullyAmp = opts.gullyAmp ?? 0.35;
+    const gullyCount = opts.gullyCount ?? 9;
+    const outlineAmp = opts.outlineAmp ?? 0.1;
     const duration = opts.duration ?? CONFIG.spellDuration;
-    /** >1 = svahy mírně konkávní (vpadlé), ne klenuté */
-    const flankPow = opts.flankPow ?? 1.68;
-    /** Plynulý sestup v posledních % paty — bez konvexního „ramene“ */
-    const footBlend = opts.footBlend ?? 0.16;
 
-    const cosR = Math.cos(baseR / CONFIG.planetR);
-    const cosCrater = Math.cos(craterR / CONFIG.planetR);
-    const angR = Math.acos(Math.min(1, cosR));
+    const floorH = rimH - craterD;
+    const centerH = this.height(center);
+    const baseLevel = Math.max(
+      this.#volcanoBaseLevel(center, east, north, coneR * 0.98),
+      centerH - rimH * 0.55
+    );
+    const notchAz = this.#downhillAzimuth(center, east, north, coneR * 0.9);
+
+    const maxR = coneR * (1 + outlineAmp);
+    const cosR = Math.cos(maxR / CONFIG.planetR);
     const pos = this.geometry.attributes.position;
     const indices = [];
     const startH = [];
     const deltaH = [];
+    const tangent = new THREE.Vector3();
 
     for (let i = 0; i < pos.count; i++) {
       const dx = this.dirs[i * 3];
       const dy = this.dirs[i * 3 + 1];
       const dz = this.dirs[i * 3 + 2];
-      const dot = dx * ndx + dy * ndy + dz * ndz;
+      const dot = dx * center.x + dy * center.y + dz * center.z;
       if (dot < cosR) continue;
 
-      const angDist = Math.acos(Math.min(1, Math.max(-1, dot)));
-      const t = 1 - angDist / Math.max(1e-5, angR);
-      if (t <= 0) continue;
+      const r = Math.acos(Math.min(1, Math.max(-1, dot))) * CONFIG.planetR;
+      const nz = this.noise.fbm(dx * 8.5 + 91, dy * 8.5 - 17, dz * 8.5 + 5);
+      const rEff = coneR * (1 + nz * outlineAmp);
+      const x = r / rEff;
+      if (x >= 1) continue;
 
-      const body = Math.pow(t, flankPow);
-      const footT = Math.min(1, t / Math.max(1e-4, footBlend));
-      const foot = footT * footT * (3 - 2 * footT);
-      let d = height * body * foot;
-
-      if (dot >= cosCrater) {
-        const tc = (dot - cosCrater) / Math.max(1e-5, 1 - cosCrater);
-        const wc = tc * tc * (3 - 2 * tc);
-        d -= craterD * wc;
+      let az = 0;
+      if (r > 0.05) {
+        tangent.set(dx, dy, dz).addScaledVector(center, -dot);
+        az = Math.atan2(tangent.dot(north), tangent.dot(east));
       }
 
+      const xFloor = floorR / rEff;
+      const xRim = craterR / rEff;
+      let prof;
+      let rimW;
+      if (x <= xFloor) {
+        prof = floorH;
+        rimW = 0;
+      } else if (x <= xRim) {
+        rimW = smoothFalloff((x - xFloor) / Math.max(1e-4, xRim - xFloor));
+        prof = floorH + (rimH - floorH) * rimW;
+      } else {
+        const u = (x - xRim) / Math.max(1e-4, 1 - xRim);
+        prof = rimH * Math.pow(1 - u, flankPow);
+        rimW = Math.max(0, 1 - u / 0.4);
+        const gullyW = Math.sin(Math.PI * Math.min(1, u / 0.85));
+        prof -= gullyAmp * gullyW * (0.5 + 0.5 * Math.cos(gullyCount * az + nz * 3.1));
+      }
+
+      let dAz = az - notchAz;
+      if (dAz > Math.PI) dAz -= Math.PI * 2;
+      else if (dAz < -Math.PI) dAz += Math.PI * 2;
+      const downhill = Math.max(0, Math.cos(dAz));
+      const uphill = Math.max(0, -Math.cos(dAz));
+      prof -= rimW * (
+        notchDrop * downhill * downhill +
+        secondaryNotchDrop * uphill * uphill
+      );
+      /** Jemná nepravidelnost okraje — další slabá místa pro přelití */
+      prof -= rimW * 0.07 * (0.5 + 0.5 * Math.cos(3 * az + nz * 4.2));
+
+      /** Kráter a okraj vodorovně, pata plynule do stávajícího terénu */
+      const level = 1 - smoothFalloff(
+        Math.min(1, Math.max(0, (x - xRim) / Math.max(1e-4, 1 - xRim)))
+      );
+
       const h0 = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
-      const h1 = Math.min(CONFIG.maxR * 0.98, Math.max(CONFIG.minR, h0 + d));
-      d = h1 - h0;
+      let h1 = h0 + prof + (baseLevel - h0) * level;
+      if (x > xRim) h1 = Math.max(h1, h0);
+      h1 = Math.min(CONFIG.maxR * 0.98, Math.max(CONFIG.minR, h1));
+
+      const d = h1 - h0;
       if (Math.abs(d) < 1e-4) continue;
       indices.push(i);
       startH.push(h0);
       deltaH.push(d);
     }
-    if (!indices.length) return false;
+    if (!indices.length) return null;
 
     this.morphs.push({
       indices,
@@ -459,12 +574,23 @@ export class Terrain {
       elapsed: 0,
       onComplete: opts.onComplete ?? null
     });
-    return true;
+
+    return {
+      center,
+      baseLevel,
+      rimLevel: baseLevel + rimH,
+      floorLevel: baseLevel + floorH,
+      craterRadius: craterR,
+      floorRadius: floorR,
+      coneRadius: coneR,
+      notchAzimuth: notchAz
+    };
   }
 
   /** @returns {boolean} true pokud ještě běží nějaký morph */
   updateMorphs(dt) {
     if (!this.morphs.length) return false;
+    this.morphVersion++;
     const pos = this.geometry.attributes.position;
     const colAttr = this.geometry.attributes.color;
     const col = tmp.col;

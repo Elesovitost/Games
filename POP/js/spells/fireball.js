@@ -122,13 +122,14 @@ function spawnFireShards(sys, pos, normalDir, count = 72) {
   }
 }
 
-function explodeFireball(sys, pos, dir) {
+function explodeFireball(sys, pos, dir, casterId = null) {
   const def = SPELLS.fireball;
   const onWater = isWaterAt(sys, dir);
 
   const listener = sys.getListenerDir?.(tmp.dir2);
   if (listener) {
-    sys.audio?.playAt("fireballImpact", dir, listener, {
+    sys.audio?.playEffectAt("fireballImpact", dir, listener, {
+      casterId,
       rate: 0.92 + Math.random() * 0.14
     });
   }
@@ -138,21 +139,25 @@ function explodeFireball(sys, pos, dir) {
     spawnBurst(sys, pos, dir, 0xd8ecff, 0.45);
     spawnBurst(sys, pos, dir, 0xb8dcf0, 0.32);
   } else {
-    spawnScorchMark(sys, dir, def.burnRadius);
-    sys.terrain.scorch(dir, Math.max(2.6, def.burnRadius * 2.5), true);
     spawnBurst(sys, pos, dir, 0xff3a08, 0.65);
     spawnBurst(sys, pos, dir, 0xff9020, 0.5);
     spawnBurst(sys, pos, dir, 0xffe8a0, 0.35);
-    spawnFireShards(sys, pos, dir);
   }
 
-  applyAoeDamage(
-    sys,
-    dir,
-    def.damageRadius,
-    def.damageCenter,
-    def.damageEdge
-  );
+  queueMicrotask(() => {
+    if (!onWater) {
+      spawnScorchMark(sys, dir, def.burnRadius);
+      sys.terrain.scorch(dir, Math.max(2.6, def.burnRadius * 2.5), true);
+      spawnFireShards(sys, pos, dir);
+    }
+    applyAoeDamage(
+      sys,
+      dir,
+      def.damageRadius,
+      def.damageCenter,
+      def.damageEdge
+    );
+  });
 }
 
 function disposeFireball(sys, p) {
@@ -181,7 +186,7 @@ export function launchFireball(sys, targetDir) {
   sys._vel.copy(aim).sub(from);
   const dist = sys._vel.length();
   if (dist < 0.15) {
-    explodeFireball(sys, aim, target);
+    explodeFireball(sys, aim, target, sys._castOwnerId);
     return;
   }
   sys._vel.multiplyScalar(SPELLS.fireball.speed / dist);
@@ -270,7 +275,8 @@ export function launchFireball(sys, targetDir) {
     life: 6,
     smokeAcc: 0,
     burnT: 0,
-    sfxHiss
+    sfxHiss,
+    casterId: sys._castOwnerId
   });
 }
 
@@ -355,7 +361,7 @@ export function updateFireball(sys, p, dt) {
       len > 1e-5
         ? pos.clone().addScaledVector(sys._tmp, -(len - surface + 0.02))
         : pos.clone();
-    explodeFireball(sys, hitPos, dir);
+    explodeFireball(sys, hitPos, dir, p.casterId);
     disposeFireball(sys, p);
     return false;
   }

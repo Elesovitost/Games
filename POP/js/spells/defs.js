@@ -1,5 +1,3 @@
-import { CONFIG } from "../config.js";
-
 export const SPELLS = {
   elevate: {
     id: "elevate",
@@ -69,19 +67,42 @@ export const SPELLS = {
     range: 16,
     /** 3 s kouzlení, pak roste kopec — wizard může odejít */
     castPrepTime: 3,
-    morphDuration: CONFIG.spellDuration,
+    morphDuration: 3,
     color: 0xff3a18,
-    coneRadius: 9.5,
-    coneHeight: 10.5,
-    craterRadius: 2.2,
-    craterDepth: 1.8,
-    lavaRadius: 50,
-    lavaDuration: 5,
+
+    /**
+     * Tvar hory: pata 14 m, okraj kráteru 7 m nad patou → svah 43° pod
+     * okrajem, 7° u paty (střední 33°), po celé délce konkávní.
+     */
+    coneRadius: 14,
+    coneHeight: 7,
+    /** >1 = konkávní svahy: nejstrmější pod okrajem, u paty splývají */
+    flankPow: 1.4,
+    craterRadius: 3.4,
+    craterDepth: 2.4,
+    craterFloorRadius: 1.6,
+    /** Průlom v okraji kráteru na straně spádu (m) */
+    notchDrop: 0.72,
+    /** Menší protilehlý průlom — láva vyteče i na druhé straně */
+    secondaryNotchDrop: 0.4,
+
+    /** Láva — simulace výškového pole (m, m³, s) */
+    lavaRadius: 76,
+    /** Délka výlevu a objemový tok z jícnu — kráter (~49 m³) přeteče v 1,6 s */
+    eruptTime: 8,
+    eruptRate: 34,
+    /** Ztuhlá vrstva, která už nikdy neodteče — láva se šíří, neodtéká */
+    lavaCrust: 0.06,
+    /** Kritický spád hladiny (mez tekutosti) — hustá tekutina, oblé laloky */
+    lavaYield: 0.035,
+    /** Tekutost — vyšší = rychlejší tok po spádu */
+    lavaMobility: 160,
+    /** Chladnutí ležící lávy na kůru (s) */
+    lavaHeatTime: 7,
+    /** Tuhnutí do trvalé spáleniny po konci výlevu (s) */
+    lavaFreezeTime: 6,
     lavaDps: 20,
-    lavaFillTime: 0.65,
-    lavaFlowTime: 3.2,
-    lavaFadeTime: 2.4,
-    hint: "3 s kouzlení, pak sopka — láva až 50 m, 20 HP/s. Po zmizení spáleniště."
+    hint: "3 s kouzlení, pak sopka — láva teče po spádu ~30 m, 20 HP/s. Zůstane spáleniště."
   },
   invisibility: {
     id: "invisibility",

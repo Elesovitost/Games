@@ -130,93 +130,6 @@ export function spawnScorchMark(sys, dir, radiusM) {
   });
 }
 
-/** Spáleniště podle nepravidelného obrysu — ploché kruhy kopírující terén (sopka). */
-export function spawnIrregularScorchMark(sys, dir, reachBySeg, segments = 64) {
-  const RINGS = 10;
-  const centerDir = dir.clone().normalize();
-  const lift = 0.045;
-  const reach = new Float32Array(segments);
-  for (let i = 0; i < segments; i++) reach[i] = Math.max(0, reachBySeg[i] ?? 0);
-
-  const vertCount = RINGS * segments;
-  const positions = new Float32Array(vertCount * 3);
-  const edges = new Float32Array(vertCount);
-  const indices = [];
-
-  for (let r = 0; r < RINGS - 1; r++) {
-    const baseA = r * segments;
-    const baseB = (r + 1) * segments;
-    for (let i = 0; i < segments; i++) {
-      const next = (i + 1) % segments;
-      indices.push(baseA + i, baseB + i, baseB + next);
-      indices.push(baseA + i, baseB + next, baseA + next);
-    }
-  }
-
-  for (let r = 0; r < RINGS; r++) {
-    const edge = (r + 1) / RINGS;
-    for (let i = 0; i < segments; i++) edges[r * segments + i] = edge;
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute("aEdge", new THREE.BufferAttribute(edges, 1));
-  geo.setIndex(indices);
-
-  const mesh = new THREE.Mesh(geo, scorchMaterial());
-  mesh.renderOrder = 0;
-  sys.planetGroup.add(mesh);
-
-  const mark = {
-    kind: "irregular",
-    mesh,
-    centerDir: [centerDir.x, centerDir.y, centerDir.z],
-    reach,
-    lift,
-    segments,
-    rings: RINGS
-  };
-  sys.scorchMarks.push(mark);
-  refreshIrregularScorchMark(sys.terrain, mark);
-}
-
-function refreshIrregularScorchMark(terrain, mark) {
-  const pos = mark.mesh.geometry.attributes.position;
-  const lift = mark.lift;
-  const cx = mark.centerDir[0];
-  const cy = mark.centerDir[1];
-  const cz = mark.centerDir[2];
-  const center = tmp.v.set(cx, cy, cz);
-  tangentFrame(center, tmp.east, tmp.north);
-  const east = tmp.east;
-  const north = tmp.north;
-
-  for (let r = 0; r < mark.rings; r++) {
-    const ringFrac = (r + 1) / mark.rings;
-    for (let i = 0; i < mark.segments; i++) {
-      const dist = mark.reach[i] * ringFrac;
-      let dx;
-      let dy;
-      let dz;
-      if (dist < 0.04) {
-        dx = cx;
-        dy = cy;
-        dz = cz;
-      } else {
-        const angle = (i / mark.segments) * Math.PI * 2;
-        const d = surfaceOffsetDir(center, east, north, angle, dist, tmp.dir);
-        dx = d.x;
-        dy = d.y;
-        dz = d.z;
-      }
-      const h = terrain.height({ x: dx, y: dy, z: dz });
-      const vi = r * mark.segments + i;
-      pos.setXYZ(vi, dx * (h + lift), dy * (h + lift), dz * (h + lift));
-    }
-  }
-  pos.needsUpdate = true;
-}
-
 function refreshScorchMark(terrain, mark) {
   const pos = mark.mesh.geometry.attributes.position;
   const lift = mark.lift;
@@ -243,7 +156,7 @@ function refreshScorchMark(terrain, mark) {
 export function updateScorchMarks(sys) {
   if (!sys.scorchMarks?.length) return;
   for (const mark of sys.scorchMarks) {
-    if (mark.kind === "irregular") refreshIrregularScorchMark(sys.terrain, mark);
+    if (mark.refresh) mark.refresh(sys.terrain);
     else refreshScorchMark(sys.terrain, mark);
   }
 }
