@@ -27,6 +27,8 @@ export const CONFIG = {
   camZoomMax: 2.6,
   focusDir: [1, 1, 1],
   rotSpeed: 0.18,
+  /** Mezerník — dojezd kamery na kouzelníka (s) při 180° */
+  camRecenterSec: 0.55,
   /** Nebeská sféra: jedna otočka = jeden den (s) */
   skySpinPeriodSec: 300,
   wizardSpeed: 5,

@@ -39,6 +39,11 @@ class Game {
     this._lastOrbitY = 0;
     this._camFocus = CONFIG.focusDir.slice();
     this._camZoom = 1;
+    this._camRecenterT = -1;
+    this._camRecenterDur = 0.45;
+    this._camRecenterFrom = new THREE.Quaternion();
+    this._camRecenterTo = new THREE.Quaternion();
+    this._camRecenterQ = new THREE.Quaternion();
 
     mountGameVersion(document.getElementById("game-version"));
 
@@ -178,6 +183,7 @@ class Game {
 
   enterSolo() {
     this.inputEnabled = true;
+    this.#stopCamRecenter();
     this.planetGroup.rotation.set(0, 0, 0);
     this.#clearWizards();
     const start = pickRandomSpawn(this.landSpawns);
@@ -202,6 +208,7 @@ class Game {
 
   beginMatch({ players, localId }) {
     this.inputEnabled = true;
+    this.#stopCamRecenter();
     this.planetGroup.rotation.set(0, 0, 0);
     this.#resetWorld();
     this.#clearWizards();
@@ -407,6 +414,12 @@ class Game {
     const track = (code) => code.startsWith("Arrow") || code === "Escape";
 
     window.addEventListener("keydown", (e) => {
+      if (e.target?.closest?.("input, textarea, [contenteditable]")) return;
+      if (e.code === "Space" && !e.repeat && this.inputEnabled && this.wizard && !this.wizard.remote) {
+        this.#centerCameraOnWizard();
+        e.preventDefault();
+        return;
+      }
       if (e.code === "KeyG" && !e.repeat && this.inputEnabled && this.wizard && !this.wizard.remote) {
         const next = !this.wizard.godMode;
         this.wizard.setGodMode(next);
@@ -457,9 +470,55 @@ class Game {
   }
 
   #setCameraFocus(focusArr, resetZoom = false) {
+    this.#stopCamRecenter();
     this._camFocus = [focusArr[0], focusArr[1], focusArr[2]];
     if (resetZoom) this._camZoom = 1;
     placeCamera(this.camera, this._camFocus, this._camZoom);
+  }
+
+  #stopCamRecenter() {
+    this._camRecenterT = -1;
+  }
+
+  #centerCameraOnWizard() {
+    const dir = this.wizard?.dir;
+    if (!dir) return;
+    this.planetGroup.updateMatrixWorld(true);
+    const from = tmp.dir.copy(dir).transformDirection(this.planetGroup.matrixWorld);
+    if (from.lengthSq() < 1e-12) return;
+    from.normalize();
+    const to = tmp.dir2.fromArray(this._camFocus);
+    if (to.lengthSq() < 1e-12) return;
+    to.normalize();
+    const dot = Math.min(1, Math.max(-1, from.dot(to)));
+    const ang = Math.acos(dot);
+    if (ang < 1e-4) {
+      this.#stopCamRecenter();
+      return;
+    }
+    this._camRecenterFrom.copy(this.planetGroup.quaternion);
+    this._camRecenterQ.setFromUnitVectors(from, to);
+    this._camRecenterTo.copy(this._camRecenterQ).multiply(this._camRecenterFrom);
+    this._camRecenterT = 0;
+    const maxDur = Math.max(0.2, CONFIG.camRecenterSec);
+    this._camRecenterDur = 0.2 + (maxDur - 0.2) * (ang / Math.PI);
+  }
+
+  #tickCamRecenter(dt) {
+    if (this._camRecenterT < 0) return;
+    if (this._orbitDrag) {
+      this.#stopCamRecenter();
+      return;
+    }
+    this._camRecenterT += dt;
+    let u = this._camRecenterT / this._camRecenterDur;
+    if (u >= 1) {
+      this.planetGroup.quaternion.copy(this._camRecenterTo);
+      this.#stopCamRecenter();
+      return;
+    }
+    u = u < 0.5 ? 4 * u * u * u : 1 - ((-2 * u + 2) ** 3) / 2;
+    this.planetGroup.quaternion.slerpQuaternions(this._camRecenterFrom, this._camRecenterTo, u);
   }
 
   #onWheel(e) {
@@ -483,6 +542,7 @@ class Game {
   }
 
   #startOrbitDrag(e) {
+    this.#stopCamRecenter();
     this._orbitDrag = true;
     this._orbitPointerId = e.pointerId;
     this._lastOrbitX = e.clientX;
@@ -652,12 +712,18 @@ class Game {
     this.camRight.setFromMatrixColumn(this.camera.matrixWorld, 0).normalize();
     this.camUp.setFromMatrixColumn(this.camera.matrixWorld, 1).normalize();
     if (this.inputEnabled) {
+      const spinning =
+        this.keys.ArrowLeft || this.keys.ArrowRight || this.keys.ArrowUp || this.keys.ArrowDown;
+      if (spinning) this.#stopCamRecenter();
+      else this.#tickCamRecenter(dt);
       const rs = CONFIG.rotSpeed * dt;
       const rsSide = rs * 2;
       if (this.keys.ArrowLeft) this.planetGroup.rotateOnWorldAxis(this.camUp, rsSide);
       if (this.keys.ArrowRight) this.planetGroup.rotateOnWorldAxis(this.camUp, -rsSide);
       if (this.keys.ArrowUp) this.planetGroup.rotateOnWorldAxis(this.camRight, rs);
       if (this.keys.ArrowDown) this.planetGroup.rotateOnWorldAxis(this.camRight, -rs);
+    } else {
+      this.#tickCamRecenter(dt);
     }
 
     const morphing = this.terrain.updateMorphs(dt);
