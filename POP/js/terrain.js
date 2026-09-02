@@ -389,7 +389,7 @@ export class Terrain {
   }
 
   /**
-   * Sopka — vysoký ostrý kopec s malou proláklínou na vrcholu.
+   * Sopka — strmý kužel s mírně konkávními svahy a malou proláklínou na vrcholu.
    * @returns {boolean}
    */
   beginVolcanoMorph(centerDir, opts) {
@@ -406,9 +406,14 @@ export class Terrain {
     const craterR = opts.craterRadius ?? 2.2;
     const craterD = opts.craterDepth ?? 1.8;
     const duration = opts.duration ?? CONFIG.spellDuration;
+    /** >1 = svahy mírně konkávní (vpadlé), ne klenuté */
+    const flankPow = opts.flankPow ?? 1.68;
+    /** Plynulý sestup v posledních % paty — bez konvexního „ramene“ */
+    const footBlend = opts.footBlend ?? 0.16;
 
     const cosR = Math.cos(baseR / CONFIG.planetR);
     const cosCrater = Math.cos(craterR / CONFIG.planetR);
+    const angR = Math.acos(Math.min(1, cosR));
     const pos = this.geometry.attributes.position;
     const indices = [];
     const startH = [];
@@ -421,9 +426,14 @@ export class Terrain {
       const dot = dx * ndx + dy * ndy + dz * ndz;
       if (dot < cosR) continue;
 
-      const t = (dot - cosR) / Math.max(1e-5, 1 - cosR);
-      // Lineární kužel — výška klesá rovnoměrně od vrcholu k patě.
-      let d = height * t;
+      const angDist = Math.acos(Math.min(1, Math.max(-1, dot)));
+      const t = 1 - angDist / Math.max(1e-5, angR);
+      if (t <= 0) continue;
+
+      const body = Math.pow(t, flankPow);
+      const footT = Math.min(1, t / Math.max(1e-4, footBlend));
+      const foot = footT * footT * (3 - 2 * footT);
+      let d = height * body * foot;
 
       if (dot >= cosCrater) {
         const tc = (dot - cosCrater) / Math.max(1e-5, 1 - cosCrater);
