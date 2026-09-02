@@ -230,6 +230,7 @@ export class Wizard {
     this._right = new THREE.Vector3();
     this._fwd = new THREE.Vector3();
     this._move = new THREE.Vector3();
+    this._stepDir = new THREE.Vector3();
     this._trial = new THREE.Vector3();
     this._basisX = new THREE.Vector3();
     this._mat = new THREE.Matrix4();
@@ -398,6 +399,8 @@ export class Wizard {
       applyInterpolatedPose(this, a, b, alpha, this._netPos);
     }
     this._netHasPos = true;
+    // Stejně jako lokální hráč: pozice z směru na aktuálním terénu (geodeticky).
+    this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
   }
 
   get isBusy() {
@@ -849,6 +852,32 @@ export class Wizard {
     this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
   }
 
+  #remainToTarget() {
+    if (!this.hasTarget) return Infinity;
+    const dot = Math.min(1, Math.max(-1, this.dir.dot(this.targetDir)));
+    return Math.acos(dot) * CONFIG.planetR;
+  }
+
+  /** Plynulý posun po povrchu směrem k cíli (max. maxDist metrů po oblouku). */
+  #stepTowardTarget(maxDist) {
+    const dot = Math.min(1, Math.max(-1, this.dir.dot(this.targetDir)));
+    const omega = Math.acos(dot);
+    if (omega < 1e-8) return true;
+
+    const angle = Math.min(omega, maxDist / CONFIG.planetR);
+    if (angle < 1e-10) return false;
+
+    this._stepDir.crossVectors(this.dir, this.targetDir);
+    if (this._stepDir.lengthSq() < 1e-12) {
+      this.dir.copy(this.targetDir);
+    } else {
+      this._stepDir.normalize();
+      this.dir.applyAxisAngle(this._stepDir, angle).normalize();
+    }
+    this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
+    return omega <= angle + 1e-6;
+  }
+
   #clearTarget() {
     this.hasTarget = false;
     this.footprints?.hide();
@@ -1078,10 +1107,6 @@ export class Wizard {
     if (this.dead) this.mesh.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
   }
 
-  #arriveAngle() {
-    return CONFIG.wizardArrive / Math.max(CONFIG.planetR, 1);
-  }
-
   update(dt, keys, camRight) {
     if (this.remote) {
       if (this.casting) {
@@ -1090,9 +1115,6 @@ export class Wizard {
       }
       this.#updateNetPose();
       if (this.knockdown) this.#updateKnockdown(dt);
-      if (!this._netHasPos) {
-        this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
-      }
       this.#applyPose();
       this.#updateWalkBlend(dt);
       this.#animate(dt);
@@ -1148,19 +1170,18 @@ export class Wizard {
     this._move.set(0, 0, 0);
     if (!this.casting) {
       if (this.hasTarget) {
-        const dot = Math.min(1, Math.max(-1, this.dir.dot(this.targetDir)));
-        if (Math.acos(dot) <= this.#arriveAngle()) {
-          this.#snap(this.targetDir);
+        const remain = this.#remainToTarget();
+        if (remain <= CONFIG.wizardArrive) {
           this.#clearTarget();
         } else {
+          const dot = Math.min(1, Math.max(-1, this.dir.dot(this.targetDir)));
           this._move.copy(this.targetDir).addScaledVector(this.dir, -dot);
           if (this._move.lengthSq() > 1e-10) this._move.normalize();
           else this.#clearTarget();
         }
       }
 
-      this.moving = this._move.lengthSq() > 1e-8;
-      this.wantsWalk = this.moving;
+      this.wantsWalk = this._move.lengthSq() > 1e-8;
       this.moving = this.wantsWalk || this.walkBlend > 0.06;
 
       if (this.wantsWalk && this.walkBlend > 0.02) {
@@ -1169,15 +1190,30 @@ export class Wizard {
           CONFIG.wizardSpeed * (this.godMode ? CONFIG.godModeSpeedMul : 1);
         const tornadoMul = this._tornadoMoveMul ?? 1;
         const lavaMul = this._lavaMoveMul ?? 1;
-        const step = speed * this._speedMul * this.walkBlend * tornadoMul * lavaMul * dt;
-        this._trial.copy(this.mesh.position).addScaledVector(this._move, step);
-        if (this._trial.lengthSq() > 1e-8) {
-          this._trial.normalize();
-          if (this.#isWalkable(this._trial)) {
-            this.#snap(this._trial);
+        let step = speed * this._speedMul * this.walkBlend * tornadoMul * lavaMul * dt;
+
+        if (this.hasTarget) {
+          step = Math.min(step, this.#remainToTarget());
+        }
+
+        if (step > 1e-6) {
+          if (this.hasTarget) {
+            const arrived = this.#stepTowardTarget(step);
             this.facing.copy(this._move);
-          } else if (this.hasTarget) {
-            this.#clearTarget();
+            if (!this.#isWalkable(this.dir)) {
+              this.#clearTarget();
+            } else if (arrived || this.#remainToTarget() <= CONFIG.wizardArrive) {
+              this.#clearTarget();
+            }
+          } else {
+            this._trial.copy(this.mesh.position).addScaledVector(this._move, step);
+            if (this._trial.lengthSq() > 1e-8) {
+              this._trial.normalize();
+              if (this.#isWalkable(this._trial)) {
+                this.#snap(this._trial);
+                this.facing.copy(this._move);
+              }
+            }
           }
         }
       } else if (!this.wantsWalk) {
@@ -1222,11 +1258,15 @@ export class Wizard {
   #updateWalkBlend(dt) {
     const target =
       this.casting || this.dead || this.knockdown || this.tornado ? 0 : this.wantsWalk ? 1 : 0;
-    const rate = target > this.walkBlend ? 3.2 : 5;
+    const rate = target > this.walkBlend ? 3.2 : 4;
     this.walkBlend += (target - this.walkBlend) * Math.min(1, dt * rate);
     if (this.walkBlend < 0.003 && target === 0) {
       this.walkBlend = 0;
+      this.walkPhase = 0;
       this._lastStepHalf = -1;
+    } else if (target === 0 && this.walkBlend < 0.2) {
+      const stand = Math.round(this.walkPhase / Math.PI) * Math.PI;
+      this.walkPhase += (stand - this.walkPhase) * Math.min(1, dt * 8);
     }
   }
 

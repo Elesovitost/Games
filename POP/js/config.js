@@ -24,7 +24,7 @@ export const CONFIG = {
   camLook: 13,
   focusDir: [1, 1, 1],
   rotSpeed: 0.18,
-  wizardSpeed: 10,
+  wizardSpeed: 5,
   /** Max. zrychlení z kopce */
   wizardDownhillBoost: 1.28,
   /** Min. rychlost v extrémním stoupání */
@@ -40,7 +40,7 @@ export const CONFIG = {
   /** Dojede na klik, když je blíž než tolik metrů po povrchu */
   wizardArrive: 0.55,
   /** GOD MODE — násobič rychlosti chůze (testování) */
-  godModeSpeedMul: 3,
+  godModeSpeedMul: 10,
   spellDuration: 5,
   /** Poloměr morphu elevace/deprese (m) */
   spellRadius: 7.5,
