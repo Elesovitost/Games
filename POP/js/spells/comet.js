@@ -27,7 +27,7 @@ const GEO = {
 let _mistMap = null;
 let _lavaMap = null;
 
-const TRAIL_PUFFS = 32;
+const TRAIL_PUFFS = 64;
 const TRAIL_LIFE = 4.2;
 
 function geo() {
@@ -207,13 +207,19 @@ function makeComet(radius) {
 }
 
 /**
- * Hustá stopa je pevný pool měkkých billboardů. Za letu se pouze recyklují,
- * takže nevznikají geometrie, textury ani garbage pro GC.
+ * Stopa podél celé dráhy start→dopad. U startu úzká (1/5), u komety plná;
+ * puffy se jen odhalují za letu a neubývají.
  */
-function makeTrail(sys, radius) {
+function makeTrail(sys, radius, start, impact) {
   const trail = [];
   const map = mistMap();
+  _vel.copy(impact).sub(start).normalize();
+  tangentFrame(_vel, tmp.east, tmp.north);
   for (let i = 0; i < TRAIL_PUFFS; i++) {
+    const pathU = i / (TRAIL_PUFFS - 1);
+    /** 1/5 na začátku letu → plná šířka u dopadu. */
+    const taper = 0.2 + 0.8 * pathU;
+    const size = radius * 1.55 * taper * 1.5;
     const mat = new THREE.SpriteMaterial({
       map,
       color: i % 5 === 0 ? 0x302925 : 0x121212,
@@ -223,42 +229,49 @@ function makeTrail(sys, radius) {
       fog: false
     });
     const sprite = new THREE.Sprite(mat);
+    sprite.position.lerpVectors(start, impact, pathU);
+    /** Mírný nepravidelný rozhoz do stran — ať to není rovný kužel. */
+    const jx = Math.sin(i * 2.39996 + 0.7) * 0.55 + Math.sin(i * 5.1) * 0.22;
+    const jy = Math.cos(i * 1.732 + 1.3) * 0.55 + Math.sin(i * 3.7 + 0.4) * 0.22;
+    const jitter = size * 0.42;
+    sprite.position.addScaledVector(tmp.east, jx * jitter);
+    sprite.position.addScaledVector(tmp.north, jy * jitter);
+    sprite.scale.set(size * 1.2, size, 1);
     sprite.visible = false;
     sprite.frustumCulled = false;
     sys.planetGroup.add(sprite);
     trail.push({
       sprite,
       mat,
-      age: -1,
-      size: radius * (1.28 + (i % 5) * 0.11)
+      pathU,
+      size,
+      age: -1
     });
   }
   return trail;
 }
 
-function emitTrail(comet) {
-  const puff = comet.trail[comet.trailNext];
-  comet.trailNext = (comet.trailNext + 1) % comet.trail.length;
-  puff.sprite.position.copy(comet.group.position);
-  puff.sprite.scale.set(puff.size * 1.2, puff.size, 1);
-  puff.sprite.visible = true;
-  puff.age = 0;
-}
-
 function updateTrail(comet, dt) {
+  if (comet.phase === "flight") {
+    const u = Math.min(1, comet.t / SPELLS.comet.flightTime);
+    for (let i = 0; i < comet.trail.length; i++) {
+      const puff = comet.trail[i];
+      if (puff.pathU > u) continue;
+      puff.sprite.visible = true;
+      puff.mat.opacity = 0.62;
+      puff.age = 0;
+    }
+    return;
+  }
+
   for (let i = 0; i < comet.trail.length; i++) {
     const puff = comet.trail[i];
-    if (puff.age < 0) continue;
+    if (!puff.sprite.visible) continue;
+    if (puff.age < 0) puff.age = 0;
     puff.age += dt;
-    const u = puff.age / TRAIL_LIFE;
-    if (u >= 1) {
-      puff.age = -1;
-      puff.sprite.visible = false;
-      continue;
-    }
-    const spread = 1 + u * 1.45;
-    puff.sprite.scale.set(puff.size * 1.2 * spread, puff.size * spread, 1);
-    puff.mat.opacity = 0.88 * (1 - u) * (1 - u);
+    const fade = Math.max(0, 1 - puff.age / TRAIL_LIFE);
+    puff.mat.opacity = 0.62 * fade * fade;
+    if (fade <= 0) puff.sprite.visible = false;
   }
 }
 
@@ -322,18 +335,18 @@ function makeMist(sys, pos, up) {
 
   const sphere = geo().sphere;
   const mats = [bunMat(0x1c1a19), bunMat(0x292522), bunMat(0x100f0f)];
-  // [side, alongCam, lift, rx, ry, rz, mat] — shluk kolem středu kráteru
+  // [side, alongCam, lift, rx, ry, rz, mat] — vyšší bochánky níž u země
   const specs = [
-    [0, 0, 1.4, 9.2, 1.9, 7.0, 2],
-    [-3.2, 1.2, 1.05, 5.1, 1.4, 4.1, 0],
-    [3.4, 0.8, 1.1, 5.0, 1.45, 4.0, 1],
-    [-1.6, -2.8, 1.15, 5.6, 1.5, 4.5, 2],
-    [2.2, 2.6, 1.2, 4.9, 1.45, 3.9, 0],
-    [-3.5, -1.5, 1.2, 5.1, 1.5, 4.1, 1],
-    [1.2, -3.2, 1.25, 5.4, 1.55, 4.3, 2],
-    [0.4, 3.0, 1.45, 6.6, 1.75, 5.4, 0],
-    [-2.4, 2.8, 1.25, 5.6, 1.5, 4.5, 1],
-    [2.8, -2.2, 1.3, 5.4, 1.5, 4.3, 2]
+    [0, 0, 2.2, 9.2, 4.0, 7.0, 2],
+    [-3.2, 1.2, 1.6, 5.1, 3.0, 4.1, 0],
+    [3.4, 0.8, 1.65, 5.0, 3.1, 4.0, 1],
+    [-1.6, -2.8, 1.7, 5.6, 3.2, 4.5, 2],
+    [2.2, 2.6, 1.75, 4.9, 3.1, 3.9, 0],
+    [-3.5, -1.5, 1.75, 5.1, 3.2, 4.1, 1],
+    [1.2, -3.2, 1.85, 5.4, 3.3, 4.3, 2],
+    [0.4, 3.0, 2.15, 6.6, 3.7, 5.4, 0],
+    [-2.4, 2.8, 1.85, 5.6, 3.2, 4.5, 1],
+    [2.8, -2.2, 1.9, 5.4, 3.2, 4.3, 2]
   ];
   const sprites = [];
   for (const [side, along, lift, sx, sy, sz, mi] of specs) {
@@ -595,14 +608,14 @@ function updateImpact(sys, comet, dt) {
   let spread;
   if (t < 0.38) {
     const u = t / 0.38;
-    mistOpacity = u * u * (3 - 2 * u);
+    mistOpacity = 0.72 * u * u * (3 - 2 * u);
     spread = 0.6 + u * 0.4;
   } else if (t < def.dustHold) {
-    mistOpacity = 1;
+    mistOpacity = 0.72;
     spread = 1;
   } else {
     const u = Math.min(1, (t - def.dustHold) / def.dustFade);
-    mistOpacity = (1 - u) * (1 - u);
+    mistOpacity = 0.72 * (1 - u) * (1 - u);
     spread = 1 + u * 0.75;
   }
   fx.mist.mats[0].uniforms.uOpacity.value = mistOpacity;
@@ -612,7 +625,7 @@ function updateImpact(sys, comet, dt) {
     const p = fx.mist.sprites[i];
     const wobble = 1 + 0.03 * Math.sin(t * (0.7 + i * 0.08) + i);
     p.sprite.scale.set(p.sx * spread * wobble, p.sy * spread, p.sz * spread);
-    p.sprite.position.y += dt * (0.04 + i * 0.006);
+    p.sprite.position.y += dt * (0.02 + i * 0.003);
   }
 
   const lavaLife = SPELLS.volcano.lavaHeatTime + SPELLS.volcano.lavaFreezeTime;
@@ -665,7 +678,7 @@ function hitComet(sys, comet) {
   applyCometBlast(sys, dir);
   comet.impactFx = makeImpact(sys, pos, dir);
   if (!onWater) {
-    spawnFireShards(sys, pos, dir, { count: 140, speed: 2.7, size: 2.2 });
+    spawnFireShards(sys, pos, dir, { count: 140, speed: 4.05, size: 2.2 });
   }
   comet.phase = "impact";
   comet.t = 0;
@@ -709,6 +722,9 @@ export function spawnComet(sys, targetDir) {
     sys.camera.updateMatrixWorld(true);
     sys.planetGroup.updateMatrixWorld(true);
     approachStart(sys, sys.camera, _start);
+    /** Posuň start víc nad cíl — pád je kolmější zeshora. */
+    _world.copy(_impact).addScaledVector(target, def.approachHeight);
+    _start.lerp(_world, def.approachVerticalBlend);
   } else {
     _start.copy(_impact).addScaledVector(target, def.approachHeight);
   }
@@ -753,9 +769,7 @@ export function spawnComet(sys, targetDir) {
     fire: built.fire,
     smoke: built.smoke,
     mats: built.mats,
-    trail: makeTrail(sys, radius),
-    trailNext: 0,
-    trailAt: 0,
+    trail: makeTrail(sys, radius, _start, _impact),
     coreLen,
     fireLen,
     sfxFly,
@@ -798,16 +812,19 @@ export function updateComets(sys, dt) {
       comet.smoke[k].material.opacity = (0.48 - k * 0.022) * (0.86 + 0.14 * pulse);
     }
 
-    comet.trailAt -= dt;
-    if (comet.trailAt <= 0) {
-      comet.trailAt += SPELLS.comet.flightTime / TRAIL_PUFFS;
-      emitTrail(comet);
-    }
     updateTrail(comet, dt);
 
     const tailGrow = 0.4 + 0.6 * Math.min(1, u * 4);
     poseTail(comet.core, comet.coreLen * tailGrow, SPELLS.comet.diameter * 0.06);
     poseTail(comet.fire, comet.fireLen * tailGrow, SPELLS.comet.diameter * 0.08);
+
+    /** Koule zmizí těsně nad zemí; dopad a FX běží dál v hitComet. */
+    if (comet.group.visible) {
+      const distLeft = comet.group.position.distanceTo(comet.impact);
+      if (distLeft < SPELLS.comet.diameter * 0.55) {
+        comet.group.visible = false;
+      }
+    }
 
     if (comet.sfxFly?.alive && listener) {
       sys.audio?.updateSfxLoop(comet.sfxFly, comet.target, listener);

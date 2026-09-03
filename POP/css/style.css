@@ -366,31 +366,41 @@ html, body {
     0 0 16px 5px rgba(255, 40, 0, 0.35);
 }
 
-/* Kometa — žhavé jádro s ocasem zprava shora */
+/* Kometa — kamenná hlava + šípovitý ohnivý ocas (padá zprava shora) */
 .spell-icon.comet {
   background: transparent;
 }
 .spell-icon.comet::before {
-  left: 8px;
-  top: 8px;
-  width: 26px;
-  height: 4px;
-  border-radius: 2px;
+  left: 4px;
+  top: 14px;
+  width: 28px;
+  height: 12px;
   transform: rotate(38deg);
-  transform-origin: 0 50%;
-  background: linear-gradient(90deg, rgba(255, 190, 90, 0.9) 0%, rgba(255, 110, 20, 0.5) 45%, rgba(120, 100, 90, 0.12) 100%);
-  filter: blur(0.6px);
+  transform-origin: 100% 50%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 248, 210, 0.95) 0%,
+    rgba(255, 170, 50, 0.85) 18%,
+    rgba(255, 90, 20, 0.55) 48%,
+    rgba(120, 60, 30, 0.18) 78%,
+    transparent 100%
+  );
+  clip-path: polygon(0 42%, 12% 18%, 100% 0, 100% 100%, 12% 82%, 0 58%);
+  filter: drop-shadow(0 0 3px rgba(255, 140, 40, 0.75));
 }
 .spell-icon.comet::after {
-  left: 7px;
-  top: 20px;
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 34% 30%, #fff4d0 0%, #ffc040 26%, #ff6a10 58%, #a02000 88%, #400800 100%);
+  left: 21px;
+  top: 12px;
+  width: 12px;
+  height: 12px;
+  border-radius: 45% 55% 48% 52%;
+  background:
+    radial-gradient(circle at 32% 28%, #fff6d8 0%, #ffc050 22%, #ff6a14 52%, #6a2010 82%, #1a0804 100%);
   box-shadow:
-    0 0 6px 2px rgba(255, 130, 40, 0.9),
-    0 0 14px 5px rgba(255, 60, 0, 0.4);
+    0 0 5px 1px rgba(255, 150, 50, 0.95),
+    0 0 12px 3px rgba(255, 70, 10, 0.45),
+    inset -1px -1px 2px rgba(40, 10, 0, 0.45);
+  transform: rotate(18deg);
 }
 
 /* Stín — průhledná silueta s fialovým leskem */
