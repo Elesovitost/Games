@@ -2,31 +2,38 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, slerpDirection } from "./utils.js";
 import { surfaceDist } from "./spells/fx-common.js";
+import { SPELLS } from "./spells/defs.js";
+import { BURN_DURATION, CHAR_COLOR, attachFireQueued, setBurnGlow, tintMeshBlack } from "./burn.js";
+import {
+  mulberry32,
+  randomSphereDir,
+  aboveCore,
+  isLand,
+  isWaterAt,
+  terrainGrade,
+  stepToward as stepTowardAI,
+  turnFacingToward,
+  pickWanderTarget,
+  bearingOf
+} from "./animalsAI.js";
 
 const COUNT = 6;
 const WALK_SPEED = 1.15;
-const DODGE_DIST = 10;
-const DODGE_DUR = 0.48;
+const DODGE_DIST = 5;
+const KILL_DAMAGE = 30;
+/** Krátký podřep před odrazem — anticipace skoku. */
+const DODGE_CROUCH = 0.16;
+/** Samotný let obloukem — pomalejší a plynulejší než okamžitý úskok. */
+const DODGE_DUR = 0.85;
+const DODGE_COOL = 1.6;
 const GRADE_MAX = 1.35;
-
-function mulberry32(seed) {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function randomSphereDir(rng) {
-  const u = rng();
-  const v = rng();
-  const theta = Math.PI * 2 * u;
-  const z = 2 * v - 1;
-  const r = Math.sqrt(Math.max(0, 1 - z * z));
-  return new THREE.Vector3(r * Math.cos(theta), z, r * Math.sin(theta));
-}
+const MIN_R = CONFIG.wizardMinTerrainR + 0.04;
+/** Plave klidně, ale svižněji než normální chůze. */
+const SWIM_SPEED = 2.4;
+/** Jak daleko se míří při plavání rovně, ať se cíl nemusí přepočítávat každý snímek. */
+const SWIM_AIM_DIST = 90;
+/** Marže nad hladinou pro rozpoznání "už je na břehu" (přísnější než canStand). */
+const SWIM_LAND_MARGIN = 0.3;
 
 function mat(color, opts = {}) {
   const m = new THREE.MeshStandardMaterial({
@@ -60,17 +67,12 @@ function cyl(geo, material, r, h, x, y, z) {
 }
 
 function canStand(terrain, dir) {
-  return terrain.height(dir) >= CONFIG.wizardMinTerrainR + 0.04;
+  return aboveCore(terrain, dir, MIN_R);
 }
 
 function isLandSpawn(terrain, dir, east, north) {
-  const h = terrain.height(dir);
-  if (h < CONFIG.waterLevel + 0.25) return false;
-  const eps = 0.08;
-  const t = dir.clone().addScaledVector(east, eps).normalize();
-  const t2 = dir.clone().addScaledVector(north, eps).normalize();
-  const grade = Math.max(Math.abs(terrain.height(t) - h), Math.abs(terrain.height(t2) - h)) / eps;
-  return grade < GRADE_MAX;
+  if (terrain.height(dir) < CONFIG.waterLevel + 0.25) return false;
+  return terrainGrade(terrain, dir, east, north) < GRADE_MAX;
 }
 
 /**
@@ -149,6 +151,8 @@ export function createLongneckMesh(mats, geos) {
   bbox.setFromObject(body);
   const h = Math.max(0.4, bbox.max.y - bbox.min.y);
   root.scale.setScalar(2.35 / h);
+  /** Po pádu na bok se z lokální šířky stane výška — zvedne tělo nad terén. */
+  root.userData.lieLift = Math.max(0.2, -bbox.min.x);
   root.add(body);
   root.frustumCulled = false;
   root.userData.parts = { body, neck1, neck2, neck3, head, tail, hips, stalks };
@@ -165,6 +169,8 @@ class Longneck {
     const size = 0.85 + rng() * 0.4;
     this.size = size;
     this.mesh.scale.multiplyScalar(size);
+    /** Přibl. polovina výšky těla (root normalizovaný na 2.35×size) — pro plavání. */
+    this.bodyHalfHeight = 1.175 * size;
     herd.planetGroup.add(this.mesh);
     this.parts = this.mesh.userData.parts;
 
@@ -185,11 +191,19 @@ class Longneck {
     this.stateT = 1 + rng() * 2;
     this.neckPose = 0.12;
     this.neckTarget = 0.12;
+    this.dodgeCrouchT = 0;
     this.dodgeT = 0;
     this.dodgeCool = 0;
     this.dodgeHop = 0;
     this.treeDir = null;
     this.dead = false;
+    this.dieT = 0;
+    this.burning = false;
+    this.charred = false;
+    this.burnT = 0;
+    this._fire = null;
+    this._burnMats = [];
+    this.lieLift = this.mesh.userData.lieLift ?? 0.32;
 
     tangentFrame(this.dir, this._east, this.facing);
     this.#pickWander();
@@ -201,7 +215,12 @@ class Longneck {
   }
 
   #snap(hop = 0) {
-    this.mesh.position.copy(this.dir).multiplyScalar(this.#height() + hop);
+    if (this.state === "swim" && isWaterAt(this.terrain, this.dir)) {
+      /** Ve vodě plove — ponoří se do poloviny výšky těla, zbytek nad hladinou. */
+      this.mesh.position.copy(this.dir).multiplyScalar(CONFIG.waterLevel - this.bodyHalfHeight);
+    } else {
+      this.mesh.position.copy(this.dir).multiplyScalar(this.#height() + hop);
+    }
   }
 
   #applyPose() {
@@ -217,35 +236,28 @@ class Longneck {
 
   #pickWander() {
     tangentFrame(this.dir, this._east, this._north);
-    const dist = 4 + this.rng() * 10;
-    const ang = this.rng() * Math.PI * 2;
-    surfaceOffsetDir(this.dir, this._east, this._north, ang, dist, this.targetDir);
-    if (!canStand(this.terrain, this.targetDir)) {
-      surfaceOffsetDir(this.dir, this._east, this._north, ang + Math.PI, dist * 0.7, this.targetDir);
-    }
+    pickWanderTarget(this.dir, this._east, this._north, this.rng, 4, 14, (d) => canStand(this.terrain, d), this.targetDir, 0.7);
   }
 
   #stepToward(target, distM) {
-    const dot = Math.min(1, Math.max(-1, this.dir.dot(target)));
-    const omega = Math.acos(dot);
-    if (omega < 1e-8) return true;
-    const angle = Math.min(omega, distM / CONFIG.planetR);
-    this._step.crossVectors(this.dir, target);
-    if (this._step.lengthSq() < 1e-12) this.dir.copy(target);
-    else {
-      this._step.normalize();
-      this.dir.applyAxisAngle(this._step, angle).normalize();
-    }
-    if (!canStand(this.terrain, this.dir)) {
-      this.dir.applyAxisAngle(this._step.lengthSq() > 1e-12 ? this._step : this._east, -angle).normalize();
-      return true;
-    }
-    this._move.copy(target).addScaledVector(this.dir, -this.dir.dot(target));
-    if (this._move.lengthSq() > 1e-8) {
-      this._move.normalize();
-      slerpDirection(this.facing, this.facing, this._move, 0.22);
-    }
-    return omega <= angle + 1e-6;
+    const { arrived, blocked } = stepTowardAI(this.dir, target, distM, (d) => canStand(this.terrain, d), this._step);
+    if (!blocked) turnFacingToward(this.facing, this.dir, target, this._move, 0.22);
+    return arrived;
+  }
+
+  /** Zamíří daleko rovně vpřed ve směru `facing` — nastartuje plavání ke břehu. */
+  #enterSwim() {
+    this.state = "swim";
+    this.neckTarget = -0.15;
+    tangentFrame(this.dir, this._east, this._north);
+    const ang = bearingOf(this.facing, this._east, this._north);
+    surfaceOffsetDir(this.dir, this._east, this._north, ang, SWIM_AIM_DIST, this.targetDir);
+  }
+
+  #exitSwim() {
+    this.state = "wander";
+    this.stateT = 1.4 + this.rng() * 2.5;
+    this.#pickWander();
   }
 
   #nearestTree() {
@@ -264,8 +276,76 @@ class Longneck {
     return best ? { p: best, dist: bestD } : null;
   }
 
+  takeDamage(amount, opts = {}) {
+    if (this.dead || amount < KILL_DAMAGE) return false;
+    return this.die(opts);
+  }
+
+  die(opts = {}) {
+    if (this.dead) return false;
+    this.dead = true;
+    this.state = "dead";
+    this.dodgeT = 0;
+    this.dodgeCrouchT = 0;
+    this.dodgeHop = 0;
+    this.parts.body.rotation.x = 0;
+    this.parts.body.rotation.y = 0;
+    this.dieT = 0;
+    if (opts.atDir) {
+      this.dir.copy(opts.atDir).normalize();
+      this.#snap();
+    }
+    if (opts.vanish) {
+      this.gone = true;
+      this.mesh.visible = false;
+    }
+    if (opts.ignite) this.ignite();
+    return true;
+  }
+
+  ignite() {
+    if (this.burning || this.charred || this.gone) return;
+    this.burning = true;
+    this.burnT = 0;
+    this.mesh.traverse((ch) => {
+      if (!ch.isMesh || !ch.material) return;
+      const list = Array.isArray(ch.material) ? ch.material : [ch.material];
+      for (let i = 0; i < list.length; i++) {
+        const cloned = list[i].clone();
+        if (Array.isArray(ch.material)) ch.material[i] = cloned;
+        else ch.material = cloned;
+        this._burnMats.push(cloned);
+      }
+    });
+    this._fire = attachFireQueued(this.mesh, { pad: 0.55 });
+  }
+
+  #charBody() {
+    if (this.charred) return;
+    this.charred = true;
+    this.burning = false;
+    if (this._fire) {
+      this._fire.dispose();
+      this._fire = null;
+    }
+    if (this._burnMats.length) {
+      const col = new THREE.Color(CHAR_COLOR);
+      for (const m of this._burnMats) {
+        if (m.color) m.color.copy(col);
+        if (m.emissive) {
+          m.emissive.setHex(0x000000);
+          m.emissiveIntensity = 0;
+        }
+        if ("roughness" in m) m.roughness = 0.97;
+        m.needsUpdate = true;
+      }
+    } else {
+      tintMeshBlack(this.mesh);
+    }
+  }
+
   dodgeFrom(hazardDir) {
-    if (this.dodgeT > 0 || this.dodgeCool > 0) return false;
+    if (this.dead || this.gone || this.dodgeT > 0 || this.dodgeCrouchT > 0 || this.dodgeCool > 0) return false;
     tangentFrame(this.dir, this._east, this._north);
     this._move.copy(hazardDir).addScaledVector(this.dir, -hazardDir.dot(this.dir));
     if (this._move.lengthSq() < 1e-8) tangentFrame(this.dir, this._east, this._move);
@@ -286,10 +366,11 @@ class Longneck {
     }
     this._from.copy(this.dir);
     this.targetDir.copy(found);
+    this.dodgeCrouchT = DODGE_CROUCH;
     this.dodgeT = DODGE_DUR;
-    this.dodgeCool = 1.15;
-    this.state = "dodge";
-    this.neckTarget = -0.25;
+    this.dodgeCool = DODGE_COOL;
+    this.state = "dodgeCrouch";
+    this.neckTarget = -0.3;
     return true;
   }
 
@@ -297,6 +378,39 @@ class Longneck {
     if (this.gone) return;
     this.phase += dt;
     if (this.dodgeCool > 0) this.dodgeCool -= dt;
+
+    if (this.dead) {
+      this.dieT = Math.min(1, this.dieT + dt / 0.55);
+      const u = this.dieT * this.dieT * (3 - 2 * this.dieT);
+      this.parts.body.rotation.z = u * (Math.PI * 0.5);
+      this.parts.body.position.set(0, u * this.lieLift, 0);
+      this.parts.neck1.rotation.x = THREE.MathUtils.lerp(this.parts.neck1.rotation.x, 0.04, 0.12);
+      this.parts.neck2.rotation.x = THREE.MathUtils.lerp(this.parts.neck2.rotation.x, 0.03, 0.12);
+      this.parts.neck3.rotation.x = THREE.MathUtils.lerp(this.parts.neck3.rotation.x, 0.02, 0.12);
+      for (const leg of this.parts.hips) {
+        leg.hip.rotation.x *= Math.max(0, 1 - dt * 8);
+        leg.shin.rotation.x = THREE.MathUtils.lerp(leg.shin.rotation.x, 0.08, 0.2);
+      }
+      this.#updateBurn(dt);
+      this.#applyPose();
+      return;
+    }
+
+    if (this.state === "dodgeCrouch") {
+      /** Krátký podřep — pokrčí nohy — než se odrazí do oblouku. */
+      this.dodgeCrouchT -= dt;
+      const u = THREE.MathUtils.clamp(1 - this.dodgeCrouchT / DODGE_CROUCH, 0, 1);
+      const bend = Math.sin(u * Math.PI * 0.5);
+      for (const leg of this.parts.hips) {
+        leg.hip.rotation.x = -bend * 0.5;
+        leg.shin.rotation.x = bend * 0.75;
+      }
+      this.parts.body.rotation.x = bend * 0.06;
+      if (this.dodgeCrouchT <= 0) this.state = "dodge";
+      this.#poseNeck(dt);
+      this.#applyPose();
+      return;
+    }
 
     if (this.state === "dodge" && this.dodgeT > 0) {
       this.dodgeT -= dt;
@@ -307,12 +421,26 @@ class Longneck {
       if (this._move.lengthSq() > 1e-8) slerpDirection(this.facing, this.facing, this._move.normalize(), 0.45);
       this.dodgeHop = Math.sin(u * Math.PI) * 1.55 * this.size;
       this.parts.body.rotation.x = Math.sin(u * Math.PI) * -0.22;
+      /** Nohy zůstávají pokrčené v letu obloukem, ke konci se zase narovnají. */
+      const tuck = Math.sin(Math.min(1, u * 1.3) * Math.PI * 0.5) * (1 - u * u);
+      for (const leg of this.parts.hips) {
+        leg.hip.rotation.x = -0.42 * tuck;
+        leg.shin.rotation.x = 0.6 * tuck;
+      }
       if (this.dodgeT <= 0) {
         this.dodgeHop = 0;
         this.parts.body.rotation.x = 0;
-        this.state = "wander";
-        this.stateT = 1.2 + this.rng() * 2;
-        this.#pickWander();
+        for (const leg of this.parts.hips) {
+          leg.hip.rotation.x = 0;
+          leg.shin.rotation.x = 0;
+        }
+        if (isWaterAt(this.terrain, this.dir)) {
+          this.#enterSwim();
+        } else {
+          this.state = "wander";
+          this.stateT = 1.2 + this.rng() * 2;
+          this.#pickWander();
+        }
       }
       this.#poseNeck(dt);
       this.#applyPose();
@@ -324,7 +452,18 @@ class Longneck {
     let speed = 0;
     this.neckTarget = 0.1;
 
-    if (this.state === "graze") {
+    if (this.state === "swim") {
+      /** Plave rovně, dokud nenarazí na břeh — pak vyleze a zase se pase. */
+      speed = SWIM_SPEED;
+      this.neckTarget = -0.15;
+      if (isLand(this.terrain, this.dir, SWIM_LAND_MARGIN, MIN_R)) {
+        this.#exitSwim();
+      } else if (surfaceDist(this.dir, this.targetDir) < 8) {
+        tangentFrame(this.dir, this._east, this._north);
+        const ang = bearingOf(this.facing, this._east, this._north);
+        surfaceOffsetDir(this.dir, this._east, this._north, ang, SWIM_AIM_DIST, this.targetDir);
+      }
+    } else if (this.state === "graze") {
       this.neckTarget = 1.05 + Math.sin(this.phase * 2.1) * 0.08;
       this.parts.head.rotation.y = Math.sin(this.phase * 1.4) * 0.2;
       if (this.stateT <= 0) {
@@ -389,7 +528,7 @@ class Longneck {
       }
     }
 
-    const gait = speed > 0.05 ? 1 : 0.12;
+    const gait = this.state === "swim" ? 0.45 : speed > 0.05 ? 1 : 0.12;
     for (const leg of this.parts.hips) {
       const swing = Math.sin(this.walkPhase + (leg.side > 0 ? 0 : Math.PI)) * 0.48 * gait;
       leg.hip.rotation.x = swing;
@@ -415,7 +554,26 @@ class Longneck {
     }
   }
 
+  #updateBurn(dt) {
+    if (!this.burning || this.charred) return;
+    this.burnT += dt;
+    const left = BURN_DURATION - this.burnT;
+    const strength = left < 1.2 ? Math.max(0, left / 1.2) : 1;
+    if (this._fire) {
+      this._fire.setStrength(strength);
+      this._fire.update(dt);
+    }
+    if (this._burnMats.length) setBurnGlow(this._burnMats, strength);
+    if (this.burnT >= BURN_DURATION) this.#charBody();
+  }
+
   dispose() {
+    if (this._fire) {
+      this._fire.dispose();
+      this._fire = null;
+    }
+    for (const m of this._burnMats) m.dispose();
+    this._burnMats.length = 0;
     this.herd.planetGroup.remove(this.mesh);
   }
 }
@@ -468,7 +626,26 @@ export class LongneckHerd {
     return any;
   }
 
-  /** Výbuch komety — v kráteru se odpaří, po okrajích uskočí. */
+  /** Zásah v rádiusu — 30+ damage zabije, slabší zásah jen vyvolá úskok. */
+  hurtNear(centerDir, radiusM, dmgCenter = KILL_DAMAGE, dmgEdge = KILL_DAMAGE, opts = {}) {
+    if (!centerDir || radiusM <= 0) return false;
+    let any = false;
+    for (const c of this.list) {
+      if (c.dead || c.gone) continue;
+      const dist = surfaceDist(c.dir, centerDir);
+      if (dist >= radiusM) continue;
+      const t = dist / radiusM;
+      const damage = dmgCenter + (dmgEdge - dmgCenter) * t;
+      if (damage >= KILL_DAMAGE) {
+        if (c.takeDamage(damage, { fromDir: centerDir, ...opts })) any = true;
+      } else if (c.dodgeFrom(centerDir)) {
+        any = true;
+      }
+    }
+    return any;
+  }
+
+  /** Výbuch komety — v kráteru se odpaří, mimo něj zemře podle skutečné damage. */
   blastNear(centerDir, vaporizeR, damageR) {
     if (!centerDir) return false;
     let any = false;
@@ -476,11 +653,14 @@ export class LongneckHerd {
       if (c.gone) continue;
       const dist = surfaceDist(c.dir, centerDir);
       if (dist <= vaporizeR) {
-        c.gone = true;
-        c.mesh.visible = false;
+        c.die({ vanish: true });
         any = true;
-      } else if (dist <= damageR + 1.6) {
-        if (c.dodgeFrom(centerDir)) any = true;
+      } else if (dist <= damageR) {
+        const t = dist / damageR;
+        const damage = SPELLS.comet.damageCenter + (SPELLS.comet.damageEdge - SPELLS.comet.damageCenter) * t;
+        if (c.takeDamage(damage, { fromDir: centerDir, ignite: true })) any = true;
+      } else if (dist <= damageR + 1.6 && c.dodgeFrom(centerDir)) {
+        any = true;
       }
     }
     return any;

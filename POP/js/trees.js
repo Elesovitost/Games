@@ -341,6 +341,17 @@ export class Trees {
     entry.group.scale.set(s, s, s);
   }
 
+  /** Je v okruhu živý (neodstraněný) strom? Nic neničí, jen test kolize
+   * pro projektily jako valící se ledová koule. */
+  hasNear(centerDir, radiusM) {
+    if (!centerDir || radiusM <= 0) return false;
+    for (const p of this.placements) {
+      if (p.gone) continue;
+      if (surfaceDist(p.dir, centerDir) <= radiusM) return true;
+    }
+    return false;
+  }
+
   /** Zapálí stromy v radiu (přímý zásah blesku / fireballu). */
   igniteNear(centerDir, radiusM) {
     if (!centerDir || radiusM <= 0) return;
@@ -395,7 +406,11 @@ export class Trees {
     const group = new THREE.Group();
     group.frustumCulled = false;
     group.add(wood, leaf);
-    const fire = attachFireQueued(group, { pad: 1.22 });
+    /**
+     * Nižší pad než dřív — `fireSizeOf` bere celou výšku stromu (~4 m i s
+     * korunou), takže pad 1.22 dělal plameny vyšší než strom samotný.
+     */
+    const fire = attachFireQueued(group, { pad: 0.4 });
     this.planetGroup.add(group);
 
     const entry = { p, group, leaf, woodMat, leafMat, fire, t: 0, charred: false };

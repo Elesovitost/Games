@@ -948,8 +948,9 @@ function applyLavaDamage(sys, field, list, def, dt, hotFactor) {
   }
   if (sys.longnecks) {
     for (const c of sys.longnecks.list) {
+      if (c.dead || c.gone) continue;
       if (!onHotLava(c.dir)) continue;
-      c.dodgeFrom(field.center);
+      c.die({ fromDir: field.center, ignite: true });
     }
   }
   sys.trees?.igniteWhere(onHotLava);

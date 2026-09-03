@@ -49,9 +49,13 @@ function polylineCurve(points) {
   return curve;
 }
 
+/** Horní mez segmentů trubice — blesk je stejně klikatý/ostrý, vyšší
+ * hladkost není znát, ale ušetří to dost vrcholů při každém jitteru. */
+const MAX_TUBULAR = 56;
+
 function makeBoltTube(points, radius, color, opacity) {
   const curve = polylineCurve(points);
-  const tubular = Math.max(16, Math.min(80, (points.length - 1) * 4));
+  const tubular = Math.max(16, Math.min(MAX_TUBULAR, (points.length - 1) * 4));
   const geo = new THREE.TubeGeometry(curve, tubular, radius, 5, false);
   const mat = new THREE.MeshBasicMaterial({
     color,
@@ -73,9 +77,9 @@ function rebuildBoltTubes(b) {
   tangentFrame(b.dir, tmp.east, tmp.north);
 
   const specs = [
-    { pts: main, r: 0.11, color: 0xffffff, op: 1 },
-    { pts: main, r: 0.28, color: 0xa8e8ff, op: 0.45 },
-    { pts: main, r: 0.55, color: 0x4aa8ff, op: 0.18 }
+    { pts: main, r: 0.073, color: 0xffffff, op: 1 },
+    { pts: main, r: 0.187, color: 0xa8e8ff, op: 0.45 },
+    { pts: main, r: 0.367, color: 0x4aa8ff, op: 0.18 }
   ];
 
   const branchCount = b.branchCount ?? 5;
@@ -90,8 +94,8 @@ function rebuildBoltTubes(b) {
       .addScaledVector(tmp.north, (Math.random() - 0.5) * 6)
       .addScaledVector(b.dir, -(1 + Math.random() * 4));
     const bpts = lightningPath(start, end, 3, 1.4);
-    specs.push({ pts: bpts, r: 0.06, color: 0xffffff, op: 0.95 });
-    specs.push({ pts: bpts, r: 0.18, color: 0x9ad4ff, op: 0.35 });
+    specs.push({ pts: bpts, r: 0.04, color: 0xffffff, op: 0.95 });
+    specs.push({ pts: bpts, r: 0.12, color: 0x9ad4ff, op: 0.35 });
   }
 
   const n = Math.min(b.tubes.length, specs.length);
@@ -100,7 +104,7 @@ function rebuildBoltTubes(b) {
     const mesh = b.tubes[i];
     mesh.geometry.dispose();
     const curve = polylineCurve(s.pts);
-    const tubular = Math.max(16, Math.min(80, (s.pts.length - 1) * 4));
+    const tubular = Math.max(16, Math.min(MAX_TUBULAR, (s.pts.length - 1) * 4));
     mesh.geometry = new THREE.TubeGeometry(curve, tubular, s.r, 5, false);
     mesh.userData.baseOpacity = s.op;
     mesh.material.opacity = s.op;
@@ -140,9 +144,9 @@ export function strikeLightning(sys, targetDir) {
   };
 
   const main = lightningPath(sky, ground, 5, 3.2);
-  addTube(main, 0.11, 0xffffff, 1);
-  addTube(main, 0.28, 0xa8e8ff, 0.45);
-  addTube(main, 0.55, 0x4aa8ff, 0.18);
+  addTube(main, 0.073, 0xffffff, 1);
+  addTube(main, 0.187, 0xa8e8ff, 0.45);
+  addTube(main, 0.367, 0x4aa8ff, 0.18);
 
   const branchCount = 4 + Math.floor(Math.random() * 3);
   for (let f = 0; f < branchCount; f++) {
@@ -156,8 +160,8 @@ export function strikeLightning(sys, targetDir) {
       .addScaledVector(tmp.north, (Math.random() - 0.5) * 6)
       .addScaledVector(dir, -(1 + Math.random() * 4));
     const bpts = lightningPath(start, end, 3, 1.4);
-    addTube(bpts, 0.06, 0xffffff, 0.95);
-    addTube(bpts, 0.18, 0x9ad4ff, 0.35);
+    addTube(bpts, 0.04, 0xffffff, 0.95);
+    addTube(bpts, 0.12, 0x9ad4ff, 0.35);
   }
 
   const sparks = [];
@@ -213,9 +217,9 @@ export function strikeLightning(sys, targetDir) {
     dir,
     branchCount,
     t: 0,
-    hold: 1,
-    fade: 0.4,
-    nextJitter: 0.12
+    hold: 0.5,
+    fade: 0.5,
+    nextJitter: 0.16
   });
 
   queueMicrotask(() => {
@@ -250,7 +254,7 @@ export function updateBolts(sys, dt) {
       flicker = 0.55 + 0.45 * pulse;
       if (pulse > 0.85) flicker = 1;
       if (b.sky && b.tubes && b.t >= (b.nextJitter ?? 0)) {
-        b.nextJitter = b.t + 0.1 + Math.random() * 0.08;
+        b.nextJitter = b.t + 0.15 + Math.random() * 0.1;
         rebuildBoltTubes(b);
       }
     } else {

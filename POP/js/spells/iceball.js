@@ -130,7 +130,11 @@ export function updateIceball(sys, p, dt) {
         return false;
       }
     }
-    if (sys.critters?.hurtNear(p.dir, touchR) || sys.longnecks?.dodgeNear(p.dir, touchR)) {
+    if (
+      sys.critters?.hurtNear(p.dir, touchR) ||
+      sys.longnecks?.hurtNear(p.dir, touchR, SPELLS.iceball.contactDamage, SPELLS.iceball.contactDamage) ||
+      sys.trees?.hasNear(p.dir, touchR)
+    ) {
       shatterIceball(sys, p.ball.position.clone(), p.dir.clone(), p);
       disposeProjectile(sys, p);
       return false;
@@ -254,7 +258,8 @@ export function launchIceball(sys, targetDir) {
     opacity: 0.92
   });
   const core = new THREE.Mesh(new THREE.SphereGeometry(radius, 20, 16), mat);
-  core.castShadow = true;
+  /** Efekt kouzla, ne terén/strom/zvíře/wizard — stín nevrhá. */
+  core.castShadow = false;
   const ball = new THREE.Group();
   ball.add(core);
   const h0 = sys.terrain.height(startDir);

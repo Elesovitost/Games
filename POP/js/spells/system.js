@@ -326,6 +326,11 @@ export class SpellSystem {
   }
 
   update(dt) {
+    const list = this.getWizards?.() || (this.wizard ? [this.wizard] : []);
+    for (const w of list) {
+      if (w) w._lavaMoveMul = 1;
+    }
+
     if (this.wizard) {
       if (this.activeSpellId) {
         const spellId = this.activeSpellId;
@@ -373,6 +378,23 @@ export class SpellSystem {
     doLaunchIceball(this, targetDir);
   }
 
+  /** Poloměr, ve kterém dlouhokrci uskočí hned v okamžiku seslání (dřív než dopad/škoda). */
+  #castAlertRadius(spellId, def) {
+    switch (spellId) {
+      case "lightning":
+      case "fireball":
+        return def.damageRadius + 2.5;
+      case "comet":
+        return def.damageRadius + 3;
+      case "earthquake":
+        return def.effectRadius;
+      case "tornado":
+        return def.pullRadius + 2;
+      default:
+        return 0;
+    }
+  }
+
   /** Provede efekt jako daný caster (MP remote). */
   castAs(wizard, spellId, targetDir, onDone = null) {
     if (!wizard || wizard.dead) return;
@@ -383,6 +405,9 @@ export class SpellSystem {
     this.wizard = wizard;
     this._castOwnerId = wizard.id;
     const target = targetDir.clone().normalize();
+    /** Zvířata reagují už na položení kouzla, ne až na výbuch/škodu. */
+    const alertR = this.#castAlertRadius(spellId, def);
+    if (alertR > 0) this.longnecks?.dodgeNear(target, alertR);
     const spiral = wizard.remote ? null : this.startSpiral(target, spellId);
     if (!wizard.remote) this.aim.hide();
 

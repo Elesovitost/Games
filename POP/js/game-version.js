@@ -12,6 +12,7 @@ const SOURCES = [
   "./sky.js",
   "./trees.js",
   "./burn.js",
+  "./animalsAI.js",
   "./critter.js",
   "./longneck.js",
   "./spells/system.js",

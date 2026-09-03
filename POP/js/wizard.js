@@ -643,8 +643,6 @@ export class Wizard {
     this.hp = Math.max(0, this.hp - amount);
     this.#syncHealthUi();
 
-    if (amount > 30) this.onScream?.();
-
     const fromDir = opts.fromDir;
     const canKnock =
       opts.knock !== false &&
@@ -710,7 +708,6 @@ export class Wizard {
 
     this._lastKnockSeqApplied = nextSeq;
     this.breakInvisibility();
-    if (this.remote && amount > 30) this.onScream?.();
     this.#clearTarget();
     if (this.casting) this.#endCast();
     this.wantsWalk = false;

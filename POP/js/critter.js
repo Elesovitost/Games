@@ -3,6 +3,17 @@ import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, slerpDirection } from "./utils.js";
 import { surfaceDist } from "./spells/fx-common.js";
 import { BURN_DURATION, CHAR_COLOR, attachFireQueued, tintMeshBlack, setBurnGlow } from "./burn.js";
+import {
+  mulberry32,
+  randomSphereDir,
+  isLand as isLandAI,
+  isWaterAt,
+  terrainGrade,
+  stepToward as stepTowardAI,
+  turnFacingToward,
+  pickWanderTarget,
+  bearingOf
+} from "./animalsAI.js";
 
 const COUNT = 16;
 const WALK_SPEED = 0.7;
@@ -11,25 +22,12 @@ const FLEE_START = 6.5;
 const FLEE_STOP = 13;
 const LAND_MARGIN = 0.35;
 const GRADE_MAX = 1.15;
-
-function mulberry32(seed) {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function randomSphereDir(rng) {
-  const u = rng();
-  const v = rng();
-  const theta = Math.PI * 2 * u;
-  const z = 2 * v - 1;
-  const r = Math.sqrt(Math.max(0, 1 - z * z));
-  return new THREE.Vector3(r * Math.cos(theta), z, r * Math.sin(theta));
-}
+const MIN_R = CONFIG.wizardMinTerrainR + 0.05;
+/** Plave o něco pomaleji než panický útěk po souši, ale svižně. */
+const SWIM_SPEED = 3;
+/** Jak daleko od aktuálního místa se míří při plavání rovně — dost na
+ * přeplavání i většího jezera, ať se cíl nemusí každý snímek přepočítávat. */
+const SWIM_AIM_DIST = 80;
 
 function mat(color, opts = {}) {
   const m = new THREE.MeshStandardMaterial({
@@ -165,18 +163,12 @@ export function createCritterMesh(mats, geos) {
 }
 
 function isLand(terrain, dir) {
-  const h = terrain.height(dir);
-  return h >= CONFIG.waterLevel + LAND_MARGIN && h >= CONFIG.wizardMinTerrainR + 0.05;
+  return isLandAI(terrain, dir, LAND_MARGIN, MIN_R);
 }
 
 function isWalkable(terrain, dir, east, north) {
   if (!isLand(terrain, dir)) return false;
-  const h = terrain.height(dir);
-  const eps = 0.08;
-  const t = dir.clone().addScaledVector(east, eps).normalize();
-  const t2 = dir.clone().addScaledVector(north, eps).normalize();
-  const grade = Math.max(Math.abs(terrain.height(t) - h), Math.abs(terrain.height(t2) - h)) / eps;
-  return grade < GRADE_MAX;
+  return terrainGrade(terrain, dir, east, north) < GRADE_MAX;
 }
 
 class Critter {
@@ -188,6 +180,8 @@ class Critter {
     const size = 0.25 + rng() * 1;
     this.mesh.scale.multiplyScalar(size);
     this.size = size;
+    /** Přibl. polovina výšky těla (root je normalizovaný na 1.15×size) — pro plavání. */
+    this.bodyHalfHeight = 0.575 * size;
     herd.planetGroup.add(this.mesh);
     this.parts = this.mesh.userData.parts;
 
@@ -244,7 +238,12 @@ class Critter {
   }
 
   #snap() {
-    this.mesh.position.copy(this.dir).multiplyScalar(this.#height());
+    if ((this.state === "flee" || this.state === "swim") && isWaterAt(this.terrain, this.dir)) {
+      /** Ve vodě plove — ponoří se do poloviny výšky těla, zbytek čouhá nad hladinu. */
+      this.mesh.position.copy(this.dir).multiplyScalar(CONFIG.waterLevel - this.bodyHalfHeight);
+    } else {
+      this.mesh.position.copy(this.dir).multiplyScalar(this.#height());
+    }
   }
 
   #applyPose() {
@@ -262,32 +261,33 @@ class Critter {
 
   #pickWander() {
     tangentFrame(this.dir, this._east, this._north);
-    const dist = 3.5 + this.rng() * 9;
-    const ang = this.rng() * Math.PI * 2;
-    surfaceOffsetDir(this.dir, this._east, this._north, ang, dist, this.targetDir);
-    if (!isLand(this.terrain, this.targetDir)) {
-      surfaceOffsetDir(this.dir, this._east, this._north, ang + Math.PI, dist * 0.6, this.targetDir);
-    }
+    pickWanderTarget(this.dir, this._east, this._north, this.rng, 3.5, 12.5, (d) => isLand(this.terrain, d), this.targetDir);
   }
 
-  #stepToward(target, distM) {
-    const dot = Math.min(1, Math.max(-1, this.dir.dot(target)));
-    const omega = Math.acos(dot);
-    if (omega < 1e-8) return true;
-    const angle = Math.min(omega, distM / CONFIG.planetR);
-    this._step.crossVectors(this.dir, target);
-    if (this._step.lengthSq() < 1e-12) {
-      this.dir.copy(target);
-    } else {
-      this._step.normalize();
-      this.dir.applyAxisAngle(this._step, angle).normalize();
-    }
-    if (!isLand(this.terrain, this.dir)) {
-      this.dir.applyAxisAngle(this._step, -angle).normalize();
-      return true;
-    }
+  /** Zamíří daleko rovně vpřed ve směru `facing` — použito při plavání. */
+  #aimStraightAhead(distM) {
+    tangentFrame(this.dir, this._east, this._north);
+    const ang = bearingOf(this.facing, this._east, this._north);
+    surfaceOffsetDir(this.dir, this._east, this._north, ang, distM, this.targetDir);
+  }
+
+  #enterSwim() {
+    this.state = "swim";
+    this.neckTarget = -0.1;
+    this.#aimStraightAhead(SWIM_AIM_DIST);
+  }
+
+  #exitSwim() {
+    this.state = "wander";
+    this.stateT = 1.6 + this.rng() * 2.5;
+    this.#pickWander();
+  }
+
+  #stepToward(target, distM, allowWater = false) {
+    const walkable = allowWater ? null : (d) => isLand(this.terrain, d);
+    const { arrived } = stepTowardAI(this.dir, target, distM, walkable, this._step);
     this.#snap();
-    return omega <= angle + 1e-6;
+    return arrived;
   }
 
   #nearestWizard(wizards) {
@@ -518,7 +518,7 @@ class Critter {
     }
 
     const near = this.#nearestWizard(wizards);
-    if (near.w && near.dist < FLEE_START && this.state !== "flee") {
+    if (near.w && near.dist < FLEE_START && this.state !== "flee" && this.state !== "swim") {
       this.state = "flee";
       this.stateT = 2.2 + this.rng() * 1.4;
     }
@@ -543,6 +543,15 @@ class Critter {
         this.state = "wander";
         this.stateT = 2 + this.rng() * 3;
         this.#pickWander();
+      }
+    } else if (this.state === "swim") {
+      /** Plave rovně (bez ohledu na kouzelníka), dokud nenarazí na břeh. */
+      speed = SWIM_SPEED;
+      this.neckTarget = -0.1;
+      if (isLand(this.terrain, this.dir)) {
+        this.#exitSwim();
+      } else if (surfaceDist(this.dir, this.targetDir) < 6) {
+        this.#aimStraightAhead(SWIM_AIM_DIST);
       }
     } else if (this.state === "graze") {
       this.neckTarget = 0.92;
@@ -582,16 +591,17 @@ class Critter {
     if (this.state !== "look") this.parts.head.rotation.y *= 0.85;
 
     if (speed > 0) {
-      const arrived = this.#stepToward(this.targetDir, speed * dt);
-      this._move.copy(this.targetDir).addScaledVector(this.dir, -this.dir.dot(this.targetDir));
-      if (this._move.lengthSq() > 1e-8) {
-        this._move.normalize();
-        slerpDirection(this.facing, this.facing, this._move, 1 - Math.exp(-dt * 6));
-      }
+      const allowWater = this.state === "flee" || this.state === "swim";
+      const arrived = this.#stepToward(this.targetDir, speed * dt, allowWater);
+      turnFacingToward(this.facing, this.dir, this.targetDir, this._move, 1 - Math.exp(-dt * 6));
       this.walkPhase += dt * speed * 2.4;
       if (arrived && this.state === "wander") {
         this.state = "graze";
         this.stateT = 1.8 + this.rng() * 3;
+      }
+      /** Utíkající zvíře doběhlo až do vody — přepni na rovné plavání ke břehu. */
+      if (this.state === "flee" && isWaterAt(this.terrain, this.dir)) {
+        this.#enterSwim();
       }
     }
 
@@ -599,7 +609,7 @@ class Critter {
     this.parts.neck.rotation.x = this.neckX;
     this.parts.neck2.rotation.x = this.neckX * 0.35 + Math.sin(this.phase * 1.1) * 0.04;
 
-    const gait = this.state === "flee" ? 1.6 : speed > 0.05 ? 1 : 0.15;
+    const gait = this.state === "flee" ? 1.6 : this.state === "swim" ? 0.5 : speed > 0.05 ? 1 : 0.15;
     for (const leg of this.parts.legs) {
       const off = leg.k * 2.1 + (leg.side > 0 ? 0 : Math.PI);
       const swing = Math.sin(this.walkPhase + off) * 0.42 * gait;

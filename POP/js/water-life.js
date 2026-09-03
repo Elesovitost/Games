@@ -1,6 +1,7 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, slerpDirection } from "./utils.js";
+import { mulberry32, bearingOf } from "./animalsAI.js";
 
 /** Pod tímto počtem vertexů = jezírko, bez života. */
 const TINY_VERTS = 70;
@@ -12,16 +13,8 @@ const FISH_MAX = 32;
 const WHALE_MAX = 6;
 /** Konzervativní velikost při výběru místa — ať se tam vejde i velký kus. */
 const WHALE_SITE_SIZE = 1.15;
-
-function mulberry32(seed) {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+/** Nízká hodnota = velryba se otáčí pomalu a plynule, žádné trhavé obraty. */
+const WHALE_TURN_K = 1.1;
 
 function depthAt(terrain, dir) {
   return CONFIG.waterLevel - terrain.height(dir);
@@ -355,7 +348,8 @@ class WaterCritter {
     this.stateT = 1 + rng() * 4;
     this.submerge = kind === "amoeba" ? AMOEBA_DEPTH * size : kind === "fish" ? 0.24 * size : 2.2 * size;
     this.mode = "cruise";
-    this.modeT = 8 + rng() * 10;
+    /** Kratší úvodní plavba v hloubce — vynořuje se dřív a pak i častěji. */
+    this.modeT = 5 + rng() * 6;
     this.hue = built.hue ?? rng();
     this.hullHalfLen = (built.hullHalfLen ?? 0.35) * size;
     this.hullHalfW = (built.hullHalfW ?? 0.2) * size;
@@ -447,8 +441,25 @@ class WaterCritter {
         ? 4 + this.rng() * 9
         : 2 + this.rng() * 5;
     if (this.kind === "whale") {
+      /** Vějíř kolem aktuálního směru plavání — žádné náhlé obraty o 90°/180°. */
+      const curAng = bearingOf(this.facing, this._east, this._north);
+      const spread = Math.PI * 0.4;
       let bestD = -1;
       let found = false;
+      for (let k = 0; k < 12; k++) {
+        const ang = curAng + ((k / 11) * 2 - 1) * spread + (this.rng() - 0.5) * 0.15;
+        const dlen = dist * (0.5 + this.rng() * 0.7);
+        surfaceOffsetDir(this.dir, this._east, this._north, ang, dlen, this._trial);
+        if (!this.#ok(this._trial)) continue;
+        const d = depthAt(this.terrain, this._trial);
+        if (d > bestD) {
+          bestD = d;
+          this.targetDir.copy(this._trial);
+          found = true;
+        }
+      }
+      if (found) return;
+      /** Slepá ulička v předním vějíři — výjimečně dovol i širší ohled. */
       for (let k = 0; k < 16; k++) {
         const ang = (k / 16) * Math.PI * 2 + this.rng() * 0.22;
         const dlen = dist * (0.5 + this.rng() * 0.7);
@@ -472,7 +483,7 @@ class WaterCritter {
     surfaceOffsetDir(this.dir, this._east, this._north, this.rng() * Math.PI * 2, dist * 0.4, this.targetDir);
   }
 
-  #stepToward(target, distM, dt = 0.016) {
+  #stepToward(target, distM, dt = 0.016, turnK = 5) {
     this._prev.copy(this.dir);
     const dot = Math.min(1, Math.max(-1, this.dir.dot(target)));
     const omega = Math.acos(dot);
@@ -491,7 +502,7 @@ class WaterCritter {
     this._move.copy(target).addScaledVector(this.dir, -this.dir.dot(target));
     if (this._move.lengthSq() > 1e-8) {
       this._move.normalize();
-      slerpDirection(this.facing, this.facing, this._move, 1 - Math.exp(-dt * 5));
+      slerpDirection(this.facing, this.facing, this._move, 1 - Math.exp(-dt * turnK));
     }
     return omega <= angle + 1e-6;
   }
@@ -553,7 +564,8 @@ class WaterCritter {
       }
     }
     if (!found) return false;
-    this.#stepToward(this.targetDir, 0.7 * dt, dt);
+    /** Voláno jen pro velryby (uvíznutí na cestě) — stejné pomalé otáčení jako jinde. */
+    this.#stepToward(this.targetDir, 0.7 * dt, dt, WHALE_TURN_K);
     return true;
   }
 
@@ -619,7 +631,7 @@ class WaterCritter {
     this._world.copy(this.dir);
     if (this.mode === "cruise") {
       desired = (2.05 + Math.sin(this.phase * 0.35) * 0.12) * this.size;
-      const arrived = this.#stepToward(this.targetDir, 0.7 * dt, dt);
+      const arrived = this.#stepToward(this.targetDir, 0.6 * dt, dt, WHALE_TURN_K);
       if (arrived) this.#pickTarget();
       else if (this.dir.dot(this._world) > 0.99998) this.#nudgeToDeep(dt);
       if (this.modeT <= 0) {
@@ -629,7 +641,7 @@ class WaterCritter {
     } else if (this.mode === "rise") {
       const u = 1 - this.modeT / 3.6;
       desired = THREE.MathUtils.lerp(2.1, 0.5, u * u * (3 - 2 * u)) * this.size;
-      this.#stepToward(this.targetDir, 0.25 * dt, dt);
+      this.#stepToward(this.targetDir, 0.22 * dt, dt, WHALE_TURN_K);
       if (this.modeT <= 0) {
         this.mode = "look";
         this.modeT = 4.5 + this.rng() * 3;
@@ -647,25 +659,37 @@ class WaterCritter {
     } else {
       const u = 1 - this.modeT / 3.8;
       desired = THREE.MathUtils.lerp(0.5, 2.15, u * u * (3 - 2 * u)) * this.size;
-      this.#stepToward(this.targetDir, 0.45 * dt, dt);
+      this.#stepToward(this.targetDir, 0.4 * dt, dt, WHALE_TURN_K);
       this.parts.head.rotation.y *= 1 - dt * 2;
       this.parts.head.rotation.x *= 1 - dt * 2;
       if (this.modeT <= 0) {
         this.mode = "cruise";
-        this.modeT = 14 + this.rng() * 12;
+        /** Kratší plavba v hloubce — vynořuje se častěji než dřív. */
+        this.modeT = 7 + this.rng() * 7;
       }
     }
 
-    if (this.dir.dot(this._stuckDir) > 0.9996) this._stuckT += dt;
-    else {
-      this._stuckT = 0;
-      this._stuckDir.copy(this.dir);
-    }
-    if (this._stuckT > 2.4) {
-      this.#relocate();
-      this.#pickTarget();
-      this.mode = "cruise";
-      this.modeT = 10 + this.rng() * 8;
+    /**
+     * "Uvíznutí" má smysl testovat jen v cruise — v rise/look/dive stojí
+     * (nebo skoro stojí) na místě zcela záměrně, to není uvíznutí. Práh
+     * odpovídá jen ~0,5 m posunu, ať i pomalé plavání test spolehlivě
+     * vynuluje a nedojde k falešnému "teleportu" na nové místo.
+     */
+    if (this.mode === "cruise") {
+      if (this.dir.dot(this._stuckDir) > 0.99998) this._stuckT += dt;
+      else {
+        this._stuckT = 0;
+        this._stuckDir.copy(this.dir);
+      }
+      if (this._stuckT > 2.4) {
+        this.#relocate();
+        this.#pickTarget();
+        this.mode = "cruise";
+        this.modeT = 10 + this.rng() * 8;
+        this._stuckT = 0;
+        this._stuckDir.copy(this.dir);
+      }
+    } else {
       this._stuckT = 0;
       this._stuckDir.copy(this.dir);
     }
@@ -675,7 +699,7 @@ class WaterCritter {
     this.submerge += (fitted - this.submerge) * k;
     if ((this.mode === "rise" || this.mode === "look") && this.submerge > 1.15 * this.size) {
       this.mode = "cruise";
-      this.modeT = 8 + this.rng() * 6;
+      this.modeT = 5 + this.rng() * 5;
       this.#pickTarget();
     }
 

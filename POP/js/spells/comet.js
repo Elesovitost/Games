@@ -364,10 +364,11 @@ function makeMist(sys, pos, up) {
 const LAVA_LIFT = 0.09;
 const LAVA_RINGS = 6;
 const LAVA_SEGS = 32;
+const COMET_LAVA_COOL_TIME_MUL = 0.5;
 
 function lavaFreezeT(elapsed) {
-  const hot = SPELLS.volcano.lavaHeatTime;
-  const freeze = SPELLS.volcano.lavaFreezeTime;
+  const hot = SPELLS.volcano.lavaHeatTime * COMET_LAVA_COOL_TIME_MUL;
+  const freeze = SPELLS.volcano.lavaFreezeTime * COMET_LAVA_COOL_TIME_MUL;
   const after = Math.max(0, elapsed - hot);
   const u = (after - freeze * 0.35) / Math.max(0.1, freeze * 0.6);
   const t = Math.min(1, Math.max(0, u));
@@ -551,6 +552,48 @@ function updateLavaCrust(sys, comet) {
   if (freeze >= 0.999) freezeCometLava(sys, comet);
 }
 
+function cometLavaHeat(comet, dir) {
+  const lava = comet.impactFx?.lava;
+  if (!lava || lava.frozen || !dir) return 0;
+  const dist = surfaceDist(comet.target, dir);
+  if (dist > lava.radius) return 0;
+  const inner = SPELLS.comet.craterRadius;
+  const edge = Math.max(1e-5, lava.radius - inner);
+  const cover = dist <= inner ? 1 : Math.max(0, 1 - (dist - inner) / edge) ** 2;
+  const hot = 1 - lavaFreezeT(comet.t);
+  return cover > 0.05 && hot > 0.02 ? cover * hot : 0;
+}
+
+function applyCometLavaDamage(sys, comet, dt) {
+  const lava = comet.impactFx?.lava;
+  if (!lava || lava.frozen) return;
+
+  const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
+  for (const w of list) {
+    if (!w || w.dead) continue;
+    const heat = cometLavaHeat(comet, w.dir);
+    if (heat <= 0) continue;
+    w._lavaMoveMul = CONFIG.wizardWaterSpeedMul;
+    if (w.godMode || w.remote) continue;
+    w.takeDamage(SPELLS.volcano.lavaDps * Math.max(0.35, heat) * dt, { knock: false });
+  }
+
+  if (sys.critters) {
+    for (const c of sys.critters.list) {
+      if (c.charred || cometLavaHeat(comet, c.dir) <= 0) continue;
+      c.ignite();
+      if (!c.dead) c.die({ fromDir: comet.target, noSlide: true });
+    }
+  }
+  if (sys.longnecks) {
+    for (const c of sys.longnecks.list) {
+      if (c.dead || c.gone || cometLavaHeat(comet, c.dir) <= 0) continue;
+      c.die({ fromDir: comet.target, ignite: true });
+    }
+  }
+  sys.trees?.igniteWhere((dir) => cometLavaHeat(comet, dir) > 0);
+}
+
 function makeImpact(sys, pos, up) {
   const mist = makeMist(sys, pos, up);
 
@@ -587,6 +630,7 @@ function updateImpact(sys, comet, dt) {
     comet.lavaDone = true;
   }
   updateLavaCrust(sys, comet);
+  applyCometLavaDamage(sys, comet, dt);
 
   if (fx.fire) {
     const u = Math.min(1, t / 0.5);
@@ -628,7 +672,7 @@ function updateImpact(sys, comet, dt) {
     p.sprite.position.y += dt * (0.02 + i * 0.003);
   }
 
-  const lavaLife = SPELLS.volcano.lavaHeatTime + SPELLS.volcano.lavaFreezeTime;
+  const lavaLife = (SPELLS.volcano.lavaHeatTime + SPELLS.volcano.lavaFreezeTime) * COMET_LAVA_COOL_TIME_MUL;
   return t < Math.max(def.dustHold + def.dustFade, lavaLife) || !!fx.lava;
 }
 
