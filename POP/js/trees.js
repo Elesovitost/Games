@@ -3,6 +3,7 @@ import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, capWithMargin, dirNearCaps } from "./utils.js";
 import { surfaceDist } from "./spells/fx-common.js";
 import { BURN_DURATION, CHAR_COLOR, attachFireQueued, setBurnGlow } from "./burn.js";
+import { makeTreeBlockR } from "./blockers.js";
 
 const TREE_COUNT = 100;
 const VARIANTS = 6;
@@ -254,35 +255,57 @@ export class Trees {
       tangentFrame(center, this._east, this._north);
       const count = 3 + ((rng() * 6) | 0);
       for (let i = 0; i < count && dirs.length < TREE_COUNT; i++) {
-        const dist = i === 0 ? 0 : 0.6 + rng() * 4.2;
-        const ang = rng() * Math.PI * 2;
-        const dir = dist < 0.01
-          ? center.clone()
-          : surfaceOffsetDir(center, this._east, this._north, ang, dist, new THREE.Vector3());
-        tangentFrame(dir, this._east, this._north);
-        if (!canPlant(this.terrain, dir, this._east, this._north)) continue;
-        dirs.push({
-          dir,
-          variant: (rng() * VARIANTS) | 0,
-          height: 3 + rng() * 2,
-          spin: rng() * Math.PI * 2
-        });
+        let placed = false;
+        for (let tryN = 0; tryN < 14 && !placed; tryN++) {
+          const dist = i === 0 && tryN === 0 ? 0 : 0.85 + rng() * 4.4;
+          const ang = rng() * Math.PI * 2;
+          const dir = dist < 0.01
+            ? center.clone()
+            : surfaceOffsetDir(center, this._east, this._north, ang, dist, new THREE.Vector3());
+          tangentFrame(dir, this._east, this._north);
+          if (!canPlant(this.terrain, dir, this._east, this._north)) continue;
+          const height = 3 + rng() * 2;
+          const blockR = makeTreeBlockR(height);
+          if (!this.#freeOfTrunks(dirs, dir, blockR)) continue;
+          dirs.push({
+            dir,
+            variant: (rng() * VARIANTS) | 0,
+            height,
+            spin: rng() * Math.PI * 2,
+            blockR
+          });
+          placed = true;
+        }
       }
     }
 
-    while (dirs.length < TREE_COUNT) {
+    let fillGuard = 0;
+    while (dirs.length < TREE_COUNT && fillGuard++ < TREE_COUNT * 40) {
       const d = randomSphereDir(rng);
       tangentFrame(d, this._east, this._north);
       if (!canPlant(this.terrain, d, this._east, this._north)) continue;
+      const height = 3 + rng() * 2;
+      const blockR = makeTreeBlockR(height);
+      if (!this.#freeOfTrunks(dirs, d, blockR)) continue;
       dirs.push({
         dir: d.clone(),
         variant: (rng() * VARIANTS) | 0,
-        height: 3 + rng() * 2,
-        spin: rng() * Math.PI * 2
+        height,
+        spin: rng() * Math.PI * 2,
+        blockR
       });
     }
 
     this.placements = dirs.slice(0, TREE_COUNT);
+  }
+
+  /** Kmeny se nesmí překrývat — `selfR` je blockR nového stromu. */
+  #freeOfTrunks(list, dir, selfR) {
+    for (const p of list) {
+      const need = (p.blockR ?? makeTreeBlockR(p.height)) + selfR;
+      if (surfaceDist(dir, p.dir) < need) return false;
+    }
+    return true;
   }
 
   #createInstances() {

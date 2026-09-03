@@ -1,6 +1,6 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
-import { tangentFrame, tmp, slerpDirection } from "./utils.js";
+import { tangentFrame, tmp, slerpDirection, surfaceOffsetDir } from "./utils.js";
 import {
   applyInterpolatedPose,
   applyKnockFromSnapshot,
@@ -11,6 +11,8 @@ import {
   attachImmortalBubble,
   detachImmortalBubble
 } from "./spells/immortality.js";
+import { WIZARD_BODY_R } from "./blockers.js";
+import { surfaceDist } from "./spells/fx-common.js";
 
 const ROBE = 0x1a2848;
 const GOLD = 0xd4a837;
@@ -352,6 +354,11 @@ export class Wizard {
     this._move = new THREE.Vector3();
     this._stepDir = new THREE.Vector3();
     this._trial = new THREE.Vector3();
+    this._prevDir = new THREE.Vector3();
+    this._steerA = new THREE.Vector3();
+    this._steerB = new THREE.Vector3();
+    this._avoidSide = 0;
+    this.blockers = opts.blockers ?? null;
     this._basisX = new THREE.Vector3();
     this._mat = new THREE.Matrix4();
     this._invPlanet = new THREE.Matrix4();
@@ -1100,7 +1107,9 @@ export class Wizard {
   }
 
   #isWalkable(dir) {
-    return this.#height(dir) > CONFIG.wizardMinTerrainR;
+    if (this.#height(dir) <= CONFIG.wizardMinTerrainR) return false;
+    if (this.godMode) return true;
+    return this.blockers?.clear(dir, WIZARD_BODY_R) ?? true;
   }
 
   #isInWater() {
@@ -1132,24 +1141,85 @@ export class Wizard {
     return Math.acos(dot) * CONFIG.planetR;
   }
 
-  /** Plynulý posun po povrchu směrem k cíli (max. maxDist metrů po oblouku). */
+  /** Plynulý posun po povrchu směrem k cíli — když je strom/zvíře v cestě, obejde ho. */
   #stepTowardTarget(maxDist) {
-    const dot = Math.min(1, Math.max(-1, this.dir.dot(this.targetDir)));
-    const omega = Math.acos(dot);
-    if (omega < 1e-8) return true;
+    const remain = this.#remainToTarget();
+    if (remain < 1e-8) return true;
 
+    if (this.#tryStepToward(this.targetDir, maxDist)) {
+      this._avoidSide = 0;
+      return remain <= maxDist + 1e-6;
+    }
+
+    const hit = this.blockers?.hitNear(this.dir, WIZARD_BODY_R, 3.6, this.targetDir);
+    if (hit) {
+      this.#avoidWaypoints(hit, this._steerA, this._steerB);
+      let side = this._avoidSide;
+      if (!side) {
+        side = surfaceDist(this._steerA, this.targetDir) <= surfaceDist(this._steerB, this.targetDir) ? 1 : -1;
+      }
+      let goal = side > 0 ? this._steerA : this._steerB;
+      if (this.#tryStepToward(goal, maxDist)) {
+        this._avoidSide = side;
+        this.#faceAlongStep();
+        return false;
+      }
+      side = -side;
+      goal = side > 0 ? this._steerA : this._steerB;
+      if (this.#tryStepToward(goal, maxDist)) {
+        this._avoidSide = side;
+        this.#faceAlongStep();
+        return false;
+      }
+    }
+
+    const probes = this._avoidSide >= 0
+      ? [0.45, -0.45, 0.85, -0.85, 1.25, -1.25, 1.7, -1.7]
+      : [-0.45, 0.45, -0.85, 0.85, -1.25, 1.25, -1.7, 1.7];
+    for (const a of probes) {
+      this._steerA.copy(this.targetDir).applyAxisAngle(this.dir, a);
+      if (this.#tryStepToward(this._steerA, maxDist)) {
+        this._avoidSide = a >= 0 ? 1 : -1;
+        this.#faceAlongStep();
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /** Otočí `dir` k `goal` o `maxDist`. Při blokaci vrátí krok zpět. */
+  #tryStepToward(goal, maxDist) {
+    const dot = Math.min(1, Math.max(-1, this.dir.dot(goal)));
+    const omega = Math.acos(dot);
+    if (omega < 1e-8) return this.#isWalkable(this.dir);
     const angle = Math.min(omega, maxDist / CONFIG.planetR);
     if (angle < 1e-10) return false;
-
-    this._stepDir.crossVectors(this.dir, this.targetDir);
-    if (this._stepDir.lengthSq() < 1e-12) {
-      this.dir.copy(this.targetDir);
-    } else {
-      this._stepDir.normalize();
-      this.dir.applyAxisAngle(this._stepDir, angle).normalize();
+    this._prevDir.copy(this.dir);
+    this._stepDir.crossVectors(this.dir, goal);
+    if (this._stepDir.lengthSq() < 1e-12) this.dir.copy(goal);
+    else this.dir.applyAxisAngle(this._stepDir.normalize(), angle).normalize();
+    if (!this.#isWalkable(this.dir)) {
+      this.dir.copy(this._prevDir);
+      return false;
     }
     this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
-    return omega <= angle + 1e-6;
+    return true;
+  }
+
+  #faceAlongStep() {
+    this._move.copy(this.dir).addScaledVector(this._prevDir, -this.dir.dot(this._prevDir));
+    if (this._move.lengthSq() > 1e-10) this._move.normalize();
+  }
+
+  /** Dva body vedle překážky (vlevo / vpravo), kam jít místo skrz ni. */
+  #avoidWaypoints(hit, leftOut, rightOut) {
+    tangentFrame(hit.dir, tmp.east, tmp.north);
+    const wx = this.dir.dot(tmp.east);
+    const wz = this.dir.dot(tmp.north);
+    const ang = Math.atan2(wz, wx);
+    const rad = hit.r + 0.45;
+    surfaceOffsetDir(hit.dir, tmp.east, tmp.north, ang + Math.PI * 0.5, rad, leftOut);
+    surfaceOffsetDir(hit.dir, tmp.east, tmp.north, ang - Math.PI * 0.5, rad, rightOut);
   }
 
   #clearTarget() {
@@ -1178,6 +1248,7 @@ export class Wizard {
     if (!opts.allowUnwalkable && !this.#isWalkable(this._trial)) return false;
     this.targetDir.copy(this._trial);
     this.hasTarget = true;
+    this._avoidSide = 0;
     this.footprints?.show(this.targetDir, this.dir);
     return true;
   }
@@ -1316,7 +1387,13 @@ export class Wizard {
     this._stepDir.crossVectors(this.dir, this._move);
     if (this._stepDir.lengthSq() < 1e-12) return;
     this._stepDir.normalize();
+    this._prevDir.copy(this.dir);
     this.dir.applyAxisAngle(this._stepDir, step / CONFIG.planetR).normalize();
+    if (!this.#isWalkable(this.dir)) {
+      this.dir.copy(this._prevDir);
+      inv.rolling = false;
+      return;
+    }
     this.facing.copy(this._move);
     inv.traveled += step;
     const ang = step / Math.max(0.2, inv.radius);
@@ -1597,11 +1674,10 @@ export class Wizard {
         if (step > 1e-6) {
           if (this.hasTarget) {
             const arrived = this.#stepTowardTarget(step);
-            this.facing.copy(this._move);
-            if (!this.#isWalkable(this.dir)) {
+            if (this._move.lengthSq() > 1e-10) this.facing.copy(this._move);
+            if (arrived || this.#remainToTarget() <= CONFIG.wizardArrive) {
               this.#clearTarget();
-            } else if (arrived || this.#remainToTarget() <= CONFIG.wizardArrive) {
-              this.#clearTarget();
+              this._avoidSide = 0;
             }
           } else {
             this._trial.copy(this.mesh.position).addScaledVector(this._move, step);

@@ -4,9 +4,11 @@ import { tangentFrame, surfaceOffsetDir, slerpDirection } from "./utils.js";
 import { surfaceDist } from "./spells/fx-common.js";
 import { spawnWaterWake } from "./spells/water-fx.js";
 import { BURN_DURATION, CHAR_COLOR, attachFireQueued, tintMeshBlack, setBurnGlow } from "./burn.js";
+import { critterBodyRadius } from "./blockers.js";
 import {
   mulberry32,
   randomSphereDir,
+  aboveCore,
   isLand as isLandAI,
   isWaterAt,
   terrainGrade,
@@ -181,6 +183,7 @@ class Critter {
     const size = 0.25 + rng() * 1;
     this.mesh.scale.multiplyScalar(size);
     this.size = size;
+    this.blockR = critterBodyRadius({ size });
     /** Přibl. polovina výšky těla (root je normalizovaný na 1.15×size) — pro plavání. */
     this.bodyHalfHeight = 0.575 * size;
     herd.planetGroup.add(this.mesh);
@@ -263,7 +266,10 @@ class Critter {
 
   #pickWander() {
     tangentFrame(this.dir, this._east, this._north);
-    pickWanderTarget(this.dir, this._east, this._north, this.rng, 3.5, 12.5, (d) => isLand(this.terrain, d), this.targetDir);
+    pickWanderTarget(this.dir, this._east, this._north, this.rng, 3.5, 12.5, (d) => {
+      if (!isLand(this.terrain, d)) return false;
+      return this.herd.blockers?.clear(d, this.blockR, { ignore: this }) ?? true;
+    }, this.targetDir);
   }
 
   /** Zamíří daleko rovně vpřed ve směru `facing` — použito při plavání. */
@@ -286,7 +292,11 @@ class Critter {
   }
 
   #stepToward(target, distM, allowWater = false) {
-    const walkable = allowWater ? null : (d) => isLand(this.terrain, d);
+    const walkable = (d) => {
+      if (!allowWater && !isLand(this.terrain, d)) return false;
+      if (allowWater && !aboveCore(this.terrain, d, MIN_R)) return false;
+      return this.herd.blockers?.clear(d, this.blockR, { ignore: this }) ?? true;
+    };
     const { arrived } = stepTowardAI(this.dir, target, distM, walkable, this._step);
     this.#snap();
     return arrived;
@@ -420,7 +430,7 @@ class Critter {
     this._knockAxis.normalize();
     const prev = this._trial.copy(this.dir);
     this.dir.applyAxisAngle(this._knockAxis, step / CONFIG.planetR).normalize();
-    if (!isLand(this.terrain, this.dir)) {
+    if (!isLand(this.terrain, this.dir) || !(this.herd.blockers?.clear(this.dir, this.blockR, { ignore: this }) ?? true)) {
       this.dir.copy(prev);
       this.slideLeft = 0;
       this.#snap();
@@ -674,6 +684,8 @@ export class CritterHerd {
     this.seed = seed + 7741;
     this.list = [];
     this.onDied = null;
+    this.blockers = null;
+    this.fx = null;
     this.geos = {
       sphere: new THREE.SphereGeometry(1, 12, 10),
       cyl: new THREE.CylinderGeometry(1, 1, 1, 8),
@@ -699,6 +711,8 @@ export class CritterHerd {
       const dir = randomSphereDir(rng);
       tangentFrame(dir, east, north);
       if (!isWalkable(this.terrain, dir, east, north)) continue;
+      const blockR = critterBodyRadius({ size: 1.25 });
+      if (this.blockers && !this.blockers.clear(dir, blockR)) continue;
       const id = this.list.length;
       const crng = mulberry32(this.seed + (id + 1) * 9973);
       this.list.push(new Critter(this, id, dir, crng));

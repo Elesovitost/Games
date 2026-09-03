@@ -9,6 +9,7 @@ import { Trees } from "./trees.js";
 import { CritterHerd } from "./critter.js";
 import { WaterLife } from "./water-life.js";
 import { LongneckHerd } from "./longneck.js";
+import { Blockers } from "./blockers.js";
 import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
 import { burstImmortalShell } from "./spells/immortality.js";
@@ -93,6 +94,16 @@ class Game {
     this.waterLife = new WaterLife(this.planetGroup, this.terrain);
     this.longnecks = new LongneckHerd(this.planetGroup, this.terrain);
     this.longnecks.trees = this.trees;
+
+    this.blockers = new Blockers();
+    this.blockers.trees = this.trees;
+    this.blockers.critters = this.critters;
+    this.blockers.longnecks = this.longnecks;
+    this.critters.blockers = this.blockers;
+    this.longnecks.blockers = this.blockers;
+    /** Po napojení blockerů znovu rozmísti zvířata mimo kmeny. */
+    this.critters.spawn();
+    this.longnecks.spawn();
 
     this.wizard = null;
     this.spells = new SpellSystem(
@@ -208,7 +219,8 @@ class Game {
     const w = new Wizard(this.planetGroup, this.terrain, start, {
       id: "local",
       name: "Ty",
-      color: profile.color
+      color: profile.color,
+      blockers: this.blockers
     });
     this.wizards.set(w.id, w);
     this.wizard = w;
@@ -249,7 +261,8 @@ class Game {
         id: pid,
         name: p.name,
         color: p.color,
-        remote: !isLocal
+        remote: !isLocal,
+        blockers: this.blockers
       });
       this.wizards.set(pid, w);
       this.#wireWizardAudio(w);

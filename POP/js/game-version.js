@@ -15,6 +15,7 @@ const SOURCES = [
   "./animalsAI.js",
   "./critter.js",
   "./longneck.js",
+  "./blockers.js",
   "./spells/system.js",
   "./spells/fireball.js",
   "./spells/iceball.js",

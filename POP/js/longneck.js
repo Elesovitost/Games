@@ -5,6 +5,7 @@ import { surfaceDist } from "./spells/fx-common.js";
 import { SPELLS } from "./spells/defs.js";
 import { spawnWaterWake } from "./spells/water-fx.js";
 import { BURN_DURATION, CHAR_COLOR, attachFireQueued, setBurnGlow, tintMeshBlack } from "./burn.js";
+import { longneckBodyRadius } from "./blockers.js";
 import {
   mulberry32,
   randomSphereDir,
@@ -67,8 +68,10 @@ function cyl(geo, material, r, h, x, y, z) {
   return mesh;
 }
 
-function canStand(terrain, dir) {
-  return aboveCore(terrain, dir, MIN_R);
+function canStand(terrain, dir, blockers = null, self = null) {
+  if (!aboveCore(terrain, dir, MIN_R)) return false;
+  if (!blockers) return true;
+  return blockers.clear(dir, self?.blockR ?? 0.5, { ignore: self });
 }
 
 function isLandSpawn(terrain, dir, east, north) {
@@ -169,6 +172,7 @@ class Longneck {
     this.mesh = createLongneckMesh(herd.mats, herd.geos);
     const size = 0.85 + rng() * 0.4;
     this.size = size;
+    this.blockR = longneckBodyRadius({ size });
     this.mesh.scale.multiplyScalar(size);
     /** Přibl. polovina výšky těla (root normalizovaný na 2.35×size) — pro plavání. */
     this.bodyHalfHeight = 1.175 * size;
@@ -238,11 +242,11 @@ class Longneck {
 
   #pickWander() {
     tangentFrame(this.dir, this._east, this._north);
-    pickWanderTarget(this.dir, this._east, this._north, this.rng, 4, 14, (d) => canStand(this.terrain, d), this.targetDir, 0.7);
+    pickWanderTarget(this.dir, this._east, this._north, this.rng, 4, 14, (d) => canStand(this.terrain, d, this.herd.blockers, this), this.targetDir, 0.7);
   }
 
   #stepToward(target, distM) {
-    const { arrived, blocked } = stepTowardAI(this.dir, target, distM, (d) => canStand(this.terrain, d), this._step);
+    const { arrived, blocked } = stepTowardAI(this.dir, target, distM, (d) => canStand(this.terrain, d, this.herd.blockers, this), this._step);
     if (!blocked) turnFacingToward(this.facing, this.dir, target, this._move, 0.22);
     return arrived;
   }
@@ -356,14 +360,14 @@ class Longneck {
     let found = null;
     for (const extra of [0, 0.5, -0.5, 1.0, -1.0, Math.PI]) {
       surfaceOffsetDir(this.dir, this._east, this._north, baseAng + extra, DODGE_DIST, this._trial);
-      if (!canStand(this.terrain, this._trial)) continue;
+      if (!canStand(this.terrain, this._trial, this.herd.blockers, this)) continue;
       if (surfaceDist(this._trial, hazardDir) < surfaceDist(this.dir, hazardDir) + 3) continue;
       found = this._trial.clone();
       break;
     }
     if (!found) {
       surfaceOffsetDir(this.dir, this._east, this._north, baseAng, DODGE_DIST, this._trial);
-      if (!canStand(this.terrain, this._trial)) return false;
+      if (!canStand(this.terrain, this._trial, this.herd.blockers, this)) return false;
       found = this._trial.clone();
     }
     this._from.copy(this.dir);
@@ -598,6 +602,8 @@ export class LongneckHerd {
     this.planetGroup = planetGroup;
     this.terrain = terrain;
     this.trees = null;
+    this.blockers = null;
+    this.fx = null;
     this.seed = seed + 5519;
     this.list = [];
     this.geos = {
@@ -624,6 +630,8 @@ export class LongneckHerd {
       const dir = randomSphereDir(rng);
       tangentFrame(dir, east, north);
       if (!isLandSpawn(this.terrain, dir, east, north)) continue;
+      const blockR = longneckBodyRadius({ size: 1.25 });
+      if (this.blockers && !this.blockers.clear(dir, blockR)) continue;
       const id = this.list.length;
       this.list.push(new Longneck(this, id, dir, mulberry32(this.seed + (id + 1) * 4409)));
     }
