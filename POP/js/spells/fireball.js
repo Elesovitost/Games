@@ -66,6 +66,14 @@ function spawnSmokeStreak(sys, pos, vel, up) {
   });
 }
 
+let _shardGeo = null;
+/** Sdílená jednotková geometrie — reálný rozměr střepu se řeší přes mesh.scale,
+ * aby výbuch nemusel alokovat a nahrávat na GPU vlastní geometrii pro každý kus. */
+function shardGeo() {
+  if (!_shardGeo) _shardGeo = new THREE.BoxGeometry(1, 1, 1);
+  return _shardGeo;
+}
+
 export function spawnFireShards(sys, pos, normalDir, opts = {}) {
   const count = typeof opts === "number" ? opts : opts.count ?? 72;
   const speed = opts.speed ?? 1;
@@ -95,7 +103,8 @@ export function spawnFireShards(sys, pos, normalDir, opts = {}) {
       transparent: true,
       opacity: 0.96
     });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    const mesh = new THREE.Mesh(shardGeo(), mat);
+    mesh.scale.set(w, h, d);
     mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
     mesh.position.copy(pos).addScaledVector(normalDir, 0.04 + Math.random() * 0.1);
     mesh.castShadow = true;
@@ -466,7 +475,7 @@ export function updateFireDebris(sys, dt) {
 
       if (u >= 1) {
         sys.planetGroup.remove(s.mesh);
-        s.mesh.geometry.dispose();
+        /** Geometrie je sdílená mezi všemi střepy (shardGeo) — nedisponovat. */
         s.mat.dispose();
         sys.fireDebris.splice(i, 1);
       }

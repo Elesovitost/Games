@@ -224,6 +224,35 @@ export class Terrain {
     this.iceTrailLife = new Float32Array(count);
   }
 
+  /**
+   * Kandidátní vrcholy do zadaného úhlového poloměru (m) — konzervativní
+   * (nikdy nic nevynechá) prefiltr přes řádky výškové mřížky, aby kouzla
+   * nemusela procházet všech ~41 000 vrcholů planety. Přesný test vzdálenosti
+   * proběhne beze změny na volajícím místě, jen nad mnohem menší množinou.
+   */
+  #nearbyIndices(ndy, searchRadiusM) {
+    if (!this.buckets) this.#buildGrid();
+    const G = CONFIG.heightGrid;
+    const v = Math.acos(Math.max(-1, Math.min(1, ndy)));
+    const cellV = Math.PI / G;
+    const iv = Math.max(0, Math.min(G - 1, Math.floor((v / Math.PI) * G)));
+    const nv = Math.max(1, Math.ceil(searchRadiusM / CONFIG.planetR / cellV) + 1);
+    const ivMin = Math.max(0, iv - nv);
+    const ivMax = Math.min(G - 1, iv + nv);
+
+    const out = this._queryScratch || (this._queryScratch = []);
+    out.length = 0;
+    for (let jv = ivMin; jv <= ivMax; jv++) {
+      const rowBase = jv * G;
+      for (let ju = 0; ju < G; ju++) {
+        const bucket = this.buckets[rowBase + ju];
+        if (!bucket || !bucket.length) continue;
+        for (let b = 0; b < bucket.length; b++) out.push(bucket[b]);
+      }
+    }
+    return out;
+  }
+
   /** Sdílené kreslení kruhu na terén (m). */
   #paintDisk(centerDir, radiusM, apply) {
     const clen = Math.hypot(centerDir.x, centerDir.y, centerDir.z) || 1;
@@ -235,7 +264,9 @@ export class Terrain {
     const col = tmp.col;
     let any = false;
 
-    for (let i = 0; i < pos.count; i++) {
+    const candidates = this.#nearbyIndices(ndy, radiusM * 1.15 + 0.5);
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const i = candidates[ci];
       const dx = this.dirs[i * 3];
       const dy = this.dirs[i * 3 + 1];
       const dz = this.dirs[i * 3 + 2];
@@ -311,7 +342,10 @@ export class Terrain {
     const col = tmp.col;
     let any = false;
 
-    for (let i = 0; i < pos.count; i++) {
+    const searchR = Math.max(radius * 1.9, solidRadiusMeters) + 0.5;
+    const candidates = this.#nearbyIndices(ndy, searchR);
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const i = candidates[ci];
       const dx = this.dirs[i * 3];
       const dy = this.dirs[i * 3 + 1];
       const dz = this.dirs[i * 3 + 2];
@@ -361,7 +395,9 @@ export class Terrain {
     const col = tmp.col;
     let any = false;
 
-    for (let i = 0; i < pos.count; i++) {
+    const candidates = this.#nearbyIndices(ndy, radiusMeters + 0.5);
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const i = candidates[ci];
       const dx = this.dirs[i * 3];
       const dy = this.dirs[i * 3 + 1];
       const dz = this.dirs[i * 3 + 2];
@@ -448,7 +484,9 @@ export class Terrain {
     const startH = [];
     const deltaH = [];
 
-    for (let i = 0; i < pos.count; i++) {
+    const candidates = this.#nearbyIndices(ndy, radiusM + 0.5);
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const i = candidates[ci];
       const dx = this.dirs[i * 3];
       const dy = this.dirs[i * 3 + 1];
       const dz = this.dirs[i * 3 + 2];
@@ -555,7 +593,9 @@ export class Terrain {
     const deltaH = [];
     const tangent = new THREE.Vector3();
 
-    for (let i = 0; i < pos.count; i++) {
+    const candidates = this.#nearbyIndices(center.y, maxR + 0.5);
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const i = candidates[ci];
       const dx = this.dirs[i * 3];
       const dy = this.dirs[i * 3 + 1];
       const dz = this.dirs[i * 3 + 2];
