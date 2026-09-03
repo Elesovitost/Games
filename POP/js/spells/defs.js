@@ -119,6 +119,8 @@ export const SPELLS = {
     approachCameraDist: 220,
     approachNdcY: 0.94,
     approachHeight: 110,
+    /** 0 = dráha z horní části obrazovky, 1 = čistě shora po normále. */
+    approachVerticalBlend: 0.1,
     /** Okamžitá deprese a zóna odpaření v místě dopadu. */
     craterRadius: 5,
     craterDepth: 2.8,
