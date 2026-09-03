@@ -3,6 +3,7 @@ import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, slerpDirection } from "./utils.js";
 import { surfaceDist } from "./spells/fx-common.js";
 import { SPELLS } from "./spells/defs.js";
+import { spawnWaterWake } from "./spells/water-fx.js";
 import { BURN_DURATION, CHAR_COLOR, attachFireQueued, setBurnGlow, tintMeshBlack } from "./burn.js";
 import {
   mulberry32,
@@ -197,6 +198,7 @@ class Longneck {
     this.dodgeHop = 0;
     this.treeDir = null;
     this.dead = false;
+    this.wakeT = rng() * 0.3;
     this.dieT = 0;
     this.burning = false;
     this.charred = false;
@@ -525,6 +527,19 @@ class Longneck {
       if (arrived && this.state === "wander") {
         this.state = "graze";
         this.stateT = 1.6 + this.rng() * 2;
+      }
+    }
+
+    if (this.state === "swim" && isWaterAt(this.terrain, this.dir)) {
+      this.wakeT -= dt;
+      if (this.wakeT <= 0) {
+        spawnWaterWake(this.herd.fx, this.dir, this.facing, {
+          size: 0.95 + this.size * 0.55,
+          back: 0.75 + this.size * 0.35,
+          opacity: 0.42,
+          life: 0.75
+        });
+        this.wakeT = 0.26 + this.rng() * 0.12;
       }
     }
 

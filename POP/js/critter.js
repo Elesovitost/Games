@@ -2,6 +2,7 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, slerpDirection } from "./utils.js";
 import { surfaceDist } from "./spells/fx-common.js";
+import { spawnWaterWake } from "./spells/water-fx.js";
 import { BURN_DURATION, CHAR_COLOR, attachFireQueued, tintMeshBlack, setBurnGlow } from "./burn.js";
 import {
   mulberry32,
@@ -227,6 +228,7 @@ class Critter {
     this.state = "wander";
     this.stateT = 0.4 + rng() * 1.2;
     this.walkPhase = rng() * Math.PI * 2;
+    this.wakeT = rng() * 0.25;
     this.rng = rng;
     this.#pickWander();
     this.#snap();
@@ -602,6 +604,19 @@ class Critter {
       /** Utíkající zvíře doběhlo až do vody — přepni na rovné plavání ke břehu. */
       if (this.state === "flee" && isWaterAt(this.terrain, this.dir)) {
         this.#enterSwim();
+      }
+    }
+
+    if (this.state === "swim" && isWaterAt(this.terrain, this.dir)) {
+      this.wakeT -= dt;
+      if (this.wakeT <= 0) {
+        spawnWaterWake(this.herd.fx, this.dir, this.facing, {
+          size: 0.45 + this.size * 0.45,
+          back: 0.35 + this.size * 0.3,
+          opacity: 0.34,
+          life: 0.55
+        });
+        this.wakeT = 0.22 + this.rng() * 0.1;
       }
     }
 

@@ -2,6 +2,7 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, slerpDirection } from "./utils.js";
 import { mulberry32, bearingOf } from "./animalsAI.js";
+import { spawnWaterWake } from "./spells/water-fx.js";
 
 /** Pod tímto počtem vertexů = jezírko, bez života. */
 const TINY_VERTS = 70;
@@ -346,10 +347,13 @@ class WaterCritter {
     this._stuckDir = new THREE.Vector3();
     this.phase = rng() * 100;
     this.stateT = 1 + rng() * 4;
+    this.wakeT = rng() * 0.35;
     this.submerge = kind === "amoeba" ? AMOEBA_DEPTH * size : kind === "fish" ? 0.24 * size : 2.2 * size;
+    this.whaleTimeMul = THREE.MathUtils.clamp(0.7 + (size - 0.25) * 0.65, 0.7, 1.35);
     this.mode = "cruise";
+    this.modeT0 = 0;
     /** Kratší úvodní plavba v hloubce — vynořuje se dřív a pak i častěji. */
-    this.modeT = 5 + rng() * 6;
+    this.modeT = kind === "whale" ? this.#whaleCruiseTime(true) : 5 + rng() * 6;
     this.hue = built.hue ?? rng();
     this.hullHalfLen = (built.hullHalfLen ?? 0.35) * size;
     this.hullHalfW = (built.hullHalfW ?? 0.2) * size;
@@ -623,6 +627,24 @@ class WaterCritter {
       s.g.rotation.x = Math.sin(this.phase * 1.15 + i * 1.3) * 0.22;
       s.g.rotation.z = Math.sin(this.phase * 0.85 + i) * 0.28;
     }
+    this.#maybeWake(dt, 0.32 + this.size * 0.22, 0.26);
+  }
+
+  #whaleCruiseTime(initial = false) {
+    const base = initial ? 3.2 + this.rng() * 5.6 : 4 + this.rng() * 6.5;
+    return base * this.whaleTimeMul;
+  }
+
+  #whaleRiseTime() {
+    return (2.7 + this.rng() * 0.6) * Math.sqrt(this.whaleTimeMul);
+  }
+
+  #whaleLookTime() {
+    return (4.8 + this.rng() * 3.8) * Math.sqrt(this.whaleTimeMul);
+  }
+
+  #whaleDiveTime() {
+    return (3.2 + this.rng() * 0.9) * Math.sqrt(this.whaleTimeMul);
   }
 
   #updateWhale(dt) {
@@ -636,28 +658,33 @@ class WaterCritter {
       else if (this.dir.dot(this._world) > 0.99998) this.#nudgeToDeep(dt);
       if (this.modeT <= 0) {
         this.mode = "rise";
-        this.modeT = 3.6;
+        this.modeT = this.#whaleRiseTime();
+        this.modeT0 = this.modeT;
       }
     } else if (this.mode === "rise") {
-      const u = 1 - this.modeT / 3.6;
-      desired = THREE.MathUtils.lerp(2.1, 0.5, u * u * (3 - 2 * u)) * this.size;
+      const riseDur = this.modeT0 || 3.2;
+      const u = 1 - this.modeT / riseDur;
+      desired = THREE.MathUtils.lerp(2.1, 0.32, u * u * (3 - 2 * u)) * this.size;
       this.#stepToward(this.targetDir, 0.22 * dt, dt, WHALE_TURN_K);
       if (this.modeT <= 0) {
         this.mode = "look";
-        this.modeT = 4.5 + this.rng() * 3;
+        this.modeT = this.#whaleLookTime();
+        this.modeT0 = this.modeT;
       }
     } else if (this.mode === "look") {
-      desired = (0.48 + Math.sin(this.phase * 0.9) * 0.06) * this.size;
+      desired = (0.32 + Math.sin(this.phase * 0.9) * 0.05) * this.size;
       const head = this.parts.head;
       head.rotation.y = Math.sin(this.phase * 0.55) * 0.55;
       head.rotation.x = Math.sin(this.phase * 0.4) * 0.12;
       if (this.modeT <= 0) {
         this.mode = "dive";
-        this.modeT = 3.8;
+        this.modeT = this.#whaleDiveTime();
+        this.modeT0 = this.modeT;
         this.#pickTarget();
       }
     } else {
-      const u = 1 - this.modeT / 3.8;
+      const diveDur = this.modeT0 || 3.8;
+      const u = 1 - this.modeT / diveDur;
       desired = THREE.MathUtils.lerp(0.5, 2.15, u * u * (3 - 2 * u)) * this.size;
       this.#stepToward(this.targetDir, 0.4 * dt, dt, WHALE_TURN_K);
       this.parts.head.rotation.y *= 1 - dt * 2;
@@ -665,7 +692,8 @@ class WaterCritter {
       if (this.modeT <= 0) {
         this.mode = "cruise";
         /** Kratší plavba v hloubce — vynořuje se častěji než dřív. */
-        this.modeT = 7 + this.rng() * 7;
+        this.modeT = this.#whaleCruiseTime();
+        this.modeT0 = this.modeT;
       }
     }
 
@@ -685,7 +713,8 @@ class WaterCritter {
         this.#relocate();
         this.#pickTarget();
         this.mode = "cruise";
-        this.modeT = 10 + this.rng() * 8;
+        this.modeT = this.#whaleCruiseTime();
+        this.modeT0 = this.modeT;
         this._stuckT = 0;
         this._stuckDir.copy(this.dir);
       }
@@ -697,11 +726,6 @@ class WaterCritter {
     const fitted = this.#fitSubmerge(desired);
     const k = 1 - Math.exp(-dt * 3.2);
     this.submerge += (fitted - this.submerge) * k;
-    if ((this.mode === "rise" || this.mode === "look") && this.submerge > 1.15 * this.size) {
-      this.mode = "cruise";
-      this.modeT = 5 + this.rng() * 5;
-      this.#pickTarget();
-    }
 
     this.parts.body.rotation.x = Math.sin(this.phase * 0.7) * 0.04;
     this.parts.tail.rotation.y = Math.sin(this.phase * 1.15) * (this.mode === "look" ? 0.12 : 0.28);
@@ -711,6 +735,21 @@ class WaterCritter {
       s.g.rotation.x = Math.sin(this.phase * 0.9 + i * 1.1) * 0.35 * look;
       s.g.rotation.z = s.tilt + Math.sin(this.phase * 0.7 + i) * 0.4 * look;
     }
+    if (this.mode === "rise" || this.mode === "look" || this.submerge < 0.9 * this.size) {
+      this.#maybeWake(dt, 1.8 + this.size * 0.75, 0.48);
+    }
+  }
+
+  #maybeWake(dt, size, opacity) {
+    this.wakeT -= dt;
+    if (this.wakeT > 0) return;
+    spawnWaterWake(this.life.fx, this.dir, this.facing, {
+      size,
+      back: size * 0.7,
+      opacity,
+      life: this.kind === "whale" ? 1.05 : 0.62
+    });
+    this.wakeT = this.kind === "whale" ? 0.32 + this.rng() * 0.16 : 0.24 + this.rng() * 0.12;
   }
 
   dispose() {

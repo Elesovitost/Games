@@ -104,6 +104,9 @@ class Game {
     this.spells.critters = this.critters;
     this.spells.trees = this.trees;
     this.spells.longnecks = this.longnecks;
+    this.critters.fx = this.spells;
+    this.longnecks.fx = this.spells;
+    this.waterLife.fx = this.spells;
     this.spells.audio = this.audio;
     this.spells.camera = this.camera;
     this.spells.getListenerDir = (out = this._listenerDir) =>
