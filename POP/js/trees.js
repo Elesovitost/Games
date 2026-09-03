@@ -2,7 +2,7 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, capWithMargin, dirNearCaps } from "./utils.js";
 import { surfaceDist } from "./spells/fx-common.js";
-import { BURN_DURATION, CHAR_COLOR, attachFire, setBurnGlow } from "./burn.js";
+import { BURN_DURATION, CHAR_COLOR, attachFireQueued, setBurnGlow } from "./burn.js";
 
 const TREE_COUNT = 100;
 const VARIANTS = 6;
@@ -395,7 +395,7 @@ export class Trees {
     const group = new THREE.Group();
     group.frustumCulled = false;
     group.add(wood, leaf);
-    const fire = attachFire(group, { pad: 1.22 });
+    const fire = attachFireQueued(group, { pad: 1.22 });
     this.planetGroup.add(group);
 
     const entry = { p, group, leaf, woodMat, leafMat, fire, t: 0, charred: false };
@@ -424,7 +424,7 @@ export class Trees {
     entry.woodMat.emissiveIntensity = 0;
     entry.woodMat.needsUpdate = true;
     if (entry.fire) {
-      entry.group.remove(entry.fire.group);
+      if (entry.fire.group) entry.group.remove(entry.fire.group);
       entry.fire.dispose();
       entry.fire = null;
     }

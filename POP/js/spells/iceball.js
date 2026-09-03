@@ -37,7 +37,8 @@ function spawnIceShards(sys, pos, normalDir, count = 78) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
     mesh.position.copy(pos).addScaledVector(normalDir, 0.04 + Math.random() * 0.12);
-    mesh.castShadow = true;
+    /** Drobný ledový úlomek — stín není znát, ušetří to celý stínový průchod. */
+    mesh.castShadow = false;
     sys.planetGroup.add(mesh);
 
     sys.iceDebris.push({

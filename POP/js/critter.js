@@ -2,7 +2,7 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, slerpDirection } from "./utils.js";
 import { surfaceDist } from "./spells/fx-common.js";
-import { BURN_DURATION, CHAR_COLOR, attachFire, tintMeshBlack, setBurnGlow } from "./burn.js";
+import { BURN_DURATION, CHAR_COLOR, attachFireQueued, tintMeshBlack, setBurnGlow } from "./burn.js";
 
 const COUNT = 16;
 const WALK_SPEED = 0.7;
@@ -353,7 +353,7 @@ class Critter {
         this._burnMats.push(cloned);
       }
     });
-    this._fire = attachFire(this.mesh, { pad: 1.25 });
+    this._fire = attachFireQueued(this.mesh, { pad: 1.25 });
   }
 
   #charBody() {

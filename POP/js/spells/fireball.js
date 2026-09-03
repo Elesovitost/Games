@@ -74,6 +74,63 @@ function shardGeo() {
   return _shardGeo;
 }
 
+function spawnOneShard(sys, pos, normalDir, east, north, i, count, speed, size) {
+  const a = (i / count) * Math.PI * 2 + Math.random() * 0.85;
+  const spread = (1.1 + Math.random() * 2.4) * speed;
+  const vel = east
+    .clone()
+    .multiplyScalar(Math.cos(a) * spread)
+    .addScaledVector(north, Math.sin(a) * spread);
+  vel.addScaledVector(normalDir, (1.0 + Math.random() * 2.2) * speed);
+
+  const w = (0.065 + Math.random() * 0.15) * size;
+  const h = (0.055 + Math.random() * 0.13) * size;
+  const d = (0.06 + Math.random() * 0.14) * size;
+  const hot = Math.random() > 0.35;
+  const mat = new THREE.MeshStandardMaterial({
+    color: hot ? 0xff8820 : 0x3a2010,
+    emissive: hot ? 0xff5500 : 0xff3300,
+    emissiveIntensity: 1.2 + Math.random() * 0.9,
+    roughness: 0.82,
+    metalness: 0.04,
+    transparent: true,
+    opacity: 0.96
+  });
+  const mesh = new THREE.Mesh(shardGeo(), mat);
+  mesh.scale.set(w, h, d);
+  mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+  mesh.position.copy(pos).addScaledVector(normalDir, 0.04 + Math.random() * 0.1);
+  /** Drobný žhavý úlomek — stín není znát, ušetří to celý stínový průchod. */
+  mesh.castShadow = false;
+  sys.planetGroup.add(mesh);
+
+  sys.fireDebris.push({
+    mesh,
+    mat,
+    vel,
+    dir: normalDir.clone(),
+    radius: Math.max(w, h, d) * 0.5,
+    state: "air",
+    t: 0,
+    groundT: 0,
+    coolT: 0,
+    restTime: (0.25 + Math.random() * 0.85) * (0.85 + 0.35 * size),
+    coolLife: (1.0 + Math.random() * 1.4) * (0.9 + 0.25 * size),
+    rotVel: new THREE.Vector3(
+      (Math.random() - 0.5) * 18,
+      (Math.random() - 0.5) * 18,
+      (Math.random() - 0.5) * 18
+    ),
+    baseScale: mesh.scale.clone(),
+    hot,
+    coolFrom: null
+  });
+}
+
+const _shardQueue = [];
+/** Max. střepů vytvořených okamžitě — zbytek se rozloží přes pumpShardQueue. */
+const SHARD_IMMEDIATE = 50;
+
 export function spawnFireShards(sys, pos, normalDir, opts = {}) {
   const count = typeof opts === "number" ? opts : opts.count ?? 72;
   const speed = opts.speed ?? 1;
@@ -81,56 +138,28 @@ export function spawnFireShards(sys, pos, normalDir, opts = {}) {
   tangentFrame(normalDir, tmp.east, tmp.north);
   if (!sys.fireDebris) sys.fireDebris = [];
 
-  for (let i = 0; i < count; i++) {
-    const a = (i / count) * Math.PI * 2 + Math.random() * 0.85;
-    const spread = (1.1 + Math.random() * 2.4) * speed;
-    const vel = tmp.east
-      .clone()
-      .multiplyScalar(Math.cos(a) * spread)
-      .addScaledVector(tmp.north, Math.sin(a) * spread);
-    vel.addScaledVector(normalDir, (1.0 + Math.random() * 2.2) * speed);
+  const immediate = Math.min(count, SHARD_IMMEDIATE);
+  for (let i = 0; i < immediate; i++) {
+    spawnOneShard(sys, pos, normalDir, tmp.east, tmp.north, i, count, speed, size);
+  }
+  for (let i = immediate; i < count; i++) {
+    _shardQueue.push({ sys, pos: pos.clone(), normalDir: normalDir.clone(), i, count, speed, size });
+  }
+}
 
-    const w = (0.065 + Math.random() * 0.15) * size;
-    const h = (0.055 + Math.random() * 0.13) * size;
-    const d = (0.06 + Math.random() * 0.14) * size;
-    const hot = Math.random() > 0.35;
-    const mat = new THREE.MeshStandardMaterial({
-      color: hot ? 0xff8820 : 0x3a2010,
-      emissive: hot ? 0xff5500 : 0xff3300,
-      emissiveIntensity: 1.2 + Math.random() * 0.9,
-      roughness: 0.82,
-      metalness: 0.04,
-      transparent: true,
-      opacity: 0.96
-    });
-    const mesh = new THREE.Mesh(shardGeo(), mat);
-    mesh.scale.set(w, h, d);
-    mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
-    mesh.position.copy(pos).addScaledVector(normalDir, 0.04 + Math.random() * 0.1);
-    mesh.castShadow = true;
-    sys.planetGroup.add(mesh);
-
-    sys.fireDebris.push({
-      mesh,
-      mat,
-      vel,
-      dir: normalDir.clone(),
-      radius: Math.max(w, h, d) * 0.5,
-      state: "air",
-      t: 0,
-      groundT: 0,
-      coolT: 0,
-      restTime: (0.25 + Math.random() * 0.85) * (0.85 + 0.35 * size),
-      coolLife: (1.0 + Math.random() * 1.4) * (0.9 + 0.25 * size),
-      rotVel: new THREE.Vector3(
-        (Math.random() - 0.5) * 18,
-        (Math.random() - 0.5) * 18,
-        (Math.random() - 0.5) * 18
-      ),
-      baseScale: mesh.scale.clone(),
-      hot,
-      coolFrom: null
-    });
+/**
+ * Zpracuje pár čekajících střepů za snímek — velký výbuch (kometa: 140 kusů)
+ * tak nevytvoří desítky materiálů v jednom snímku. Volat jednou za snímek.
+ */
+export function pumpShardQueue(maxPerFrame = 30) {
+  if (!_shardQueue.length) return;
+  let n = Math.min(maxPerFrame, _shardQueue.length);
+  const east = new THREE.Vector3();
+  const north = new THREE.Vector3();
+  while (n-- > 0) {
+    const item = _shardQueue.shift();
+    tangentFrame(item.normalDir, east, north);
+    spawnOneShard(item.sys, item.pos, item.normalDir, east, north, item.i, item.count, item.speed, item.size);
   }
 }
 

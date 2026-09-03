@@ -390,6 +390,71 @@ export function attachFire(parent, opts = {}) {
   return fx;
 }
 
+const _fireQueue = [];
+
+/**
+ * Handle vracený okamžitě — chová se stejně jako výsledek `attachFire`
+ * (setStrength/update/dispose), ale samotné částice ohně (~20-30 sprite
+ * objektů) se vytvoří až v `pumpFireQueue`. Hoření/poškození u volajícího
+ * (strom, zvíře) začíná okamžitě beze změny — jen vizuální plamínky
+ * naskočí o snímek či dva později, když výbuch zapálí víc věcí najednou.
+ */
+class QueuedFire {
+  constructor(parent, opts) {
+    this.parent = parent;
+    this.opts = opts;
+    this.group = null;
+    this._fx = null;
+    this._disposed = false;
+    this._pendingStrength = null;
+    this._pendingSize = null;
+  }
+  setStrength(s) {
+    this._pendingStrength = s;
+    if (this._fx) this._fx.setStrength(s);
+  }
+  setSize(s) {
+    this._pendingSize = s;
+    if (this._fx) this._fx.setSize(s);
+  }
+  update(dt) {
+    if (this._fx) this._fx.update(dt);
+  }
+  dispose() {
+    this._disposed = true;
+    if (this._fx) {
+      this._fx.dispose();
+      this._fx = null;
+    }
+  }
+}
+
+/** Stejné jako `attachFire`, ale zařadí se do fronty — viz `pumpFireQueue`. */
+export function attachFireQueued(parent, opts = {}) {
+  const handle = new QueuedFire(parent, opts);
+  _fireQueue.push(handle);
+  return handle;
+}
+
+/**
+ * Zpracuje pár čekajících ohňů za snímek, aby výbuch zasahující víc
+ * stromů/zvířat najednou nevytvořil desítky sprite objektů v jednom
+ * snímku. Volat jednou za snímek (main.js).
+ */
+export function pumpFireQueue(maxPerFrame = 3) {
+  if (!_fireQueue.length) return;
+  let n = Math.min(maxPerFrame, _fireQueue.length);
+  while (n-- > 0) {
+    const handle = _fireQueue.shift();
+    if (handle._disposed) continue;
+    const fx = attachFire(handle.parent, handle.opts);
+    handle._fx = fx;
+    handle.group = fx.group;
+    if (handle._pendingStrength != null) fx.setStrength(handle._pendingStrength);
+    if (handle._pendingSize != null) fx.setSize(handle._pendingSize);
+  }
+}
+
 export function tintMeshBlack(root, hex = CHAR_COLOR) {
   const col = new THREE.Color(hex);
   root.traverse((ch) => {

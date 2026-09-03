@@ -4,7 +4,7 @@ import { tmp } from "../utils.js";
 import { SPELLS } from "./defs.js";
 import { AimReticle, CastSpiral, RangeRing } from "./fx-aim.js";
 import { updateBursts, disposeProjectile, updateScorchMarks } from "./fx-common.js";
-import { launchFireball as doLaunchFireball, updateFireball, updateSmokePuffs, updateFireDebris } from "./fireball.js";
+import { launchFireball as doLaunchFireball, updateFireball, updateSmokePuffs, updateFireDebris, pumpShardQueue } from "./fireball.js";
 import { launchIceball as doLaunchIceball, updateIceball, updateIceDebris } from "./iceball.js";
 import { strikeLightning as doStrikeLightning, updateBolts } from "./lightning.js";
 import { spawnTornado as doSpawnTornado, updateTornados, prepareTornadoEffects as doPrepareTornadoEffects, updateTornadoPull, updateTornadoVictims, disposeTornados } from "./tornado.js";
@@ -349,6 +349,7 @@ export class SpellSystem {
     this.#updateProjectiles(dt);
     updateBursts(this, dt);
     updateSmokePuffs(this, dt);
+    pumpShardQueue();
     updateFireDebris(this, dt);
     updateIceDebris(this, dt);
     this.terrain.updateIceTrails(dt);

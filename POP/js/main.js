@@ -12,6 +12,7 @@ import { LongneckHerd } from "./longneck.js";
 import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
 import { burstImmortalShell } from "./spells/immortality.js";
+import { pumpFireQueue } from "./burn.js";
 import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./visibility.js";
 import { tmp } from "./utils.js";
 import { MultiplayerSession } from "./net/session.js";
@@ -769,6 +770,8 @@ class Game {
     this.longnecks?.update(dt);
     this.waterLife?.update(dt);
     this.trees?.update(dt);
+    /** Rozloží start ohně u víc stromů/zvířat naráz (výbuch komety) do pár snímků. */
+    pumpFireQueue();
     this.spells.update(dt);
     this.spawnMarkers.update(dt);
     this.water.update(dt);
