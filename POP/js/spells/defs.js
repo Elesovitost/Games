@@ -104,6 +104,35 @@ export const SPELLS = {
     lavaDps: 20,
     hint: "3 s kouzlení, pak sopka — láva teče po spádu ~30 m, 20 HP/s. Zůstane spáleniště."
   },
+  comet: {
+    id: "comet",
+    range: 18,
+    castTime: 2,
+    /** Od objevení v obrazovce do impaktu (s). */
+    flightTime: 0.8,
+    /** Průměr tělesa (m). */
+    diameter: 5,
+    /**
+     * Přímý přílet začíná daleko na paprsku horní části obrazovky. Díky
+     * perspektivě se těleso objeví jako tečka a plynule rychle naroste.
+     */
+    approachCameraDist: 220,
+    approachNdcY: 0.94,
+    approachHeight: 110,
+    /** Okamžitá deprese a zóna odpaření v místě dopadu. */
+    craterRadius: 5,
+    craterDepth: 2.8,
+    /** Zčernalá zem a damage radius (m). */
+    scorchRadius: 10,
+    damageRadius: 10,
+    damageCenter: 200,
+    damageEdge: 50,
+    /** Mlha nad kráterem: držení a úplné rozplynutí (s). */
+    dustHold: 5,
+    dustFade: 5,
+    color: 0xff8a2a,
+    hint: "2 s kouzlení, 0,8 s přímý pád. Do 5 m vše zmizí, do 10 m damage 200→50 a hoří."
+  },
   immortality: {
     id: "immortality",
     selfCast: true,

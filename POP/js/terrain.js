@@ -219,6 +219,7 @@ export class Terrain {
     this._morphDirty = false;
     this.morphVersion = 0;
     this.scorchMask = new Float32Array(count);
+    this.scorchCoreMask = new Float32Array(count);
     this.tornadoTrailMask = new Float32Array(count);
     this.iceTrailLife = new Float32Array(count);
   }
@@ -295,8 +296,11 @@ export class Terrain {
     if (any) colAttr.needsUpdate = true;
   }
 
-  /** Spálená zem v radiu (m). irregular = nepravidelný okraj. */
-  scorch(centerDir, radiusMeters, irregular = false) {
+  /**
+   * Spálená zem v radiu (m). `solidRadiusMeters` vytvoří trvalé plně černé
+   * jádro; vnější část stále používá měkký nepravidelný přechod.
+   */
+  scorch(centerDir, radiusMeters, irregular = false, solidRadiusMeters = 0) {
     const radius = radiusMeters * 1.35;
     const clen = Math.hypot(centerDir.x, centerDir.y, centerDir.z) || 1;
     const ndx = centerDir.x / clen;
@@ -328,11 +332,12 @@ export class Terrain {
 
       const fadeEnd = rEff * 1.38;
       const t = 1 - dist / Math.max(fadeEnd, 1e-5);
-      if (t <= 0) continue;
-      const tCl = Math.min(1, t);
+      if (t <= 0 && dist > solidRadiusMeters) continue;
+      const tCl = Math.min(1, Math.max(0, t));
       const w = tCl * tCl * tCl * (tCl * (tCl * 6 - 15) + 10);
-      const mask = Math.pow(tCl, 0.32) * w;
+      const mask = dist <= solidRadiusMeters ? 1 : Math.pow(tCl, 0.32) * w;
       this.scorchMask[i] = Math.min(1, Math.max(this.scorchMask[i], mask * 0.96));
+      if (dist <= solidRadiusMeters) this.scorchCoreMask[i] = 1;
       const h = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
       this.#writeColor(i, h, col);
       colAttr.setXYZ(i, col[0], col[1], col[2]);
@@ -386,10 +391,10 @@ export class Terrain {
     if (s > 0.001) {
       const patch = grain * 0.56 + beachN * 0.44;
       const mottle = patch * patch * (3 - 2 * patch);
-      const holes = 0.3 + 0.7 * this.noise.fbm(dx * inv * 52 + 9, dy * inv * 52, dz * inv * 52);
-      const eff = s * (0.42 + 0.58 * mottle) * holes;
-      const tone = 0.011 + mottle * 0.105;
-      const br = tone * (0.62 + 0.38 * holes);
+      const core = this.scorchCoreMask[i];
+      const eff = Math.max(s * (0.72 + 0.28 * mottle), core * 0.94);
+      const tone = 0.016 + mottle * 0.042;
+      const br = tone * (0.72 + 0.28 * mottle);
       const bg = tone * (0.97 + 0.03 * mottle);
       const bb = tone * (0.9 + 0.08 * mottle);
       col[0] = col[0] * (1 - eff) + br * eff;
@@ -423,9 +428,10 @@ export class Terrain {
 
   /**
    * Elevace (+1) nebo deprese (−1) kolem bodu — plynulý morph ~spellDuration.
+   * `opts.radius` / `opts.amount` (m) přebijí výchozí hodnoty kouzla (kráter komety).
    * @returns {boolean}
    */
-  beginMorph(centerDir, sign, duration = CONFIG.spellDuration) {
+  beginMorph(centerDir, sign, duration = CONFIG.spellDuration, opts = {}) {
     const cx = centerDir.x;
     const cy = centerDir.y;
     const cz = centerDir.z;
@@ -434,7 +440,9 @@ export class Terrain {
     const ndy = cy / clen;
     const ndz = cz / clen;
 
-    const cosR = Math.cos(CONFIG.spellRadius / CONFIG.planetR);
+    const radiusM = opts.radius ?? CONFIG.spellRadius;
+    const amountM = opts.amount ?? CONFIG.spellAmount;
+    const cosR = Math.cos(radiusM / CONFIG.planetR);
     const pos = this.geometry.attributes.position;
     const indices = [];
     const startH = [];
@@ -449,7 +457,7 @@ export class Terrain {
       const t = (dot - cosR) / Math.max(1e-5, 1 - cosR);
       const w = t * t * (3 - 2 * t);
       const h0 = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
-      let d = sign * CONFIG.spellAmount * w;
+      let d = sign * amountM * w;
       const h1 = Math.min(CONFIG.maxR * 0.98, Math.max(CONFIG.minR, h0 + d));
       d = h1 - h0;
       if (Math.abs(d) < 1e-4) continue;
@@ -464,7 +472,8 @@ export class Terrain {
       indices,
       startH,
       deltaH,
-      duration,
+      /** duration 0 = hotovo hned v příštím snímku (okamžitý kráter) */
+      duration: Math.max(0.001, duration),
       elapsed: 0,
       normalFaces: faces,
       normalVerts: verts,

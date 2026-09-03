@@ -366,6 +366,33 @@ html, body {
     0 0 16px 5px rgba(255, 40, 0, 0.35);
 }
 
+/* Kometa — žhavé jádro s ocasem zprava shora */
+.spell-icon.comet {
+  background: transparent;
+}
+.spell-icon.comet::before {
+  left: 8px;
+  top: 8px;
+  width: 26px;
+  height: 4px;
+  border-radius: 2px;
+  transform: rotate(38deg);
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, rgba(255, 190, 90, 0.9) 0%, rgba(255, 110, 20, 0.5) 45%, rgba(120, 100, 90, 0.12) 100%);
+  filter: blur(0.6px);
+}
+.spell-icon.comet::after {
+  left: 7px;
+  top: 20px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #fff4d0 0%, #ffc040 26%, #ff6a10 58%, #a02000 88%, #400800 100%);
+  box-shadow:
+    0 0 6px 2px rgba(255, 130, 40, 0.9),
+    0 0 14px 5px rgba(255, 60, 0, 0.4);
+}
+
 /* Stín — průhledná silueta s fialovým leskem */
 .spell-icon.invisibility {
   background: transparent;

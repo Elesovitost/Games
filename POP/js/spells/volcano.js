@@ -423,7 +423,7 @@ function markAttrRange(attr, start, count) {
   attr.addUpdateRange(start, count);
 }
 
-const LAVA_VERT = `
+export const LAVA_VERT = `
 attribute float aCover;
 attribute float aHeat;
 attribute vec2 aCoord;
@@ -467,7 +467,7 @@ float fbm2(vec2 p) {
 }
 `;
 
-const LAVA_FRAG = `
+export const LAVA_FRAG = `
 uniform float uTime;
 uniform float uFreeze;
 uniform float uOpacity;
@@ -482,9 +482,9 @@ void main() {
   float coarse = fbm2(vCoord * 0.55 + 3.0);
   float fine = fbm2(vCoord * 2.6 - 11.0);
 
-  /* Nehomogenní gradientní okraj — po ztuhnutí širší a rozmytější */
-  float lo = mix(0.03, 0.05, uFreeze);
-  float hi = mix(0.52, 0.92, uFreeze);
+  /* Nehomogenní gradientní okraj — po ztuhnutí jen mírně měkčí, ne mizí */
+  float lo = mix(0.03, 0.04, uFreeze);
+  float hi = mix(0.52, 0.64, uFreeze);
   float edge = smoothstep(lo, hi, cov * (0.7 + 0.55 * coarse));
   if (edge < 0.004) discard;
 
@@ -501,20 +501,18 @@ void main() {
   vec3 molten = mix(vec3(0.9, 0.14, 0.02), vec3(1.0, 0.8, 0.24), smoothstep(0.3, 1.0, glow));
   vec3 col = mix(rock, molten, smoothstep(0.04, 0.42, glow));
 
-  /* Trvalá spálenina — nehomogenní šedo-černá, ne plná čerň */
+  /* Žhavá → černá → lehce popel, pak stop. Pořád dost černé, skoro neprůhledné. */
   float mottle = coarse * 0.62 + fine * 0.38;
   float speck = fract(fine * 7.31 + coarse * 3.17);
-  vec3 charDark = vec3(0.016, 0.015, 0.014);
-  vec3 charGray = vec3(0.078, 0.076, 0.072);
-  vec3 charred = mix(charDark, charGray, smoothstep(0.22, 0.9, mottle));
-  charred *= 0.7 + 0.34 * speck;
-  col = mix(col, charred, uFreeze);
+  vec3 black = vec3(0.014, 0.013, 0.012);
+  vec3 ash = vec3(0.058, 0.054, 0.050);
+  float blacken = smoothstep(0.0, 0.62, uFreeze);
+  float pale = smoothstep(0.58, 1.0, uFreeze);
+  vec3 cooled = mix(black, mix(black, ash, mottle), pale);
+  cooled *= 0.88 + 0.14 * speck;
+  col = mix(col, cooled, blacken);
 
-  /* Místy semitransparentní — prosvítá terén pod ztuhlou kůrou */
-  float holes = smoothstep(0.3, 0.88, mottle * 0.65 + speck * 0.35 - cov * 0.12);
-  float freezeAlpha = mix(0.22, 0.96, holes);
-
-  gl_FragColor = vec4(col, edge * uOpacity * mix(1.0, freezeAlpha, uFreeze));
+  gl_FragColor = vec4(col, edge * uOpacity);
 }
 `;
 
@@ -525,7 +523,7 @@ void main() {
  * navazuje. Per-pixel zbyl jediný vnoise na zrno a díry — proti 2× fbm2,
  * tedy 8 vnoise, v horkém shaderu.
  */
-const SCORCH_VERT = `
+export const SCORCH_VERT = `
 attribute float aCover;
 attribute vec2 aCoord;
 varying vec3 vChar;
@@ -541,17 +539,17 @@ void main() {
   float mottle = coarse * 0.62 + fine * 0.38;
 
   vChar = mix(
-    vec3(0.016, 0.015, 0.014),
-    vec3(0.078, 0.076, 0.072),
-    smoothstep(0.22, 0.9, mottle)
+    vec3(0.014, 0.013, 0.012),
+    vec3(0.058, 0.054, 0.050),
+    mottle
   );
-  vMask = vec3(smoothstep(0.05, 0.92, cov * (0.7 + 0.55 * coarse)), mottle, cov);
+  vMask = vec3(smoothstep(0.04, 0.64, cov * (0.7 + 0.55 * coarse)), mottle, cov);
   vCoord = aCoord;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 `;
 
-const SCORCH_FRAG = `
+export const SCORCH_FRAG = `
 varying vec3 vChar;
 varying vec3 vMask;
 varying vec2 vCoord;
@@ -575,8 +573,7 @@ void main() {
   float edge = vMask.x;
   if (edge < 0.004) discard;
   float speck = fract(vnoise(vCoord * 2.6 - 11.0) * 7.31 + vMask.y * 3.17);
-  float holes = smoothstep(0.3, 0.88, vMask.y * 0.65 + speck * 0.35 - vMask.z * 0.12);
-  gl_FragColor = vec4(vChar * (0.7 + 0.34 * speck), edge * mix(0.22, 0.96, holes));
+  gl_FragColor = vec4(vChar * (0.88 + 0.14 * speck), edge);
 }
 `;
 
@@ -814,6 +811,7 @@ export function spawnVolcano(sys, targetDir, shape = null) {
     fxTimer: 0,
     steamTimer: 0,
     indexedCount: -1,
+    scorchPainted: false,
     sfxLava: null
   };
 
@@ -883,6 +881,10 @@ export function updateVolcanos(sys, dt) {
 
     volcano.render.mat.uniforms.uTime.value = volcano.elapsed;
     volcano.render.mat.uniforms.uFreeze.value = freeze;
+    if (!volcano.scorchPainted && freeze > 0.12) {
+      paintTerrainScorch(sys, field);
+      volcano.scorchPainted = true;
+    }
     updateVolcanoLight(volcano, heat, 1 - freeze);
 
     volcano.fxTimer -= dt;
@@ -965,24 +967,24 @@ function freezeVolcano(sys, volcano) {
 
   field.temp.fill(0);
   refreshLavaMesh(field, volcano.render, 0.45);
+  volcano.render.mat.uniforms.uFreeze.value = 1;
 
   sys.audio?.stopSfxLoop(volcano.sfxLava, 0.6);
   volcano.sfxLava = null;
   sys.planetGroup.remove(volcano.light);
   volcano.light.dispose();
 
-  paintTerrainScorch(sys, field);
+  if (!volcano.scorchPainted) paintTerrainScorch(sys, field);
 
-  const mark = buildScorchMesh(sys, field);
+  const mark = buildFrozenLavaMesh(sys, field, volcano.render.mat);
   sys.planetGroup.remove(volcano.render.mesh);
   volcano.render.mesh.geometry.dispose();
-  volcano.render.mat.dispose();
-
   if (mark) sys.scorchMarks.push(mark);
+  else volcano.render.mat.dispose();
 }
 
-/** Zkomprimovaný mesh spáleniny + zapečené barvy. `null` = nic nepokryto. */
-function buildScorchMesh(sys, field) {
+/** Zkomprimovaný disk ztuhlé lávy — stejný shader a uFreeze=1, bez vizuálního skoku. */
+function buildFrozenLavaMesh(sys, field, mat) {
   const { terr, dirs, coord, vis, visCover } = field;
   const x0 = Math.max(0, field.minX - 2);
   const x1 = Math.min(GRID - 2, field.maxX + 1);
@@ -1026,6 +1028,7 @@ function buildScorchMesh(sys, field) {
   }
   const positions = new Float32Array(m * 3);
   const covers = new Float32Array(m);
+  const heats = new Float32Array(m);
   const coords = new Float32Array(m * 2);
   const keepDirs = new Float32Array(m * 3);
   const keepThick = new Float32Array(m);
@@ -1060,19 +1063,12 @@ function buildScorchMesh(sys, field) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geo.setAttribute("aCover", new THREE.BufferAttribute(covers, 1));
+  geo.setAttribute("aHeat", new THREE.BufferAttribute(heats, 1));
   geo.setAttribute("aCoord", new THREE.BufferAttribute(coords, 2));
   geo.setIndex(new THREE.BufferAttribute(idx, 1));
 
-  const mat = new THREE.ShaderMaterial({
-    vertexShader: SCORCH_VERT,
-    fragmentShader: SCORCH_FRAG,
-    transparent: true,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-    polygonOffset: true,
-    polygonOffsetFactor: -4,
-    polygonOffsetUnits: -4
-  });
+  mat.uniforms.uFreeze.value = 1;
+  mat.uniforms.uOpacity.value = 1;
 
   const mesh = new THREE.Mesh(geo, mat);
   mesh.renderOrder = 0;
@@ -1120,7 +1116,7 @@ function paintTerrainScorch(sys, field) {
     const patch = n1 * 0.42 + n2 * 0.33 + n3 * 0.25;
     const holes = 0.34 + 0.66 * n2;
     const grain = patch * holes;
-    return Math.min(0.9, Math.pow(Math.min(1, c * 1.28), 0.68) * (0.4 + 0.6 * grain));
+    return Math.min(0.92, Math.pow(Math.min(1, c * 1.28), 0.75) * (0.72 + 0.28 * grain));
   });
 }
 

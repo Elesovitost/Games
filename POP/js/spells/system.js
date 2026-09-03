@@ -10,6 +10,7 @@ import { strikeLightning as doStrikeLightning, updateBolts } from "./lightning.j
 import { spawnTornado as doSpawnTornado, updateTornados, prepareTornadoEffects as doPrepareTornadoEffects, updateTornadoPull, updateTornadoVictims, disposeTornados } from "./tornado.js";
 import { spawnVolcano as doSpawnVolcano, updateVolcanos, disposeVolcanos } from "./volcano.js";
 import { spawnEarthquake as doSpawnEarthquake, updateEarthquakes, disposeEarthquakes } from "./earthquake.js";
+import { spawnComet as doSpawnComet, updateComets, disposeComets } from "./comet.js";
 import { updateWaterFx } from "./water-fx.js";
 import { applyInvisibility } from "./invisibility.js";
 import { applyImmortality } from "./immortality.js";
@@ -39,6 +40,9 @@ export class SpellSystem {
     this.tornados = [];
     this.volcanos = [];
     this.earthquakes = [];
+    this.comets = [];
+    /** Doplní main.js — kometa z ní počítá přílet do záběru. */
+    this.camera = null;
     this.activeSpellId = null;
     this._sfxLoops = new Set();
 
@@ -204,6 +208,7 @@ export class SpellSystem {
     disposeTornados(this);
     disposeVolcanos(this);
     disposeEarthquakes(this);
+    disposeComets(this);
     for (const h of this._sfxLoops) this.audio?.stopSfxLoop(h, 0.05);
     this._sfxLoops.clear();
   }
@@ -338,6 +343,7 @@ export class SpellSystem {
     updateTornadoVictims(this, dt);
     updateVolcanos(this, dt);
     updateEarthquakes(this, dt);
+    updateComets(this, dt);
     this.#updateTrackedLoops();
     updateBolts(this, dt);
     this.#updateProjectiles(dt);
@@ -387,6 +393,7 @@ export class SpellSystem {
     const finishFx = () => {
       if (spellId === "tornado") doSpawnTornado(this, target);
       if (spellId === "earthquake") doSpawnEarthquake(this, target);
+      if (spellId === "comet") doSpawnComet(this, target);
       this.clearSpiral(spiral);
       if (spellId === "lightning") this.strikeLightning(target);
       else if (spellId === "fireball") this.launchFireball(target);

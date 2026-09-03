@@ -120,13 +120,27 @@ export const SFX = {
     halfDist: CONFIG.sfxHalfDist,
     maxDist: CONFIG.sfxMaxDist,
     gain: 1
+  },
+  meteorFly: {
+    url: "./audio/meteor-fly.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1.05
+  },
+  meteorImpact: {
+    url: "./audio/meteor-impact.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1.15
   }
 };
 
 const SCREAM_IDS = ["scream1", "scream2", "scream3"];
 
 /** Dopady — načíst jako první (malé soubory, kritické na timing). */
-const PRIORITY_SFX = ["lightning", "fireballImpact", "icebreak"];
+const PRIORITY_SFX = ["lightning", "fireballImpact", "icebreak", "meteorFly", "meteorImpact"];
 
 /** Vzdálenost po povrchu (m) mezi dvěma směry od středu planety. */
 function surfaceDist(a, b) {
@@ -836,7 +850,7 @@ export class GameAudio {
 
     const src = ctx.createBufferSource();
     src.buffer = buf;
-    src.loop = true;
+    src.loop = opts.loop !== false;
     if (opts.rate != null) src.playbackRate.value = opts.rate;
 
     const gain = ctx.createGain();

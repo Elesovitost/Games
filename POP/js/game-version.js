@@ -18,6 +18,7 @@ const SOURCES = [
   "./spells/fireball.js",
   "./spells/iceball.js",
   "./spells/lightning.js",
+  "./spells/comet.js",
   "./net/session.js",
   "./net/client.js",
   "./net/lobby.js"

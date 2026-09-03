@@ -104,6 +104,7 @@ class Game {
     this.spells.trees = this.trees;
     this.spells.longnecks = this.longnecks;
     this.spells.audio = this.audio;
+    this.spells.camera = this.camera;
     this.spells.getListenerDir = (out = this._listenerDir) =>
       getPlanetViewAxis(this.camera, this.planetGroup, out);
 

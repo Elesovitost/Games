@@ -317,6 +317,10 @@ class Critter {
       this.dir.copy(atDir).normalize();
       this.#snap();
     }
+    if (opts.vanish) {
+      this.mesh.visible = false;
+      this.vanished = true;
+    }
     if (opts.ignite) this.ignite();
     if (opts.noSlide) {
       this.slideLeft = 0;
@@ -695,6 +699,25 @@ export class CritterHerd {
       if (c.dead) continue;
       if (surfaceDist(c.dir, centerDir) <= radiusM) {
         if (c.die({ fromDir: centerDir })) hit = true;
+      }
+    }
+    return hit;
+  }
+
+  /**
+   * Výbuch komety — v kráteru se zvíře odpaří, do damage radiusu uhoří.
+   * Bez náhody, aby MP klienti dopadli stejně.
+   */
+  blastNear(centerDir, vaporizeR, damageR) {
+    if (!centerDir) return false;
+    let hit = false;
+    for (const c of this.list) {
+      if (c.dead) continue;
+      const dist = surfaceDist(c.dir, centerDir);
+      if (dist <= vaporizeR) {
+        if (c.die({ noSlide: true, vanish: true })) hit = true;
+      } else if (dist <= damageR) {
+        if (c.die({ fromDir: centerDir, ignite: true })) hit = true;
       }
     }
     return hit;

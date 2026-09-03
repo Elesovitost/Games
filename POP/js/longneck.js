@@ -294,6 +294,7 @@ class Longneck {
   }
 
   update(dt) {
+    if (this.gone) return;
     this.phase += dt;
     if (this.dodgeCool > 0) this.dodgeCool -= dt;
 
@@ -463,6 +464,24 @@ export class LongneckHerd {
     for (const c of this.list) {
       if (surfaceDist(c.dir, centerDir) > reach) continue;
       if (c.dodgeFrom(centerDir)) any = true;
+    }
+    return any;
+  }
+
+  /** Výbuch komety — v kráteru se odpaří, po okrajích uskočí. */
+  blastNear(centerDir, vaporizeR, damageR) {
+    if (!centerDir) return false;
+    let any = false;
+    for (const c of this.list) {
+      if (c.gone) continue;
+      const dist = surfaceDist(c.dir, centerDir);
+      if (dist <= vaporizeR) {
+        c.gone = true;
+        c.mesh.visible = false;
+        any = true;
+      } else if (dist <= damageR + 1.6) {
+        if (c.dodgeFrom(centerDir)) any = true;
+      }
     }
     return any;
   }

@@ -138,7 +138,7 @@ export function fireSizeOf(root) {
  * Univerzální oheň. Lokální Y = nahoru od země objektu.
  * `size` = obálka v metrech (malé zvíře ~1, strom ~4, budova ~6–10).
  *
- * @param {number|{ size?: number, light?: boolean }} sizeOrOpts
+ * @param {number|{ size?: number, light?: boolean, density?: number }} sizeOrOpts
  */
 export function createFireFx(sizeOrOpts = 1) {
   const opts = typeof sizeOrOpts === "number" ? { size: sizeOrOpts } : sizeOrOpts || {};
@@ -150,10 +150,11 @@ export function createFireFx(sizeOrOpts = 1) {
   let size = Math.max(0.25, opts.size ?? 1);
   let strength = 1;
   let t = 0;
+  const density = clamp(opts.density ?? 1, 0.25, 1);
 
-  const nFlames = Math.round(clamp(5 + size * 2.4, 6, 16));
-  const nEmbers = Math.round(clamp(5 + size * 2.2, 6, 18));
-  const nSmoke = Math.round(clamp(3 + size * 1.3, 4, 10));
+  const nFlames = Math.round(clamp((5 + size * 2.4) * density, 5, 16));
+  const nEmbers = Math.round(clamp((5 + size * 2.2) * density, 4, 18));
+  const nSmoke = Math.round(clamp((3 + size * 1.3) * density, 3, 10));
 
   const heatHex = [0xfff6c8, 0xffcc55, 0xff8a18, 0xff4a08, 0xff2200];
   const flames = [];

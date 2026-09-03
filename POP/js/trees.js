@@ -310,7 +310,7 @@ export class Trees {
   }
 
   #matrixForPlacement(p, out) {
-    if (p.burning) {
+    if (p.burning || p.gone) {
       this._scale.set(0, 0, 0);
       this._pos.set(0, 0, 0);
       this._quat.set(0, 0, 0, 1);
@@ -345,8 +345,29 @@ export class Trees {
   igniteNear(centerDir, radiusM) {
     if (!centerDir || radiusM <= 0) return;
     for (const p of this.placements) {
-      if (p.burning) continue;
+      if (p.burning || p.gone) continue;
       if (surfaceDist(p.dir, centerDir) <= radiusM) this.#ignitePlacement(p);
+    }
+  }
+
+  /** Odpaří stromy v radiu (kráter komety) — zmizí i s hořícími. */
+  vaporizeNear(centerDir, radiusM) {
+    if (!centerDir || radiusM <= 0) return;
+    for (let i = this.burns.length - 1; i >= 0; i--) {
+      const entry = this.burns[i];
+      if (surfaceDist(entry.p.dir, centerDir) > radiusM) continue;
+      if (entry.fire) entry.fire.dispose();
+      this.planetGroup.remove(entry.group);
+      entry.woodMat.dispose();
+      entry.leafMat.dispose();
+      entry.p.burning = false;
+      this.burns.splice(i, 1);
+    }
+    for (const p of this.placements) {
+      if (p.gone) continue;
+      if (surfaceDist(p.dir, centerDir) > radiusM) continue;
+      p.gone = true;
+      this.#hideInstance(p);
     }
   }
 
@@ -354,7 +375,7 @@ export class Trees {
   igniteWhere(pred) {
     if (!pred) return;
     for (const p of this.placements) {
-      if (p.burning) continue;
+      if (p.burning || p.gone) continue;
       if (pred(p.dir)) this.#ignitePlacement(p);
     }
   }
@@ -428,6 +449,7 @@ export class Trees {
   }
 
   clearBurns() {
+    for (const p of this.placements) p.gone = false;
     for (const entry of this.burns) {
       if (entry.fire) entry.fire.dispose();
       this.planetGroup.remove(entry.group);
