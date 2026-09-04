@@ -191,13 +191,145 @@ export function generateHeights(heights, pos, noise) {
   }
 }
 
+function spawnSite(s) {
+  const x = s.x ?? s[0];
+  const y = s.y ?? s[1];
+  const z = s.z ?? s[2];
+  const l = Math.hypot(x, y, z) || 1;
+  return [x / l, y / l, z / l];
+}
+
+function segmentScore(dx, dy, dz, site, weight) {
+  return dx * site[0] + dy * site[1] + dz * site[2] + (weight || 0);
+}
+
+/**
+ * Neviditelný segment pevné pevniny: vážená Voronoi buňka kolem spawnu.
+ * `spawns.weights` vyvažuje plochu souše (~stejně velká pole).
+ */
+export function landSegmentIndex(dir, spawns) {
+  if (!spawns?.length) return 0;
+  const dx = dir.x ?? dir[0];
+  const dy = dir.y ?? dir[1];
+  const dz = dir.z ?? dir[2];
+  const weights = spawns.weights;
+  let best = 0;
+  let bestScore = -Infinity;
+  for (let i = 0; i < spawns.length; i++) {
+    const s = spawns[i];
+    const sx = s.x ?? s[0];
+    const sy = s.y ?? s[1];
+    const sz = s.z ?? s[2];
+    const score = dx * sx + dy * sy + dz * sz + (weights ? weights[i] : 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = i;
+    }
+  }
+  return best;
+}
+
+/**
+ * Posune hranice Voronoi buněk, aby každá měla přibližně stejný počet
+ * suchých vrcholů. Váhy zůstanou na poli spawnů (`spawns.weights`).
+ */
+export function balanceLandSegmentWeights(terrain, spawns) {
+  const n = spawns?.length || 0;
+  const weights = new Float64Array(n);
+  if (!spawns || n < 2 || !terrain?.dirs) {
+    if (spawns) spawns.weights = Array.from(weights);
+    return spawns?.weights || [];
+  }
+
+  const dirs = terrain.dirs;
+  const wet = terrain.wetMask;
+  const vertCount = (dirs.length / 3) | 0;
+  const land = [];
+  for (let i = 0; i < vertCount; i++) {
+    if (wet && wet[i] > 0.45) continue;
+    land.push(i);
+  }
+  const landN = land.length;
+  if (!landN) {
+    spawns.weights = Array.from(weights);
+    return spawns.weights;
+  }
+
+  const sites = spawns.map(spawnSite);
+  const counts = new Float64Array(n);
+  const target = landN / n;
+
+  const assign = (dx, dy, dz) => {
+    let best = 0;
+    let bestScore = -Infinity;
+    for (let s = 0; s < n; s++) {
+      const score = segmentScore(dx, dy, dz, sites[s], weights[s]);
+      if (score > bestScore) {
+        bestScore = score;
+        best = s;
+      }
+    }
+    return best;
+  };
+
+  const centerWeights = () => {
+    let mean = 0;
+    for (let s = 0; s < n; s++) mean += weights[s];
+    mean /= n;
+    for (let s = 0; s < n; s++) weights[s] -= mean;
+  };
+
+  const keepSpawnsInside = () => {
+    for (let s = 0; s < n; s++) {
+      const site = sites[s];
+      let best = 0;
+      let bestScore = -Infinity;
+      let self = 0;
+      for (let i = 0; i < n; i++) {
+        const score = segmentScore(site[0], site[1], site[2], sites[i], weights[i]);
+        if (i === s) self = score;
+        if (score > bestScore) {
+          bestScore = score;
+          best = i;
+        }
+      }
+      if (best !== s) weights[s] += bestScore - self + 1e-4;
+    }
+  };
+
+  for (let iter = 0; iter < 28; iter++) {
+    counts.fill(0);
+    for (let k = 0; k < landN; k++) {
+      const i = land[k];
+      counts[assign(dirs[i * 3], dirs[i * 3 + 1], dirs[i * 3 + 2])]++;
+    }
+    let maxErr = 0;
+    for (let s = 0; s < n; s++) {
+      const err = (target - counts[s]) / landN;
+      maxErr = Math.max(maxErr, Math.abs(err));
+      weights[s] += err * 0.42;
+    }
+    keepSpawnsInside();
+    centerWeights();
+    if (maxErr < 0.018) break;
+  }
+
+  keepSpawnsInside();
+  centerWeights();
+  spawns.weights = Array.from(weights);
+  return spawns.weights;
+}
+
 /**
  * 4 pevninské spawny — vždy stejné (deterministicky u tetraedru).
+ * Na výsledek naváže 4 přibližně stejně velké segmenty souše.
  * @returns {number[][]}
  */
 export function resolveLandSpawns(terrain, seeds = SPAWN_SEEDS) {
   const minLand = CONFIG.waterLevel + Math.max(CONFIG.wizardMinLand, 0.35);
-  return seeds.map((seed) => findLandNear(terrain, seed, minLand));
+  const spawns = seeds.map((seed) => findLandNear(terrain, seed, minLand));
+  balanceLandSegmentWeights(terrain, spawns);
+  return spawns;
 }
 
 /** Náhodný výběr mezi pevnými spawny. */

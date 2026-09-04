@@ -1,6 +1,7 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { slerpDirection, surfaceOffsetDir, tangentFrame } from "./utils.js";
+import { landSegmentIndex } from "./maps.js";
 
 /**
  * Sdílené vzorce chování zvířat (hejna v critter.js, longneck.js,
@@ -141,31 +142,125 @@ const _scTrial = new THREE.Vector3();
  * `ok(dir, east, north)` musí říct, jestli se tam dá stát.
  */
 export function scatterOnLand(n, ok, minSep = 4) {
-  const seeds = fibonacciSphereDirs(n);
+  const pool = fibonacciSphereDirs(Math.max(n * 40, 320));
+  const candidates = gatherLandCandidates(pool, ok, null, 0);
   const placed = [];
-  for (const seed of seeds) {
-    let chosen = null;
-    for (let k = 0; k <= 56; k++) {
-      if (k === 0) {
-        _scTrial.copy(seed).normalize();
-      } else {
-        tangentFrame(seed, _scEast, _scNorth);
-        surfaceOffsetDir(seed, _scEast, _scNorth, k * 2.399, 3 + k * 2.4, _scTrial);
-      }
-      tangentFrame(_scTrial, _scEast, _scNorth);
-      if (!ok(_scTrial, _scEast, _scNorth)) continue;
-      let crowded = false;
-      for (let i = 0; i < placed.length; i++) {
-        if (surfDist(_scTrial, placed[i]) < minSep) {
-          crowded = true;
-          break;
+  addSpreadPlacements(candidates, n, minSep, placed);
+  return placed;
+}
+
+function tooClose(dir, placed, minSep) {
+  for (let i = 0; i < placed.length; i++) {
+    if (surfDist(dir, placed[i]) < minSep) return true;
+  }
+  return false;
+}
+
+function minSurfDist(dir, placed) {
+  if (!placed.length) return 1e9;
+  let m = Infinity;
+  for (let i = 0; i < placed.length; i++) {
+    const d = surfDist(dir, placed[i]);
+    if (d < m) m = d;
+  }
+  return m;
+}
+
+function tryLandNear(seed, ok, spawnDirs, seg, out) {
+  out.copy(seed).normalize();
+  tangentFrame(out, _scEast, _scNorth);
+  if ((spawnDirs == null || landSegmentIndex(out, spawnDirs) === seg) && ok(out, _scEast, _scNorth)) {
+    return true;
+  }
+  for (let k = 1; k <= 10; k++) {
+    tangentFrame(seed, _scEast, _scNorth);
+    surfaceOffsetDir(seed, _scEast, _scNorth, k * 2.399 + (seg || 0), 4 + k * 3.4, out);
+    if (spawnDirs && landSegmentIndex(out, spawnDirs) !== seg) continue;
+    tangentFrame(out, _scEast, _scNorth);
+    if (ok(out, _scEast, _scNorth)) return true;
+  }
+  return false;
+}
+
+function gatherLandCandidates(pool, ok, spawnDirs, seg) {
+  const list = [];
+  for (let i = 0; i < pool.length; i++) {
+    const seed = pool[i];
+    if (spawnDirs && landSegmentIndex(seed, spawnDirs) !== seg) continue;
+    if (!tryLandNear(seed, ok, spawnDirs, seg, _scTrial)) continue;
+    if (tooClose(_scTrial, list, 2.4)) continue;
+    list.push(_scTrial.clone());
+  }
+  return list;
+}
+
+/** Farthest-point: nejdřív střed pevniny, pak vždy bod nejdál od už vybraných. */
+function addSpreadPlacements(candidates, want, minSep, placed) {
+  if (!candidates.length || want <= 0) return;
+  const used = new Uint8Array(candidates.length);
+  const local = [];
+
+  const centroid = new THREE.Vector3();
+  for (let i = 0; i < candidates.length; i++) centroid.add(candidates[i]);
+  if (centroid.lengthSq() > 1e-12) centroid.normalize();
+  else centroid.copy(candidates[0]);
+
+  let nearest = -1;
+  let nearestD = Infinity;
+  for (let i = 0; i < candidates.length; i++) {
+    if (minSurfDist(candidates[i], placed) < minSep * 0.6) continue;
+    const d = surfDist(candidates[i], centroid);
+    if (d < nearestD) {
+      nearestD = d;
+      nearest = i;
+    }
+  }
+  if (nearest >= 0) {
+    used[nearest] = 1;
+    local.push(candidates[nearest]);
+    placed.push(candidates[nearest]);
+  }
+
+  let sep = minSep;
+  for (let pass = 0; pass < 5 && local.length < want; pass++) {
+    if (pass) sep *= 0.8;
+    while (local.length < want) {
+      let best = -1;
+      let bestD = -1;
+      for (let i = 0; i < candidates.length; i++) {
+        if (used[i]) continue;
+        const d = minSurfDist(candidates[i], placed);
+        if (d < sep) continue;
+        if (d > bestD) {
+          bestD = d;
+          best = i;
         }
       }
-      if (crowded) continue;
-      chosen = _scTrial.clone();
-      break;
+      if (best < 0) break;
+      used[best] = 1;
+      local.push(candidates[best]);
+      placed.push(candidates[best]);
     }
-    if (chosen) placed.push(chosen);
+  }
+}
+
+/**
+ * Rozmístit `n` bodů spravedlivě do Voronoi segmentů kolem spawnů —
+ * každý segment dostane stejně kusů, rozptýlených po celé souši buňky.
+ */
+export function scatterOnLandBySegments(n, ok, spawnDirs, minSep = 4) {
+  const segs = spawnDirs?.length || 0;
+  if (segs < 2) return scatterOnLand(n, ok, minSep);
+
+  const per = Math.floor(n / segs);
+  const extra = n - per * segs;
+  const placed = [];
+  const pool = fibonacciSphereDirs(Math.max(n * 40, 320));
+
+  for (let s = 0; s < segs; s++) {
+    const want = per + (s < extra ? 1 : 0);
+    const candidates = gatherLandCandidates(pool, ok, spawnDirs, s);
+    addSpreadPlacements(candidates, want, minSep, placed);
   }
   return placed;
 }

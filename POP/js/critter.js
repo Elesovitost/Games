@@ -16,6 +16,7 @@ import {
   pickWanderTarget,
   bearingOf,
   scatterOnLand,
+  scatterOnLandBySegments,
   treeSwayZ
 } from "./animalsAI.js";
 
@@ -181,7 +182,7 @@ class Critter {
     this.id = id;
     this.terrain = herd.terrain;
     this.mesh = createCritterMesh(herd.mats, herd.geos);
-    const size = 0.25 + rng() * 1;
+    const size = 0.75 + rng() * 0.5;
     this.mesh.scale.multiplyScalar(size);
     this.size = size;
     this.blockR = critterBodyRadius({ size });
@@ -777,6 +778,7 @@ export class CritterHerd {
     this.onDied = null;
     this.blockers = null;
     this.fx = null;
+    this.segments = null;
     this.geos = {
       sphere: new THREE.SphereGeometry(1, 12, 10),
       cyl: new THREE.CylinderGeometry(1, 1, 1, 8),
@@ -792,13 +794,17 @@ export class CritterHerd {
     this.spawn();
   }
 
-  spawn() {
+  spawn(segments) {
+    if (segments) this.segments = segments;
     this.clear();
-    const dirs = scatterOnLand(COUNT, (dir, e, n) => {
+    const ok = (dir, e, n) => {
       if (!isWalkable(this.terrain, dir, e, n)) return false;
       const blockR = critterBodyRadius({ size: 1.25 });
       return this.blockers ? this.blockers.clear(dir, blockR) : true;
-    }, 5.5);
+    };
+    const dirs = this.segments?.length
+      ? scatterOnLandBySegments(COUNT, ok, this.segments, Math.max(14, CONFIG.planetR * 0.22))
+      : scatterOnLand(COUNT, ok, Math.max(14, CONFIG.planetR * 0.22));
     for (let i = 0; i < dirs.length; i++) {
       const crng = mulberry32(this.seed + (i + 1) * 9973);
       this.list.push(new Critter(this, i, dirs[i], crng));

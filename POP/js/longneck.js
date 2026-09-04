@@ -17,6 +17,7 @@ import {
   pickWanderTarget,
   bearingOf,
   scatterOnLand,
+  scatterOnLandBySegments,
   treeSwayZ
 } from "./animalsAI.js";
 
@@ -171,7 +172,7 @@ class Longneck {
     this.terrain = herd.terrain;
     this.rng = rng;
     this.mesh = createLongneckMesh(herd.mats, herd.geos);
-    const size = 0.85 + rng() * 0.4;
+    const size = 0.75 + rng() * 0.5;
     this.size = size;
     this.blockR = longneckBodyRadius({ size });
     this.mesh.scale.multiplyScalar(size);
@@ -707,6 +708,7 @@ export class LongneckHerd {
     this.trees = null;
     this.blockers = null;
     this.fx = null;
+    this.segments = null;
     this.seed = seed + 5519;
     this.list = [];
     this.geos = {
@@ -723,13 +725,17 @@ export class LongneckHerd {
     this.spawn();
   }
 
-  spawn() {
+  spawn(segments) {
+    if (segments) this.segments = segments;
     this.clear();
-    const dirs = scatterOnLand(COUNT, (dir, e, n) => {
+    const ok = (dir, e, n) => {
       if (!isLandSpawn(this.terrain, dir, e, n)) return false;
       const blockR = longneckBodyRadius({ size: 1.25 });
       return this.blockers ? this.blockers.clear(dir, blockR) : true;
-    }, 8);
+    };
+    const dirs = this.segments?.length
+      ? scatterOnLandBySegments(COUNT, ok, this.segments, Math.max(20, CONFIG.planetR * 0.3))
+      : scatterOnLand(COUNT, ok, Math.max(20, CONFIG.planetR * 0.3));
     for (let i = 0; i < dirs.length; i++) {
       this.list.push(new Longneck(this, i, dirs[i], mulberry32(this.seed + (i + 1) * 4409)));
     }

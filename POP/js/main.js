@@ -3,7 +3,7 @@ import { CONFIG } from "./config.js";
 import { Terrain } from "./terrain.js";
 import { Water } from "./water.js";
 import { Sky, createSun, placeCamera } from "./sky.js";
-import { SPAWN_SEEDS, resolveLandSpawns, pickRandomSpawn } from "./maps.js";
+import { SPAWN_SEEDS, resolveLandSpawns, pickRandomSpawn, landSegmentIndex } from "./maps.js";
 import { SpawnMarkers } from "./spawns.js";
 import { Trees } from "./trees.js";
 import { CritterHerd } from "./critter.js";
@@ -103,8 +103,8 @@ class Game {
     this.critters.blockers = this.blockers;
     this.longnecks.blockers = this.blockers;
     /** Po napojení blockerů znovu rozmísti zvířata mimo kmeny. */
-    this.critters.spawn();
-    this.longnecks.spawn();
+    this.critters.spawn(this.landSpawns);
+    this.longnecks.spawn(this.landSpawns);
 
     this.wizard = null;
     this.spells = new SpellSystem(
@@ -166,9 +166,9 @@ class Game {
     this.spawnMarkers?.refresh();
     this.trees?.clearBurns();
     this.trees?.refresh();
-    this.critters?.spawn();
+    this.critters?.spawn(this.landSpawns);
     this.waterLife?.spawn();
-    this.longnecks?.spawn();
+    this.longnecks?.spawn(this.landSpawns);
   }
 
   #wireWizardAudio(w) {
@@ -232,8 +232,8 @@ class Game {
     this.#wireWizardNet(w);
     this.#setCameraFocus(start, true);
     this.spawnMarkers?.show();
-    this.critters?.spawn();
-    this.longnecks?.spawn();
+    this.critters?.spawn(this.landSpawns);
+    this.longnecks?.spawn(this.landSpawns);
     this.#selectSpell(null);
   }
 
@@ -423,17 +423,7 @@ class Game {
   }
 
   #spawnIndexForDir(dir) {
-    let best = 0;
-    let bestDot = -Infinity;
-    for (let i = 0; i < this.landSpawns.length; i++) {
-      const s = this.landSpawns[i];
-      const dot = dir.x * s[0] + dir.y * s[1] + dir.z * s[2];
-      if (dot > bestDot) {
-        bestDot = dot;
-        best = i;
-      }
-    }
-    return best;
+    return landSegmentIndex(dir, this.landSpawns);
   }
 
   #cycleSpawnCamera() {
