@@ -140,6 +140,23 @@ function buildSpellGlyph(spellId) {
     tail.position.set(-0.12, 0.12, 0.3);
     tail.rotation.z = -Math.PI / 4;
     g.add(tail, ball);
+  } else if (spellId === "tree") {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.38, 6), glyphMat(0xc9a227));
+    trunk.rotation.x = Math.PI / 2;
+    trunk.position.z = 0.22;
+    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), glyphMat(0xffe566));
+    crown.position.z = 0.52;
+    const crown2 = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), glyphMat(0xe8c030, 0.9));
+    crown2.position.set(-0.16, 0.08, 0.42);
+    g.add(trunk, crown, crown2);
+  } else if (spellId === "hypnosis") {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.04, 8, 18), glyphMat(0xd080ff));
+    ring.position.z = 0.32;
+    const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.03, 8, 14), glyphMat(0xffe08a, 0.85));
+    ring2.position.z = 0.32;
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), glyphMat(0xfff0c0));
+    eye.position.z = 0.34;
+    g.add(ring, ring2, eye);
   } else if (spellId === "earthquake") {
     const crackMat = glyphMat(0xc4a060, 0.9);
     for (let i = 0; i < 3; i++) {
@@ -291,7 +308,7 @@ export class AimReticle {
     this.glyphRoot = new THREE.Group();
     this.glyphs = {};
     this._glyphMats = [];
-    for (const id of ["elevate", "depress", "lightning", "fireball", "iceball", "tornado", "volcano", "comet", "earthquake"]) {
+    for (const id of ["elevate", "depress", "lightning", "fireball", "iceball", "tornado", "volcano", "comet", "earthquake", "tree", "hypnosis"]) {
       const glyph = buildSpellGlyph(id);
       glyph.visible = false;
       this.glyphs[id] = glyph;

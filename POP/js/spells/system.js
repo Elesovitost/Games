@@ -14,6 +14,8 @@ import { spawnComet as doSpawnComet, updateComets, disposeComets } from "./comet
 import { updateWaterFx } from "./water-fx.js";
 import { applyInvisibility } from "./invisibility.js";
 import { applyImmortality } from "./immortality.js";
+import { beginTreeSeed, releaseTreeSeed, updateTreeSeed, disposeTreeSeed, updateMagicTrees, disposeMagicTrees } from "./tree.js";
+import { spawnHypnosis, updateHypnoses, disposeHypnoses } from "./hypnosis.js";
 import { incantationFileForSpell } from "../incantations.js";
 
 export class SpellSystem {
@@ -41,6 +43,8 @@ export class SpellSystem {
     this.volcanos = [];
     this.earthquakes = [];
     this.comets = [];
+    this.magicTrees = [];
+    this.hypnoses = [];
     /** Doplní main.js — kometa z ní počítá přílet do záběru. */
     this.camera = null;
     this.activeSpellId = null;
@@ -136,6 +140,8 @@ export class SpellSystem {
         this.planetGroup.remove(p.ball);
         for (const g of p.geos || []) g.dispose();
         for (const m of p.mats || []) m.dispose();
+      } else if (p.kind === "treeseed") {
+        disposeTreeSeed(this, p);
       } else {
         disposeProjectile(this, p);
       }
@@ -209,6 +215,8 @@ export class SpellSystem {
     disposeVolcanos(this);
     disposeEarthquakes(this);
     disposeComets(this);
+    disposeMagicTrees(this);
+    disposeHypnoses(this);
     for (const h of this._sfxLoops) this.audio?.stopSfxLoop(h, 0.05);
     this._sfxLoops.clear();
   }
@@ -349,6 +357,8 @@ export class SpellSystem {
     updateVolcanos(this, dt);
     updateEarthquakes(this, dt);
     updateComets(this, dt);
+    updateMagicTrees(this, dt);
+    updateHypnoses(this, dt);
     this.#updateTrackedLoops();
     updateBolts(this, dt);
     this.#updateProjectiles(dt);
@@ -408,7 +418,7 @@ export class SpellSystem {
     /** Zvířata reagují už na položení kouzla, ne až na výbuch/škodu. */
     const alertR = this.#castAlertRadius(spellId, def);
     if (alertR > 0) this.longnecks?.dodgeNear(target, alertR);
-    const spiral = wizard.remote ? null : this.startSpiral(target, spellId);
+    const spiral = wizard.remote || def.throwCast ? null : this.startSpiral(target, spellId);
     if (!wizard.remote) this.aim.hide();
 
     const restore = () => {
@@ -420,6 +430,7 @@ export class SpellSystem {
       if (spellId === "tornado") doSpawnTornado(this, target);
       if (spellId === "earthquake") doSpawnEarthquake(this, target);
       if (spellId === "comet") doSpawnComet(this, target);
+      if (spellId === "hypnosis") spawnHypnosis(this, target);
       this.clearSpiral(spiral);
       if (spellId === "lightning") this.strikeLightning(target);
       else if (spellId === "fireball") this.launchFireball(target);
@@ -430,12 +441,13 @@ export class SpellSystem {
       onDone?.();
     };
 
-    const beginCast = (duration, onComplete) => {
-      if (!wizard.startCast(target, duration, onComplete)) {
+    const beginCast = (duration, onComplete, castOpts = {}) => {
+      if (!wizard.startCast(target, duration, onComplete, castOpts)) {
         this.clearSpiral(spiral);
         restore();
         return false;
       }
+      if (def.throwCast || castOpts.silent) return true;
       const listener = this.getListenerDir?.();
       if (listener) {
         this.audio?.startCastIncantation(
@@ -449,6 +461,26 @@ export class SpellSystem {
       }
       return true;
     };
+
+    if (spellId === "tree") {
+      const seed = beginTreeSeed(this, target);
+      if (!beginCast(def.castTime, () => {
+        if (seed?.held) releaseTreeSeed(this, seed);
+        restore();
+        onDone?.();
+      }, {
+        throwing: true,
+        onRelease: () => releaseTreeSeed(this, seed)
+      })) {
+        if (seed) {
+          disposeTreeSeed(this, seed);
+          const i = this.projectiles.indexOf(seed);
+          if (i >= 0) this.projectiles.splice(i, 1);
+        }
+        return;
+      }
+      return;
+    }
 
     if (spellId === "elevate" || spellId === "depress") {
       const sign = spellId === "elevate" ? 1 : -1;
@@ -522,6 +554,7 @@ export class SpellSystem {
       let keep = true;
       if (p.kind === "fireball") keep = updateFireball(this, p, dt);
       else if (p.kind === "iceball") keep = updateIceball(this, p, dt);
+      else if (p.kind === "treeseed") keep = updateTreeSeed(this, p, dt);
 
       if (!keep) this.projectiles.splice(i, 1);
     }

@@ -379,7 +379,7 @@ export class Trees {
   igniteNear(centerDir, radiusM) {
     if (!centerDir || radiusM <= 0) return;
     for (const p of this.placements) {
-      if (p.burning || p.gone) continue;
+      if (p.magic || p.burning || p.gone) continue;
       if (surfaceDist(p.dir, centerDir) <= radiusM) this.#ignitePlacement(p);
     }
   }
@@ -400,6 +400,11 @@ export class Trees {
     for (const p of this.placements) {
       if (p.gone) continue;
       if (surfaceDist(p.dir, centerDir) > radiusM) continue;
+      if (p.magic) {
+        p.gone = true;
+        p.magicTree?.dispose();
+        continue;
+      }
       p.gone = true;
       this.#hideInstance(p);
     }
@@ -409,7 +414,7 @@ export class Trees {
   igniteWhere(pred) {
     if (!pred) return;
     for (const p of this.placements) {
-      if (p.burning || p.gone) continue;
+      if (p.magic || p.burning || p.gone) continue;
       if (pred(p.dir)) this.#ignitePlacement(p);
     }
   }
@@ -487,7 +492,9 @@ export class Trees {
   }
 
   clearBurns() {
-    for (const p of this.placements) p.gone = false;
+    for (const p of this.placements) {
+      if (!p.magic) p.gone = false;
+    }
     for (const entry of this.burns) {
       if (entry.fire) entry.fire.dispose();
       this.planetGroup.remove(entry.group);

@@ -21,6 +21,10 @@ const SOURCES = [
   "./spells/iceball.js",
   "./spells/lightning.js",
   "./spells/comet.js",
+  "./tree-grow.js",
+  "./magic-tree.js",
+  "./spells/tree.js",
+  "./spells/hypnosis.js",
   "./net/session.js",
   "./net/client.js",
   "./net/lobby.js"

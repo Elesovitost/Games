@@ -204,6 +204,7 @@ class Longneck {
     this.dead = false;
     this.wakeT = rng() * 0.3;
     this.dieT = 0;
+    this.charm = null;
     this.burning = false;
     this.charred = false;
     this.burnT = 0;
@@ -214,6 +215,15 @@ class Longneck {
     tangentFrame(this.dir, this._east, this.facing);
     this.#pickWander();
     this.#applyPose();
+  }
+
+  beginCharm(wizard, hold) {
+    if (this.dead || this.gone || !wizard) return;
+    this.charm = { wizard, t: 0, hold: hold ?? 16 };
+    this.state = "charm";
+    this.dodgeT = 0;
+    this.dodgeCrouchT = 0;
+    this.dodgeHop = 0;
   }
 
   #height() {
@@ -291,6 +301,7 @@ class Longneck {
     if (this.dead) return false;
     this.dead = true;
     this.state = "dead";
+    this.charm = null;
     this.dodgeT = 0;
     this.dodgeCrouchT = 0;
     this.dodgeHop = 0;
@@ -351,7 +362,7 @@ class Longneck {
   }
 
   dodgeFrom(hazardDir) {
-    if (this.dead || this.gone || this.dodgeT > 0 || this.dodgeCrouchT > 0 || this.dodgeCool > 0) return false;
+    if (this.dead || this.gone || this.charm || this.dodgeT > 0 || this.dodgeCrouchT > 0 || this.dodgeCool > 0) return false;
     tangentFrame(this.dir, this._east, this._north);
     this._move.copy(hazardDir).addScaledVector(this.dir, -hazardDir.dot(this.dir));
     if (this._move.lengthSq() < 1e-8) tangentFrame(this.dir, this._east, this._move);
@@ -453,12 +464,36 @@ class Longneck {
       return;
     }
 
+    if (this.charm) {
+      this.charm.t += dt;
+      if (!this.charm.wizard || this.charm.wizard.dead || this.charm.t >= this.charm.hold) {
+        this.charm = null;
+        if (this.state === "charm") {
+          this.state = "wander";
+          this.stateT = 1.2 + this.rng() * 2;
+          this.#pickWander();
+        }
+      }
+    }
+
     this.dodgeHop = 0;
     this.stateT -= dt;
     let speed = 0;
     this.neckTarget = 0.1;
 
-    if (this.state === "swim") {
+    if (this.state === "charm" && this.charm?.wizard) {
+      const w = this.charm.wizard;
+      const d = surfaceDist(this.dir, w.dir);
+      this.neckTarget = 0.2;
+      if (d > 3.2) {
+        speed = WALK_SPEED * 1.65;
+        this.targetDir.copy(w.dir);
+      } else {
+        speed = 0;
+        this._move.copy(w.dir).addScaledVector(this.dir, -w.dir.dot(this.dir));
+        if (this._move.lengthSq() > 1e-8) this.facing.copy(this._move.normalize());
+      }
+    } else if (this.state === "swim") {
       /** Plave rovně, dokud nenarazí na břeh — pak vyleze a zase se pase. */
       speed = SWIM_SPEED;
       this.neckTarget = -0.15;
@@ -687,6 +722,14 @@ export class LongneckHerd {
       }
     }
     return any;
+  }
+
+  charmNear(centerDir, radiusM, wizard, hold) {
+    if (!centerDir || radiusM <= 0 || !wizard) return;
+    for (const c of this.list) {
+      if (c.dead || c.gone) continue;
+      if (surfaceDist(c.dir, centerDir) <= radiusM) c.beginCharm(wizard, hold);
+    }
   }
 
   clear() {

@@ -344,6 +344,9 @@ export class Wizard {
     this.wantsWalk = false;
     this.moving = false;
     this.casting = false;
+    this.throwing = false;
+    this._throwReleased = false;
+    this._onThrowRelease = null;
     this.castT = 0;
     this.castDuration = 0;
     this._onCastComplete = null;
@@ -1066,6 +1069,8 @@ export class Wizard {
     this.endImmortality();
     this.#clearTarget();
     this.casting = false;
+    this.throwing = false;
+    this._onThrowRelease = null;
     this._onCastComplete = null;
     this.moving = false;
     const parts = this.mesh.userData.parts;
@@ -1287,9 +1292,22 @@ export class Wizard {
     return Math.min(CONFIG.wizardDownhillBoost, 1 - grade * 0.4);
   }
 
+  #tickThrowRelease() {
+    if (!this.throwing || this._throwReleased || !this._onThrowRelease) return;
+    if (this.castT >= this.castDuration * 0.42) {
+      this._throwReleased = true;
+      const fn = this._onThrowRelease;
+      this._onThrowRelease = null;
+      fn();
+    }
+  }
+
   #endCast() {
     const wasCasting = this.casting;
     this.casting = false;
+    this.throwing = false;
+    this._onThrowRelease = null;
+    this._throwReleased = false;
     if (wasCasting && !this.remote) this.onCastAudioStop?.();
     const cb = this._onCastComplete;
     this._onCastComplete = null;
@@ -1404,13 +1422,16 @@ export class Wizard {
   }
 
   /** Začni vizuální show kouzlení směrem k cíli. onComplete po skončení. */
-  startCast(targetDir, duration = CONFIG.spellDuration, onComplete = null) {
+  startCast(targetDir, duration = CONFIG.spellDuration, onComplete = null, opts = {}) {
     if (this.isBusy || this.immortal) return false;
     // Kouzlení v neviditelnosti = okamžité zviditelnění
     this.breakInvisibility();
     this.#clearTarget();
     this.wantsWalk = false;
     this.casting = true;
+    this.throwing = !!opts.throwing;
+    this._throwReleased = false;
+    this._onThrowRelease = opts.onRelease || null;
     this.castT = 0;
     this.castDuration = duration;
     this._onCastComplete = onComplete;
@@ -1420,7 +1441,7 @@ export class Wizard {
       this.facing.copy(this._castFace).normalize();
     }
     const parts = this.mesh.userData.parts;
-    if (parts?.castFx) parts.castFx.visible = true;
+    if (parts?.castFx) parts.castFx.visible = !this.throwing;
     return true;
   }
 
@@ -1574,6 +1595,7 @@ export class Wizard {
     if (this.remote) {
       if (this.casting) {
         this.castT += dt;
+        this.#tickThrowRelease();
         if (this.castT >= this.castDuration) this.#endCast();
       }
       this.#updateNetPose();
@@ -1698,6 +1720,7 @@ export class Wizard {
       this.moving = false;
       this._speedMul = 1;
       this.castT += dt;
+      this.#tickThrowRelease();
       if (this.castT >= this.castDuration) this.#endCast();
     }
 
@@ -1924,6 +1947,27 @@ export class Wizard {
     }
   }
 
+  #animateThrow(parts) {
+    const u = Math.min(1, this.castT / Math.max(0.001, this.castDuration));
+    let swing = 0;
+    if (u < 0.38) swing = u / 0.38;
+    else if (u < 0.62) swing = 1 - (u - 0.38) / 0.24;
+    else swing = Math.max(0, 0.18 * (1 - (u - 0.62) / 0.38));
+    const follow = u > 0.4 ? Math.min(1, (u - 0.4) / 0.28) : 0;
+    parts.body.rotation.set(-0.1 * swing, 0.16 * swing, 0);
+    if (parts.head) parts.head.rotation.set(-0.12 * swing, 0.08 * swing, 0);
+    parts.rightArm.rotation.set(
+      -0.15 - 1.55 * swing + 0.85 * follow,
+      0.12 * swing,
+      -0.35 - 0.55 * swing
+    );
+    parts.leftArm.rotation.set(-0.22 - 0.18 * swing, 0, 0.22 + 0.12 * swing);
+    if (parts.rightFore) parts.rightFore.rotation.set(-0.15 - 0.45 * swing, 0, 0);
+    if (parts.leftFore) parts.leftFore.rotation.set(-0.12, 0, 0);
+    parts.leftLeg.rotation.set(0.05, 0, 0);
+    parts.rightLeg.rotation.set(-0.06, 0, 0);
+  }
+
   #animate(dt) {
     const parts = this.mesh.userData.parts;
     if (!parts) return;
@@ -1946,7 +1990,8 @@ export class Wizard {
     this.#pulseEyes(parts, dt);
 
     if (this.casting) {
-      this.#animateCast(dt, parts);
+      if (this.throwing) this.#animateThrow(parts);
+      else this.#animateCast(dt, parts);
       return;
     }
 

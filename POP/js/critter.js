@@ -233,9 +233,17 @@ class Critter {
     this.walkPhase = rng() * Math.PI * 2;
     this.wakeT = rng() * 0.25;
     this.rng = rng;
+    this.charm = null;
     this.#pickWander();
     this.#snap();
     this.#applyPose();
+  }
+
+  beginCharm(wizard, hold) {
+    if (this.dead || !wizard) return;
+    this.charm = { wizard, t: 0, hold: hold ?? 16 };
+    this.state = "charm";
+    this.stateT = hold ?? 16;
   }
 
   #height() {
@@ -322,6 +330,7 @@ class Critter {
     if (this.tornado) this.endTornadoCapture();
     this.dead = true;
     this.state = "dead";
+    this.charm = null;
     this.dieT = 0;
     const atDir = opts.atDir;
     const fromDir = opts.fromDir;
@@ -529,8 +538,26 @@ class Critter {
       return;
     }
 
+    if (this.charm) {
+      this.charm.t += dt;
+      if (!this.charm.wizard || this.charm.wizard.dead || this.charm.t >= this.charm.hold) {
+        this.charm = null;
+        if (this.state === "charm") {
+          this.state = "wander";
+          this.stateT = 1.4 + this.rng() * 2;
+          this.#pickWander();
+        }
+      }
+    }
+
     const near = this.#nearestWizard(wizards);
-    if (near.w && near.dist < FLEE_START && this.state !== "flee" && this.state !== "swim") {
+    if (
+      !this.charm &&
+      near.w &&
+      near.dist < FLEE_START &&
+      this.state !== "flee" &&
+      this.state !== "swim"
+    ) {
       this.state = "flee";
       this.stateT = 2.2 + this.rng() * 1.4;
     }
@@ -539,7 +566,20 @@ class Critter {
     let speed = 0;
     this.neckTarget = 0.18;
 
-    if (this.state === "flee") {
+    if (this.state === "charm" && this.charm?.wizard) {
+      const w = this.charm.wizard;
+      const d = surfaceDist(this.dir, w.dir);
+      this.neckTarget = 0.05;
+      if (d > 2.5) {
+        speed = 2.4;
+        this.targetDir.copy(w.dir);
+      } else {
+        speed = 0;
+        tangentFrame(this.dir, this._east, this._north);
+        this._look.copy(w.dir).addScaledVector(this.dir, -w.dir.dot(this.dir));
+        if (this._look.lengthSq() > 1e-8) this.facing.copy(this._look.normalize());
+      }
+    } else if (this.state === "flee") {
       speed = FLEE_SPEED;
       this.neckTarget = -0.28;
       if (near.w) {
@@ -741,6 +781,14 @@ export class CritterHerd {
       }
     }
     return hit;
+  }
+
+  charmNear(centerDir, radiusM, wizard, hold) {
+    if (!centerDir || radiusM <= 0 || !wizard) return;
+    for (const c of this.list) {
+      if (c.dead) continue;
+      if (surfaceDist(c.dir, centerDir) <= radiusM) c.beginCharm(wizard, hold);
+    }
   }
 
   /**

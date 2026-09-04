@@ -149,6 +149,26 @@ export const SPELLS = {
     color: 0xffe08a,
     hint: "1 s kouzlení, 5 s nesmrtelnost. Klik = kutálení 2× chůze; po 100 m nebo čase koule praskne."
   },
+  tree: {
+    id: "tree",
+    range: 16,
+    /** Hod kuličky — žádné kouzlení / zaříkávání */
+    castTime: 0.55,
+    throwCast: true,
+    growthTime: 20,
+    maxHeight: 10,
+    color: 0xe8c44a,
+    hint: "Hod žlutou kuličku — na místě vyroste strom (20 s, 15 m)."
+  },
+  hypnosis: {
+    id: "hypnosis",
+    range: 14,
+    castTime: 2,
+    radius: 8,
+    holdTime: 16,
+    color: 0xd080ff,
+    hint: "Klikni v dosahu — hypnóza. Zvířata v 8 m jdou za tebou."
+  },
   invisibility: {
     id: "invisibility",
     /** Klik na ikonu = rovnou cast (bez míření) */
