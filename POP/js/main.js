@@ -54,6 +54,9 @@ class Game {
     this._camRecenterFrom = new THREE.Quaternion();
     this._camRecenterTo = new THREE.Quaternion();
     this._camRecenterQ = new THREE.Quaternion();
+    this._pageHidden = false;
+    this._hiddenAt = 0;
+    this._loopScheduled = false;
 
     mountGameVersion(document.getElementById("game-version"));
 
@@ -148,6 +151,7 @@ class Game {
 
     this.#applyRendererSize();
     this.#bindInput();
+    this.#bindVisibility();
     this.#bindSpells();
     this.#bindGameBar();
     this.#updateColorSwatch();
@@ -904,9 +908,58 @@ class Game {
     }
   }
 
-  #loop() {
-    const dt = Math.min(this.clock.getDelta(), 0.05);
+  #bindVisibility() {
+    document.addEventListener("visibilitychange", () => this.#onPageVisibility());
+    this._pageHidden = document.hidden;
+    if (this._pageHidden) this.audio.setOutputMuted(true);
+  }
 
+  #inMpMatch() {
+    return !!(this.session?.isMp && this.session.playing);
+  }
+
+  #onPageVisibility() {
+    if (document.hidden) {
+      this._pageHidden = true;
+      this._hiddenAt = performance.now();
+      this.audio.setOutputMuted(true);
+      for (const k of Object.keys(this.keys)) delete this.keys[k];
+      this.clock.getDelta();
+      return;
+    }
+    const hiddenFor = this._hiddenAt ? (performance.now() - this._hiddenAt) * 0.001 : 0;
+    this._pageHidden = false;
+    this._hiddenAt = 0;
+    this.clock.getDelta();
+    if (this.#inMpMatch() && hiddenFor > 0.1) this.#catchUpSim(hiddenFor);
+    this.audio.setOutputMuted(false);
+    if (!this._loopScheduled) this.#loop();
+  }
+
+  #catchUpSim(missedSec) {
+    const cap = CONFIG.pageCatchUpMax;
+    const step = CONFIG.pageCatchUpStep;
+    let left = Math.min(Math.max(0, missedSec), cap);
+    while (left > 1e-4) {
+      const dt = Math.min(step, left);
+      this.#stepFrame(dt, false);
+      left -= dt;
+    }
+  }
+
+  #loop() {
+    if (this._pageHidden) {
+      this._loopScheduled = false;
+      this.clock.getDelta();
+      return;
+    }
+    this._loopScheduled = true;
+    const dt = Math.min(this.clock.getDelta(), 0.05);
+    this.#stepFrame(dt, true);
+    requestAnimationFrame(() => this.#loop());
+  }
+
+  #stepFrame(dt, render) {
     this.camRight.setFromMatrixColumn(this.camera.matrixWorld, 0).normalize();
     this.camUp.setFromMatrixColumn(this.camera.matrixWorld, 1).normalize();
     if (this.inputEnabled) {
@@ -968,11 +1021,12 @@ class Game {
     this.water.setViewAxis(viewAxis);
     this.audio.updateCastSpatial(viewAxis, (id) => this.wizards.get(String(id))?.dir);
 
+    if (!render) return;
+
     updateSunShadow(this.sun, this.planetGroup);
     this.sky.setSunDirection(this.sun);
 
     this.renderer.render(this.scene, this.camera);
-    requestAnimationFrame(() => this.#loop());
   }
 }
 

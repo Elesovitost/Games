@@ -73,6 +73,9 @@ export const CONFIG = {
   netPoseInterpDelay: 0.08,
   /** Interval snímku zvířat / vodního života od hosta (s) — ~12 Hz */
   netWorldInterval: 0.08,
+  /** Po návratu ze skryté záložky v MP — max. dohnaný čas (s) */
+  pageCatchUpMax: 2.5,
+  pageCatchUpStep: 0.05,
   /** Min. damage pro knockdown */
   wizardKnockMinDamage: 10,
   wizardKnockFallDur: 0.08,

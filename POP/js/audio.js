@@ -249,6 +249,32 @@ export class GameAudio {
     this._ambientOrder = [0, 1, 2];
     this._ambientPtr = 0;
     this._musicEnabled = loadMusicEnabled();
+    this._outputMuted = false;
+  }
+
+  #ambientOutVol() {
+    return this._outputMuted || !this._musicEnabled ? 0 : AMBIENT_VOL;
+  }
+
+  /** Ticho při skryté záložce — SFX i ambient, smyčky zůstanou zapojené. */
+  setOutputMuted(muted) {
+    this._outputMuted = !!muted;
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const fade = 0.03;
+    if (this.master) {
+      const cur = this.master.gain.value;
+      this.master.gain.cancelScheduledValues(t);
+      this.master.gain.setValueAtTime(cur, t);
+      this.master.gain.linearRampToValueAtTime(muted ? 0 : 1, t + fade);
+    }
+    if (this._ambientGain) {
+      const cur = this._ambientGain.gain.value;
+      this._ambientGain.gain.cancelScheduledValues(t);
+      this._ambientGain.gain.setValueAtTime(cur, t);
+      this._ambientGain.gain.linearRampToValueAtTime(this.#ambientOutVol(), t + fade);
+    }
   }
 
   #ensureCtx() {
@@ -257,7 +283,7 @@ export class GameAudio {
     if (!Ctx) return null;
     this.ctx = new Ctx();
     this.master = this.ctx.createGain();
-    this.master.gain.value = 1;
+    this.master.gain.value = this._outputMuted ? 0 : 1;
     this.master.connect(this.ctx.destination);
     return this.ctx;
   }
@@ -381,10 +407,13 @@ export class GameAudio {
       this._ambientGain = ctx.createGain();
       // Vlastní větev — nezávislá na SFX masteru (bez „duckingu“ při kouzlení).
       this._ambientGain.connect(ctx.destination);
+      this._ambientGain.gain.value = this.#ambientOutVol();
     }
-    const t = ctx.currentTime;
-    this._ambientGain.gain.cancelScheduledValues(t);
-    this._ambientGain.gain.setValueAtTime(AMBIENT_VOL, t);
+    if (!this._outputMuted) {
+      const t = ctx.currentTime;
+      this._ambientGain.gain.cancelScheduledValues(t);
+      this._ambientGain.gain.setValueAtTime(this.#ambientOutVol(), t);
+    }
     return this._ambientGain;
   }
 
