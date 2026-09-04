@@ -1118,10 +1118,11 @@ export class Wizard {
   }
 
   #isInWater() {
-    return this.#height(this.dir) < CONFIG.waterLevel + 0.04;
+    return this.terrain.wetness(this.dir) > 0.45;
   }
 
   #isHeadSubmerged() {
+    if (!this.#isInWater()) return false;
     const headH = this.#height(this.dir) + CONFIG.wizardHeightM - 0.12;
     return headH < CONFIG.waterLevel;
   }

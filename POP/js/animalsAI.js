@@ -35,15 +35,19 @@ export function aboveCore(terrain, dir, minR) {
   return terrain.height(dir) >= minR;
 }
 
-/** Souš — nad hladinou o `waterMargin` a nad jádrem planety o `minR`. */
+/** Souš — nad hladinou, nebo suchá jáma bez nateklého moře. */
 export function isLand(terrain, dir, waterMargin, minR) {
   const h = terrain.height(dir);
-  return h >= CONFIG.waterLevel + waterMargin && h >= minR;
+  if (h < minR) return false;
+  const wet = terrain.wetness(dir);
+  if (wet > 0.45) return false;
+  if (h < CONFIG.waterLevel + waterMargin) return wet < 0.2;
+  return true;
 }
 
-/** Voda — terén pod hladinou (s malou rezervou u břehu na pěnu/vlny). */
+/** Voda — nateklá z původního moře. */
 export function isWaterAt(terrain, dir, margin = 0.06) {
-  return terrain.height(dir) < CONFIG.waterLevel + margin;
+  return terrain.wetness(dir) > 0.45;
 }
 
 const _g1 = new THREE.Vector3();

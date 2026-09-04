@@ -6,6 +6,7 @@ import {
   tmp,
   surfaceOffsetDir,
   buildVertexFaceAdjacency,
+  buildVertexVertexAdjacency,
   recomputeNormalsPartial
 } from "./utils.js";
 import { createNoise } from "./noise.js";
@@ -13,6 +14,9 @@ import { createIcosphereGeometry } from "./icosphere.js";
 import { generateHeights } from "./maps.js";
 import { applyCapClip, createCapUniforms } from "./cap-material.js";
 import { applyGrassDetail } from "./grass-material.js";
+
+/** Pod touto výškou nad hladinou se voda může rozlít na sousední vrchol. */
+const WET_EPS = 0.03;
 
 export class Terrain {
   constructor(planetGroup) {
@@ -37,9 +41,13 @@ export class Terrain {
     this.#buildGrid();
     /** Sousednost pro dílčí přepočet normál — jen dotčená oblast morphu, ne celá planeta. */
     this.adjacency = buildVertexFaceAdjacency(this.geometry.index, this.geometry.attributes.position.count);
+    this.vertAdj = buildVertexVertexAdjacency(this.geometry.index, this.geometry.attributes.position.count);
     this._normalAccum = new Float32Array(this.geometry.attributes.position.count * 3);
     this._touchedFaces = new Set();
     this._touchedVerts = new Set();
+    this._wetQueue = new Uint32Array(this.geometry.attributes.position.count);
+    this._surf = { h: CONFIG.planetR, wet: 0 };
+    this.#recomputeWet();
   }
 
   /** Sada trojúhelníků/vrcholů dotčených danou sadou vrcholů (pro přepočet normál). */
@@ -70,10 +78,15 @@ export class Terrain {
   }
 
   isLand(localPoint) {
-    return localPoint.length() > CONFIG.waterLevel + 0.05;
+    if (localPoint.length() > CONFIG.waterLevel + 0.05) return true;
+    return this.wetness(localPoint) < 0.5;
   }
 
-  height(dir) {
+  /**
+   * Výška i propojenost s původním mořem v daném směru.
+   * `wet` 0 = sucho (i v jámě pod hladinou), 1 = voda nateklá z oceánu.
+   */
+  sampleSurface(dir, out = this._surf) {
     if (!this.buckets) this.#buildGrid();
     const p = this.geometry.attributes.position;
     const nlen = Math.hypot(dir.x, dir.y, dir.z) || 1;
@@ -89,6 +102,9 @@ export class Terrain {
     let l1 = CONFIG.planetR;
     let l2 = CONFIG.planetR;
     let l3 = CONFIG.planetR;
+    let i1 = 0;
+    let i2 = 0;
+    let i3 = 0;
     for (let dv = -1; dv <= 1; dv++) {
       const jv = iv + dv;
       if (jv < 0 || jv >= CONFIG.heightGrid) continue;
@@ -106,14 +122,14 @@ export class Terrain {
           const vl = Math.hypot(x, y, z) || 1;
           const dot = (x * dx + y * dy + z * dz) / vl;
           if (dot > d1) {
-            d3 = d2; l3 = l2;
-            d2 = d1; l2 = l1;
-            d1 = dot; l1 = vl;
+            d3 = d2; l3 = l2; i3 = i2;
+            d2 = d1; l2 = l1; i2 = i1;
+            d1 = dot; l1 = vl; i1 = vi;
           } else if (dot > d2) {
-            d3 = d2; l3 = l2;
-            d2 = dot; l2 = vl;
+            d3 = d2; l3 = l2; i3 = i2;
+            d2 = dot; l2 = vl; i2 = vi;
           } else if (dot > d3) {
-            d3 = dot; l3 = vl;
+            d3 = dot; l3 = vl; i3 = vi;
           }
         }
       }
@@ -121,15 +137,35 @@ export class Terrain {
     const w1 = 1 / Math.max(1e-5, 1 - d1);
     const w2 = 1 / Math.max(1e-5, 1 - d2);
     const w3 = 1 / Math.max(1e-5, 1 - d3);
-    return (w1 * l1 + w2 * l2 + w3 * l3) / (w1 + w2 + w3);
+    const wsum = w1 + w2 + w3;
+    out.h = (w1 * l1 + w2 * l2 + w3 * l3) / wsum;
+    const wet = this.wetMask;
+    out.wet = wet
+      ? (w1 * wet[i1] + w2 * wet[i2] + w3 * wet[i3]) / wsum
+      : out.h < CONFIG.waterLevel + WET_EPS ? 1 : 0;
+    return out;
   }
 
-  colorFromHeight(h, out, x, y, z) {
+  height(dir) {
+    return this.sampleSurface(dir, this._surf).h;
+  }
+
+  /** 0..1 — je místo spojené s původním mořem (a pod hladinou)? */
+  wetness(dir) {
+    return this.sampleSurface(dir, this._surf).wet;
+  }
+
+  colorFromHeight(h, out, x, y, z, wet = 1) {
     const elev = h - CONFIG.waterLevel;
     if (elev <= 0.02) {
-      out[0] = CONFIG.waterColor[0];
-      out[1] = CONFIG.waterColor[1];
-      out[2] = CONFIG.waterColor[2];
+      if (wet > 0.45) {
+        out[0] = CONFIG.waterColor[0];
+        out[1] = CONFIG.waterColor[1];
+        out[2] = CONFIG.waterColor[2];
+        return out;
+      }
+      const t = smoothFalloff(Math.min(1, Math.max(0, -elev) / 3.2));
+      lerp3(out, [0.46, 0.36, 0.24], [0.3, 0.24, 0.18], t);
       return out;
     }
     let beachN = 0;
@@ -194,6 +230,10 @@ export class Terrain {
     this.dirs = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const col = tmp.col;
+    this.oceanSeed = new Uint8Array(count);
+    this.wetMask = new Float32Array(count);
+    this._wetPrev = new Uint8Array(count);
+    this._wetDirty = false;
     for (let i = 0; i < count; i++) {
       const x = pos.getX(i);
       const y = pos.getY(i);
@@ -207,7 +247,9 @@ export class Terrain {
       this.dirs[i * 3 + 2] = dz;
       const h = heights[i];
       pos.setXYZ(i, dx * h, dy * h, dz * h);
-      this.colorFromHeight(h, col, dx, dy, dz);
+      const seeded = h < CONFIG.waterLevel + WET_EPS ? 1 : 0;
+      this.oceanSeed[i] = seeded;
+      this.colorFromHeight(h, col, dx, dy, dz, seeded);
       colors[i * 3] = col[0];
       colors[i * 3 + 1] = col[1];
       colors[i * 3 + 2] = col[2];
@@ -420,7 +462,7 @@ export class Terrain {
     const dx = this.dirs[i * 3];
     const dy = this.dirs[i * 3 + 1];
     const dz = this.dirs[i * 3 + 2];
-    this.colorFromHeight(h, col, dx, dy, dz);
+    this.colorFromHeight(h, col, dx, dy, dz, this.wetMask?.[i] ?? 0);
     const inv = 1 / (Math.hypot(dx, dy, dz) || 1);
     const beachN = this.noise.fbm(dx * inv * 11.2 + 17, dy * inv * 11.2, dz * inv * 11.2);
     const grain = this.noise.fbm(dx * inv * 34 + 41, dy * inv * 34, dz * inv * 34);
@@ -731,7 +773,7 @@ export class Terrain {
       if (dist > radiusM) continue;
 
       const h0 = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
-      if (h0 < CONFIG.waterLevel + 0.06) continue;
+      if ((this.wetMask?.[i] ?? 0) > 0.5) continue;
 
       const tx = dx - center.x * dot;
       const ty = dy - center.y * dot;
@@ -861,6 +903,7 @@ export class Terrain {
     colAttr.needsUpdate = true;
     /** Jen dotčená oblast — ne celá planeta (výrazně levnější na mobilu). */
     recomputeNormalsPartial(this.geometry, this._touchedFaces, this._touchedVerts, this._normalAccum);
+    this.#recomputeWet();
     this._morphDirty = true;
     return any || this.morphs.length > 0;
   }
@@ -869,6 +912,65 @@ export class Terrain {
     const d = this._morphDirty;
     this._morphDirty = false;
     return d;
+  }
+
+  consumeWetDirty() {
+    const d = this._wetDirty;
+    this._wetDirty = false;
+    return d;
+  }
+
+  /**
+   * Voda teče jen z původních moří (oceanSeed) po vrcholech pod hladinou.
+   * Vnitrozemská jáma bez spojení s oceánem zůstane suchá; kanál k pobřeží ji zatopí.
+   */
+  #recomputeWet() {
+    if (!this.vertAdj || !this.oceanSeed) return;
+    const pos = this.geometry.attributes.position;
+    const n = pos.count;
+    const wet = this.wetMask;
+    const prev = this._wetPrev;
+    const seed = this.oceanSeed;
+    const adj = this.vertAdj;
+    const q = this._wetQueue;
+    wet.fill(0);
+    let head = 0;
+    let tail = 0;
+    for (let i = 0; i < n; i++) {
+      if (!seed[i]) continue;
+      const h = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
+      if (h >= CONFIG.waterLevel + WET_EPS) continue;
+      wet[i] = 1;
+      q[tail++] = i;
+    }
+    while (head < tail) {
+      const v = q[head++];
+      for (let j = adj.start[v]; j < adj.start[v + 1]; j++) {
+        const u = adj.list[j];
+        if (wet[u]) continue;
+        const h = Math.hypot(pos.getX(u), pos.getY(u), pos.getZ(u));
+        if (h >= CONFIG.waterLevel + WET_EPS) continue;
+        wet[u] = 1;
+        q[tail++] = u;
+      }
+    }
+
+    const colAttr = this.geometry.attributes.color;
+    const col = tmp.col;
+    let flipped = false;
+    for (let i = 0; i < n; i++) {
+      const now = wet[i] > 0.5 ? 1 : 0;
+      if (now === prev[i]) continue;
+      prev[i] = now;
+      flipped = true;
+      const h = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
+      this.#writeColor(i, h, col);
+      colAttr.setXYZ(i, col[0], col[1], col[2]);
+    }
+    if (flipped) {
+      colAttr.needsUpdate = true;
+      this._wetDirty = true;
+    }
   }
 
   /** Obnoví terén do výchozího stavu (stejný seed, bez morphů a spálenin). */
@@ -886,6 +988,7 @@ export class Terrain {
     pos.needsUpdate = true;
     this.#sculpt();
     this.buckets = null;
+    this.#recomputeWet();
   }
 
   #smoothCoast(heights, idx, count) {

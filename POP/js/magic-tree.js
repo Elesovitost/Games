@@ -497,6 +497,6 @@ export class MagicTree {
 
 /** Sázej všude kromě vody — hráč mířil na konkrétní místo. */
 export function canPlantMagicTree(terrain, dir) {
-  const h = terrain.height(dir);
-  return h >= CONFIG.waterLevel - 0.02;
+  if (terrain.wetness(dir) > 0.45) return false;
+  return terrain.height(dir) >= CONFIG.minR;
 }

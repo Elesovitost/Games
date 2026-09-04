@@ -210,7 +210,9 @@ export class Water {
   }
 
   #shoreAt(i, pos, shore, mask, dir, east, north, sample) {
-    const elev = this.terrain.height(dir) - CONFIG.waterLevel;
+    const surf = this.terrain.sampleSurface(dir);
+    const elev = surf.h - CONFIG.waterLevel;
+    const wet = surf.wet;
     /**
      * Vodní síť je o stupeň hrubší než terén (waterSubdiv < icoSubdiv), takže
      * binární maska (0/1) na jednom vertexu dávala rovné hrany podél
@@ -219,16 +221,19 @@ export class Water {
      * hranice vody se stočí přes víc vertexů/trojúhelníků a opíše skutečný
      * tvar terénu místo hran sítě. Stojí to jen trochu jiná aritmetika,
      * žádná další geometrie ani vzorky navíc.
+     *
+     * `wet` = spojení s původním mořem. Suchá vnitrozemská jáma pod hladinou
+     * má wet=0, voda se tam neukáže, dokud se nepropojí s oceánem.
      */
     const FADE_END = 1.4;
-    if (elev > FADE_END) {
+    if (wet < 0.04 || elev > FADE_END) {
       mask[i] = 0;
       shore[i] = 0;
       return;
     }
     const t = Math.max(0, elev) / FADE_END;
     const s = t * t * (3 - 2 * t);
-    mask[i] = 1 - s;
+    mask[i] = (1 - s) * wet;
 
     if (elev <= 0.08) {
       tangentFrame(dir, east, north);

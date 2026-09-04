@@ -12,9 +12,9 @@ const _mat = new THREE.Matrix4();
 let _rippleMap = null;
 let _wakeMap = null;
 
-/** Terén pod hladinou (pod vodou nebo na dně). */
+/** Voda nateklá z původního moře (ne suchá jáma pod hladinou). */
 export function isWaterAt(sys, dir) {
-  return sys.terrain.height(dir) < CONFIG.waterLevel + 0.06;
+  return sys.terrain.wetness(dir) > 0.45;
 }
 
 function makeSoftRingMap(res = 128) {

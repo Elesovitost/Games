@@ -770,7 +770,8 @@ class Game {
       this.trees?.refreshNear(this.terrain.morphs);
       this.spells.refreshScorchMarks();
       if (!morphing || this._shoreRefreshAt <= 0) {
-        this.water.refreshShoreNear(this.terrain.morphs);
+        if (this.terrain.consumeWetDirty()) this.water.refreshShore();
+        else this.water.refreshShoreNear(this.terrain.morphs);
         this._shoreRefreshAt = morphing ? 0.45 : 0;
       }
     }

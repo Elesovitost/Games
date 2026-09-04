@@ -122,7 +122,7 @@ function collectWallSamples(terrain, center, east, north, morph) {
       }
       surfaceOffsetDir(center, east, north, Math.atan2(y, x), dist, dir);
       const restH = terrain.height(dir);
-      if (restH < CONFIG.waterLevel + 0.06) {
+      if (terrain.wetness(dir) > 0.45) {
         flush();
         continue;
       }

@@ -33,7 +33,7 @@ const DUST_COLORS = [0x8a7a62, 0x9a8870, 0x756656, 0xa09078, 0x6a5c4e, 0xb0a090]
 
 function surfaceAt(terrain, dir) {
   const th = terrain.height(dir);
-  return th < CONFIG.waterLevel + 0.06 ? CONFIG.waterLevel : th;
+  return terrain.wetness(dir) > 0.45 ? CONFIG.waterLevel : th;
 }
 
 /** Skutečný terén — kouzelník padá sem i pod vodou. */

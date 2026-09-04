@@ -66,6 +66,35 @@ export function buildVertexFaceAdjacency(indexAttr, vertexCount) {
   return { start, list };
 }
 
+/** CSR sousednost vrchol → vrcholy (pro rozliv vody po síti). */
+export function buildVertexVertexAdjacency(indexAttr, vertexCount) {
+  const faceCount = indexAttr.count / 3;
+  const buckets = new Array(vertexCount);
+  for (let i = 0; i < vertexCount; i++) buckets[i] = [];
+  const link = (a, b) => {
+    const list = buckets[a];
+    for (let k = 0; k < list.length; k++) if (list[k] === b) return;
+    list.push(b);
+  };
+  for (let f = 0; f < faceCount; f++) {
+    const a = indexAttr.getX(f * 3);
+    const b = indexAttr.getX(f * 3 + 1);
+    const c = indexAttr.getX(f * 3 + 2);
+    link(a, b); link(b, a);
+    link(b, c); link(c, b);
+    link(c, a); link(a, c);
+  }
+  const start = new Uint32Array(vertexCount + 1);
+  for (let i = 0; i < vertexCount; i++) start[i + 1] = start[i] + buckets[i].length;
+  const list = new Uint32Array(start[vertexCount]);
+  for (let i = 0; i < vertexCount; i++) {
+    const arr = buckets[i];
+    const o = start[i];
+    for (let k = 0; k < arr.length; k++) list[o + k] = arr[k];
+  }
+  return { start, list };
+}
+
 /**
  * Přepočet normál jen pro danou sadu trojúhelníků/vrcholů — stejný vzorec
  * jako BufferGeometry.computeVertexNormals, ale bez průchodu celou geometrií.

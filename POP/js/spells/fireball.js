@@ -338,7 +338,7 @@ export function updateFireball(sys, p, dt) {
   if (len > 1e-5) {
     sys._tmp.copy(pos).multiplyScalar(1 / len);
     const terrainH = sys.terrain.height(sys._tmp);
-    const onWater = terrainH < CONFIG.waterLevel + 0.06;
+    const onWater = sys.terrain.wetness(sys._tmp) > 0.45;
     const surface = onWater ? CONFIG.waterLevel : terrainH;
     if (len - p.radius <= surface + 0.05) hit = true;
 
@@ -398,7 +398,8 @@ export function updateFireball(sys, p, dt) {
     const dir = len > 1e-5 ? sys._tmp.clone() : p.target.clone();
     if (len > 1e-5) sys._tmp.copy(pos).multiplyScalar(1 / len);
     const terrainH = len > 1e-5 ? sys.terrain.height(sys._tmp) : CONFIG.waterLevel;
-    const surface = terrainH < CONFIG.waterLevel + 0.06 ? CONFIG.waterLevel : terrainH;
+    const onWater = len > 1e-5 && sys.terrain.wetness(sys._tmp) > 0.45;
+    const surface = onWater ? CONFIG.waterLevel : terrainH;
     const hitPos =
       len > 1e-5
         ? pos.clone().addScaledVector(sys._tmp, -(len - surface + 0.02))

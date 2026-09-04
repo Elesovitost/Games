@@ -18,6 +18,7 @@ const WHALE_SITE_SIZE = 1.15;
 const WHALE_TURN_K = 1.1;
 
 function depthAt(terrain, dir) {
+  if (terrain.wetness(dir) < 0.45) return 0;
   return CONFIG.waterLevel - terrain.height(dir);
 }
 
@@ -114,7 +115,7 @@ export function findWaterBodies(terrain) {
   for (let i = 0; i < n; i++) {
     const d = W - Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
     depths[i] = d;
-    wet[i] = d > 0.12 ? 1 : 0;
+    wet[i] = d > 0.12 && (terrain.wetMask?.[i] ?? 1) > 0.5 ? 1 : 0;
   }
   const nbr = buildNeighbors(idx, n);
   const seen = new Uint8Array(n);
