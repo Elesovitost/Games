@@ -8,7 +8,6 @@ import { BURN_DURATION, CHAR_COLOR, attachFireQueued, setBurnGlow, tintMeshBlack
 import { longneckBodyRadius } from "./blockers.js";
 import {
   mulberry32,
-  randomSphereDir,
   aboveCore,
   isLand,
   isWaterAt,
@@ -16,10 +15,12 @@ import {
   stepToward as stepTowardAI,
   turnFacingToward,
   pickWanderTarget,
-  bearingOf
+  bearingOf,
+  scatterOnLand,
+  treeSwayZ
 } from "./animalsAI.js";
 
-const COUNT = 6;
+const COUNT = 12;
 const WALK_SPEED = 1.15;
 const DODGE_DIST = 5;
 const KILL_DAMAGE = 30;
@@ -205,6 +206,8 @@ class Longneck {
     this.wakeT = rng() * 0.3;
     this.dieT = 0;
     this.charm = null;
+    this.treeSlot = null;
+    this.treeFocus = null;
     this.burning = false;
     this.charred = false;
     this.burnT = 0;
@@ -219,7 +222,7 @@ class Longneck {
 
   beginCharm(wizard, hold) {
     if (this.dead || this.gone || !wizard) return;
-    this.charm = { wizard, t: 0, hold: hold ?? 16 };
+    this.charm = { wizard, t: 0, hold: hold ?? 20 };
     this.state = "charm";
     this.dodgeT = 0;
     this.dodgeCrouchT = 0;
@@ -255,8 +258,23 @@ class Longneck {
     pickWanderTarget(this.dir, this._east, this._north, this.rng, 4, 14, (d) => canStand(this.terrain, d, this.herd.blockers, this), this.targetDir, 0.7);
   }
 
-  #stepToward(target, distM) {
-    const { arrived, blocked } = stepTowardAI(this.dir, target, distM, (d) => canStand(this.terrain, d, this.herd.blockers, this), this._step);
+  #stepToward(target, distM, ignoreAnimals = false) {
+    const { arrived, blocked } = stepTowardAI(
+      this.dir,
+      target,
+      distM,
+      (d) => {
+        if (!aboveCore(this.terrain, d, MIN_R)) return false;
+        return (
+          this.herd.blockers?.clear(d, this.blockR, {
+            ignore: this,
+            animals: !ignoreAnimals,
+            trees: !ignoreAnimals
+          }) ?? true
+        );
+      },
+      this._step
+    );
     if (!blocked) turnFacingToward(this.facing, this.dir, target, this._move, 0.22);
     return arrived;
   }
@@ -302,6 +320,8 @@ class Longneck {
     this.dead = true;
     this.state = "dead";
     this.charm = null;
+    this.treeSlot = null;
+    this.treeFocus = null;
     this.dodgeT = 0;
     this.dodgeCrouchT = 0;
     this.dodgeHop = 0;
@@ -362,7 +382,7 @@ class Longneck {
   }
 
   dodgeFrom(hazardDir) {
-    if (this.dead || this.gone || this.charm || this.dodgeT > 0 || this.dodgeCrouchT > 0 || this.dodgeCool > 0) return false;
+    if (this.dead || this.gone || this.charm || this.treeSlot || this.dodgeT > 0 || this.dodgeCrouchT > 0 || this.dodgeCool > 0) return false;
     tangentFrame(this.dir, this._east, this._north);
     this._move.copy(hazardDir).addScaledVector(this.dir, -hazardDir.dot(this.dir));
     if (this._move.lengthSq() < 1e-8) tangentFrame(this.dir, this._east, this._move);
@@ -413,7 +433,18 @@ class Longneck {
       return;
     }
 
-    if (this.state === "dodgeCrouch") {
+    if (this.treeSlot && (this.state === "dodge" || this.state === "dodgeCrouch")) {
+      this.dodgeT = 0;
+      this.dodgeCrouchT = 0;
+      this.dodgeHop = 0;
+      this.parts.body.rotation.x = 0;
+      for (const leg of this.parts.hips) {
+        leg.hip.rotation.x = 0;
+        leg.shin.rotation.x = 0;
+      }
+    }
+
+    if (!this.treeSlot && this.state === "dodgeCrouch") {
       /** Krátký podřep — pokrčí nohy — než se odrazí do oblouku. */
       this.dodgeCrouchT -= dt;
       const u = THREE.MathUtils.clamp(1 - this.dodgeCrouchT / DODGE_CROUCH, 0, 1);
@@ -429,7 +460,7 @@ class Longneck {
       return;
     }
 
-    if (this.state === "dodge" && this.dodgeT > 0) {
+    if (!this.treeSlot && this.state === "dodge" && this.dodgeT > 0) {
       this.dodgeT -= dt;
       const u = 1 - Math.max(0, this.dodgeT) / DODGE_DUR;
       const ease = u * u * (3 - 2 * u);
@@ -476,12 +507,41 @@ class Longneck {
       }
     }
 
+    if (this.treeSlot) {
+      this.state = "treeTrance";
+    } else if (this.state === "treeTrance") {
+      this.parts.body.rotation.z = 0;
+      if (this.charm?.wizard && !this.charm.wizard.dead) {
+        this.state = "charm";
+      } else {
+        this.state = "wander";
+        this.stateT = 1.2 + this.rng() * 2;
+        this.#pickWander();
+      }
+    }
+
     this.dodgeHop = 0;
     this.stateT -= dt;
     let speed = 0;
     this.neckTarget = 0.1;
 
-    if (this.state === "charm" && this.charm?.wizard) {
+    if (this.state === "treeTrance" && this.treeSlot) {
+      this.neckTarget = -0.52;
+      const ring = this.treeRingR ?? 5.4;
+      const dTree = this.treeFocus ? surfaceDist(this.dir, this.treeFocus) : 99;
+      const onRing = Math.abs(dTree - ring) < 1.15;
+      const dSlot = surfaceDist(this.dir, this.treeSlot);
+      if (!onRing && dSlot > 1.1) {
+        speed = WALK_SPEED * 1.2;
+        this.targetDir.copy(this.treeSlot);
+      } else {
+        speed = 0;
+        if (this.treeFocus) {
+          this._move.copy(this.treeFocus).addScaledVector(this.dir, -this.treeFocus.dot(this.dir));
+          if (this._move.lengthSq() > 1e-8) this.facing.copy(this._move.normalize());
+        }
+      }
+    } else if (this.state === "charm" && this.charm?.wizard) {
       const w = this.charm.wizard;
       const d = surfaceDist(this.dir, w.dir);
       this.neckTarget = 0.2;
@@ -561,8 +621,10 @@ class Longneck {
     }
 
     if (speed > 0) {
-      const arrived = this.#stepToward(this.targetDir, speed * dt);
-      this.walkPhase += dt * speed * 2.1;
+      const trance = this.state === "treeTrance";
+      const arrived = this.#stepToward(this.targetDir, speed * dt, trance);
+      if (trance && arrived) speed = 0;
+      else this.walkPhase += dt * speed * 2.1;
       if (arrived && this.state === "wander") {
         this.state = "graze";
         this.stateT = 1.6 + this.rng() * 2;
@@ -593,6 +655,11 @@ class Longneck {
       this.parts.head.rotation.y *= 0.88;
     }
     this.#poseNeck(dt);
+    if (this.state === "treeTrance" && speed < 0.05) {
+      this.parts.body.rotation.z = treeSwayZ();
+    } else if (this.state !== "dodge" && this.state !== "dodgeCrouch") {
+      this.parts.body.rotation.z *= 0.8;
+    }
     this.#applyPose();
   }
 
@@ -657,18 +724,13 @@ export class LongneckHerd {
 
   spawn() {
     this.clear();
-    const rng = mulberry32(this.seed);
-    const east = new THREE.Vector3();
-    const north = new THREE.Vector3();
-    let guard = 0;
-    while (this.list.length < COUNT && guard++ < 1400) {
-      const dir = randomSphereDir(rng);
-      tangentFrame(dir, east, north);
-      if (!isLandSpawn(this.terrain, dir, east, north)) continue;
+    const dirs = scatterOnLand(COUNT, (dir, e, n) => {
+      if (!isLandSpawn(this.terrain, dir, e, n)) return false;
       const blockR = longneckBodyRadius({ size: 1.25 });
-      if (this.blockers && !this.blockers.clear(dir, blockR)) continue;
-      const id = this.list.length;
-      this.list.push(new Longneck(this, id, dir, mulberry32(this.seed + (id + 1) * 4409)));
+      return this.blockers ? this.blockers.clear(dir, blockR) : true;
+    }, 8);
+    for (let i = 0; i < dirs.length; i++) {
+      this.list.push(new Longneck(this, i, dirs[i], mulberry32(this.seed + (i + 1) * 4409)));
     }
   }
 

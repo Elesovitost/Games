@@ -165,9 +165,9 @@ export const SPELLS = {
     range: 14,
     castTime: 2,
     radius: 8,
-    holdTime: 16,
+    holdTime: 20,
     color: 0xd080ff,
-    hint: "Klikni v dosahu — hypnóza. Zvířata v 8 m jdou za tebou."
+    hint: "Klikni v dosahu — hypnóza. Zvířata v 8 m jdou za tebou (max 20 s)."
   },
   invisibility: {
     id: "invisibility",

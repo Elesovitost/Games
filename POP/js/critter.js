@@ -7,7 +7,6 @@ import { BURN_DURATION, CHAR_COLOR, attachFireQueued, tintMeshBlack, setBurnGlow
 import { critterBodyRadius } from "./blockers.js";
 import {
   mulberry32,
-  randomSphereDir,
   aboveCore,
   isLand as isLandAI,
   isWaterAt,
@@ -15,10 +14,12 @@ import {
   stepToward as stepTowardAI,
   turnFacingToward,
   pickWanderTarget,
-  bearingOf
+  bearingOf,
+  scatterOnLand,
+  treeSwayZ
 } from "./animalsAI.js";
 
-const COUNT = 16;
+const COUNT = 32;
 const WALK_SPEED = 0.7;
 const FLEE_SPEED = 4.2;
 const FLEE_START = 6.5;
@@ -234,6 +235,8 @@ class Critter {
     this.wakeT = rng() * 0.25;
     this.rng = rng;
     this.charm = null;
+    this.treeSlot = null;
+    this.treeFocus = null;
     this.#pickWander();
     this.#snap();
     this.#applyPose();
@@ -241,7 +244,7 @@ class Critter {
 
   beginCharm(wizard, hold) {
     if (this.dead || !wizard) return;
-    this.charm = { wizard, t: 0, hold: hold ?? 16 };
+    this.charm = { wizard, t: 0, hold: hold ?? 20 };
     this.state = "charm";
     this.stateT = hold ?? 16;
   }
@@ -299,11 +302,15 @@ class Critter {
     this.#pickWander();
   }
 
-  #stepToward(target, distM, allowWater = false) {
+  #stepToward(target, distM, allowWater = false, ignoreAnimals = false) {
     const walkable = (d) => {
       if (!allowWater && !isLand(this.terrain, d)) return false;
       if (allowWater && !aboveCore(this.terrain, d, MIN_R)) return false;
-      return this.herd.blockers?.clear(d, this.blockR, { ignore: this }) ?? true;
+      return this.herd.blockers?.clear(d, this.blockR, {
+        ignore: this,
+        animals: !ignoreAnimals,
+        trees: !ignoreAnimals
+      }) ?? true;
     };
     const { arrived } = stepTowardAI(this.dir, target, distM, walkable, this._step);
     this.#snap();
@@ -331,6 +338,8 @@ class Critter {
     this.dead = true;
     this.state = "dead";
     this.charm = null;
+    this.treeSlot = null;
+    this.treeFocus = null;
     this.dieT = 0;
     const atDir = opts.atDir;
     const fromDir = opts.fromDir;
@@ -550,8 +559,22 @@ class Critter {
       }
     }
 
+    if (this.treeSlot) {
+      this.state = "treeTrance";
+    } else if (this.state === "treeTrance") {
+      this.parts.body.rotation.z = 0;
+      if (this.charm?.wizard && !this.charm.wizard.dead) {
+        this.state = "charm";
+      } else {
+        this.state = "wander";
+        this.stateT = 1.2 + this.rng() * 2;
+        this.#pickWander();
+      }
+    }
+
     const near = this.#nearestWizard(wizards);
     if (
+      !this.treeSlot &&
       !this.charm &&
       near.w &&
       near.dist < FLEE_START &&
@@ -566,7 +589,23 @@ class Critter {
     let speed = 0;
     this.neckTarget = 0.18;
 
-    if (this.state === "charm" && this.charm?.wizard) {
+    if (this.state === "treeTrance" && this.treeSlot) {
+      this.neckTarget = -0.58;
+      const ring = this.treeRingR ?? 5.4;
+      const dTree = this.treeFocus ? surfaceDist(this.dir, this.treeFocus) : 99;
+      const onRing = Math.abs(dTree - ring) < 1.0;
+      const dSlot = surfaceDist(this.dir, this.treeSlot);
+      if (!onRing && dSlot > 0.9) {
+        speed = WALK_SPEED * 1.25;
+        this.targetDir.copy(this.treeSlot);
+      } else {
+        speed = 0;
+        if (this.treeFocus) {
+          this._look.copy(this.treeFocus).addScaledVector(this.dir, -this.treeFocus.dot(this.dir));
+          if (this._look.lengthSq() > 1e-8) this.facing.copy(this._look.normalize());
+        }
+      }
+    } else if (this.state === "charm" && this.charm?.wizard) {
       const w = this.charm.wizard;
       const d = surfaceDist(this.dir, w.dir);
       this.neckTarget = 0.05;
@@ -643,10 +682,15 @@ class Critter {
     if (this.state !== "look") this.parts.head.rotation.y *= 0.85;
 
     if (speed > 0) {
-      const allowWater = this.state === "flee" || this.state === "swim";
-      const arrived = this.#stepToward(this.targetDir, speed * dt, allowWater);
-      turnFacingToward(this.facing, this.dir, this.targetDir, this._move, 1 - Math.exp(-dt * 6));
-      this.walkPhase += dt * speed * 2.4;
+      const trance = this.state === "treeTrance";
+      const allowWater = this.state === "flee" || this.state === "swim" || trance;
+      const arrived = this.#stepToward(this.targetDir, speed * dt, allowWater, trance);
+      if (trance && arrived) {
+        speed = 0;
+      } else {
+        turnFacingToward(this.facing, this.dir, this.targetDir, this._move, 1 - Math.exp(-dt * 6));
+        this.walkPhase += dt * speed * 2.4;
+      }
       if (arrived && this.state === "wander") {
         this.state = "graze";
         this.stateT = 1.8 + this.rng() * 3;
@@ -689,6 +733,12 @@ class Critter {
         + (this.state === "look" ? -0.35 : 0);
     }
     this.parts.tail.rotation.y = Math.sin(this.phase * 1.6) * 0.35;
+
+    if (this.state === "treeTrance" && speed < 0.05) {
+      this.parts.body.rotation.z = treeSwayZ();
+    } else {
+      this.parts.body.rotation.z *= 0.8;
+    }
 
     this.#snap();
     this.#applyPose();
@@ -743,19 +793,14 @@ export class CritterHerd {
 
   spawn() {
     this.clear();
-    const rng = mulberry32(this.seed);
-    const east = new THREE.Vector3();
-    const north = new THREE.Vector3();
-    let guard = 0;
-    while (this.list.length < COUNT && guard++ < 1600) {
-      const dir = randomSphereDir(rng);
-      tangentFrame(dir, east, north);
-      if (!isWalkable(this.terrain, dir, east, north)) continue;
+    const dirs = scatterOnLand(COUNT, (dir, e, n) => {
+      if (!isWalkable(this.terrain, dir, e, n)) return false;
       const blockR = critterBodyRadius({ size: 1.25 });
-      if (this.blockers && !this.blockers.clear(dir, blockR)) continue;
-      const id = this.list.length;
-      const crng = mulberry32(this.seed + (id + 1) * 9973);
-      this.list.push(new Critter(this, id, dir, crng));
+      return this.blockers ? this.blockers.clear(dir, blockR) : true;
+    }, 5.5);
+    for (let i = 0; i < dirs.length; i++) {
+      const crng = mulberry32(this.seed + (i + 1) * 9973);
+      this.list.push(new Critter(this, i, dirs[i], crng));
     }
   }
 

@@ -16,6 +16,7 @@ import { burstImmortalShell } from "./spells/immortality.js";
 import { pumpFireQueue } from "./burn.js";
 import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./visibility.js";
 import { tmp } from "./utils.js";
+import { assignTreeTrance } from "./animalsAI.js";
 import { MultiplayerSession } from "./net/session.js";
 import { LobbyUI } from "./net/lobby.js";
 import { createIntentRouter, createGameIntentHandlers } from "./net/intents.js";
@@ -782,6 +783,7 @@ class Game {
       }
     }
     this.#updatePendingCast();
+    assignTreeTrance(this.critters?.list, this.longnecks?.list, this.trees, dt);
     this.critters?.update(dt, [...this.wizards.values()]);
     this.longnecks?.update(dt);
     this.waterLife?.update(dt);
