@@ -24,6 +24,7 @@ import {
   claimHit
 } from "./animalsAI.js";
 import { applyEntityNet } from "./net/world-sync.js";
+import { spawnSoul, updateSoul, disposeSoul, SOUL_DELAY } from "./soul.js";
 
 const COUNT = 32;
 const MAX_HP = 10;
@@ -234,6 +235,8 @@ class Critter {
     this.neckTarget = 0.2;
     this.dieT = 0;
     this.dead = false;
+    this._soul = null;
+    this.soulDelay = null;
     this.slideLeft = 0;
     this.slideSpeed = 0;
     this.knockFrom = null;
@@ -361,6 +364,7 @@ class Critter {
     this.treeSlot = null;
     this.treeFocus = null;
     this.dieT = 0;
+    this.soulDelay = SOUL_DELAY;
     const atDir = opts.atDir;
     const fromDir = opts.fromDir;
     if (atDir) {
@@ -388,6 +392,17 @@ class Critter {
     }
     if (!opts.fromNet) this.herd.onDied?.(this);
     return true;
+  }
+
+  #tickSoul(dt) {
+    const g = this.herd.planetGroup;
+    this._soul = updateSoul(this._soul, g, this.dir, dt);
+    if (!this.dead || this._soul || this.soulDelay == null) return;
+    this.soulDelay -= dt;
+    if (this.soulDelay > 0) return;
+    this.soulDelay = null;
+    this.#applyPose();
+    this._soul = spawnSoul(g, this.mesh);
   }
 
   ignite() {
@@ -626,6 +641,7 @@ class Critter {
   }
 
   update(dt, wizards) {
+    this.#tickSoul(dt);
     if (this.remote) {
       this.#updateRemote(dt);
       return;
@@ -881,6 +897,7 @@ class Critter {
     }
     for (const m of this._burnMats) m.dispose();
     this._burnMats.length = 0;
+    this._soul = disposeSoul(this._soul, this.herd.planetGroup);
     this.herd.planetGroup.remove(this.mesh);
   }
 }

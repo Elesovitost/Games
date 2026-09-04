@@ -13,6 +13,7 @@ import {
 } from "./spells/immortality.js";
 import { WIZARD_BODY_R } from "./blockers.js";
 import { surfaceDist } from "./spells/fx-common.js";
+import { spawnSoul, updateSoul, disposeSoul, SOUL_DELAY } from "./soul.js";
 
 const ROBE = 0x1a2848;
 const GOLD = 0xd4a837;
@@ -378,9 +379,8 @@ export class Wizard {
     this.maxHp = CONFIG.wizardMaxHp;
     this.hp = this.maxHp;
     this.dead = false;
-    this.ghost = null;
-    this.ghostT = 0;
-    this._ghostMats = [];
+    this._soul = null;
+    this.soulDelay = null;
     this._netBuf = [];
     this.godMode = false;
     this._godGlow = [];
@@ -469,10 +469,7 @@ export class Wizard {
       this.footprints.rightFoot.geometry.dispose();
       this.footprints.mat.dispose();
     }
-    if (this.ghost) {
-      this.planetGroup.remove(this.ghost);
-      for (const m of this._ghostMats) m.dispose();
-    }
+    this._soul = disposeSoul(this._soul, this.planetGroup);
     if (this._godLight) {
       this.mesh.remove(this._godLight);
       this._godLight.dispose();
@@ -605,12 +602,8 @@ export class Wizard {
     if (this.godMode && this.dead) {
       this.dead = false;
       this.hp = this.maxHp;
-      if (this.ghost) {
-        this.planetGroup.remove(this.ghost);
-        for (const m of this._ghostMats) m.dispose();
-        this._ghostMats.length = 0;
-        this.ghost = null;
-      }
+      this.soulDelay = null;
+      this._soul = disposeSoul(this._soul, this.planetGroup);
       this.#syncHealthUi();
     }
     this.#applyGodGlow(this.godMode);
@@ -1076,35 +1069,7 @@ export class Wizard {
     const parts = this.mesh.userData.parts;
     if (parts?.castFx) parts.castFx.visible = false;
 
-    this.#spawnGhost();
-  }
-
-  #spawnGhost() {
-    this.#applyPose();
-    const ghost = this.mesh.clone(true);
-    ghost.traverse((ch) => {
-      if (!ch.isMesh || !ch.material) return;
-      const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
-      const next = mats.map((m) => {
-        const gm = new THREE.MeshBasicMaterial({
-          color: m.color ? m.color.clone() : new THREE.Color(0xc8e8ff),
-          transparent: true,
-          opacity: 0.45,
-          depthWrite: false
-        });
-        this._ghostMats.push(gm);
-        return gm;
-      });
-      ch.material = next.length === 1 ? next[0] : next;
-      ch.castShadow = false;
-      ch.receiveShadow = false;
-    });
-    ghost.position.copy(this.mesh.position);
-    ghost.quaternion.copy(this.mesh.quaternion);
-    ghost.scale.copy(this.mesh.scale);
-    this.planetGroup.add(ghost);
-    this.ghost = ghost;
-    this.ghostT = 0;
+    this.soulDelay = SOUL_DELAY;
   }
 
   #height(dir) {
@@ -1738,18 +1703,13 @@ export class Wizard {
   }
 
   #updateGhost(dt) {
-    if (!this.ghost) return;
-    this.ghostT += dt;
-    const rise = 2.8 * dt;
-    this.ghost.position.addScaledVector(this.dir, rise);
-    const fade = Math.max(0, 1 - this.ghostT / 3.2);
-    for (const m of this._ghostMats) m.opacity = 0.45 * fade;
-    if (this.ghostT >= 3.2) {
-      this.planetGroup.remove(this.ghost);
-      for (const m of this._ghostMats) m.dispose();
-      this._ghostMats.length = 0;
-      this.ghost = null;
-    }
+    this._soul = updateSoul(this._soul, this.planetGroup, this.dir, dt);
+    if (this._soul || this.soulDelay == null) return;
+    this.soulDelay -= dt;
+    if (this.soulDelay > 0) return;
+    this.soulDelay = null;
+    this.#applyPose();
+    this._soul = spawnSoul(this.planetGroup, this.mesh);
   }
 
   /** Plynulý rozjezd / dojezd chůze (0 = stojí, 1 = plná chůze). */

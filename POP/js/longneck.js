@@ -24,6 +24,7 @@ import {
   claimHit
 } from "./animalsAI.js";
 import { applyEntityNet } from "./net/world-sync.js";
+import { spawnSoul, updateSoul, disposeSoul, SOUL_DELAY } from "./soul.js";
 
 const COUNT = 12;
 const WALK_SPEED = 1.15;
@@ -211,6 +212,8 @@ class Longneck {
     this.gone = false;
     this.remote = false;
     this.netMoving = false;
+    this._soul = null;
+    this.soulDelay = null;
     this.wakeT = rng() * 0.3;
     this.dieT = 0;
     this.charm = null;
@@ -343,6 +346,7 @@ class Longneck {
     this.parts.body.rotation.x = 0;
     this.parts.body.rotation.y = 0;
     this.dieT = 0;
+    this.soulDelay = SOUL_DELAY;
     if (opts.atDir) {
       this.dir.copy(opts.atDir).normalize();
       this.#snap();
@@ -354,6 +358,17 @@ class Longneck {
     if (opts.ignite) this.ignite();
     if (!opts.fromNet) this.herd.onDied?.(this);
     return true;
+  }
+
+  #tickSoul(dt) {
+    const g = this.herd.planetGroup;
+    this._soul = updateSoul(this._soul, g, this.dir, dt);
+    if (!this.dead || this._soul || this.soulDelay == null) return;
+    this.soulDelay -= dt;
+    if (this.soulDelay > 0) return;
+    this.soulDelay = null;
+    this.#applyPose();
+    this._soul = spawnSoul(g, this.mesh);
   }
 
   ignite() {
@@ -496,6 +511,7 @@ class Longneck {
   }
 
   update(dt) {
+    this.#tickSoul(dt);
     if (this.gone) return;
     if (this.remote) {
       this.#updateRemote(dt);
@@ -787,6 +803,7 @@ class Longneck {
     }
     for (const m of this._burnMats) m.dispose();
     this._burnMats.length = 0;
+    this._soul = disposeSoul(this._soul, this.herd.planetGroup);
     this.herd.planetGroup.remove(this.mesh);
   }
 }

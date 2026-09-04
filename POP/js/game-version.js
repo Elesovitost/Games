@@ -6,6 +6,7 @@ const SOURCES = [
   "./main.js",
   "./game-version.js",
   "./wizard.js",
+  "./soul.js",
   "./terrain.js",
   "./water.js",
   "./water-life.js",
