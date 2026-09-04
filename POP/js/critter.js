@@ -214,6 +214,7 @@ class Critter {
     this._knockAxis = new THREE.Vector3();
     this.lieLift = this.mesh.userData.lieLift ?? 0.28;
     this.tornado = null;
+    this.netRadius = 0;
     this.demonHold = false;
     this.diesOnTornadoLand = true;
     this.remote = false;
@@ -392,6 +393,8 @@ class Critter {
       }
     }
     if (!opts.fromNet) this.herd.onDied?.(this);
+    const listener = this.herd.fx?.getListenerDir?.();
+    if (listener) this.herd.fx.audio?.playAt("critterDeath", this.dir, listener);
     return true;
   }
 
@@ -637,7 +640,15 @@ class Critter {
     } else {
       this.parts.head.rotation.y *= 0.85;
     }
-    if (this.netTornado) this.parts.body.rotation.y += dt * 14;
+    if (this.tornado || this.netTornado) {
+      this.#applyTornadoPose();
+      const r = this.netRadius;
+      if (r > 1) this.mesh.position.copy(this.dir).multiplyScalar(r);
+      else this.#snap();
+      this.#applyPose();
+      this.#updateBurn(dt);
+      return;
+    }
     this.#presentRemote(dt, speed);
   }
 

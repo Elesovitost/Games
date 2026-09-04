@@ -79,6 +79,20 @@ export const SFX = {
     maxDist: CONFIG.sfxMaxDist,
     gain: 1.1
   },
+  critterDeath: {
+    url: "./audio/critter-death.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1.05
+  },
+  longneckDeath: {
+    url: "./audio/longneck-death.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1.1
+  },
   scream1: {
     url: "./audio/scream1.mp3",
     refDist: CONFIG.sfxRefDist,

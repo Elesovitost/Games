@@ -70,7 +70,8 @@ const FX_HANDLERS = {
         spinY: td.spinY,
         sideZ: td.sideZ ?? 0,
         bodyRoll: td.bodyRoll || 0,
-        preAmp: td.preAmp || 0
+        preAmp: td.preAmp || 0,
+        radius: w.mesh.position.length()
       };
     },
     lerp(a, b, alpha) {
@@ -80,7 +81,8 @@ const FX_HANDLERS = {
         spinY: a.spinY + (b.spinY - a.spinY) * alpha,
         sideZ: a.sideZ + (b.sideZ - a.sideZ) * alpha,
         bodyRoll: a.bodyRoll + (b.bodyRoll - a.bodyRoll) * alpha,
-        preAmp: a.preAmp + (b.preAmp - a.preAmp) * alpha
+        preAmp: a.preAmp + (b.preAmp - a.preAmp) * alpha,
+        radius: (a.radius ?? 0) + ((b.radius ?? 0) - (a.radius ?? 0)) * alpha
       };
     },
     apply(w, fx, _alpha) {
@@ -95,7 +97,8 @@ const FX_HANDLERS = {
           bodyRoll: fx.bodyRoll,
           orbitAng: 0,
           height: 0,
-          wallU: 0
+          wallU: 0,
+          netRadius: fx.radius || 0
         };
       } else {
         w.tornado.phase = fx.phase;
@@ -103,6 +106,7 @@ const FX_HANDLERS = {
         w.tornado.sideZ = fx.sideZ;
         w.tornado.preAmp = fx.preAmp;
         w.tornado.bodyRoll = fx.bodyRoll;
+        w.tornado.netRadius = fx.radius || 0;
       }
     },
     clear(w) {

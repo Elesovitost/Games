@@ -358,6 +358,8 @@ class Longneck {
     }
     if (opts.ignite) this.ignite();
     if (!opts.fromNet) this.herd.onDied?.(this);
+    const listener = this.herd.fx?.getListenerDir?.();
+    if (listener) this.herd.fx.audio?.playAt("longneckDeath", this.dir, listener);
     return true;
   }
 

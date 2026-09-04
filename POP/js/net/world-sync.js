@@ -33,6 +33,7 @@ const LAND_STATES = [
 ];
 
 const PEEK_STAGES = [null, "rise", "hold", "dive"];
+const TORNADO_PHASES = ["climb", "air", "lie", "rise"];
 const WATER_MODES = ["cruise", "rise", "look", "dive"];
 
 const STATE_ID = Object.create(null);
@@ -92,6 +93,16 @@ function packLand(c) {
     const ps = PEEK_STAGES.indexOf(c.peekStage);
     row.ps = ps < 0 ? 0 : ps;
     row.pt = round4(c.peekT || 0);
+  }
+  if (c.tornado) {
+    const td = c.tornado;
+    const tp = TORNADO_PHASES.indexOf(td.phase);
+    row.tp = tp < 0 ? 0 : tp;
+    row.tr = round4(c.mesh?.position.length() || 0);
+    row.ts = round4(td.spinY || 0);
+    row.tz = round4(td.sideZ || 0);
+    row.tb = round4(td.bodyRoll || 0);
+    row.ta = round4(td.preAmp || 0);
   }
   return row;
 }
@@ -228,7 +239,45 @@ export function applyEntityNet(entity) {
   else if (latest.u != null) entity.submerge = latest.u;
   if (latest.m != null) entity.mode = WATER_MODES[latest.m] ?? entity.mode;
   if (latest.e != null) entity.hue = latest.e;
+  applyTornadoNet(entity, a, b, alpha, latest);
   return true;
+}
+
+function applyTornadoNet(entity, a, b, alpha, latest) {
+  const flagged = !!(latest.k & FLAGS.TORNADO);
+  if (!flagged) {
+    if (entity.remote && entity.tornado) entity.endTornadoCapture?.();
+    entity.netRadius = 0;
+    return;
+  }
+  const phase = TORNADO_PHASES[latest.tp] ?? entity.tornado?.phase ?? "climb";
+  const spinY = a.ts != null && b.ts != null ? lerpScalar(a.ts, b.ts, alpha) : latest.ts ?? 0;
+  const sideZ = a.tz != null && b.tz != null ? lerpScalar(a.tz, b.tz, alpha) : latest.tz ?? 0;
+  const bodyRoll = a.tb != null && b.tb != null ? lerpScalar(a.tb, b.tb, alpha) : latest.tb ?? 0;
+  const preAmp = a.ta != null && b.ta != null ? lerpScalar(a.ta, b.ta, alpha) : latest.ta ?? 0;
+  const radius = a.tr != null && b.tr != null ? lerpScalar(a.tr, b.tr, alpha) : latest.tr ?? 0;
+  if (!entity.tornado) {
+    entity.tornado = {
+      phase,
+      t: 0,
+      source: null,
+      centerDir: entity.dir.clone(),
+      spinY,
+      sideZ,
+      preAmp,
+      orbitAng: 0,
+      height: 0,
+      wallU: 0,
+      bodyRoll
+    };
+  } else {
+    entity.tornado.phase = phase;
+    entity.tornado.spinY = spinY;
+    entity.tornado.sideZ = sideZ;
+    entity.tornado.preAmp = preAmp;
+    entity.tornado.bodyRoll = bodyRoll;
+  }
+  entity.netRadius = radius;
 }
 
 function applyHerdSnaps(list, rows) {

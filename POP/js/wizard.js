@@ -526,8 +526,9 @@ export class Wizard {
     applyKnockFromSnapshot(this, latest.knock, latest.hp);
     if (this.hp <= 0 && !this.dead) this.#die();
 
+    let hasPos = false;
     if (buf.length === 1) {
-      applyInterpolatedPose(this, buf[0], buf[0], 1, this._netPos);
+      hasPos = applyInterpolatedPose(this, buf[0], buf[0], 1, this._netPos);
     } else {
       const a = buf[0];
       const b = buf[1];
@@ -538,11 +539,18 @@ export class Wizard {
           : renderT >= b.time
             ? 1
             : 0;
-      applyInterpolatedPose(this, a, b, alpha, this._netPos);
+      hasPos = applyInterpolatedPose(this, a, b, alpha, this._netPos);
     }
-    this._netHasPos = true;
-    // Stejně jako lokální hráč: pozice z směru na aktuálním terénu (geodeticky).
-    this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
+    this._netHasPos = hasPos;
+    const td = this.tornado;
+    const airborne = td && (td.phase === "climb" || td.phase === "air");
+    if (airborne && hasPos) {
+      this.mesh.position.copy(this._netPos);
+    } else if (airborne && td.netRadius > 1) {
+      this.mesh.position.copy(this.dir).multiplyScalar(td.netRadius);
+    } else {
+      this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
+    }
   }
 
   get isImmortal() {

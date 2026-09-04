@@ -388,6 +388,12 @@ class Game {
     this.#updateSpellBar();
   }
 
+  #readyAllSpells() {
+    this._spellSpent = Object.create(null);
+    this._spellCd = Object.create(null);
+    this.#updateSpellBar();
+  }
+
   #spellReady(id) {
     if (!id || this._spellSpent[id]) return false;
     return !(this._spellCd[id] > 0);
@@ -599,6 +605,7 @@ class Game {
       if (e.code === "KeyG" && !e.repeat && this.inputEnabled && this.wizard && !this.wizard.remote) {
         const next = !this.wizard.godMode;
         this.wizard.setGodMode(next);
+        this.#readyAllSpells();
         if (next) {
           this._spawnCamIdx = this.#spawnIndexForDir(this.wizard.dir);
         }
