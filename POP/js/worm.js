@@ -2,15 +2,20 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir } from "./utils.js";
 import { surfaceDist } from "./spells/fx-common.js";
+import { SPELLS } from "./spells/defs.js";
 import {
   mulberry32,
   isLand as isLandAI,
   scatterOnLand,
   scatterOnLandBySegments,
-  treeSwayZ
+  treeSwayZ,
+  regenAnimalHp,
+  aoeFalloff,
+  claimHit
 } from "./animalsAI.js";
 
 const COUNT = 16;
+const MAX_HP = 30;
 /** 2× longneck (1.15). */
 const WALK_SPEED = 2.3;
 const TURN_RATE = 2.6;
@@ -189,6 +194,8 @@ class Worm {
     this.treeFocus = null;
     this.treeRingR = 5.4;
     this.arrivedTree = false;
+    this.maxHp = MAX_HP;
+    this.hp = MAX_HP;
     this.path = [];
 
     tangentFrame(this.dir, this._east, this.facing);
@@ -533,6 +540,14 @@ class Worm {
     }
   }
 
+  takeDamage(amount, opts = {}) {
+    if (this.dead || this.gone || amount <= 0) return false;
+    if (!this.exposed && !opts.force) return false;
+    this.hp = Math.max(0, this.hp - amount);
+    if (this.hp > 0) return false;
+    return this.die(opts);
+  }
+
   die(opts = {}) {
     if (this.dead) return false;
     if (!this.exposed && !opts.force) return false;
@@ -551,12 +566,12 @@ class Worm {
 
   ignite() {
     if (!this.exposed || this.dead) return;
-    this.die({ force: true });
   }
 
   update(dt) {
     if (this.gone) return;
     this.phase += dt;
+    if (!this.dead) regenAnimalHp(this, dt);
 
     if (this.dead) {
       const last = this.path[this.path.length - 1];
@@ -706,14 +721,17 @@ export class WormHerd {
     }
   }
 
-  hurtNear(centerDir, radiusM) {
+  hurtNear(centerDir, radiusM, dmgCenter, dmgEdge, opts = {}) {
     if (!centerDir || radiusM <= 0) return false;
     let hit = false;
+    const { hitSet, hitKey = "w", ignite, ...rest } = opts;
     for (const c of this.list) {
       if (!c.exposed || c.dead) continue;
-      if (surfaceDist(c.dir, centerDir) <= radiusM) {
-        if (c.die({ fromDir: centerDir })) hit = true;
-      }
+      const dist = surfaceDist(c.dir, centerDir);
+      if (dist > radiusM) continue;
+      if (!claimHit(hitSet, `${hitKey}:${c.id}`)) continue;
+      const damage = aoeFalloff(dist, radiusM, dmgCenter, dmgEdge);
+      if (c.takeDamage(damage, { fromDir: centerDir, ignite, ...rest })) hit = true;
     }
     return hit;
   }
@@ -735,7 +753,8 @@ export class WormHerd {
       if (dist <= vaporizeR) {
         if (c.die({ force: true, vanish: true })) hit = true;
       } else if (c.exposed && dist <= damageR) {
-        if (c.die({ fromDir: centerDir, force: true })) hit = true;
+        const damage = aoeFalloff(dist, damageR, SPELLS.comet.damageCenter, SPELLS.comet.damageEdge);
+        if (c.takeDamage(damage, { fromDir: centerDir })) hit = true;
       }
     }
     return hit;

@@ -9,7 +9,7 @@ import { launchIceball as doLaunchIceball, updateIceball, updateIceDebris } from
 import { strikeLightning as doStrikeLightning, updateBolts } from "./lightning.js";
 import { spawnTornado as doSpawnTornado, updateTornados, prepareTornadoEffects as doPrepareTornadoEffects, updateTornadoPull, updateTornadoVictims, disposeTornados } from "./tornado.js";
 import { spawnVolcano as doSpawnVolcano, updateVolcanos, disposeVolcanos } from "./volcano.js";
-import { spawnEarthquake as doSpawnEarthquake, updateEarthquakes, disposeEarthquakes } from "./earthquake.js";
+import { spawnEarthquake as doSpawnEarthquake, updateEarthquakes, disposeEarthquakes, refreshEarthquakeWalls } from "./earthquake.js";
 import { spawnComet as doSpawnComet, updateComets, disposeComets } from "./comet.js";
 import { updateWaterFx } from "./water-fx.js";
 import { applyInvisibility } from "./invisibility.js";
@@ -371,9 +371,10 @@ export class SpellSystem {
     updateWaterFx(this, dt);
   }
 
-  /** Přilepí spáleniny na terén po změně výšky (elevace / deprese). */
+  /** Přilepí spáleniny a trhliny zemětřesení na aktuální tvar terénu. */
   refreshScorchMarks() {
     updateScorchMarks(this);
+    refreshEarthquakeWalls(this);
   }
 
   strikeLightning(targetDir) {

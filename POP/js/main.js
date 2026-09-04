@@ -289,6 +289,7 @@ class Game {
     }
     this.#selectSpell(null);
     this.lobby?.hide();
+    this.applyRoomColors({ players: list });
     document.getElementById("btn-1p")?.classList.add("active");
     document.getElementById("btn-mp")?.classList.remove("active");
   }
@@ -375,6 +376,38 @@ class Game {
     return i >= 0 ? i : 0;
   }
 
+  #occupiedColors() {
+    const taken = new Set();
+    if (!this.session?.isMp) return taken;
+    const me = String(this.wizard?.id ?? this.session.localId ?? "");
+    for (const p of this.session.room?.players || []) {
+      if (String(p.id) === me) continue;
+      taken.add(Number(p.color));
+    }
+    for (const w of this.wizards.values()) {
+      if (String(w.id) === me) continue;
+      taken.add(Number(w.color));
+    }
+    return taken;
+  }
+
+  applyRoomColors(room) {
+    if (!room?.players) return;
+    const me = String(this.session?.localId ?? this.wizard?.id ?? "");
+    for (const p of room.players) {
+      const hex = Number(p.color);
+      if (!hex) continue;
+      const w = this.wizards.get(String(p.id));
+      if (w && Number(w.color) !== hex) w.setRobeColor(hex);
+      if (String(p.id) === me) {
+        this._wizardColorIdx = this.#colorIndexFor(hex);
+        saveProfile({ color: hex });
+        if (this.lobby) this.lobby.selectedColor = hex;
+        this.#updateColorSwatch();
+      }
+    }
+  }
+
   #updateColorSwatch() {
     const dot = document.getElementById("color-swatch");
     if (!dot) return;
@@ -383,12 +416,24 @@ class Game {
   }
 
   #cycleWizardColor() {
-    this._wizardColorIdx = (this._wizardColorIdx + 1) % WIZARD_COLORS.length;
-    const hex = WIZARD_COLORS[this._wizardColorIdx].hex;
+    const taken = this.#occupiedColors();
+    const n = WIZARD_COLORS.length;
+    let idx = this._wizardColorIdx;
+    for (let k = 1; k <= n; k++) {
+      const next = (this._wizardColorIdx + k) % n;
+      if (!taken.has(WIZARD_COLORS[next].hex)) {
+        idx = next;
+        break;
+      }
+    }
+    if (idx === this._wizardColorIdx) return;
+    this._wizardColorIdx = idx;
+    const hex = WIZARD_COLORS[idx].hex;
     saveProfile({ color: hex });
     this.lobby.selectedColor = hex;
     if (this.wizard && !this.wizard.remote) this.wizard.setRobeColor(hex);
     this.#updateColorSwatch();
+    this.session?.sendColor?.(hex);
   }
 
   #bindGameBar() {

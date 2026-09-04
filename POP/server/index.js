@@ -4,6 +4,8 @@ import { createServer } from "http";
 const PORT = Number(process.env.PORT) || 2567;
 const MAX_PLAYERS = 4;
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+/** Stejná paleta jako js/net/client.js WIZARD_COLORS. */
+const WIZARD_COLORS = [0xc41c12, 0x1a5fcc, 0x1a9a3a, 0xc9a227, 0x7a2d9a, 0x1a8a8a];
 
 /** @typedef {{ id: string, name: string, color: number, ws: import("ws").WebSocket }} Player */
 /** @typedef {{ code: string, hostId: string, phase: "lobby"|"playing", seed: number|null, players: Map<string, Player>, seq: number }} Room */
@@ -39,6 +41,35 @@ function roomPublic(room) {
       spawn: Number.isInteger(p.spawn) ? p.spawn : i
     }))
   };
+}
+
+function colorTaken(room, color, exceptId) {
+  const c = Number(color);
+  for (const p of room.players.values()) {
+    if (p.id !== exceptId && Number(p.color) === c) return true;
+  }
+  return false;
+}
+
+function assignColor(room, preferred, exceptId) {
+  const want = Number(preferred);
+  if (WIZARD_COLORS.includes(want) && !colorTaken(room, want, exceptId)) return want;
+  for (const c of WIZARD_COLORS) {
+    if (!colorTaken(room, c, exceptId)) return c;
+  }
+  return WIZARD_COLORS[0];
+}
+
+function uniquifyColors(room) {
+  const used = new Set();
+  for (const p of room.players.values()) {
+    let c = Number(p.color);
+    if (!WIZARD_COLORS.includes(c) || used.has(c)) {
+      c = WIZARD_COLORS.find((x) => !used.has(x)) ?? c;
+    }
+    p.color = c;
+    used.add(c);
+  }
 }
 
 function assignRandomSpawns(room, slotCount = 4) {
@@ -133,7 +164,7 @@ wss.on("connection", (ws) => {
         players: new Map(),
         seq: 0
       };
-      const player = { id: playerId, name, color, ws };
+      const player = { id: playerId, name, color: assignColor(room, color, playerId), ws };
       room.players.set(playerId, player);
       rooms.set(code, room);
       meta.roomCode = code;
@@ -173,7 +204,8 @@ wss.on("connection", (ws) => {
       leaveRoom(ws);
       const name = String(msg.name || "Hráč").slice(0, 18);
       const color = Number(msg.color) || 0xc41c12;
-      room.players.set(playerId, { id: playerId, name, color, ws });
+      const assigned = assignColor(room, color, playerId);
+      room.players.set(playerId, { id: playerId, name, color: assigned, ws });
       meta.roomCode = room.code;
       broadcast(room, { type: "room", room: roomPublic(room) });
       return;
@@ -182,9 +214,11 @@ wss.on("connection", (ws) => {
     if (msg.type === "profile") {
       const room = meta.roomCode ? rooms.get(meta.roomCode) : null;
       const player = room?.players.get(playerId);
-      if (!player || room.phase !== "lobby") return;
-      if (msg.name != null) player.name = String(msg.name).slice(0, 18);
-      if (msg.color != null) player.color = Number(msg.color) || player.color;
+      if (!player) return;
+      if (msg.name != null && room.phase === "lobby") {
+        player.name = String(msg.name).slice(0, 18);
+      }
+      if (msg.color != null) player.color = assignColor(room, msg.color, playerId);
       broadcast(room, { type: "room", room: roomPublic(room) });
       return;
     }
@@ -208,6 +242,7 @@ wss.on("connection", (ws) => {
       room.mapId = mapId;
       room.seed = mapId;
       room.seq = 0;
+      uniquifyColors(room);
       assignRandomSpawns(room, 4);
       const publicRoom = roomPublic(room);
       for (const p of room.players.values()) {

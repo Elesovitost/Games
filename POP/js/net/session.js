@@ -73,6 +73,11 @@ export class MultiplayerSession {
     this.client.send({ type: "start", mapId: 0 });
   }
 
+  sendColor(color) {
+    if (!this.isMp || !this.client.connected) return false;
+    return this.client.send({ type: "profile", color });
+  }
+
   sendIntent(intent) {
     if (!this.isMp || !this.playing) return false;
     return this.client.send({ type: "intent", intent });
@@ -102,6 +107,7 @@ export class MultiplayerSession {
     if (msg.type === "room") {
       this.room = msg.room;
       this.game.lobby?.render(this.room);
+      this.game.applyRoomColors?.(msg.room);
       return;
     }
     if (msg.type === "left") {

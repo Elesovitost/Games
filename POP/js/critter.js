@@ -2,6 +2,7 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, slerpDirection } from "./utils.js";
 import { surfaceDist } from "./spells/fx-common.js";
+import { SPELLS } from "./spells/defs.js";
 import { spawnWaterWake } from "./spells/water-fx.js";
 import { BURN_DURATION, CHAR_COLOR, attachFireQueued, tintMeshBlack, setBurnGlow } from "./burn.js";
 import { critterBodyRadius } from "./blockers.js";
@@ -17,10 +18,14 @@ import {
   bearingOf,
   scatterOnLand,
   scatterOnLandBySegments,
-  treeSwayZ
+  treeSwayZ,
+  regenAnimalHp,
+  aoeFalloff,
+  claimHit
 } from "./animalsAI.js";
 
 const COUNT = 32;
+const MAX_HP = 10;
 const WALK_SPEED = 0.7;
 const FLEE_SPEED = 4.2;
 const FLEE_START = 6.5;
@@ -238,6 +243,8 @@ class Critter {
     this.charm = null;
     this.treeSlot = null;
     this.treeFocus = null;
+    this.maxHp = MAX_HP;
+    this.hp = MAX_HP;
     this.#pickWander();
     this.#snap();
     this.#applyPose();
@@ -331,6 +338,14 @@ class Critter {
       }
     }
     return { w: best, dist: bestD };
+  }
+
+  takeDamage(amount, opts = {}) {
+    if (this.dead || amount <= 0) return false;
+    this.hp = Math.max(0, this.hp - amount);
+    if (opts.ignite) this.ignite();
+    if (this.hp > 0) return false;
+    return this.die(opts);
   }
 
   die(opts = {}) {
@@ -497,7 +512,7 @@ class Critter {
   }
 
   onTornadoLand(centerDir) {
-    this.die({ fromDir: centerDir });
+    this.takeDamage(SPELLS.tornado.fallDamage, { fromDir: centerDir });
   }
 
   #applyTornadoPose() {
@@ -519,6 +534,7 @@ class Critter {
 
   update(dt, wizards) {
     this.phase += dt;
+    if (!this.dead) regenAnimalHp(this, dt);
     if (this.dead) {
       this.dieT = Math.min(1, this.dieT + dt / 0.45);
       const u = this.dieT * this.dieT * (3 - 2 * this.dieT);
@@ -822,15 +838,18 @@ export class CritterHerd {
     for (const g of Object.values(this.geos)) g.dispose();
   }
 
-  /** Zásah v rádiusu — zabije. Vrací true, pokud někdo umřel. */
-  hurtNear(centerDir, radiusM) {
+  /** Zásah v rádiusu — damage podle vzdálenosti. Vrací true, pokud někdo umřel. */
+  hurtNear(centerDir, radiusM, dmgCenter, dmgEdge, opts = {}) {
     if (!centerDir || radiusM <= 0) return false;
     let hit = false;
+    const { hitSet, hitKey = "c", ignite, ...rest } = opts;
     for (const c of this.list) {
       if (c.dead) continue;
-      if (surfaceDist(c.dir, centerDir) <= radiusM) {
-        if (c.die({ fromDir: centerDir })) hit = true;
-      }
+      const dist = surfaceDist(c.dir, centerDir);
+      if (dist > radiusM) continue;
+      if (!claimHit(hitSet, `${hitKey}:${c.id}`)) continue;
+      const damage = aoeFalloff(dist, radiusM, dmgCenter, dmgEdge);
+      if (c.takeDamage(damage, { fromDir: centerDir, ignite, ...rest })) hit = true;
     }
     return hit;
   }
@@ -856,7 +875,8 @@ export class CritterHerd {
       if (dist <= vaporizeR) {
         if (c.die({ noSlide: true, vanish: true })) hit = true;
       } else if (dist <= damageR) {
-        if (c.die({ fromDir: centerDir, ignite: true })) hit = true;
+        const damage = aoeFalloff(dist, damageR, SPELLS.comet.damageCenter, SPELLS.comet.damageEdge);
+        if (c.takeDamage(damage, { fromDir: centerDir, ignite: true })) hit = true;
       }
     }
     return hit;

@@ -577,21 +577,27 @@ function applyCometLavaDamage(sys, comet, dt) {
 
   if (sys.critters) {
     for (const c of sys.critters.list) {
-      if (c.charred || cometLavaHeat(comet, c.dir) <= 0) continue;
+      if (c.dead) continue;
+      const heat = cometLavaHeat(comet, c.dir);
+      if (heat <= 0) continue;
       c.ignite();
-      if (!c.dead) c.die({ fromDir: comet.target, noSlide: true });
+      c.takeDamage(SPELLS.volcano.lavaDps * dt, { fromDir: comet.target, noSlide: true });
     }
   }
   if (sys.longnecks) {
     for (const c of sys.longnecks.list) {
-      if (c.dead || c.gone || cometLavaHeat(comet, c.dir) <= 0) continue;
-      c.die({ fromDir: comet.target, ignite: true });
+      if (c.dead || c.gone) continue;
+      const heat = cometLavaHeat(comet, c.dir);
+      if (heat <= 0) continue;
+      c.takeDamage(SPELLS.volcano.lavaDps * dt, { fromDir: comet.target, ignite: true });
     }
   }
   if (sys.worms) {
     for (const c of sys.worms.list) {
-      if (c.dead || c.gone || !c.exposed || cometLavaHeat(comet, c.dir) <= 0) continue;
-      c.die({ fromDir: comet.target, force: true });
+      if (c.dead || c.gone || !c.exposed) continue;
+      const heat = cometLavaHeat(comet, c.dir);
+      if (heat <= 0) continue;
+      c.takeDamage(SPELLS.volcano.lavaDps * dt, { fromDir: comet.target });
     }
   }
   sys.trees?.igniteWhere((dir) => cometLavaHeat(comet, dir) > 0);

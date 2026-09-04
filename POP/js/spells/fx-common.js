@@ -18,9 +18,9 @@ export function applyAoeDamage(sys, centerDir, radiusM, dmgCenter, dmgEdge) {
     const dmg = dmgCenter + (dmgEdge - dmgCenter) * t;
     w.takeDamage(dmg, { fromDir: centerDir });
   }
-  sys.critters?.hurtNear(centerDir, radiusM);
+  sys.critters?.hurtNear(centerDir, radiusM, dmgCenter, dmgEdge);
   sys.longnecks?.hurtNear(centerDir, radiusM, dmgCenter, dmgEdge);
-  sys.worms?.hurtNear(centerDir, radiusM);
+  sys.worms?.hurtNear(centerDir, radiusM, dmgCenter, dmgEdge);
 }
 
 export function spawnBurst(sys, pos, up, color, life = 0.45) {

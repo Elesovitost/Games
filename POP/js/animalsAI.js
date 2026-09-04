@@ -269,6 +269,36 @@ export const TREE_TRANCE_RANGE = 20;
 /** Stání na kružnici — dál než kmen + tělo longnecka, ať se nezasekávají. */
 export const TREE_TRANCE_RING = 5.4;
 
+/** Regenerace HP zvířat (za sekundu), až do maxima. */
+export const ANIMAL_HP_REGEN = 1;
+
+export function regenAnimalHp(c, dt) {
+  if (!c || c.dead || c.gone || c.burning) return;
+  const max = c.maxHp;
+  if (max == null || c.hp == null) return;
+  if (c.hp >= max) {
+    c.hp = max;
+    return;
+  }
+  c.hp = Math.min(max, c.hp + ANIMAL_HP_REGEN * dt);
+}
+
+export function aoeFalloff(dist, radiusM, dmgCenter, dmgEdge) {
+  const center = dmgCenter ?? Infinity;
+  const edge = dmgEdge ?? center;
+  if (!(radiusM > 0) || !Number.isFinite(center)) return center;
+  const t = Math.min(1, Math.max(0, dist / radiusM));
+  return center + (edge - center) * t;
+}
+
+/** false = tento klíč už byl zasažen. */
+export function claimHit(hitSet, key) {
+  if (!hitSet) return true;
+  if (hitSet.has(key)) return false;
+  hitSet.add(key);
+  return true;
+}
+
 const _trEast = new THREE.Vector3();
 const _trNorth = new THREE.Vector3();
 const _trTan = new THREE.Vector3();

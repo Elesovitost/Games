@@ -18,13 +18,16 @@ import {
   bearingOf,
   scatterOnLand,
   scatterOnLandBySegments,
-  treeSwayZ
+  treeSwayZ,
+  regenAnimalHp,
+  aoeFalloff,
+  claimHit
 } from "./animalsAI.js";
 
 const COUNT = 12;
 const WALK_SPEED = 1.15;
 const DODGE_DIST = 5;
-const KILL_DAMAGE = 30;
+const MAX_HP = 30;
 /** Krátký podřep před odrazem — anticipace skoku. */
 const DODGE_CROUCH = 0.16;
 /** Samotný let obloukem — pomalejší a plynulejší než okamžitý úskok. */
@@ -209,6 +212,8 @@ class Longneck {
     this.charm = null;
     this.treeSlot = null;
     this.treeFocus = null;
+    this.maxHp = MAX_HP;
+    this.hp = MAX_HP;
     this.burning = false;
     this.charred = false;
     this.burnT = 0;
@@ -312,7 +317,10 @@ class Longneck {
   }
 
   takeDamage(amount, opts = {}) {
-    if (this.dead || amount < KILL_DAMAGE) return false;
+    if (this.dead || this.gone || amount <= 0) return false;
+    this.hp = Math.max(0, this.hp - amount);
+    if (opts.ignite) this.ignite();
+    if (this.hp > 0) return false;
     return this.die(opts);
   }
 
@@ -355,7 +363,7 @@ class Longneck {
         this._burnMats.push(cloned);
       }
     });
-    this._fire = attachFireQueued(this.mesh, { pad: 0.55 });
+    this._fire = attachFireQueued(this.parts.body, { pad: 0.72, lift: 0.55 });
   }
 
   #charBody() {
@@ -416,6 +424,7 @@ class Longneck {
     if (this.gone) return;
     this.phase += dt;
     if (this.dodgeCool > 0) this.dodgeCool -= dt;
+    if (!this.dead) regenAnimalHp(this, dt);
 
     if (this.dead) {
       this.dieT = Math.min(1, this.dieT + dt / 0.55);
@@ -753,21 +762,20 @@ export class LongneckHerd {
     return any;
   }
 
-  /** Zásah v rádiusu — 30+ damage zabije, slabší zásah jen vyvolá úskok. */
-  hurtNear(centerDir, radiusM, dmgCenter = KILL_DAMAGE, dmgEdge = KILL_DAMAGE, opts = {}) {
+  /** Zásah v rádiusu — damage podle vzdálenosti, přeživší uskočí. */
+  hurtNear(centerDir, radiusM, dmgCenter = MAX_HP, dmgEdge = MAX_HP, opts = {}) {
     if (!centerDir || radiusM <= 0) return false;
     let any = false;
+    const { hitSet, hitKey = "l", ignite, ...rest } = opts;
     for (const c of this.list) {
       if (c.dead || c.gone) continue;
       const dist = surfaceDist(c.dir, centerDir);
       if (dist >= radiusM) continue;
-      const t = dist / radiusM;
-      const damage = dmgCenter + (dmgEdge - dmgCenter) * t;
-      if (damage >= KILL_DAMAGE) {
-        if (c.takeDamage(damage, { fromDir: centerDir, ...opts })) any = true;
-      } else if (c.dodgeFrom(centerDir)) {
-        any = true;
-      }
+      if (!claimHit(hitSet, `${hitKey}:${c.id}`)) continue;
+      const damage = aoeFalloff(dist, radiusM, dmgCenter, dmgEdge);
+      const died = c.takeDamage(damage, { fromDir: centerDir, ignite, ...rest });
+      if (died) any = true;
+      else if (c.dodgeFrom(centerDir)) any = true;
     }
     return any;
   }

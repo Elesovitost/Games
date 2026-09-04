@@ -430,7 +430,7 @@ export class Wizard {
     if (!this.remote) this.#syncHealthUi();
   }
 
-  /** Změna barvy hábitu (solo / před MP). */
+  /** Změna barvy hábitu — MP stromy ji berou z `wizard.color`. */
   setRobeColor(hex) {
     this.color = Number(hex) || ROBE;
     const dark = new THREE.Color(this.color).multiplyScalar(0.38);

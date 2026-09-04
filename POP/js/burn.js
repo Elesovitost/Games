@@ -384,8 +384,11 @@ export function createFireFx(sizeOrOpts = 1) {
  */
 export function attachFire(parent, opts = {}) {
   const pad = opts.pad ?? 1.22;
-  const size = opts.size ?? fireSizeOf(parent) * pad;
+  const measured = fireSizeOf(parent);
+  const size = opts.size ?? measured * pad;
   const fx = createFireFx({ size, light: opts.light });
+  if (opts.lift != null) fx.group.position.y = opts.lift;
+  else if (!_box.isEmpty()) fx.group.position.y = _box.min.y + (_box.max.y - _box.min.y) * 0.38;
   parent.add(fx.group);
   return fx;
 }

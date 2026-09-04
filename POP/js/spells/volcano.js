@@ -940,24 +940,24 @@ function applyLavaDamage(sys, field, list, def, dt, hotFactor) {
   }
   if (sys.critters) {
     for (const c of sys.critters.list) {
-      if (c.charred) continue;
+      if (c.dead) continue;
       if (!onHotLava(c.dir)) continue;
       c.ignite();
-      if (!c.dead) c.die({ fromDir: field.center, noSlide: true });
+      c.takeDamage(def.lavaDps * dt, { fromDir: field.center, noSlide: true });
     }
   }
   if (sys.longnecks) {
     for (const c of sys.longnecks.list) {
       if (c.dead || c.gone) continue;
       if (!onHotLava(c.dir)) continue;
-      c.die({ fromDir: field.center, ignite: true });
+      c.takeDamage(def.lavaDps * dt, { fromDir: field.center, ignite: true });
     }
   }
   if (sys.worms) {
     for (const c of sys.worms.list) {
       if (c.dead || c.gone || !c.exposed) continue;
       if (!onHotLava(c.dir)) continue;
-      c.die({ fromDir: field.center, force: true });
+      c.takeDamage(def.lavaDps * dt, { fromDir: field.center });
     }
   }
   sys.trees?.igniteWhere(onHotLava);

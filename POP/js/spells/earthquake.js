@@ -10,6 +10,8 @@ const AMP = 0.2;
 /** Jak rychle zlomy dojdou od středu k okraji (s). */
 const GROW_TIME = 0.55;
 const WALL_HALF = 0.055;
+/** Vzorek výšky vedle zlomu — ať stěna kopíruje desky i po pozdějším morphu. */
+const WALL_SAMPLE = 0.16;
 const WALL_STEP = 0.48;
 const WALL_COLOR = 0x3a2414;
 
@@ -121,7 +123,6 @@ function collectWallSamples(terrain, center, east, north, morph) {
         continue;
       }
       surfaceOffsetDir(center, east, north, Math.atan2(y, x), dist, dir);
-      const restH = terrain.height(dir);
       if (terrain.wetness(dir) > 0.45) {
         flush();
         continue;
@@ -131,7 +132,6 @@ function collectWallSamples(terrain, center, east, north, morph) {
         dx: dir.x,
         dy: dir.y,
         dz: dir.z,
-        restH,
         fade: fadeAt(sph, radius, edgeFade),
         dist: sph
       });
@@ -199,23 +199,32 @@ function makeWallMesh(ribbons, east, north) {
   return mesh;
 }
 
-function writeWalls(mesh, drives, front) {
+function writeWalls(mesh, terrain, front) {
+  if (!mesh || !terrain) return;
   const ribbons = mesh.userData.ribbons;
   const pos = mesh.geometry.attributes.position;
   const east = mesh.userData.nWorld.east;
   const north = mesh.userData.nWorld.north;
   const n3 = tmp.n;
+  const dir = tmp.dir;
+  const dirL = tmp.dir2;
+  const dirR = tmp.peek;
+  const tilt = WALL_SAMPLE / CONFIG.planetR;
   let w = 0;
   for (const r of ribbons) {
     n3.copy(east).multiplyScalar(r.nx).addScaledVector(north, r.ny).normalize();
-    const dA = drives[r.blockA] || 0;
-    const dB = drives[r.blockB] || 0;
     for (const p of r.pts) {
       let reveal = 1;
-      if (p.dist > front) reveal = Math.max(0, 1 - (p.dist - front) / 0.9);
+      if (front != null && Number.isFinite(front) && p.dist > front) {
+        reveal = Math.max(0, 1 - (p.dist - front) / 0.9);
+      }
       const mag = p.fade * reveal;
-      const hL = p.restH + dA * mag;
-      const hR = p.restH + dB * mag;
+      dir.set(p.dx, p.dy, p.dz);
+      dirL.copy(dir).addScaledVector(n3, -tilt).normalize();
+      dirR.copy(dir).addScaledVector(n3, tilt).normalize();
+      const h0 = terrain.height(dir);
+      const hL = h0 + (terrain.height(dirL) - h0) * mag;
+      const hR = h0 + (terrain.height(dirR) - h0) * mag;
       pos.setXYZ(
         w,
         p.dx * hL - n3.x * WALL_HALF,
@@ -234,7 +243,7 @@ function writeWalls(mesh, drives, front) {
   pos.needsUpdate = true;
 }
 
-function applyQuakeDrive(q) {
+function applyQuakeDrive(q, terrain) {
   const front = Math.min(q.radius, (q.elapsed / GROW_TIME) * q.radius);
   q.front = front;
   const morph = q.morph;
@@ -244,7 +253,7 @@ function applyQuakeDrive(q) {
     }
     morph.front = front;
   }
-  if (q.wall && morph?.blockDrive) writeWalls(q.wall, morph.blockDrive, front);
+  if (q.wall) writeWalls(q.wall, terrain, front);
 }
 
 function triggerQuakeFall(w, centerDir) {
@@ -267,9 +276,12 @@ function victimKey(w) {
 function updateVictims(sys, quake) {
   const def = SPELLS.earthquake;
   const radius = quake.front ?? def.effectRadius;
-  sys.critters?.hurtNear(quake.centerDir, radius);
+  const dmg = def.fallDamage;
+  const hits = quake.animalHits;
+  sys.critters?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "c" });
+  sys.longnecks?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "l" });
+  sys.worms?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "w" });
   sys.longnecks?.dodgeNear(quake.centerDir, radius);
-  sys.worms?.hurtNear(quake.centerDir, radius);
   const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
   const now = quake.elapsed;
   const active = new Set();
@@ -352,10 +364,21 @@ export function spawnEarthquake(sys, targetDir) {
     duration: def.duration,
     shaking: true,
     victims: new Map(),
+    animalHits: new Set(),
     sfx
   };
   sys.earthquakes.push(q);
-  applyQuakeDrive(q);
+  applyQuakeDrive(q, sys.terrain);
+}
+
+/** Přilepí trhliny na aktuální výšku terénu (deprese / kopec). */
+export function refreshEarthquakeWalls(sys) {
+  if (!sys.earthquakes?.length) return;
+  const terrain = sys.terrain;
+  for (const q of sys.earthquakes) {
+    if (!q.wall) continue;
+    writeWalls(q.wall, terrain, q.shaking ? q.front : Infinity);
+  }
 }
 
 export function updateEarthquakes(sys, dt) {
@@ -371,7 +394,7 @@ export function updateEarthquakes(sys, dt) {
       sys.audio?.updateSfxLoop(q.sfx, q.centerDir, listener);
     }
 
-    applyQuakeDrive(q);
+    applyQuakeDrive(q, sys.terrain);
     if (q.life > 0) updateVictims(sys, q);
 
     if (q.life <= 0) {
