@@ -429,6 +429,7 @@ class Longneck {
         leg.shin.rotation.x = THREE.MathUtils.lerp(leg.shin.rotation.x, 0.08, 0.2);
       }
       this.#updateBurn(dt);
+      this.dodgeHop = 0;
       this.#applyPose();
       return;
     }

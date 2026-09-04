@@ -129,9 +129,9 @@ export const SPELLS = {
     damageRadius: 10,
     damageCenter: 200,
     damageEdge: 50,
-    /** Mlha nad kráterem: držení a úplné rozplynutí (s). */
-    dustHold: 5,
-    dustFade: 5,
+    /** Mlha nad kráterem: krátké naběhnutí, hned rozplynutí (s). */
+    dustHold: 0.2,
+    dustFade: 2.7,
     color: 0xff8a2a,
     hint: "2 s kouzlení, 0,8 s přímý pád. Do 5 m vše zmizí, do 10 m damage 200→50 a hoří."
   },

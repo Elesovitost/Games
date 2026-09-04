@@ -531,6 +531,7 @@ class Critter {
         leg.shin.rotation.x = THREE.MathUtils.lerp(leg.shin.rotation.x, 0.08, 0.2);
       }
       this.#slideDead(dt);
+      this.#snap();
       this.#updateBurn(dt);
       this.#applyPose();
       return;

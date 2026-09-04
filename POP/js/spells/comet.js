@@ -28,7 +28,8 @@ let _mistMap = null;
 let _lavaMap = null;
 
 const TRAIL_PUFFS = 64;
-const TRAIL_LIFE = 4.2;
+/** Stejné tempo rozplynutí jako mlha nad kráterem (s). */
+const TRAIL_LIFE = 2.7;
 
 function geo() {
   if (!GEO.rock) {
@@ -208,7 +209,7 @@ function makeComet(radius) {
 
 /**
  * Stopa podél celé dráhy start→dopad. U startu úzká (1/5), u komety plná;
- * puffy se jen odhalují za letu a neubývají.
+ * puff se hned po odhalení začne rozplývat.
  */
 function makeTrail(sys, radius, start, impact) {
   const trail = [];
@@ -252,25 +253,21 @@ function makeTrail(sys, radius, start, impact) {
 }
 
 function updateTrail(comet, dt) {
-  if (comet.phase === "flight") {
-    const u = Math.min(1, comet.t / SPELLS.comet.flightTime);
-    for (let i = 0; i < comet.trail.length; i++) {
-      const puff = comet.trail[i];
-      if (puff.pathU > u) continue;
-      puff.sprite.visible = true;
-      puff.mat.opacity = 0.62;
-      puff.age = 0;
-    }
-    return;
-  }
-
+  const u = comet.phase === "flight"
+    ? Math.min(1, comet.t / SPELLS.comet.flightTime)
+    : 1;
   for (let i = 0; i < comet.trail.length; i++) {
     const puff = comet.trail[i];
-    if (!puff.sprite.visible) continue;
-    if (puff.age < 0) puff.age = 0;
+    if (puff.age < 0) {
+      if (puff.pathU > u) continue;
+      puff.sprite.visible = true;
+      puff.age = 0;
+    }
     puff.age += dt;
     const fade = Math.max(0, 1 - puff.age / TRAIL_LIFE);
     puff.mat.opacity = 0.62 * fade * fade;
+    const grow = puff.size * (1 + (1 - fade) * 2.6);
+    puff.sprite.scale.set(grow * 1.2, grow, 1);
     if (fade <= 0) puff.sprite.visible = false;
   }
 }
@@ -650,26 +647,26 @@ function updateImpact(sys, comet, dt) {
 
   let mistOpacity;
   let spread;
-  if (t < 0.38) {
-    const u = t / 0.38;
-    mistOpacity = 0.72 * u * u * (3 - 2 * u);
-    spread = 0.6 + u * 0.4;
-  } else if (t < def.dustHold) {
-    mistOpacity = 0.72;
-    spread = 1;
+  if (t < def.dustHold) {
+    const u = t / Math.max(1e-5, def.dustHold);
+    const e = u * u * (3 - 2 * u);
+    mistOpacity = 0.78 * e;
+    spread = 0.42 + e * 0.58;
   } else {
     const u = Math.min(1, (t - def.dustHold) / def.dustFade);
-    mistOpacity = 0.72 * (1 - u) * (1 - u);
-    spread = 1 + u * 0.75;
+    mistOpacity = 0.78 * (1 - u) * (1 - u);
+    spread = 1 + u * 2.6;
   }
   fx.mist.mats[0].uniforms.uOpacity.value = mistOpacity;
   fx.mist.mats[1].uniforms.uOpacity.value = mistOpacity;
   fx.mist.mats[2].uniforms.uOpacity.value = mistOpacity;
+  const rising = t < def.dustHold + def.dustFade;
   for (let i = 0; i < fx.mist.sprites.length; i++) {
     const p = fx.mist.sprites[i];
-    const wobble = 1 + 0.03 * Math.sin(t * (0.7 + i * 0.08) + i);
-    p.sprite.scale.set(p.sx * spread * wobble, p.sy * spread, p.sz * spread);
-    p.sprite.position.y += dt * (0.02 + i * 0.003);
+    const wobble = 1 + 0.04 * Math.sin(t * (1.1 + i * 0.12) + i);
+    p.sprite.scale.set(p.sx * spread * wobble, p.sy * spread * wobble, p.sz * spread);
+    if (rising) p.sprite.position.y += dt * (0.28 + i * 0.03);
+    p.sprite.visible = mistOpacity > 0.02;
   }
 
   const lavaLife = (SPELLS.volcano.lavaHeatTime + SPELLS.volcano.lavaFreezeTime) * COMET_LAVA_COOL_TIME_MUL;
