@@ -3,6 +3,7 @@ export const SPELLS = {
     id: "elevate",
     range: 14,
     castTime: 3,
+    cooldown: 15,
     color: 0x6dff9a,
     hint: "Klikni v dosahu — vyroste kopec."
   },
@@ -10,6 +11,7 @@ export const SPELLS = {
     id: "depress",
     range: 14,
     castTime: 3,
+    cooldown: 15,
     color: 0x6aa8ff,
     hint: "Klikni v dosahu — vznikne prohlubeň."
   },
@@ -17,6 +19,7 @@ export const SPELLS = {
     id: "lightning",
     range: 16,
     castTime: 2,
+    cooldown: 12,
     burnRadius: 1,
     damageRadius: 4,
     damageCenter: 45,
@@ -28,6 +31,7 @@ export const SPELLS = {
     id: "fireball",
     range: 18,
     castTime: 1,
+    cooldown: 5,
     burnRadius: 1,
     damageRadius: 4,
     damageCenter: 30,
@@ -42,6 +46,7 @@ export const SPELLS = {
     id: "iceball",
     range: 27.5,
     castTime: 2,
+    cooldown: 8,
     diameter: 3,
     travel: 50,
     speed: 16,
@@ -53,6 +58,7 @@ export const SPELLS = {
     id: "tornado",
     range: 16,
     castTime: 1.5,
+    cooldown: 25,
     pullRadius: 10,
     innerRadius: 3,
     captureRadius: 0.6,
@@ -67,6 +73,7 @@ export const SPELLS = {
     range: 16,
     /** 3 s kouzlení, pak roste kopec — wizard může odejít */
     castPrepTime: 3,
+    cooldown: 50,
     morphDuration: 3,
     color: 0xff3a18,
 
@@ -108,6 +115,7 @@ export const SPELLS = {
     id: "comet",
     range: 18,
     castTime: 2,
+    cooldown: 60,
     /** Od objevení v obrazovce do impaktu (s). */
     flightTime: 0.8,
     /** Průměr tělesa (m). */
@@ -140,6 +148,7 @@ export const SPELLS = {
     selfCast: true,
     range: 0,
     castTime: 1,
+    cooldown: 20,
     holdTime: 5,
     /** 2× rychlost chůze */
     speed: 10,
@@ -155,6 +164,8 @@ export const SPELLS = {
     /** Hod kuličky — žádné kouzlení / zaříkávání */
     castTime: 0.55,
     throwCast: true,
+    cooldown: 10,
+    once: true,
     growthTime: 20,
     maxHeight: 10,
     color: 0xe8c44a,
@@ -164,6 +175,7 @@ export const SPELLS = {
     id: "hypnosis",
     range: 14,
     castTime: 2,
+    cooldown: 10,
     radius: 8,
     holdTime: 20,
     color: 0xd080ff,
@@ -175,6 +187,7 @@ export const SPELLS = {
     selfCast: true,
     range: 0,
     castTime: 3,
+    cooldown: 20,
     holdTime: 10,
     /** Lokální hráč vidí sebe na 50 % */
     localOpacity: 0.5,
@@ -187,6 +200,7 @@ export const SPELLS = {
     id: "earthquake",
     range: 18,
     castTime: 3,
+    cooldown: 30,
     effectRadius: 18,
     duration: 5,
     fallDamage: 10,

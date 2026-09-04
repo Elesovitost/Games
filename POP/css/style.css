@@ -71,6 +71,7 @@ html, body {
   border-top: 1px solid rgba(212, 180, 106, 0.22);
 }
 .spell {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -80,22 +81,50 @@ html, body {
   min-width: 64px;
   padding: 6px 5px 5px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(0, 0, 0, 0.12) 100%);
-  border: 1px solid rgba(138, 112, 64, 0.65);
+  border: 1px solid transparent;
   color: var(--ink);
   cursor: pointer;
   font-family: var(--ui-font);
   font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.14em;
-  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  transition: background 0.15s, transform 0.1s, filter 0.2s;
 }
-.spell:hover {
-  border-color: var(--gold);
+.spell-cd {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: 2px;
+  background: conic-gradient(
+    from -90deg,
+    #e8c56a calc(var(--p, 0) * 100%),
+    rgba(70, 58, 36, 0.72) 0
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.spell.ready .spell-cd {
+  background: var(--gold);
+}
+.spell.spent .spell-cd {
+  background: rgba(70, 58, 36, 0.72);
+}
+.spell:not(.ready) .spell-icon,
+.spell:not(.ready) .spell-label {
+  filter: grayscale(1) brightness(0.72);
+  opacity: 0.5;
+}
+.spell.ready:hover {
   background: rgba(212, 180, 106, 0.12);
   transform: translateY(-1px);
 }
-.spell.active {
-  border-color: var(--gold);
+.spell:not(.ready) {
+  cursor: default;
+}
+.spell.active.ready {
   background: rgba(212, 180, 106, 0.22);
   box-shadow: inset 0 0 0 1px rgba(212, 180, 106, 0.45), 0 0 12px rgba(212, 180, 106, 0.15);
 }

@@ -37,6 +37,8 @@ class Game {
     this._listenerDir = new THREE.Vector3();
     this.selectedSpell = null;
     this._pendingCast = null;
+    this._spellCd = Object.create(null);
+    this._spellSpent = Object.create(null);
     this._shoreRefreshAt = 0;
     this._spawnCamIdx = 0;
     this.wizards = new Map();
@@ -239,6 +241,7 @@ class Game {
     this.longnecks?.spawn(this.landSpawns);
     this.worms?.spawn(this.landSpawns);
     this.#selectSpell(null);
+    this.#resetSpellCooldowns();
     this.#syncWorldAuthority(false);
   }
 
@@ -285,6 +288,7 @@ class Game {
       console.warn("[MP] lokální kouzelník nenalezen, localId=", me);
     }
     this.#selectSpell(null);
+    this.#resetSpellCooldowns();
     this.lobby?.hide();
     this.applyRoomColors({ players: list });
     document.getElementById("btn-1p")?.classList.add("active");
@@ -344,6 +348,14 @@ class Game {
   #bindSpells() {
     const bar = document.getElementById("spell-bar");
     if (!bar) return;
+    bar.querySelectorAll("[data-spell]").forEach((btn) => {
+      if (!btn.querySelector(".spell-cd")) {
+        const ring = document.createElement("span");
+        ring.className = "spell-cd";
+        ring.setAttribute("aria-hidden", "true");
+        btn.prepend(ring);
+      }
+    });
     bar.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-spell]");
       if (!btn) return;
@@ -351,6 +363,7 @@ class Game {
       e.stopPropagation();
       if (!this.inputEnabled || !this.wizard || this.wizard.isBusy || this.wizard.immortal) return;
       const id = btn.getAttribute("data-spell");
+      if (!this.#spellReady(id)) return;
       const def = SPELLS[id];
       if (def?.selfCast) {
         this.#castSelfSpell(id);
@@ -359,11 +372,74 @@ class Game {
       if (this.selectedSpell === id) this.#selectSpell(null);
       else this.#selectSpell(id);
     });
+    this.#resetSpellCooldowns();
+  }
+
+  #resetSpellCooldowns() {
+    this._spellSpent = Object.create(null);
+    this._spellCd = Object.create(null);
+    for (const id of Object.keys(SPELLS)) {
+      const cd = SPELLS[id]?.cooldown ?? 0;
+      if (cd > 0) this._spellCd[id] = cd;
+    }
+    this.#updateSpellBar();
+  }
+
+  #spellReady(id) {
+    if (!id || this._spellSpent[id]) return false;
+    return !(this._spellCd[id] > 0);
+  }
+
+  #startSpellCooldown(id) {
+    const def = SPELLS[id];
+    if (!def) return;
+    if (def.once) {
+      this._spellSpent[id] = true;
+      delete this._spellCd[id];
+    } else {
+      this._spellCd[id] = def.cooldown ?? 0;
+    }
+    if (this.selectedSpell === id) this.#selectSpell(null);
+    this.#updateSpellBar();
+  }
+
+  #tickSpellCooldowns(dt) {
+    let dirty = false;
+    for (const id of Object.keys(this._spellCd)) {
+      if (this._spellSpent[id]) continue;
+      const left = this._spellCd[id];
+      if (!(left > 0)) continue;
+      this._spellCd[id] = Math.max(0, left - dt);
+      dirty = true;
+    }
+    if (dirty) this.#updateSpellBar();
+  }
+
+  #spellCharge(id) {
+    if (this._spellSpent[id]) return 0;
+    const cd = SPELLS[id]?.cooldown ?? 0;
+    if (!(cd > 0)) return 1;
+    const left = this._spellCd[id];
+    if (!(left > 0)) return 1;
+    return 1 - left / cd;
+  }
+
+  #updateSpellBar() {
+    document.querySelectorAll("#spell-bar .spell").forEach((el) => {
+      const id = el.getAttribute("data-spell");
+      const spent = !!this._spellSpent[id];
+      const ready = this.#spellReady(id);
+      el.classList.toggle("spent", spent);
+      el.classList.toggle("ready", ready);
+      const ring = el.querySelector(".spell-cd");
+      if (ring) ring.style.setProperty("--p", String(this.#spellCharge(id)));
+    });
   }
 
   /** Kouzlo bez cíle — cast rovnou na sebe. */
   #castSelfSpell(spellId) {
     if (!this.wizard || this.wizard.isBusy || this.wizard.immortal) return;
+    if (!this.#spellReady(spellId)) return;
     const def = SPELLS[spellId];
     if (!def?.selfCast) return;
     const target = this.wizard.dir.clone();
@@ -373,10 +449,12 @@ class Game {
       target: [target.x, target.y, target.z]
     });
     this.spells.castAs(this.wizard, spellId, target);
+    this.#startSpellCooldown(spellId);
     this.#selectSpell(null);
   }
 
   #selectSpell(id) {
+    if (id && !this.#spellReady(id)) id = null;
     const keepPending = id && this._pendingCast && this._pendingCast.spellId === id;
     if (!keepPending && this._pendingCast) {
       this.wizard?.clearDestination();
@@ -755,6 +833,10 @@ class Game {
 
   #castSpell(spellId, localPoint) {
     if (!this.wizard || this.wizard.isBusy) return;
+    if (!this.#spellReady(spellId)) {
+      this.#selectSpell(null);
+      return;
+    }
     if (this.wizard.immortal) {
       this.wizard.setDestination(localPoint);
       this.#selectSpell(null);
@@ -785,6 +867,7 @@ class Game {
     });
     this.spells.aim.hide();
     this.spells.castAs(this.wizard, spellId, target);
+    this.#startSpellCooldown(spellId);
     this.#selectSpell(null);
   }
 
@@ -796,6 +879,11 @@ class Game {
       return;
     }
     if (this.wizard.casting) return;
+    if (!this.#spellReady(p.spellId)) {
+      this._pendingCast = null;
+      this.#selectSpell(null);
+      return;
+    }
     if (this.spells.inRange(p.spellId, p.targetDir)) {
       this.#beginCast(p.spellId, p.targetDir);
       return;
@@ -847,6 +935,7 @@ class Game {
       }
     }
     this.#updatePendingCast();
+    this.#tickSpellCooldowns(dt);
     if (!this.session?.isMp || this.session.isHost) {
       assignTreeTrance(this.critters?.list, this.longnecks?.list, this.trees, dt, this.worms?.list);
     }
