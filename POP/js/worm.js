@@ -28,6 +28,8 @@ const LINKS = 16;
 const PEEK_LINKS = 2.4;
 const RISE_DUR = 0.7;
 const DIVE_DUR = 0.95;
+/** Smrt venku — rychle zpátky do díry, pak teprve duše. */
+const DEAD_BURY_DUR = 0.28;
 const PEEK_HOLD_MIN = 2.4;
 const PEEK_HOLD_MAX = 4.2;
 const PATH_MIN_STEP = 0.018;
@@ -190,6 +192,8 @@ class Worm {
     this.peekT = 0;
     this.stateT = 3.5 + rng() * 5;
     this.dead = false;
+    this.burying = false;
+    this.buryU = 0;
     this.gone = false;
     this.remote = false;
     this.netMoving = false;
@@ -297,8 +301,8 @@ class Worm {
 
   #poseLinks(dt) {
     const links = this.parts.links;
-    const peeking = this.state === "peek" || (this.state === "treeTrance" && this.arrivedTree);
-    const surfaced = this.state === "charm";
+    const peeking = this.state === "peek" || (this.state === "treeTrance" && this.arrivedTree) || this.burying;
+    const surfaced = this.state === "charm" && !this.burying;
     for (let i = 0; i < LINKS; i++) {
       this.#samplePath(i * this.spacing, this._pos);
       const up = this._up.copy(this._pos).normalize();
@@ -560,30 +564,87 @@ class Worm {
     if (this.remote && !opts.fromNet) return false;
     if (this.dead) return false;
     if (!this.exposed && !opts.force) return false;
+    this.#beginDeathBury(opts);
     this.dead = true;
     this.state = "dead";
     this.charm = null;
     this.treeSlot = null;
     this.treeFocus = null;
-    this.soulDelay = SOUL_DELAY;
     if (opts.atDir) this.dir.copy(opts.atDir).normalize();
     if (opts.vanish) {
       this.gone = true;
+      this.burying = false;
+      this.soulDelay = SOUL_DELAY;
       this.mesh.visible = false;
     }
     if (!opts.fromNet) this.herd.onDied?.(this);
     return true;
   }
 
+  #emergeU() {
+    if (this.state === "charm" || this.charm) return 1;
+    if (this.peekStage === "hold") return 1;
+    if (this.peekStage === "rise") return Math.min(1, Math.max(0, this.peekT || 0));
+    if (this.peekStage === "dive") return Math.max(0, 1 - (this.peekT || 0));
+    if (this.state === "peek" || (this.state === "treeTrance" && this.arrivedTree)) return 1;
+    const last = this.path[this.path.length - 1];
+    if (!last) return 0;
+    const lift = last.length() - this.terrain.height(this._up.copy(last).normalize());
+    if (lift > 0.2) return Math.min(1, lift / Math.max(0.2, this.peekR));
+    if (lift > 0.03) return 1;
+    return 0;
+  }
+
+  #beginDeathBury(opts) {
+    if (opts.vanish) {
+      this.burying = false;
+      this.buryU = 0;
+      return;
+    }
+    const fromHole =
+      this.peekStage === "rise" ||
+      this.peekStage === "hold" ||
+      this.peekStage === "dive" ||
+      this.state === "peek" ||
+      (this.state === "treeTrance" && this.arrivedTree);
+    if (!fromHole || this.peekHole.lengthSq() < 1e-8) this.peekHole.copy(this.dir);
+    this.peekFwd.copy(this.facing).addScaledVector(this.peekHole, -this.facing.dot(this.peekHole));
+    if (this.peekFwd.lengthSq() < 1e-8) tangentFrame(this.peekHole, this._east, this.peekFwd);
+    else this.peekFwd.normalize();
+    this.buryU = Math.min(1, Math.max(0, this.#emergeU()));
+    this.burying = this.buryU > 0.02;
+    this.soulDelay = this.burying ? null : 0;
+  }
+
+  #tickDeathBury(dt) {
+    if (!this.burying) return false;
+    this.buryU = Math.max(0, this.buryU - dt / DEAD_BURY_DUR);
+    this.#risePos(this.buryU, this._pos);
+    this.#pushPath(this._pos);
+    this.dir.copy(this.peekHole);
+    this.#poseLinks(dt);
+    if (this.buryU <= 0) {
+      this.burying = false;
+      this.soulDelay = 0;
+    }
+    return true;
+  }
+
   #tickSoul(dt) {
     const g = this.herd.planetGroup;
     this._soul = updateSoul(this._soul, g, this.dir, dt);
-    if (!this.dead || this._soul || this.soulDelay == null) return;
+    if (!this.dead || this._soul || this.soulDelay == null || this.burying) return;
     this.soulDelay -= dt;
     if (this.soulDelay > 0) return;
     this.soulDelay = null;
     this.#poseLinks(0);
     this._soul = spawnSoul(g, this.mesh);
+    if (this._soul) {
+      this._soul.mesh.traverse((ch) => {
+        if (ch.isMesh) ch.visible = true;
+      });
+    }
+    this.mesh.visible = false;
   }
 
   ignite() {
@@ -598,13 +659,7 @@ class Worm {
       return;
     }
     if (this.dead) {
-      const last = this.path[this.path.length - 1];
-      if (last) {
-        const up = this._up.copy(last).normalize();
-        last.addScaledVector(up, -dt * 1.1);
-        this.#pushPath(last);
-      }
-      this.#poseLinks(dt);
+      if (!this.#tickDeathBury(dt)) this.#poseLinks(dt);
       return;
     }
 
@@ -639,13 +694,7 @@ class Worm {
     if (!this.dead) regenAnimalHp(this, dt);
 
     if (this.dead) {
-      const last = this.path[this.path.length - 1];
-      if (last) {
-        const up = this._up.copy(last).normalize();
-        last.addScaledVector(up, -dt * 1.1);
-        this.#pushPath(last);
-      }
-      this.#poseLinks(dt);
+      if (!this.#tickDeathBury(dt)) this.#poseLinks(dt);
       return;
     }
 
