@@ -195,6 +195,6 @@ export const SPELLS = {
     fallRotations: 1,
     fallDistance: 3,
     color: 0xc4a060,
-    hint: "Klikni v dosahu — 18 m praskliny, 5 s třesení. V zóně padáš (−10 HP) dokud nevyjdeš."
+    hint: "Klikni v dosahu — 18 m zóny, rovné zlomy, 5 s kývání desek. V zóně padáš (−10 HP) dokud nevyjdeš."
   }
 };

@@ -5,236 +5,246 @@ import { SPELLS } from "./defs.js";
 import { surfaceDist } from "./fx-common.js";
 import { isWaterAt } from "./water-fx.js";
 
-const LIFT = 0.06;
-const TRUNK_COUNT = 10;
-/** Jak rychle vlna dojde od středu k okraji zóny (s). */
+/** Zdvih jedné desky (m) — každá jede vlastní fází, zlom až 40 cm. */
+const AMP = 0.2;
+/** Jak rychle zlomy dojdou od středu k okraji (s). */
 const GROW_TIME = 0.55;
-const CRACK_COLOR = 0x1a100c;
-const ORDER_OPACITY = { 1: 0.94, 2: 0.86, 3: 0.72 };
+const WALL_HALF = 0.055;
+const WALL_STEP = 0.48;
+const WALL_COLOR = 0x3a2414;
 
-function placeOnSurface(terrain, dir, out) {
-  const h = terrain.height(dir) + LIFT;
-  return out.copy(dir).multiplyScalar(h);
+function blockWave(block, elapsed, duration) {
+  const u = Math.min(1, elapsed / Math.max(1e-5, duration));
+  const c = Math.cos(Math.PI * 2 * block.cycles * u + block.phase);
+  return block.sign * Math.sign(c) * Math.pow(Math.abs(c), 0.4);
 }
 
-/**
- * Prasklina po povrchu — jen po souši (pod vodou se přeruší).
- * `dists[i]` = vzdálenost bodu od epicentra, kvůli vlně růstu.
- */
-function buildCrackSegments(terrain, center, east, north, startAng, startDist, maxDist, abortChance) {
-  const segments = [];
-  let pts = [];
-  let dists = [];
-  let ang = startAng;
-  let dist = startDist;
+function fadeAt(dist, radius, edgeFade) {
+  if (dist > radius - edgeFade) {
+    let f = Math.max(0, (radius - dist) / edgeFade);
+    return f * f * (3 - 2 * f);
+  }
+  return 1;
+}
+
+/** Úsečky Voronoi hran mezi semínky, oříznuté na kruh zóny. */
+function voronoiEdges(blocks, radius) {
+  const edges = [];
+  const n = blocks.length;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const a = blocks[i];
+      const b = blocks[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const sep = Math.hypot(dx, dy);
+      if (sep < 1e-4) continue;
+      const mx = (a.x + b.x) * 0.5;
+      const my = (a.y + b.y) * 0.5;
+      const ux = dx / sep;
+      const uy = dy / sep;
+      const px = -uy;
+      const py = ux;
+      const mp = mx * px + my * py;
+      const disc = mp * mp - (mx * mx + my * my - radius * radius);
+      if (disc < 0) continue;
+      const sd = Math.sqrt(disc);
+      let t0 = -mp - sd;
+      let t1 = -mp + sd;
+      let valid = true;
+      for (let k = 0; k < n; k++) {
+        if (k === i || k === j) continue;
+        const s = blocks[k];
+        const sax = s.x - a.x;
+        const say = s.y - a.y;
+        const rhsA = (s.x * s.x + s.y * s.y - a.x * a.x - a.y * a.y) * 0.5;
+        const coeffA = px * sax + py * say;
+        const constA = mx * sax + my * say;
+        if (Math.abs(coeffA) < 1e-8) {
+          if (constA > rhsA + 1e-5) {
+            valid = false;
+            break;
+          }
+        } else if (coeffA > 0) t1 = Math.min(t1, (rhsA - constA) / coeffA);
+        else t0 = Math.max(t0, (rhsA - constA) / coeffA);
+
+        const sbx = s.x - b.x;
+        const sby = s.y - b.y;
+        const rhsB = (s.x * s.x + s.y * s.y - b.x * b.x - b.y * b.y) * 0.5;
+        const coeffB = px * sbx + py * sby;
+        const constB = mx * sbx + my * sby;
+        if (Math.abs(coeffB) < 1e-8) {
+          if (constB > rhsB + 1e-5) {
+            valid = false;
+            break;
+          }
+        } else if (coeffB > 0) t1 = Math.min(t1, (rhsB - constB) / coeffB);
+        else t0 = Math.max(t0, (rhsB - constB) / coeffB);
+      }
+      if (!valid || t1 - t0 < 0.18) continue;
+      edges.push({
+        x0: mx + px * t0,
+        y0: my + py * t0,
+        x1: mx + px * t1,
+        y1: my + py * t1,
+        nx: ux,
+        ny: uy,
+        a: i,
+        b: j
+      });
+    }
+  }
+  return edges;
+}
+
+function collectWallSamples(terrain, center, east, north, morph) {
+  const samples = [];
+  const { blocks, radius, edgeFade } = morph;
   const dir = new THREE.Vector3();
-  const pos = new THREE.Vector3();
 
-  while (dist < maxDist) {
-    surfaceOffsetDir(center, east, north, ang, dist, dir);
-    const wet = terrain.height(dir) < CONFIG.waterLevel + 0.06;
-    if (wet) {
-      if (pts.length >= 2) segments.push({ pts, dists });
-      pts = [];
-      dists = [];
-    } else {
-      placeOnSurface(terrain, dir, pos);
-      pts.push(pos.clone());
-      dists.push(dist);
-    }
-    ang += (Math.random() - 0.5) * 0.5;
-    dist += 0.55 + Math.random() * 0.7;
-    if (abortChance > 0 && Math.random() < abortChance) break;
-  }
-  if (pts.length >= 2) segments.push({ pts, dists });
-  return segments;
-}
-
-function makeCrackMesh(pts, dists, opts = {}) {
-  if (pts.length < 2) return null;
-  const geo = new THREE.BufferGeometry().setFromPoints(pts);
-  const rest = new Float32Array(pts.length * 3);
-  for (let i = 0; i < pts.length; i++) {
-    rest[i * 3] = pts[i].x;
-    rest[i * 3 + 1] = pts[i].y;
-    rest[i * 3 + 2] = pts[i].z;
-  }
-  geo.userData.rest = rest;
-  geo.setDrawRange(0, 0);
-  const mat = new THREE.LineBasicMaterial({
-    color: opts.color ?? CRACK_COLOR,
-    transparent: true,
-    opacity: opts.opacity ?? 0.92,
-    depthWrite: false
-  });
-  const line = new THREE.Line(geo, mat);
-  line.frustumCulled = false;
-  line.renderOrder = 3;
-  line.visible = false;
-  line.userData.baseOpacity = opts.opacity ?? 0.92;
-  line.userData.isRing = !!opts.isRing;
-  line.userData.dists = dists;
-  return line;
-}
-
-function addCrack(group, lines, pts, dists, opts) {
-  const line = makeCrackMesh(pts, dists, opts);
-  if (!line) return;
-  group.add(line);
-  lines.push(line);
-}
-
-/**
- * Strom trhlin: kmen (1) → větve (2) → větvičky (3).
- * Růst se později odvíjí od `dists` — čím dál od epicentra, tím později.
- */
-function growCrack(
-  sys, group, lines, center, east, north,
-  ang, startDist, maxDist, order, zoneRadius
-) {
-  const abort = order === 1 ? 0 : order === 2 ? 0.04 : 0.08;
-  const segments = buildCrackSegments(
-    sys.terrain, center, east, north, ang, startDist, maxDist, abort
-  );
-  for (const seg of segments) {
-    addCrack(group, lines, seg.pts, seg.dists, {
-      color: CRACK_COLOR,
-      opacity: ORDER_OPACITY[order] ?? ORDER_OPACITY[3]
-    });
-  }
-  if (order >= 3) return;
-
-  const longest = segments.reduce((a, b) => (a.pts.length >= b.pts.length ? a : b), { pts: [] });
-  if (longest.pts.length < 5) return;
-
-  const branches = order === 1 ? 1 + (Math.random() < 0.75 ? 1 : 0) : (Math.random() < 0.65 ? 1 : 0);
-  for (let b = 0; b < branches; b++) {
-    const idx = 2 + Math.floor(Math.random() * (longest.pts.length - 4));
-    const from = longest.dists[idx];
-    const remain = zoneRadius - from;
-    if (remain < 2.2) continue;
-    const side = Math.random() < 0.5 ? 1 : -1;
-    const branchAng = ang + side * (0.38 + Math.random() * 0.55);
-    const branchMax = from + remain * (0.55 + Math.random() * 0.42);
-    growCrack(
-      sys, group, lines, center, east, north,
-      branchAng, from, Math.min(zoneRadius, branchMax), order + 1, zoneRadius
-    );
-  }
-}
-
-function spawnCrackVisuals(sys, centerDir, radiusM) {
-  const center = centerDir.clone().normalize();
-  tangentFrame(center, tmp.east, tmp.north);
-  const group = new THREE.Group();
-  group.frustumCulled = false;
-  const lines = [];
-
-  for (let i = 0; i < TRUNK_COUNT; i++) {
-    const ang = (i / TRUNK_COUNT) * Math.PI * 2 + Math.random() * 0.32;
-    const maxD = radiusM * (0.88 + Math.random() * 0.12);
-    growCrack(
-      sys, group, lines, center, tmp.east, tmp.north,
-      ang, 0.25 + Math.random() * 0.35, maxD, 1, radiusM
-    );
-  }
-
-  const ringSegs = [];
-  let ringPts = [];
-  let ringDists = [];
-  const rdir = new THREE.Vector3();
-  const rpos = new THREE.Vector3();
-  for (let i = 0; i <= 64; i++) {
-    const a = (i / 64) * Math.PI * 2;
-    surfaceOffsetDir(center, tmp.east, tmp.north, a, radiusM, rdir);
-    if (sys.terrain.height(rdir) < CONFIG.waterLevel + 0.06) {
-      if (ringPts.length >= 2) ringSegs.push({ pts: ringPts, dists: ringDists });
-      ringPts = [];
-      ringDists = [];
-    } else {
-      placeOnSurface(sys.terrain, rdir, rpos);
-      ringPts.push(rpos.clone());
-      ringDists.push(radiusM);
-    }
-  }
-  if (ringPts.length >= 2) ringSegs.push({ pts: ringPts, dists: ringDists });
-  for (const seg of ringSegs) {
-    addCrack(group, lines, seg.pts, seg.dists, {
-      color: 0x8a6a40,
-      opacity: 0.35,
-      isRing: true
-    });
-  }
-
-  sys.planetGroup.add(group);
-  return { group, lines };
-}
-
-/** Odhalí čárky podle vzdálenosti od epicentra — vlna zevnitř ven. */
-function revealCracks(quake) {
-  const radius = quake.radius;
-  const front = Math.min(radius, (quake.elapsed / GROW_TIME) * radius);
-  quake.front = front;
-
-  for (const line of quake.lines) {
-    const dists = line.userData.dists;
-    if (!dists) continue;
-    if (line.userData.isRing) {
-      const show = front >= radius * 0.92;
-      line.visible = show;
-      line.geometry.setDrawRange(0, show ? dists.length : 0);
-      continue;
-    }
-    let n = 0;
-    for (let i = 0; i < dists.length; i++) {
-      if (dists[i] <= front) n = i + 1;
-      else break;
-    }
-    line.geometry.setDrawRange(0, n);
-    line.visible = n >= 2;
-  }
-}
-
-function shakeCracks(quake, t) {
-  const amp = 0.035 + 0.045 * Math.min(1, quake.life / Math.max(1e-5, quake.duration));
-  const shake = amp * (0.5 + 0.5 * Math.abs(Math.sin(t * 22)));
-  tangentFrame(quake.centerDir, tmp.east, tmp.north);
-
-  for (const line of quake.lines) {
-    if (!line.visible) continue;
-    const rest = line.geometry.userData.rest;
-    if (!rest) continue;
-    const pos = line.geometry.attributes.position;
-    const n = line.geometry.drawRange.count || pos.count;
+  const addRibbon = (x0, y0, x1, y1, nx, ny, blockA, blockB) => {
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    if (len < 0.12) return;
+    const n = Math.max(2, Math.ceil(len / WALL_STEP) + 1);
+    let run = [];
+    const flush = () => {
+      if (run.length >= 2) samples.push({ pts: run, nx, ny, blockA, blockB });
+      run = [];
+    };
     for (let i = 0; i < n; i++) {
-      const j = i * 3;
-      const phase = t * 18 + i * 0.7 + (quake.seed || 0);
-      const ox = Math.sin(phase) * shake;
-      const oy = Math.cos(phase * 1.3) * shake;
-      pos.setXYZ(
-        i,
-        rest[j] + tmp.east.x * ox + tmp.north.x * oy,
-        rest[j + 1] + tmp.east.y * ox + tmp.north.y * oy,
-        rest[j + 2] + tmp.east.z * ox + tmp.north.z * oy
-      );
+      const t = i / (n - 1);
+      const x = x0 + (x1 - x0) * t;
+      const y = y0 + (y1 - y0) * t;
+      const dist = Math.hypot(x, y);
+      if (dist > radius) {
+        flush();
+        continue;
+      }
+      surfaceOffsetDir(center, east, north, Math.atan2(y, x), dist, dir);
+      const restH = terrain.height(dir);
+      if (restH < CONFIG.waterLevel + 0.06) {
+        flush();
+        continue;
+      }
+      const sph = Math.acos(Math.min(1, Math.max(-1, dir.dot(center)))) * CONFIG.planetR;
+      run.push({
+        dx: dir.x,
+        dy: dir.y,
+        dz: dir.z,
+        restH,
+        fade: fadeAt(sph, radius, edgeFade),
+        dist: sph
+      });
     }
-    pos.needsUpdate = true;
+    flush();
+  };
+
+  for (const e of voronoiEdges(blocks, radius)) {
+    addRibbon(e.x0, e.y0, e.x1, e.y1, e.nx, e.ny, e.a, e.b);
   }
+  return samples;
 }
 
-function restoreCrackRest(quake) {
-  for (const line of quake.lines) {
-    const rest = line.geometry.userData.rest;
-    if (!rest) continue;
-    const pos = line.geometry.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const j = i * 3;
-      pos.setXYZ(i, rest[j], rest[j + 1], rest[j + 2]);
+function makeWallMesh(ribbons, east, north) {
+  let vertCount = 0;
+  for (const r of ribbons) vertCount += r.pts.length * 2;
+  if (vertCount < 4) return null;
+
+  const positions = new Float32Array(vertCount * 3);
+  const normals = new Float32Array(vertCount * 3);
+  const indices = [];
+  const n3 = new THREE.Vector3();
+  let base = 0;
+
+  for (const r of ribbons) {
+    const nPts = r.pts.length;
+    n3.copy(east).multiplyScalar(r.nx).addScaledVector(north, r.ny).normalize();
+    for (let i = 0; i < nPts; i++) {
+      const o = (base + i * 2) * 3;
+      normals[o] = n3.x;
+      normals[o + 1] = n3.y;
+      normals[o + 2] = n3.z;
+      normals[o + 3] = n3.x;
+      normals[o + 4] = n3.y;
+      normals[o + 5] = n3.z;
     }
-    pos.needsUpdate = true;
-    line.geometry.setDrawRange(0, pos.count);
-    line.visible = pos.count >= 2;
+    for (let i = 0; i < nPts - 1; i++) {
+      const a = base + i * 2;
+      const b = a + 1;
+      const d = a + 2;
+      const e = a + 3;
+      indices.push(a, d, b, b, d, e);
+    }
+    base += nPts * 2;
   }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
+  geo.setIndex(indices);
+  const mat = new THREE.MeshStandardMaterial({
+    color: WALL_COLOR,
+    roughness: 0.96,
+    metalness: 0,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -2
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.frustumCulled = false;
+  mesh.receiveShadow = true;
+  mesh.userData.ribbons = ribbons;
+  mesh.userData.nWorld = { east, north };
+  return mesh;
+}
+
+function writeWalls(mesh, drives, front) {
+  const ribbons = mesh.userData.ribbons;
+  const pos = mesh.geometry.attributes.position;
+  const east = mesh.userData.nWorld.east;
+  const north = mesh.userData.nWorld.north;
+  const n3 = tmp.n;
+  let w = 0;
+  for (const r of ribbons) {
+    n3.copy(east).multiplyScalar(r.nx).addScaledVector(north, r.ny).normalize();
+    const dA = drives[r.blockA] || 0;
+    const dB = drives[r.blockB] || 0;
+    for (const p of r.pts) {
+      let reveal = 1;
+      if (p.dist > front) reveal = Math.max(0, 1 - (p.dist - front) / 0.9);
+      const mag = p.fade * reveal;
+      const hL = p.restH + dA * mag;
+      const hR = p.restH + dB * mag;
+      pos.setXYZ(
+        w,
+        p.dx * hL - n3.x * WALL_HALF,
+        p.dy * hL - n3.y * WALL_HALF,
+        p.dz * hL - n3.z * WALL_HALF
+      );
+      pos.setXYZ(
+        w + 1,
+        p.dx * hR + n3.x * WALL_HALF,
+        p.dy * hR + n3.y * WALL_HALF,
+        p.dz * hR + n3.z * WALL_HALF
+      );
+      w += 2;
+    }
+  }
+  pos.needsUpdate = true;
+}
+
+function applyQuakeDrive(q) {
+  const front = Math.min(q.radius, (q.elapsed / GROW_TIME) * q.radius);
+  q.front = front;
+  const morph = q.morph;
+  if (morph?.blocks && morph.blockDrive) {
+    for (let i = 0; i < morph.blocks.length; i++) {
+      morph.blockDrive[i] = AMP * blockWave(morph.blocks[i], q.elapsed, q.duration);
+    }
+    morph.front = front;
+  }
+  if (q.wall && morph?.blockDrive) writeWalls(q.wall, morph.blockDrive, front);
 }
 
 function triggerQuakeFall(w, centerDir) {
@@ -307,7 +317,20 @@ export function spawnEarthquake(sys, targetDir) {
   const def = SPELLS.earthquake;
   const centerDir = targetDir.clone().normalize();
   const radius = def.effectRadius;
-  const { group, lines } = spawnCrackVisuals(sys, centerDir, radius);
+  const morph = sys.terrain.beginQuakeMorph(centerDir, radius);
+
+  const group = new THREE.Group();
+  group.frustumCulled = false;
+  let wall = null;
+  if (morph) {
+    tangentFrame(centerDir, tmp.east, tmp.north);
+    const east = tmp.east.clone();
+    const north = tmp.north.clone();
+    const ribbons = collectWallSamples(sys.terrain, centerDir, east, north, morph);
+    wall = makeWallMesh(ribbons, east, north);
+    if (wall) group.add(wall);
+  }
+  sys.planetGroup.add(group);
 
   const listener = sys.getListenerDir?.();
   const sfx =
@@ -316,21 +339,22 @@ export function spawnEarthquake(sys, targetDir) {
       : null;
 
   if (!sys.earthquakes) sys.earthquakes = [];
-  sys.earthquakes.push({
+  const q = {
     centerDir,
     group,
-    lines,
+    wall,
+    morph,
     radius,
     front: 0,
-    t: 0,
     elapsed: 0,
     life: def.duration,
     duration: def.duration,
     shaking: true,
     victims: new Map(),
-    seed: Math.random() * 100,
     sfx
-  });
+  };
+  sys.earthquakes.push(q);
+  applyQuakeDrive(q);
 }
 
 export function updateEarthquakes(sys, dt) {
@@ -339,7 +363,6 @@ export function updateEarthquakes(sys, dt) {
   for (const q of sys.earthquakes) {
     if (!q.shaking) continue;
 
-    q.t += dt;
     q.elapsed += dt;
     q.life -= dt;
 
@@ -347,8 +370,7 @@ export function updateEarthquakes(sys, dt) {
       sys.audio?.updateSfxLoop(q.sfx, q.centerDir, listener);
     }
 
-    revealCracks(q);
-    shakeCracks(q, q.t);
+    applyQuakeDrive(q);
     if (q.life > 0) updateVictims(sys, q);
 
     if (q.life <= 0) {
@@ -356,18 +378,7 @@ export function updateEarthquakes(sys, dt) {
       sys.audio?.stopSfxLoop(q.sfx);
       q.sfx = null;
       q.victims.clear();
-      restoreCrackRest(q);
-      for (const line of q.lines) {
-        if (!line.userData.isRing) continue;
-        q.group.remove(line);
-        line.geometry.dispose();
-        line.material.dispose();
-      }
-      q.lines = q.lines.filter((l) => !l.userData.isRing);
-      for (const line of q.lines) {
-        /** Po otřesu zůstanou stopy — každá čárka jinak 10–50 % průhledná. */
-        line.material.opacity = 0.5 + Math.random() * 0.4;
-      }
+      if (q.morph) q.morph.released = true;
     }
   }
 }
@@ -375,11 +386,12 @@ export function updateEarthquakes(sys, dt) {
 function disposeOneEarthquake(sys, q) {
   sys.audio?.stopSfxLoop(q.sfx, 0.05);
   q.sfx = null;
+  if (q.morph && !q.morph.released) q.morph.released = true;
   if (q.group) {
     sys.planetGroup.remove(q.group);
-    for (const line of q.lines || []) {
-      line.geometry.dispose();
-      line.material.dispose();
+    if (q.wall) {
+      q.wall.geometry.dispose();
+      q.wall.material.dispose();
     }
   }
   q.victims?.clear();

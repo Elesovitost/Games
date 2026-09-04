@@ -159,11 +159,17 @@ function buildSpellGlyph(spellId) {
     g.add(ring, ring2, eye);
   } else if (spellId === "earthquake") {
     const crackMat = glyphMat(0xc4a060, 0.9);
-    for (let i = 0; i < 3; i++) {
+    const segs = [
+      [[-0.34, -0.22, 0.22], [0.08, 0.32, 0.22]],
+      [[-0.06, -0.34, 0.22], [-0.22, 0.18, 0.22]],
+      [[0.22, -0.3, 0.22], [0.04, 0.08, 0.22]],
+      [[-0.38, 0.02, 0.22], [0.36, -0.08, 0.22]],
+      [[0.12, 0.06, 0.22], [0.34, 0.28, 0.22]]
+    ];
+    for (const [a, b] of segs) {
       const geo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-0.35 + i * 0.08, -0.3, 0.2),
-        new THREE.Vector3(-0.1 + i * 0.05, 0.05, 0.32),
-        new THREE.Vector3(0.3 - i * 0.06, 0.32, 0.22)
+        new THREE.Vector3(a[0], a[1], a[2]),
+        new THREE.Vector3(b[0], b[1], b[2])
       ]);
       g.add(new THREE.Line(geo, crackMat));
     }

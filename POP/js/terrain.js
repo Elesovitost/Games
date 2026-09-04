@@ -222,6 +222,7 @@ export class Terrain {
     this.scorchCoreMask = new Float32Array(count);
     this.tornadoTrailMask = new Float32Array(count);
     this.iceTrailLife = new Float32Array(count);
+    this.faultMask = new Float32Array(count);
   }
 
   /**
@@ -447,6 +448,17 @@ export class Terrain {
       col[0] = col[0] * (1 - u) + gr * u;
       col[1] = col[1] * (1 - u) + gg * u;
       col[2] = col[2] * (1 - u) + gb * u;
+    }
+
+    const fault = this.faultMask?.[i] ?? 0;
+    if (fault > 0.001) {
+      const u = fault * fault * (3 - 2 * fault);
+      const dr = 0.2 + grain * 0.05;
+      const dg = 0.13 + grain * 0.03;
+      const db = 0.08 + grain * 0.02;
+      col[0] = col[0] * (1 - u) + dr * u;
+      col[1] = col[1] * (1 - u) + dg * u;
+      col[2] = col[2] * (1 - u) + db * u;
     }
 
     const iceLife = this.iceTrailLife[i];
@@ -687,6 +699,102 @@ export class Terrain {
     };
   }
 
+  /**
+   * Zemětřesení — nepravidelné Voronoi desky s rovnými zlomy. Kouzlo plní
+   * `blockDrive[id]` (m) a `front`; na konci `released`, výšky zůstanou.
+   */
+  beginQuakeMorph(centerDir, radiusM, opts = {}) {
+    const center = new THREE.Vector3().copy(centerDir).normalize();
+    const east = new THREE.Vector3();
+    const north = new THREE.Vector3();
+    tangentFrame(center, east, north);
+
+    const blocks = opts.blocks ?? placeQuakeBlocks(radiusM);
+    const edgeFade = opts.edgeFade ?? 2.2;
+    const cosR = Math.cos(radiusM / CONFIG.planetR);
+    const pos = this.geometry.attributes.position;
+    const indices = [];
+    const startH = [];
+    const weight = [];
+    const distArr = [];
+    const blockId = [];
+
+    const candidates = this.#nearbyIndices(center.y, radiusM + 0.5);
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const i = candidates[ci];
+      const dx = this.dirs[i * 3];
+      const dy = this.dirs[i * 3 + 1];
+      const dz = this.dirs[i * 3 + 2];
+      const dot = Math.min(1, Math.max(-1, dx * center.x + dy * center.y + dz * center.z));
+      if (dot < cosR) continue;
+      const dist = Math.acos(dot) * CONFIG.planetR;
+      if (dist > radiusM) continue;
+
+      const h0 = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
+      if (h0 < CONFIG.waterLevel + 0.06) continue;
+
+      const tx = dx - center.x * dot;
+      const ty = dy - center.y * dot;
+      const tz = dz - center.z * dot;
+      const ang = Math.atan2(
+        tx * north.x + ty * north.y + tz * north.z,
+        tx * east.x + ty * east.y + tz * east.z
+      );
+      const x = dist * Math.cos(ang);
+      const y = dist * Math.sin(ang);
+      const near = nearestTwoBlocks(x, y, blocks);
+
+      let fade = 1;
+      if (dist > radiusM - edgeFade) {
+        fade = Math.max(0, (radiusM - dist) / edgeFade);
+        fade = fade * fade * (3 - 2 * fade);
+      }
+
+      const sep = Math.max(
+        1e-4,
+        Math.hypot(blocks[near.id].x - blocks[near.second].x, blocks[near.id].y - blocks[near.second].y)
+      );
+      const edgeDist = Math.abs(near.d0 - near.d1) / (2 * sep);
+      const scar =
+        near.id === near.second ? 0 : Math.max(0, 1 - edgeDist / 0.85) * fade;
+      if (scar > 0.04) {
+        if (!this.faultMask) this.faultMask = new Float32Array(pos.count);
+        this.faultMask[i] = Math.max(this.faultMask[i], scar);
+      }
+
+      if (fade < 0.02) continue;
+      indices.push(i);
+      startH.push(h0);
+      weight.push(fade);
+      distArr.push(dist);
+      blockId.push(near.id);
+    }
+    if (!indices.length) return null;
+
+    const { faces, verts } = this.#facesForIndices(indices);
+    const morph = {
+      kind: "driven",
+      indices,
+      startH,
+      weight,
+      dist: distArr,
+      blockId,
+      blocks,
+      blockDrive: new Float32Array(blocks.length),
+      front: 0,
+      released: false,
+      duration: Infinity,
+      elapsed: 0,
+      normalFaces: faces,
+      normalVerts: verts,
+      cap: { x: center.x, y: center.y, z: center.z, cos: cosR },
+      edgeFade,
+      radius: radiusM
+    };
+    this.morphs.push(morph);
+    return morph;
+  }
+
   /** @returns {boolean} true pokud ještě běží nějaký morph */
   updateMorphs(dt) {
     if (!this.morphs.length) return false;
@@ -700,6 +808,31 @@ export class Terrain {
 
     for (let m = this.morphs.length - 1; m >= 0; m--) {
       const morph = this.morphs[m];
+      if (morph.kind === "driven") {
+        const drives = morph.blockDrive;
+        const front = morph.front ?? morph.radius ?? Infinity;
+        for (let k = 0; k < morph.indices.length; k++) {
+          const i = morph.indices[k];
+          const d = morph.dist[k];
+          let reveal = 1;
+          if (d > front) reveal = Math.max(0, 1 - (d - front) / 0.9);
+          const drive = drives ? drives[morph.blockId[k]] || 0 : 0;
+          let h = morph.startH[k] + morph.weight[k] * drive * reveal;
+          h = Math.min(CONFIG.maxR * 0.98, Math.max(CONFIG.minR, h));
+          const dx = this.dirs[i * 3];
+          const dy = this.dirs[i * 3 + 1];
+          const dz = this.dirs[i * 3 + 2];
+          pos.setXYZ(i, dx * h, dy * h, dz * h);
+          this.#writeColor(i, h, col);
+          colAttr.setXYZ(i, col[0], col[1], col[2]);
+        }
+        for (const f of morph.normalFaces) this._touchedFaces.add(f);
+        for (const v of morph.normalVerts) this._touchedVerts.add(v);
+        if (morph.released) this.morphs.splice(m, 1);
+        else any = true;
+        continue;
+      }
+
       morph.elapsed += dt;
       const u = Math.min(1, morph.elapsed / morph.duration);
       const s = u * u * (3 - 2 * u);
@@ -814,4 +947,79 @@ export class Terrain {
 
 function smoothFalloff(t) {
   return t * t * (3 - 2 * t);
+}
+
+/** Náhodné semínka Voronoi desek v kruhu — nepravidelné, s vlastní fází kývání. */
+function placeQuakeBlocks(radiusM) {
+  const blocks = [];
+  const target = 8 + Math.floor(Math.random() * 5);
+  let minDist = 4.2;
+  for (let guard = 0; guard < 4 && blocks.length < 6; guard++) {
+    for (let t = 0; t < 90 && blocks.length < target; t++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.sqrt(Math.random()) * radiusM * 0.8;
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r;
+      let ok = true;
+      for (let i = 0; i < blocks.length; i++) {
+        if (Math.hypot(blocks[i].x - x, blocks[i].y - y) < minDist) {
+          ok = false;
+          break;
+        }
+      }
+      if (!ok) continue;
+      blocks.push(makeQuakeBlock(x, y));
+    }
+    minDist *= 0.72;
+  }
+  const extra = 1 + Math.floor(Math.random() * 2);
+  for (let e = 0; e < extra && blocks.length; e++) {
+    const host = blocks[Math.floor(Math.random() * blocks.length)];
+    const a = Math.random() * Math.PI * 2;
+    const r = 2.1 + Math.random() * 2.8;
+    let x = host.x + Math.cos(a) * r;
+    let y = host.y + Math.sin(a) * r;
+    const lim = radiusM * 0.84;
+    const d = Math.hypot(x, y);
+    if (d > lim) {
+      x *= lim / d;
+      y *= lim / d;
+    }
+    blocks.push(makeQuakeBlock(x, y));
+  }
+  if (!blocks.length) blocks.push(makeQuakeBlock(0, 0));
+  return blocks;
+}
+
+function makeQuakeBlock(x, y) {
+  return {
+    x,
+    y,
+    phase: Math.random() * Math.PI * 2,
+    cycles: 2.1 + Math.random() * 1.5,
+    sign: Math.random() < 0.5 ? 1 : -1
+  };
+}
+
+function nearestTwoBlocks(x, y, blocks) {
+  let id = 0;
+  let second = 0;
+  let d0 = Infinity;
+  let d1 = Infinity;
+  for (let i = 0; i < blocks.length; i++) {
+    const dx = x - blocks[i].x;
+    const dy = y - blocks[i].y;
+    const d = dx * dx + dy * dy;
+    if (d < d0) {
+      second = id;
+      d1 = d0;
+      id = i;
+      d0 = d;
+    } else if (d < d1) {
+      second = i;
+      d1 = d;
+    }
+  }
+  if (blocks.length < 2) second = id;
+  return { id, second, d0, d1 };
 }
