@@ -655,6 +655,7 @@ function walkTo(d, goal, dt) {
 }
 
 function refreshPuddle(terrain, mark) {
+  if (!mark?.mesh?.geometry) return;
   const pos = mark.mesh.geometry.attributes.position;
   const lift = mark.lift;
   const cx = mark.centerDir[0];

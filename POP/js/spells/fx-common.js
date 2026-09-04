@@ -171,7 +171,7 @@ export function updateScorchMarks(sys) {
   const morphs = sys.terrain.morphs;
   for (const mark of sys.scorchMarks) {
     if (mark.cap && morphs?.length && !capsTouch(mark.cap, morphs)) continue;
-    if (mark.refresh) mark.refresh(sys.terrain);
+    if (mark.refresh) mark.refresh(sys.terrain, mark);
     else refreshScorchMark(sys.terrain, mark);
   }
 }
