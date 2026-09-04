@@ -10,15 +10,15 @@ import {
   treeSwayZ
 } from "./animalsAI.js";
 
-const COUNT = 8;
+const COUNT = 16;
 /** 2× longneck (1.15). */
 const WALK_SPEED = 2.3;
 const TURN_RATE = 2.6;
 const LAND_MARGIN = 0.28;
 const MIN_R = CONFIG.wizardMinTerrainR + 0.05;
-const LINKS = 10;
+const LINKS = 16;
 /** Kolik článků (od hlavy) vyjde z díry — zbytek zůstane pod zemí. */
-const PEEK_LINKS = 1.1;
+const PEEK_LINKS = 2.4;
 const RISE_DUR = 0.7;
 const DIVE_DUR = 0.95;
 const PEEK_HOLD_MIN = 2.4;
@@ -56,6 +56,19 @@ function cyl(geo, material, r, h, x, y, z) {
   return mesh;
 }
 
+function cylZ(geo, material, r, h, x, y, z) {
+  const mesh = cyl(geo, material, r, h, x, y, z);
+  mesh.rotation.x = Math.PI / 2;
+  return mesh;
+}
+
+function noShadow(obj) {
+  obj.traverse((c) => {
+    c.castShadow = false;
+    c.receiveShadow = false;
+  });
+}
+
 function isWalkLand(terrain, dir) {
   return isLandAI(terrain, dir, LAND_MARGIN, MIN_R);
 }
@@ -67,7 +80,7 @@ function wrapPi(a) {
 }
 
 /**
- * Články jsou samostatné — čelo vede, zbytek se sází po stopě.
+ * Články se překrývají (kulička + trubka) — čelo vede, zbytek se sází po stopě.
  * Ridge = podzemní obrys.
  */
 export function createWormMesh(mats, geos) {
@@ -78,12 +91,16 @@ export function createWormMesh(mats, geos) {
 
   for (let i = 0; i < LINKS; i++) {
     const u = 1 - i / (LINKS - 1);
-    const r = 0.28 + u * 0.22;
+    const r = 0.24 + u * 0.2;
     const g = new THREE.Group();
-    const flesh = sph(S, i % 2 ? mats.band : mats.hide, r * 1.08, r * 0.92, r * 1.18, 0, 0, 0);
-    const ridge = sph(S, mats.ridge, r * 1.15, r * 0.38, r * 1.35, 0, 0, 0);
-    ridge.castShadow = false;
-    ridge.receiveShadow = false;
+    const flesh = new THREE.Group();
+    flesh.add(sph(S, mats.hide, r * 1.02, r * 0.8, r * 1.38, 0, 0, 0));
+    flesh.add(cylZ(C, mats.hide, r * 0.84, r * 1.65, 0, 0, -r * 0.42));
+    if (i % 2) flesh.add(sph(S, mats.band, r * 1.08, r * 0.9, r * 0.38, 0, 0, 0.04));
+    const ridge = new THREE.Group();
+    ridge.add(sph(S, mats.ridge, r * 1.1, r * 0.34, r * 1.48, 0, 0, 0));
+    ridge.add(cylZ(C, mats.ridge, r * 0.88, r * 1.7, 0, 0, -r * 0.42));
+    noShadow(ridge);
     g.add(flesh, ridge);
     g.frustumCulled = false;
     root.add(g);
@@ -91,27 +108,27 @@ export function createWormMesh(mats, geos) {
   }
 
   const head = new THREE.Group();
-  const hr = 0.52;
-  head.add(sph(S, mats.hide, hr, hr * 0.88, hr * 1.15, 0, 0.02, 0.06));
-  head.add(sph(S, mats.belly, 0.24, 0.18, 0.28, 0, -0.04, 0.22));
-  head.add(sph(S, mats.dark, 0.1, 0.08, 0.12, 0, -0.08, 0.38));
+  const hr = 0.48;
+  head.add(sph(S, mats.hide, hr * 0.92, hr * 0.8, hr * 1.18, 0, 0.06, 0.1));
+  head.add(sph(S, mats.belly, 0.22, 0.15, 0.26, 0, -0.05, 0.3));
+  head.add(sph(S, mats.dark, 0.09, 0.07, 0.11, 0, -0.1, 0.44));
   const stalks = [];
   const defs = [
-    { x: -0.22, y: 0.28, z: 0.05, tilt: -0.38, h: 0.72 },
-    { x: 0.22, y: 0.3, z: -0.05, tilt: 0.4, h: 0.8 },
-    { x: 0.0, y: 0.38, z: 0.16, tilt: 0.05, h: 0.6 }
+    { x: -0.12, y: 0.4, z: 0.4, tilt: -0.16, h: 0.72 },
+    { x: 0.12, y: 0.42, z: 0.36, tilt: 0.18, h: 0.8 },
+    { x: 0.0, y: 0.44, z: 0.5, tilt: 0.03, h: 0.6 }
   ];
   for (const s of defs) {
     const st = new THREE.Group();
     st.position.set(s.x, s.y, s.z);
     st.rotation.z = s.tilt;
-    st.add(cyl(C, mats.band, 0.05, s.h, 0, s.h * 0.5, 0));
-    st.add(sph(S, mats.eye, 0.12, 0.12, 0.12, 0, s.h + 0.05, 0.04));
+    st.add(cyl(C, mats.band, 0.045, s.h, 0, s.h * 0.5, 0));
+    st.add(sph(S, mats.eye, 0.11, 0.11, 0.11, 0, s.h + 0.05, 0.03));
     st.userData.tilt = s.tilt;
     head.add(st);
     stalks.push(st);
   }
-  head.position.z = 0.22;
+  head.position.z = 0.32;
   links[0].g.add(head);
   links[0].head = head;
   links[0].stalks = stalks;
@@ -131,7 +148,7 @@ class Worm {
     const size = 0.75 + rng() * 0.5;
     this.size = size;
     this.blockR = Math.max(0.38, 0.55 * size);
-    this.spacing = 0.7 * size;
+    this.spacing = 0.38 * size;
     this.peekR = Math.max(0.8, this.spacing * PEEK_LINKS);
     herd.planetGroup.add(this.mesh);
     this.parts = this.mesh.userData.parts;
@@ -639,8 +656,8 @@ export class WormHerd {
     this.seed = seed + 9029;
     this.list = [];
     this.geos = {
-      sphere: new THREE.SphereGeometry(1, 10, 8),
-      cyl: new THREE.CylinderGeometry(1, 1, 1, 7)
+      sphere: new THREE.SphereGeometry(1, 12, 10),
+      cyl: new THREE.CylinderGeometry(1, 1, 1, 8)
     };
     this.mats = {
       hide: mat(0xb84a58, { roughness: 0.72 }),
@@ -651,7 +668,7 @@ export class WormHerd {
       ridge: new THREE.MeshBasicMaterial({
         color: 0x1c1610,
         transparent: true,
-        opacity: 0.1,
+        opacity: 0.04,
         depthWrite: false
       })
     };
