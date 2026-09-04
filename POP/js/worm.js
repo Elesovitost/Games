@@ -207,8 +207,8 @@ class Worm {
 
   get treeSensitive() {
     if (this.dead || this.gone) return false;
-    if (this.state === "peek" && this.peekStage === "hold") return true;
-    return this.state === "treeTrance";
+    if (this.state === "charm") return false;
+    return true;
   }
 
   get exposed() {
@@ -303,10 +303,18 @@ class Worm {
       this._right.normalize();
       this._up.crossVectors(this._fwd, this._right).normalize();
       this._mat.makeBasis(this._right, this._up, this._fwd);
-      link.g.position.copy(this._pos);
-      link.g.quaternion.setFromRotationMatrix(this._mat);
-
       const emerged = lift > 0.07;
+      if (peeking && this.state === "treeTrance" && emerged) {
+        const lean = treeSwayZ();
+        this._pos.addScaledVector(this._right, lean * Math.max(0, lift));
+        link.g.position.copy(this._pos);
+        link.g.quaternion.setFromRotationMatrix(this._mat);
+        if (this.peekFwd.lengthSq() > 1e-8) link.g.rotateOnWorldAxis(this.peekFwd, lean);
+      } else {
+        link.g.position.copy(this._pos);
+        link.g.quaternion.setFromRotationMatrix(this._mat);
+      }
+
       link.flesh.visible = emerged || surfaced;
       link.ridge.visible = !emerged && !surfaced;
       if (link.head) {
@@ -327,8 +335,8 @@ class Worm {
       head.rotation.y = Math.sin(this.phase * 1.15) * 0.72;
       head.rotation.x = Math.sin(this.phase * 0.7) * 0.18;
     } else if (tree) {
-      head.rotation.y = Math.sin(this.phase * 1.4) * 0.22 + treeSwayZ() * 0.4;
-      head.rotation.x = -0.08;
+      head.rotation.y = treeSwayZ() * 0.35;
+      head.rotation.x = -0.06;
     } else {
       head.rotation.y *= 0.85;
       head.rotation.x *= 0.85;
@@ -580,11 +588,16 @@ class Worm {
       const dSlot = surfaceDist(this.dir, this.treeSlot);
       if (dSlot > 1.15) {
         this.arrivedTree = false;
+        this.peekStage = null;
+        this.peekT = 0;
+        this.#surfPos(this.dir, 0.014, this._pos);
+        this.#pushPath(this._pos);
         this.#drive(dt, this.treeSlot);
         this.#poseLinks(dt);
         return;
       }
       this.arrivedTree = true;
+      this.#faceTree();
       if (this.peekStage !== "hold") {
         if (!this.peekStage) this.#enterPeek();
         this.#updatePeek(dt);
@@ -595,10 +608,6 @@ class Worm {
       } else {
         this.#risePos(1, this._pos);
         this.#pushPath(this._pos);
-        const sway = treeSwayZ() * 0.55;
-        this.peekFwd.applyAxisAngle(this.peekHole, sway * dt * 1.2);
-        this.peekFwd.addScaledVector(this.peekHole, -this.peekFwd.dot(this.peekHole));
-        if (this.peekFwd.lengthSq() > 1e-8) this.peekFwd.normalize();
       }
       this.#poseLinks(dt);
       return;
@@ -627,6 +636,16 @@ class Worm {
     this.stateT -= dt;
     if (this.stateT <= 0) this.#enterPeek();
     this.#poseLinks(dt);
+  }
+
+  #faceTree() {
+    const focus = this.treeFocus;
+    if (!focus) return;
+    const up = this.peekHole.lengthSq() > 1e-6 ? this.peekHole : this.dir;
+    this.facing.copy(focus).addScaledVector(up, -focus.dot(up));
+    if (this.facing.lengthSq() < 1e-8) tangentFrame(this.dir, this._east, this.facing);
+    else this.facing.normalize();
+    this.peekFwd.copy(this.facing);
   }
 
   #enterPeekDiveFromHere() {
