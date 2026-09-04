@@ -23,13 +23,24 @@ const _pos = new THREE.Vector3();
 const _nx = new THREE.Vector3();
 const _ny = new THREE.Vector3();
 const _col = new THREE.Color();
+const _wiz = new THREE.Color();
+const _glow = new THREE.Color();
+const TREE_YELLOW = new THREE.Color(0xffe566);
 
 let _woodGeo = null;
 let _leafGeo = null;
+let _flyGeo = null;
+
+const FIREFLY_N = 20;
 
 function woodGeo() {
   if (!_woodGeo) _woodGeo = new THREE.CylinderGeometry(1, 1, 1, 5, 1);
   return _woodGeo;
+}
+
+function flyGeo() {
+  if (!_flyGeo) _flyGeo = new THREE.IcosahedronGeometry(1, 0);
+  return _flyGeo;
 }
 
 /** Jeden blob = mrak lístků na větvi (20 trojúhelníků). */
@@ -232,9 +243,74 @@ function poseLeaf(leaf, size, woodAppear, leafAppear) {
   return _dummy.matrix;
 }
 
+function makeFireflies(rng) {
+  const flies = [];
+  for (let i = 0; i < FIREFLY_N; i++) {
+    flies.push({
+      kind: i % 3,
+      phase: rng() * Math.PI * 2,
+      speed: (0.28 + rng() * 0.72) * (rng() < 0.5 ? 1 : -1),
+      r0: 3.4 + rng() * 4.8,
+      rAmp: 0.35 + rng() * 1.7,
+      rFreq: 0.12 + rng() * 0.4,
+      y0: 3.2 + rng() * 7.8,
+      yAmp: 0.5 + rng() * 2.4,
+      yFreq: 0.16 + rng() * 0.48,
+      climb: 0.22 + rng() * 0.55,
+      tilt: (rng() - 0.5) * 0.7,
+      tiltAz: rng() * Math.PI * 2,
+      blinkPh: rng() * Math.PI * 2,
+      blinkSp: 0.7 + rng() * 1.4,
+      size: 0.09 + rng() * 0.07
+    });
+  }
+  return flies;
+}
+
+function poseFirefly(f, t, g) {
+  if (g < 0.04) {
+    _dummy.scale.set(0, 0, 0);
+    _dummy.position.set(0, 0, 0);
+    _dummy.quaternion.set(0, 0, 0, 1);
+    _dummy.updateMatrix();
+    return _dummy.matrix;
+  }
+  const s = 0.18 + 0.82 * g;
+  let theta = f.phase + t * f.speed;
+  let r;
+  let y;
+  if (f.kind === 0) {
+    r = (f.r0 + f.rAmp * Math.sin(t * f.rFreq + f.phase)) * s;
+    y = (f.y0 + f.yAmp * Math.sin(t * f.yFreq + f.phase * 1.3)) * s;
+  } else if (f.kind === 1) {
+    const u = t * f.climb + f.phase;
+    r = (f.r0 * 0.82 + f.rAmp * Math.sin(theta * 0.4 + f.phase)) * s;
+    y = (2.4 + (0.5 + 0.5 * Math.sin(u)) * 9.2) * s;
+  } else {
+    r = (f.r0 + f.rAmp * Math.sin(theta * 0.55) * Math.cos(t * f.rFreq)) * s;
+    y = (f.y0 + f.yAmp * Math.sin(theta * 1.65 + f.phase)) * s;
+    theta += 0.35 * Math.sin(t * f.yFreq + f.phase);
+  }
+  let x = r * Math.cos(theta);
+  let z = r * Math.sin(theta);
+  const ct = Math.cos(f.tilt);
+  const st = Math.sin(f.tilt);
+  const y2 = y * ct - z * st;
+  const z2 = y * st + z * ct;
+  const ca = Math.cos(f.tiltAz);
+  const sa = Math.sin(f.tiltAz);
+  _pos.set(x * ca - z2 * sa, y2, x * sa + z2 * ca);
+  const blink = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(t * f.blinkSp + f.blinkPh)) ** 2;
+  const sz = f.size * (0.35 + 0.65 * g) * blink;
+  _dummy.position.copy(_pos);
+  _dummy.quaternion.set(0, 0, 0, 1);
+  _dummy.scale.set(sz, sz * 0.82, sz);
+  _dummy.updateMatrix();
+  return _dummy.matrix;
+}
+
 /**
- * Magický strom — 2 instanced meshe (dřevo + mraky lístků) + jedno světlo.
- * Růst řídí `setGrowth(0..1)`; připojení na planetu `pose()`.
+ * Magický strom — dřevo, listy a světlušky. Růst `setGrowth(0..1)`.
  */
 export class MagicTree {
   constructor(planetGroup, terrain, dir, colorHex, opts = {}) {
@@ -246,6 +322,7 @@ export class MagicTree {
     this._colorApplied = false;
     this.spin = opts.spin ?? 0;
     this.age = 0;
+    this.glowT = 0;
     this.growth = 0;
     this.grown = false;
     this.disposed = false;
@@ -255,6 +332,8 @@ export class MagicTree {
     this.woods = skel.woods;
     this.leaves = skel.leaves;
     this.maxPath = skel.maxPath;
+    this.glowPhase = rng() * Math.PI * 2;
+    this.fireflies = makeFireflies(rng);
 
     this.group = new THREE.Group();
     this.group.frustumCulled = false;
@@ -268,10 +347,10 @@ export class MagicTree {
     _col.setHex(this.color);
     this.leafMat = new THREE.MeshStandardMaterial({
       color: _col,
-      roughness: 0.72,
+      roughness: 0.74,
       metalness: 0,
-      emissive: _col.clone().multiplyScalar(0.35),
-      emissiveIntensity: 0.4,
+      emissive: 0x000000,
+      emissiveIntensity: 0,
       flatShading: true,
       side: THREE.DoubleSide
     });
@@ -286,11 +365,24 @@ export class MagicTree {
     this.leafMesh.receiveShadow = false;
     this.leafMesh.frustumCulled = false;
 
-    this.light = new THREE.PointLight(this.color, 0, 5, 2);
+    this.light = new THREE.PointLight(0xffe566, 0, 8, 1.5);
     this.light.castShadow = false;
     this.light.position.set(0, 0.4, 0);
 
-    this.group.add(this.woodMesh, this.leafMesh, this.light);
+    this.flyMat = new THREE.MeshBasicMaterial({
+      color: 0xffe566,
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    this.flyMesh = new THREE.InstancedMesh(flyGeo(), this.flyMat, FIREFLY_N);
+    this.flyMesh.castShadow = false;
+    this.flyMesh.receiveShadow = false;
+    this.flyMesh.frustumCulled = false;
+    this.flyMesh.renderOrder = 3;
+
+    this.group.add(this.woodMesh, this.leafMesh, this.light, this.flyMesh);
     this.planetGroup.add(this.group);
 
     this.placement = {
@@ -315,9 +407,27 @@ export class MagicTree {
     this._colorApplied = true;
     _col.setHex(c);
     this.leafMat.color.copy(_col);
-    this.leafMat.emissive.copy(_col).multiplyScalar(0.38);
     this.leafMat.needsUpdate = true;
-    this.light.color.copy(_col);
+    this.applyGlow();
+  }
+
+  /** Listy = hábit. Světlušky + PointLight: žlutá smíchaná s barvou kouzelníka. */
+  applyGlow() {
+    const g = this.growth;
+    const wave = 0.5 + 0.5 * Math.sin(this.glowT * 1.75 + this.glowPhase);
+    const pulse = 0.78 + 0.22 * wave;
+    const mix = 0.32 + 0.18 * wave;
+    _glow.copy(TREE_YELLOW).lerp(_wiz.setHex(this.color), mix);
+
+    this.light.color.copy(_glow);
+    this.light.intensity = g * 9 * pulse;
+    this.light.distance = 10 + g * 22;
+    this.flyMat.color.copy(_glow);
+
+    for (let i = 0; i < this.fireflies.length; i++) {
+      this.flyMesh.setMatrixAt(i, poseFirefly(this.fireflies[i], this.glowT, g));
+    }
+    this.flyMesh.instanceMatrix.needsUpdate = true;
   }
 
   setGrowth(g) {
@@ -342,10 +452,8 @@ export class MagicTree {
     this.leafMesh.instanceMatrix.needsUpdate = true;
 
     const h = TREE_MAX_HEIGHT * worldSize * Math.max(0.08, this.growth);
-    this.light.position.set(0, h * 0.48, 0);
-    this.light.intensity = this.growth * 3.4;
-    this.light.distance = 6 + this.growth * 21;
-    this.leafMat.emissiveIntensity = 0.15 + this.growth * 0.55;
+    this.light.position.set(0, 1.6 + h * 0.22, 0);
+    this.applyGlow();
 
     this.placement.height = TREE_MAX_HEIGHT * this.growth;
     this.placement.blockR = 0.18 + this.growth * 0.67 * thick;
@@ -365,9 +473,12 @@ export class MagicTree {
 
   update(dt) {
     if (this.disposed) return;
+    this.glowT += dt;
     if (!this.grown) {
       this.age += dt;
       this.setGrowth(this.age / TREE_GROW_TIME);
+    } else {
+      this.applyGlow();
     }
     this.pose();
   }
@@ -379,6 +490,7 @@ export class MagicTree {
     this.planetGroup.remove(this.group);
     this.woodMat.dispose();
     this.leafMat.dispose();
+    this.flyMat.dispose();
     this.light.dispose();
   }
 }
