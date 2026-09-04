@@ -953,6 +953,13 @@ function applyLavaDamage(sys, field, list, def, dt, hotFactor) {
       c.die({ fromDir: field.center, ignite: true });
     }
   }
+  if (sys.worms) {
+    for (const c of sys.worms.list) {
+      if (c.dead || c.gone || !c.exposed) continue;
+      if (!onHotLava(c.dir)) continue;
+      c.die({ fromDir: field.center, force: true });
+    }
+  }
   sys.trees?.igniteWhere(onHotLava);
 }
 

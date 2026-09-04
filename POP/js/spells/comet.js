@@ -588,6 +588,12 @@ function applyCometLavaDamage(sys, comet, dt) {
       c.die({ fromDir: comet.target, ignite: true });
     }
   }
+  if (sys.worms) {
+    for (const c of sys.worms.list) {
+      if (c.dead || c.gone || !c.exposed || cometLavaHeat(comet, c.dir) <= 0) continue;
+      c.die({ fromDir: comet.target, force: true });
+    }
+  }
   sys.trees?.igniteWhere((dir) => cometLavaHeat(comet, dir) > 0);
 }
 
@@ -686,6 +692,7 @@ function applyCometBlast(sys, dir) {
   }
   sys.critters?.blastNear(dir, def.craterRadius, def.damageRadius);
   sys.longnecks?.blastNear(dir, def.craterRadius, def.damageRadius);
+  sys.worms?.blastNear(dir, def.craterRadius, def.damageRadius);
   sys.trees?.vaporizeNear(dir, def.craterRadius);
   sys.trees?.igniteNear(dir, def.damageRadius);
 }

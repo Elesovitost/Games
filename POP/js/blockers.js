@@ -22,6 +22,13 @@ export function longneckBodyRadius(c) {
   return Math.max(0.42, 0.5 * (c?.size ?? 1));
 }
 
+/** Poloměr červa — jen když má hlavu venku. */
+export function wormBodyRadius(c) {
+  if (!c?.exposed) return 0;
+  if (c.blockR) return c.blockR;
+  return Math.max(0.18, 0.26 * (c?.size ?? 1));
+}
+
 /**
  * Neviditelné „boxy“ kolem kmenů a zvířat.
  * Jeden lookup pro scatter, spawn i pohyb (wizard / critter / longneck).
@@ -31,6 +38,7 @@ export class Blockers {
     this.trees = null;
     this.critters = null;
     this.longnecks = null;
+    this.worms = null;
   }
 
   /**
@@ -66,6 +74,14 @@ export class Blockers {
           if (!c || c.dead || c.gone || c === ignore) continue;
           const need = longneckBodyRadius(c) + selfR;
           if (surfaceDist(dir, c.dir) < need) return false;
+        }
+      }
+      if (this.worms?.list) {
+        for (const c of this.worms.list) {
+          if (!c || c.dead || c.gone || c === ignore || !c.exposed) continue;
+          const r = wormBodyRadius(c);
+          if (r <= 0) continue;
+          if (surfaceDist(dir, c.dir) < r + selfR) return false;
         }
       }
     }
@@ -122,6 +138,13 @@ export class Blockers {
       for (const c of this.longnecks.list) {
         if (!c || c.dead || c.gone) continue;
         consider(c.dir, longneckBodyRadius(c));
+      }
+    }
+    if (this.worms?.list) {
+      for (const c of this.worms.list) {
+        if (!c || c.dead || c.gone || !c.exposed) continue;
+        const r = wormBodyRadius(c);
+        if (r > 0) consider(c.dir, r);
       }
     }
     return best;

@@ -283,7 +283,7 @@ export function treeSwayZ() {
  * Zvířata do 20 m od magického stromu dostanou slot na kružnici.
  * Přepisuje ostatní chování — volá se před `update` hejn.
  */
-export function assignTreeTrance(critters, longnecks, trees, dt) {
+export function assignTreeTrance(critters, longnecks, trees, dt, worms) {
   _treeSwayT += dt;
   const members = [];
   for (const c of critters || []) {
@@ -296,6 +296,13 @@ export function assignTreeTrance(critters, longnecks, trees, dt) {
     if (!c || c.dead || c.gone) continue;
     c.treeSlot = null;
     c.treeFocus = null;
+    members.push(c);
+  }
+  for (const c of worms || []) {
+    if (!c || c.dead || c.gone) continue;
+    c.treeSlot = null;
+    c.treeFocus = null;
+    if (!c.treeSensitive) continue;
     members.push(c);
   }
   const placements = trees?.placements;

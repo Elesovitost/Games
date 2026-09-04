@@ -9,6 +9,7 @@ import { Trees } from "./trees.js";
 import { CritterHerd } from "./critter.js";
 import { WaterLife } from "./water-life.js";
 import { LongneckHerd } from "./longneck.js";
+import { WormHerd } from "./worm.js";
 import { Blockers } from "./blockers.js";
 import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
@@ -95,16 +96,19 @@ class Game {
     this.waterLife = new WaterLife(this.planetGroup, this.terrain);
     this.longnecks = new LongneckHerd(this.planetGroup, this.terrain);
     this.longnecks.trees = this.trees;
+    this.worms = new WormHerd(this.planetGroup, this.terrain);
 
     this.blockers = new Blockers();
     this.blockers.trees = this.trees;
     this.blockers.critters = this.critters;
     this.blockers.longnecks = this.longnecks;
+    this.blockers.worms = this.worms;
     this.critters.blockers = this.blockers;
     this.longnecks.blockers = this.blockers;
     /** Po napojení blockerů znovu rozmísti zvířata mimo kmeny. */
     this.critters.spawn(this.landSpawns);
     this.longnecks.spawn(this.landSpawns);
+    this.worms.spawn(this.landSpawns);
 
     this.wizard = null;
     this.spells = new SpellSystem(
@@ -116,8 +120,10 @@ class Game {
     this.spells.critters = this.critters;
     this.spells.trees = this.trees;
     this.spells.longnecks = this.longnecks;
+    this.spells.worms = this.worms;
     this.critters.fx = this.spells;
     this.longnecks.fx = this.spells;
+    this.worms.fx = this.spells;
     this.waterLife.fx = this.spells;
     this.spells.audio = this.audio;
     this.spells.camera = this.camera;
@@ -169,6 +175,7 @@ class Game {
     this.critters?.spawn(this.landSpawns);
     this.waterLife?.spawn();
     this.longnecks?.spawn(this.landSpawns);
+    this.worms?.spawn(this.landSpawns);
   }
 
   #wireWizardAudio(w) {
@@ -234,6 +241,7 @@ class Game {
     this.spawnMarkers?.show();
     this.critters?.spawn(this.landSpawns);
     this.longnecks?.spawn(this.landSpawns);
+    this.worms?.spawn(this.landSpawns);
     this.#selectSpell(null);
   }
 
@@ -774,9 +782,10 @@ class Game {
       }
     }
     this.#updatePendingCast();
-    assignTreeTrance(this.critters?.list, this.longnecks?.list, this.trees, dt);
+    assignTreeTrance(this.critters?.list, this.longnecks?.list, this.trees, dt, this.worms?.list);
     this.critters?.update(dt, [...this.wizards.values()]);
     this.longnecks?.update(dt);
+    this.worms?.update(dt);
     this.waterLife?.update(dt);
     this.trees?.update(dt);
     /** Rozloží start ohně u víc stromů/zvířat naráz (výbuch komety) do pár snímků. */

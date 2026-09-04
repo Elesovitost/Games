@@ -90,6 +90,7 @@ function charmNear(sys, centerDir, radiusM, hold) {
   const w = sys.wizard;
   sys.critters?.charmNear?.(centerDir, radiusM, w, hold);
   sys.longnecks?.charmNear?.(centerDir, radiusM, w, hold);
+  sys.worms?.charmNear?.(centerDir, radiusM, w, hold);
 }
 
 export function updateHypnoses(sys, dt) {

@@ -20,6 +20,7 @@ export function applyAoeDamage(sys, centerDir, radiusM, dmgCenter, dmgEdge) {
   }
   sys.critters?.hurtNear(centerDir, radiusM);
   sys.longnecks?.hurtNear(centerDir, radiusM, dmgCenter, dmgEdge);
+  sys.worms?.hurtNear(centerDir, radiusM);
 }
 
 export function spawnBurst(sys, pos, up, color, life = 0.45) {
