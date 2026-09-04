@@ -214,6 +214,7 @@ class Critter {
     this._knockAxis = new THREE.Vector3();
     this.lieLift = this.mesh.userData.lieLift ?? 0.28;
     this.tornado = null;
+    this.demonHold = false;
     this.diesOnTornadoLand = true;
     this.remote = false;
     this.netMoving = false;
@@ -671,6 +672,13 @@ class Critter {
     if (this.tornado) {
       this.netMoving = true;
       this.#applyTornadoPose();
+      this.#applyPose();
+      return;
+    }
+
+    if (this.demonHold) {
+      this.netMoving = false;
+      this.#snap();
       this.#applyPose();
       return;
     }

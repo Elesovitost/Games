@@ -18,6 +18,9 @@ import { spawnSoul, updateSoul, disposeSoul, SOUL_DELAY } from "./soul.js";
 const ROBE = 0x1a2848;
 const GOLD = 0xd4a837;
 const GOLD_DIM = 0xa88628;
+/** Pád mrtvého z místa — pomalé sesunutí, ne okamžitý překlop. */
+const DIE_FALL_DUR = 1.2;
+const _dieAxis = new THREE.Vector3(1, 0, 0);
 
 function mat(color, opts = {}) {
   const m = new THREE.MeshStandardMaterial({
@@ -379,6 +382,9 @@ export class Wizard {
     this.maxHp = CONFIG.wizardMaxHp;
     this.hp = this.maxHp;
     this.dead = false;
+    this.dieT = 0;
+    this._standFallPending = false;
+    this._bodyFell = false;
     this._soul = null;
     this.soulDelay = null;
     this._netBuf = [];
@@ -388,6 +394,7 @@ export class Wizard {
     this._godGlowT = 0;
     this.knockdown = null;
     this.tornado = null;
+    this.demonHold = false;
     this.immortal = null;
     this.invis = null;
     this._bodyMats = [];
@@ -397,8 +404,10 @@ export class Wizard {
     this.onKnockdown = null;
     /** Ukončení cast audia při #endCast (main.js). */
     this.onCastAudioStop = null;
-    /** Dopad na zem — bodyfall (main.js). */
+    /** Dopad na zem — bodyfall / bodyfall-short (main.js). */
     this.onBodyFall = null;
+    /** Smrt kouzelníka — wizard-death (main.js). */
+    this.onDeath = null;
     /** Výkřik při velkém zásahu / letu z tornáda (main.js). */
     this.onScream = null;
     /** Kroky — jen lokální hráč (main.js). */
@@ -515,6 +524,7 @@ export class Wizard {
     const latest = buf[buf.length - 1];
     if (typeof latest.hp === "number" && !this.dead) this.hp = latest.hp;
     applyKnockFromSnapshot(this, latest.knock, latest.hp);
+    if (this.hp <= 0 && !this.dead) this.#die();
 
     if (buf.length === 1) {
       applyInterpolatedPose(this, buf[0], buf[0], 1, this._netPos);
@@ -540,7 +550,7 @@ export class Wizard {
   }
 
   get isBusy() {
-    return this.casting || this.dead || !!this.knockdown || !!this.tornado;
+    return this.casting || this.dead || !!this.knockdown || !!this.tornado || !!this.demonHold;
   }
 
   beginTornadoCapture(centerDir, source = null) {
@@ -568,6 +578,21 @@ export class Wizard {
 
   endTornadoCapture() {
     this.tornado = null;
+  }
+
+  beginDemonHold() {
+    if (this.godMode || this.immortal || this.dead) return false;
+    this.demonHold = true;
+    this.breakInvisibility();
+    this.#clearTarget();
+    this.wantsWalk = false;
+    this.moving = false;
+    if (this.casting) this.#endCast();
+    return true;
+  }
+
+  endDemonHold() {
+    this.demonHold = false;
   }
 
   /** Vtah tornáda — posun po povrchu směrem k cíli (m). */
@@ -601,6 +626,9 @@ export class Wizard {
     this.godMode = !!on;
     if (this.godMode && this.dead) {
       this.dead = false;
+      this.dieT = 0;
+      this._standFallPending = false;
+      this._bodyFell = false;
       this.hp = this.maxHp;
       this.soulDelay = null;
       this._soul = disposeSoul(this._soul, this.planetGroup);
@@ -799,7 +827,7 @@ export class Wizard {
         kd.phase = "roll";
         kd.sideZ = fallEnd;
         kd.t = 0;
-        this.onBodyFall?.();
+        this.onBodyFall?.({ short: true });
       }
       return;
     }
@@ -1053,12 +1081,22 @@ export class Wizard {
     if (text) text.textContent = String(Math.ceil(this.hp));
   }
 
+  die(_opts = {}) {
+    this.#die();
+  }
+
   #die() {
     if (this.dead || this.godMode) return;
+    const kd = this.knockdown;
+    const alreadyDown = (kd && kd.phase !== "fall") || !!this.tornado;
+    this._standFallPending = !alreadyDown;
+    this._bodyFell = false;
     this.breakInvisibility();
     this.dead = true;
+    this.dieT = 0;
     this.knockdown = null;
     this.tornado = null;
+    this.demonHold = false;
     this.endImmortality();
     this.#clearTarget();
     this.casting = false;
@@ -1069,7 +1107,8 @@ export class Wizard {
     const parts = this.mesh.userData.parts;
     if (parts?.castFx) parts.castFx.visible = false;
 
-    this.soulDelay = SOUL_DELAY;
+    this.soulDelay = Math.max(SOUL_DELAY, DIE_FALL_DUR + 0.25);
+    this.onDeath?.();
   }
 
   #height(dir) {
@@ -1553,8 +1592,59 @@ export class Wizard {
     this.facing.crossVectors(this._basisX, this.dir).normalize();
     this._mat.makeBasis(this._basisX, this.dir, this.facing);
     this.mesh.quaternion.setFromRotationMatrix(this._mat);
-    // Mrtvý — leží na boku (překlopit kolem lokální X)
-    if (this.dead) this.mesh.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+    if (this.dead) {
+      this.mesh.rotateOnAxis(_dieAxis, (Math.PI / 2) * this.#deathEase());
+    }
+  }
+
+  /** 0 = stojí, 1 = leží. Nejdřív váha, pak zrychlení, na konci dosednutí. */
+  #deathEase() {
+    const t = Math.min(1, Math.max(0, this.dieT ?? 0));
+    const u = Math.max(0, (t - 0.1) / 0.9);
+    if (u <= 0) return 0;
+    if (u >= 1) return 1;
+    if (u < 0.78) {
+      const v = u / 0.78;
+      return 0.86 * v * v;
+    }
+    const v = (u - 0.78) / 0.22;
+    return 0.86 + 0.14 * (1 - (1 - v) * (1 - v));
+  }
+
+  #deathLift() {
+    return Math.sin(this.#deathEase() * Math.PI * 0.5) * 0.3;
+  }
+
+  #applyDeathPose(parts) {
+    const u = this.#deathEase();
+    const buckle = Math.sin(Math.min(1, u * 1.4) * Math.PI * 0.5);
+    parts.leftLeg.rotation.set(0.18 * buckle, 0, 0.07 * u);
+    parts.rightLeg.rotation.set(0.26 * buckle, 0, -0.05 * u);
+    if (parts.leftShin) parts.leftShin.rotation.set(0.62 * buckle, 0, 0);
+    if (parts.rightShin) parts.rightShin.rotation.set(0.52 * buckle, 0, 0);
+    parts.leftArm.rotation.set(-0.22 * u, 0, 0.38 * u);
+    parts.rightArm.rotation.set(0.18 * u, 0, -0.58 * u);
+    if (parts.leftFore) parts.leftFore.rotation.set(-0.4 * u, 0, 0);
+    if (parts.rightFore) parts.rightFore.rotation.set(-0.22 * u, 0, 0);
+    if (parts.head) parts.head.rotation.set(0.28 * u, 0.14 * u, 0.08 * u);
+    if (parts.body) {
+      parts.body.rotation.set(0.1 * u, 0, 0);
+      parts.body.position.y = 0;
+    }
+    if (parts.cloak) parts.cloak.rotation.set(0.14 * u, 0, 0);
+    if (parts.castFx) parts.castFx.visible = false;
+  }
+
+  #tickDeath(dt) {
+    this.dieT = Math.min(1, this.dieT + dt / DIE_FALL_DUR);
+    this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir) + this.#deathLift());
+    this.#applyPose();
+    const parts = this.mesh.userData.parts;
+    if (parts) this.#applyDeathPose(parts);
+    if (this._standFallPending && !this._bodyFell && this.#deathEase() >= 0.86) {
+      this._bodyFell = true;
+      this.onBodyFall?.({ short: true });
+    }
   }
 
   update(dt, keys, camRight) {
@@ -1564,20 +1654,22 @@ export class Wizard {
         this.#tickThrowRelease();
         if (this.castT >= this.castDuration) this.#endCast();
       }
-      this.#updateNetPose();
+      if (!this.demonHold) this.#updateNetPose();
       if (this.knockdown) this.#updateKnockdown(dt);
       if (this.immortal) this.#updateImmortality(dt);
       this.#applyPose();
       this.#updateWalkBlend(dt);
       this.#animate(dt);
       this.#updateInvisibility(dt);
-      if (this.dead) this.#updateGhost(dt);
+      if (this.dead) {
+        this.#tickDeath(dt);
+        this.#updateGhost(dt);
+      }
       return;
     }
 
     if (this.dead) {
-      this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
-      this.#applyPose();
+      this.#tickDeath(dt);
       this.#updateGhost(dt);
       this.footprints?.update(dt);
       return;
@@ -1599,6 +1691,17 @@ export class Wizard {
     }
 
     if (this.tornado) {
+      this.#applyPose();
+      this.#updateWalkBlend(dt);
+      this.#updateGodGlow(dt);
+      this.#animate(dt);
+      this.#updateInvisibility(dt);
+      this.footprints?.update(dt);
+      return;
+    }
+
+    if (this.demonHold) {
+      this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir));
       this.#applyPose();
       this.#updateWalkBlend(dt);
       this.#updateGodGlow(dt);
@@ -1715,7 +1818,7 @@ export class Wizard {
   /** Plynulý rozjezd / dojezd chůze (0 = stojí, 1 = plná chůze). */
   #updateWalkBlend(dt) {
     const target =
-      this.casting || this.dead || this.knockdown || this.tornado || this.immortal ? 0 : this.wantsWalk ? 1 : 0;
+      this.casting || this.dead || this.knockdown || this.tornado || this.demonHold || this.immortal ? 0 : this.wantsWalk ? 1 : 0;
     const rate = target > this.walkBlend ? 3.2 : 4;
     this.walkBlend += (target - this.walkBlend) * Math.min(1, dt * rate);
     if (this.walkBlend < 0.003 && target === 0) {

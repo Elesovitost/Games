@@ -16,6 +16,7 @@ import { applyInvisibility } from "./invisibility.js";
 import { applyImmortality } from "./immortality.js";
 import { beginTreeSeed, releaseTreeSeed, updateTreeSeed, disposeTreeSeed, updateMagicTrees, disposeMagicTrees } from "./tree.js";
 import { spawnHypnosis, updateHypnoses, disposeHypnoses } from "./hypnosis.js";
+import { spawnDemon, updateDemons, disposeDemons } from "./demon.js";
 import { incantationFileForSpell } from "../incantations.js";
 
 export class SpellSystem {
@@ -45,6 +46,7 @@ export class SpellSystem {
     this.comets = [];
     this.magicTrees = [];
     this.hypnoses = [];
+    this.demons = [];
     /** Doplní main.js — kometa z ní počítá přílet do záběru. */
     this.camera = null;
     this.activeSpellId = null;
@@ -217,6 +219,7 @@ export class SpellSystem {
     disposeComets(this);
     disposeMagicTrees(this);
     disposeHypnoses(this);
+    disposeDemons(this);
     for (const h of this._sfxLoops) this.audio?.stopSfxLoop(h, 0.05);
     this._sfxLoops.clear();
   }
@@ -359,6 +362,7 @@ export class SpellSystem {
     updateComets(this, dt);
     updateMagicTrees(this, dt);
     updateHypnoses(this, dt);
+    updateDemons(this, dt);
     this.#updateTrackedLoops();
     updateBolts(this, dt);
     this.#updateProjectiles(dt);
@@ -401,6 +405,8 @@ export class SpellSystem {
         return def.effectRadius;
       case "tornado":
         return def.pullRadius + 2;
+      case "demon":
+        return 8;
       default:
         return 0;
     }
@@ -432,6 +438,7 @@ export class SpellSystem {
       if (spellId === "earthquake") doSpawnEarthquake(this, target);
       if (spellId === "comet") doSpawnComet(this, target);
       if (spellId === "hypnosis") spawnHypnosis(this, target);
+      if (spellId === "demon") spawnDemon(this, target);
       this.clearSpiral(spiral);
       if (spellId === "lightning") this.strikeLightning(target);
       else if (spellId === "fireball") this.launchFireball(target);

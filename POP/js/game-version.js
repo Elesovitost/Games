@@ -26,6 +26,7 @@ const SOURCES = [
   "./magic-tree.js",
   "./spells/tree.js",
   "./spells/hypnosis.js",
+  "./spells/demon.js",
   "./net/session.js",
   "./net/client.js",
   "./net/lobby.js",

@@ -157,6 +157,25 @@ function buildSpellGlyph(spellId) {
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), glyphMat(0xfff0c0));
     eye.position.z = 0.34;
     g.add(ring, ring2, eye);
+  } else if (spellId === "demon") {
+    const torso = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), glyphMat(0x1a1412));
+    torso.scale.set(1.1, 0.75, 1.6);
+    torso.position.set(0, 0.02, 0.26);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 7), glyphMat(0x12100e));
+    head.position.set(0, 0.06, 0.5);
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), glyphMat(0x0a0808, 0.85));
+    hair.scale.set(1.1, 1.4, 0.7);
+    hair.position.set(0, 0.02, 0.42);
+    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.2, 3, 6), glyphMat(0x161210));
+    armL.position.set(-0.14, -0.08, 0.28);
+    armL.rotation.x = 0.85;
+    const armR = armL.clone();
+    armR.position.x = 0.14;
+    const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), glyphMat(0xff2208));
+    eyeL.position.set(-0.04, 0.07, 0.58);
+    const eyeR = eyeL.clone();
+    eyeR.position.x = 0.04;
+    g.add(torso, hair, head, armL, armR, eyeL, eyeR);
   } else if (spellId === "earthquake") {
     const crackMat = glyphMat(0xc4a060, 0.9);
     const segs = [
@@ -314,7 +333,7 @@ export class AimReticle {
     this.glyphRoot = new THREE.Group();
     this.glyphs = {};
     this._glyphMats = [];
-    for (const id of ["elevate", "depress", "lightning", "fireball", "iceball", "tornado", "volcano", "comet", "earthquake", "tree", "hypnosis"]) {
+    for (const id of ["elevate", "depress", "lightning", "fireball", "iceball", "tornado", "volcano", "comet", "earthquake", "tree", "hypnosis", "demon"]) {
       const glyph = buildSpellGlyph(id);
       glyph.visible = false;
       this.glyphs[id] = glyph;

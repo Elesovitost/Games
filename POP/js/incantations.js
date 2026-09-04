@@ -14,14 +14,14 @@ export const SPELL_INCANTATIONS = {
   volcano: "vypukni_ohni_erumpe_ignis.mp3",
   immortality: "zmlkni_osude_tace_fatum.mp3",
   comet: "zahyn_vesmiru_peri_universum.mp3",
-  hypnosis: "vezmi_dusi_sume_animam.mp3"
+  hypnosis: "vezmi_dusi_sume_animam.mp3",
+  demon: "prijd_demone_veni_daemon.mp3"
 };
 
 /** Nepřiřazené — budoucí kouzla / variace. */
 export const INCANTATION_RESERVE = [
   "odhod_vsechno_pelle_omnia.mp3",
   "zarvi_rychle_intona_cito.mp3",
-  "prijd_demone_veni_daemon.mp3",
   "proklet_telo_maledic_corpus.mp3",
   "vstan_mrtvy_surge_mortuus.mp3"
 ];

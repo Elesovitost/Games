@@ -217,6 +217,7 @@ class Longneck {
     this.wakeT = rng() * 0.3;
     this.dieT = 0;
     this.charm = null;
+    this.demonHold = false;
     this.treeSlot = null;
     this.treeFocus = null;
     this.maxHp = MAX_HP;
@@ -536,6 +537,13 @@ class Longneck {
       }
       this.#updateBurn(dt);
       this.dodgeHop = 0;
+      this.#applyPose();
+      return;
+    }
+
+    if (this.demonHold) {
+      this.netMoving = false;
+      this.#snap();
       this.#applyPose();
       return;
     }

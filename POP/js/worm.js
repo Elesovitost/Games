@@ -196,6 +196,7 @@ class Worm {
     this._soul = null;
     this.soulDelay = null;
     this.charm = null;
+    this.demonHold = false;
     this.treeSlot = null;
     this.treeFocus = null;
     this.treeRingR = 5.4;
@@ -644,6 +645,14 @@ class Worm {
         last.addScaledVector(up, -dt * 1.1);
         this.#pushPath(last);
       }
+      this.#poseLinks(dt);
+      return;
+    }
+
+    if (this.demonHold) {
+      this.netMoving = false;
+      this.#surfPos(this.dir, 0.014, this._pos);
+      this.#pushPath(this._pos);
       this.#poseLinks(dt);
       return;
     }

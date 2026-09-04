@@ -65,6 +65,20 @@ export const SFX = {
     maxDist: CONFIG.sfxMaxDist,
     gain: 1
   },
+  bodyfallShort: {
+    url: "./audio/bodyfall-short.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1
+  },
+  wizardDeath: {
+    url: "./audio/wizard-death.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1.1
+  },
   scream1: {
     url: "./audio/scream1.mp3",
     refDist: CONFIG.sfxRefDist,
@@ -134,6 +148,41 @@ export const SFX = {
     halfDist: CONFIG.sfxHalfDist,
     maxDist: CONFIG.sfxMaxDist,
     gain: 1.15
+  },
+  demonEnter: {
+    url: "./audio/demon-enter.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1.05
+  },
+  demonKill: {
+    url: "./audio/demon-killing.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1.1
+  },
+  demonRun: {
+    url: "./audio/demon-running.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 0.95
+  },
+  demonDie: {
+    url: "./audio/demon-dying.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1.1
+  },
+  hypno: {
+    url: "./audio/hypno.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 1.05
   }
 };
 
@@ -843,9 +892,13 @@ export class GameAudio {
    */
   startSfxLoop(id, sourceDir, listenerDir, opts = {}) {
     const def = SFX[id];
-    const buf = this.buffers.get(id);
     const ctx = this.#ensureCtx();
-    if (!def?.url || !buf || !ctx || !sourceDir || !listenerDir) return null;
+    if (!def?.url || !ctx || !sourceDir || !listenerDir) return null;
+    const buf = this.buffers.get(id);
+    if (!buf) {
+      void this.#loadOne(id);
+      return null;
+    }
     if (ctx.state === "suspended") ctx.resume().catch(() => {});
 
     const src = ctx.createBufferSource();

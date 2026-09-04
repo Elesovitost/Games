@@ -92,8 +92,9 @@ export class Blockers {
    * Nejbližší překážka v dosahu `searchR` (m), volitelně jen před `towardDir`.
    * @returns {{ dir: THREE.Vector3, r: number, dist: number } | null}
    */
-  hitNear(fromDir, selfR, searchR = 3.2, towardDir = null) {
+  hitNear(fromDir, selfR, searchR = 3.2, towardDir = null, opts = {}) {
     if (!fromDir) return null;
+    const checkAnimals = opts.animals !== false;
     let best = null;
     let bestScore = Infinity;
     const consider = (pos, r) => {
@@ -128,6 +129,7 @@ export class Blockers {
         consider(p.dir, treeTrunkRadius(p));
       }
     }
+    if (!checkAnimals) return best;
     if (this.critters?.list) {
       for (const c of this.critters.list) {
         if (!c || c.dead) continue;

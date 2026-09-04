@@ -27,6 +27,18 @@ export const SPELLS = {
     color: 0xc8f0ff,
     hint: "Klikni v dosahu — blesk spálí zem."
   },
+  demon: {
+    id: "demon",
+    range: 16,
+    castTime: 1,
+    cooldown: 5,
+    life: 5,
+    catchRadius: 1,
+    speedMul: 1.3,
+    damage: 101,
+    color: 0xff2208,
+    hint: "1 s kouzlení — démon 5 s honí nejbližší živou bytost. Na 1 m ji chytí a vmorfuje se do ní (−101)."
+  },
   fireball: {
     id: "fireball",
     range: 18,

@@ -124,6 +124,7 @@ class Game {
     this.spells.trees = this.trees;
     this.spells.longnecks = this.longnecks;
     this.spells.worms = this.worms;
+    this.spells.blockers = this.blockers;
     this.critters.fx = this.spells;
     this.longnecks.fx = this.spells;
     this.worms.fx = this.spells;
@@ -179,7 +180,9 @@ class Game {
   #wireWizardAudio(w) {
     if (!w) return;
     const listener = () => this.spells.getListenerDir(this._listenerDir);
-    w.onBodyFall = () => this.audio?.playAt("bodyfall", w.dir, listener());
+    w.onBodyFall = (opts) =>
+      this.audio?.playAt(opts?.short ? "bodyfallShort" : "bodyfall", w.dir, listener());
+    w.onDeath = () => this.audio?.playAt("wizardDeath", w.dir, listener());
     w.onScream = () => this.audio?.playRandomScream(w.dir, listener());
     w.onImmortalPop = (wiz) => burstImmortalShell(this.spells, wiz);
   }
@@ -874,7 +877,7 @@ class Game {
   #updatePendingCast() {
     const p = this._pendingCast;
     if (!p || !this.wizard) return;
-    if (this.wizard.dead || this.wizard.knockdown || this.wizard.tornado || this.wizard.immortal) {
+    if (this.wizard.dead || this.wizard.knockdown || this.wizard.tornado || this.wizard.demonHold || this.wizard.immortal) {
       this._pendingCast = null;
       return;
     }
