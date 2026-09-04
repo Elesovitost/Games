@@ -141,6 +141,7 @@ export function buildPosePacket(w) {
     facing: [w.facing.x, w.facing.y, w.facing.z],
     moving: !!w.moving,
     hp: w.hp,
+    color: w.color,
     knock: w.knockdown
       ? {
           seq: w.knockdown.seq,
@@ -198,6 +199,8 @@ export function applyInterpolatedPose(w, a, b, alpha, outPos) {
 
   w.moving = alpha >= 0.5 ? !!b?.moving : !!a?.moving;
   w.wantsWalk = w.moving;
+  const col = b?.color ?? a?.color;
+  if (col != null && Number(w.color) !== Number(col)) w.setRobeColor(col);
 
   const hasPos = lerpPos(outPos, a, b, alpha);
   if (hasPos) w.mesh.position.copy(outPos);
@@ -221,6 +224,7 @@ export function poseSnapshotFromIntent(flags, dirArr, facingArr) {
     facing: facingArr ? facingArr.slice() : dirArr.slice(),
     moving: !!flags.moving,
     hp: flags.hp,
+    color: flags.color ?? null,
     knock: flags.knock || null,
     fx: flags.fx || null,
     time: performance.now() * 0.001

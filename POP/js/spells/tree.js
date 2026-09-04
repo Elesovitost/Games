@@ -196,7 +196,8 @@ export function updateMagicTrees(sys, dt) {
       continue;
     }
     if (t.ownerId) {
-      const w = wizards.find((wiz) => wiz.id === t.ownerId);
+      const oid = String(t.ownerId);
+      const w = wizards.find((wiz) => String(wiz.id) === oid);
       if (w) t.setColor(w.color);
     } else if (sys.wizard) {
       t.setColor(sys.wizard.color);

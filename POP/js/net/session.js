@@ -75,7 +75,9 @@ export class MultiplayerSession {
 
   sendColor(color) {
     if (!this.isMp || !this.client.connected) return false;
-    return this.client.send({ type: "profile", color });
+    this.client.send({ type: "profile", color });
+    if (this.playing) this.sendIntent({ kind: "color", color });
+    return true;
   }
 
   sendIntent(intent) {
