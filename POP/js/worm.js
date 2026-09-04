@@ -17,6 +17,8 @@ const TURN_RATE = 2.6;
 const LAND_MARGIN = 0.28;
 const MIN_R = CONFIG.wizardMinTerrainR + 0.05;
 const LINKS = 10;
+/** Kolik článků (od hlavy) vyjde z díry — zbytek zůstane pod zemí. */
+const PEEK_LINKS = 1.1;
 const RISE_DUR = 0.7;
 const DIVE_DUR = 0.95;
 const PEEK_HOLD_MIN = 2.4;
@@ -130,7 +132,7 @@ class Worm {
     this.size = size;
     this.blockR = Math.max(0.38, 0.55 * size);
     this.spacing = 0.7 * size;
-    this.peekR = (LINKS - 1) * this.spacing / 3;
+    this.peekR = Math.max(0.8, this.spacing * PEEK_LINKS);
     herd.planetGroup.add(this.mesh);
     this.parts = this.mesh.userData.parts;
 
@@ -264,8 +266,8 @@ class Worm {
 
   #poseLinks(dt) {
     const links = this.parts.links;
-    const showFlesh = this.state === "peek" || this.state === "charm" ||
-      (this.state === "treeTrance" && this.arrivedTree);
+    const peeking = this.state === "peek" || (this.state === "treeTrance" && this.arrivedTree);
+    const surfaced = this.state === "charm";
     for (let i = 0; i < LINKS; i++) {
       this.#samplePath(i * this.spacing, this._pos);
       const up = this._up.copy(this._pos).normalize();
@@ -288,14 +290,14 @@ class Worm {
       link.g.quaternion.setFromRotationMatrix(this._mat);
 
       const emerged = lift > 0.07;
-      link.flesh.visible = emerged || showFlesh;
-      link.ridge.visible = !emerged;
+      link.flesh.visible = emerged || surfaced;
+      link.ridge.visible = !emerged && !surfaced;
       if (link.head) {
-        link.head.visible = emerged || this.state === "charm" ||
+        link.head.visible = emerged || surfaced ||
           (this.state === "treeTrance" && this.arrivedTree);
       }
     }
-    this.#poseHeadLook(dt, showFlesh);
+    this.#poseHeadLook(dt, peeking || surfaced);
   }
 
   #poseHeadLook(dt, emerged) {
@@ -435,7 +437,7 @@ class Worm {
     return this.#surfPos(this.peekHole, 0, out);
   }
 
-  /** Třetina těla kolmo nahoru ze směru díry. */
+  /** Hlava a kousek těla kolmo nahoru z díry; zbytek zůstane pod zemí. */
   #risePos(u, out) {
     this.#holeSurf(out);
     out.addScaledVector(this.peekHole, this.peekR * u);
@@ -649,7 +651,7 @@ export class WormHerd {
       ridge: new THREE.MeshBasicMaterial({
         color: 0x1c1610,
         transparent: true,
-        opacity: 0.82,
+        opacity: 0.1,
         depthWrite: false
       })
     };
