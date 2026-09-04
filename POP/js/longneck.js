@@ -23,6 +23,7 @@ import {
   aoeFalloff,
   claimHit
 } from "./animalsAI.js";
+import { applyEntityNet } from "./net/world-sync.js";
 
 const COUNT = 12;
 const WALK_SPEED = 1.15;
@@ -207,6 +208,9 @@ class Longneck {
     this.dodgeHop = 0;
     this.treeDir = null;
     this.dead = false;
+    this.gone = false;
+    this.remote = false;
+    this.netMoving = false;
     this.wakeT = rng() * 0.3;
     this.dieT = 0;
     this.charm = null;
@@ -227,7 +231,7 @@ class Longneck {
   }
 
   beginCharm(wizard, hold) {
-    if (this.dead || this.gone || !wizard) return;
+    if (this.remote || this.dead || this.gone || !wizard) return;
     this.charm = { wizard, t: 0, hold: hold ?? 20 };
     this.state = "charm";
     this.dodgeT = 0;
@@ -317,6 +321,7 @@ class Longneck {
   }
 
   takeDamage(amount, opts = {}) {
+    if (this.remote && !opts.fromNet) return false;
     if (this.dead || this.gone || amount <= 0) return false;
     this.hp = Math.max(0, this.hp - amount);
     if (opts.ignite) this.ignite();
@@ -325,6 +330,7 @@ class Longneck {
   }
 
   die(opts = {}) {
+    if (this.remote && !opts.fromNet) return false;
     if (this.dead) return false;
     this.dead = true;
     this.state = "dead";
@@ -346,6 +352,7 @@ class Longneck {
       this.mesh.visible = false;
     }
     if (opts.ignite) this.ignite();
+    if (!opts.fromNet) this.herd.onDied?.(this);
     return true;
   }
 
@@ -364,6 +371,16 @@ class Longneck {
       }
     });
     this._fire = attachFireQueued(this.parts.body, { pad: 0.72, lift: 0.55 });
+  }
+
+  syncBurn(burning, charred) {
+    if (this.gone) return;
+    if (charred) {
+      if (!this.burning && !this.charred) this.ignite();
+      if (!this.charred) this.#charBody();
+    } else if (burning && !this.burning && !this.charred) {
+      this.ignite();
+    }
   }
 
   #charBody() {
@@ -391,7 +408,7 @@ class Longneck {
   }
 
   dodgeFrom(hazardDir) {
-    if (this.dead || this.gone || this.charm || this.treeSlot || this.dodgeT > 0 || this.dodgeCrouchT > 0 || this.dodgeCool > 0) return false;
+    if (this.remote || this.dead || this.gone || this.charm || this.treeSlot || this.dodgeT > 0 || this.dodgeCrouchT > 0 || this.dodgeCool > 0) return false;
     tangentFrame(this.dir, this._east, this._north);
     this._move.copy(hazardDir).addScaledVector(this.dir, -hazardDir.dot(this.dir));
     if (this._move.lengthSq() < 1e-8) tangentFrame(this.dir, this._east, this._move);
@@ -420,13 +437,76 @@ class Longneck {
     return true;
   }
 
+  #updateRemote(dt) {
+    this.phase += dt;
+    applyEntityNet(this);
+    if (this.gone) {
+      this.mesh.visible = false;
+      return;
+    }
+    if (this.dead) {
+      this.dieT = Math.min(1, this.dieT + dt / 0.55);
+      const u = this.dieT * this.dieT * (3 - 2 * this.dieT);
+      this.parts.body.rotation.z = u * (Math.PI * 0.5);
+      this.parts.body.position.set(0, u * this.lieLift, 0);
+      this.parts.neck1.rotation.x = THREE.MathUtils.lerp(this.parts.neck1.rotation.x, 0.04, 0.12);
+      this.parts.neck2.rotation.x = THREE.MathUtils.lerp(this.parts.neck2.rotation.x, 0.03, 0.12);
+      this.parts.neck3.rotation.x = THREE.MathUtils.lerp(this.parts.neck3.rotation.x, 0.02, 0.12);
+      for (const leg of this.parts.hips) {
+        leg.hip.rotation.x *= Math.max(0, 1 - dt * 8);
+        leg.shin.rotation.x = THREE.MathUtils.lerp(leg.shin.rotation.x, 0.08, 0.2);
+      }
+      this.#updateBurn(dt);
+      this.dodgeHop = 0;
+      this.#applyPose();
+      return;
+    }
+
+    this.neckTarget = 0.1;
+    let speed = 0;
+    if (this.state === "treeTrance") this.neckTarget = -0.52;
+    else if (this.state === "charm") this.neckTarget = 0.2;
+    else if (this.state === "swim") this.neckTarget = -0.15;
+    else if (this.state === "graze") {
+      this.neckTarget = 1.05 + Math.sin(this.phase * 2.1) * 0.08;
+      this.parts.head.rotation.y = Math.sin(this.phase * 1.4) * 0.2;
+    } else if (this.state === "browse") {
+      this.neckTarget = this.netMoving ? -0.15 : -0.72 + Math.sin(this.phase * 2.4) * 0.1;
+      if (!this.netMoving) this.parts.head.rotation.y = Math.sin(this.phase * 1.8) * 0.18;
+    }
+    if (this.state !== "browse" && this.state !== "graze") this.parts.head.rotation.y *= 0.88;
+
+    if (this.netMoving) {
+      speed = this.state === "swim" ? SWIM_SPEED : WALK_SPEED;
+      this.walkPhase += dt * speed * 2.1;
+    }
+    const gait = this.state === "swim" ? 0.45 : speed > 0.05 ? 1 : 0.12;
+    for (const leg of this.parts.hips) {
+      const swing = Math.sin(this.walkPhase + (leg.side > 0 ? 0 : Math.PI)) * 0.48 * gait;
+      leg.hip.rotation.x = swing;
+      leg.shin.rotation.x = Math.max(0, -swing) * 0.55 + 0.08;
+    }
+    this.parts.tail.rotation.y = Math.sin(this.phase * 1.3) * 0.22;
+    this.#poseNeck(dt);
+    if (this.state === "treeTrance" && speed < 0.05) this.parts.body.rotation.z = treeSwayZ();
+    else this.parts.body.rotation.z *= 0.8;
+    this.dodgeHop = 0;
+    this.#applyPose();
+    this.#updateBurn(dt);
+  }
+
   update(dt) {
     if (this.gone) return;
+    if (this.remote) {
+      this.#updateRemote(dt);
+      return;
+    }
     this.phase += dt;
     if (this.dodgeCool > 0) this.dodgeCool -= dt;
     if (!this.dead) regenAnimalHp(this, dt);
 
     if (this.dead) {
+      this.netMoving = false;
       this.dieT = Math.min(1, this.dieT + dt / 0.55);
       const u = this.dieT * this.dieT * (3 - 2 * this.dieT);
       this.parts.body.rotation.z = u * (Math.PI * 0.5);
@@ -671,6 +751,7 @@ class Longneck {
     } else if (this.state !== "dodge" && this.state !== "dodgeCrouch") {
       this.parts.body.rotation.z *= 0.8;
     }
+    this.netMoving = speed > 0.05 || this.state === "dodge" || this.state === "dodgeCrouch";
     this.#applyPose();
   }
 
@@ -720,6 +801,8 @@ export class LongneckHerd {
     this.segments = null;
     this.seed = seed + 5519;
     this.list = [];
+    this.remote = false;
+    this.onDied = null;
     this.geos = {
       sphere: new THREE.SphereGeometry(1, 12, 10),
       cyl: new THREE.CylinderGeometry(1, 1, 1, 8)
@@ -748,11 +831,14 @@ export class LongneckHerd {
     for (let i = 0; i < dirs.length; i++) {
       this.list.push(new Longneck(this, i, dirs[i], mulberry32(this.seed + (i + 1) * 4409)));
     }
+    if (this.remote) {
+      for (const c of this.list) c.remote = true;
+    }
   }
 
   /** Odskočí z dosahu damage (~10 m). */
   dodgeNear(centerDir, radiusM) {
-    if (!centerDir || radiusM <= 0) return false;
+    if (this.remote || !centerDir || radiusM <= 0) return false;
     let any = false;
     const reach = radiusM + 1.6;
     for (const c of this.list) {
@@ -764,7 +850,7 @@ export class LongneckHerd {
 
   /** Zásah v rádiusu — damage podle vzdálenosti, přeživší uskočí. */
   hurtNear(centerDir, radiusM, dmgCenter = MAX_HP, dmgEdge = MAX_HP, opts = {}) {
-    if (!centerDir || radiusM <= 0) return false;
+    if (this.remote || !centerDir || radiusM <= 0) return false;
     let any = false;
     const { hitSet, hitKey = "l", ignite, ...rest } = opts;
     for (const c of this.list) {
@@ -782,7 +868,7 @@ export class LongneckHerd {
 
   /** Výbuch komety — v kráteru se odpaří, mimo něj zemře podle skutečné damage. */
   blastNear(centerDir, vaporizeR, damageR) {
-    if (!centerDir) return false;
+    if (this.remote || !centerDir) return false;
     let any = false;
     for (const c of this.list) {
       if (c.gone) continue;
@@ -802,11 +888,18 @@ export class LongneckHerd {
   }
 
   charmNear(centerDir, radiusM, wizard, hold) {
-    if (!centerDir || radiusM <= 0 || !wizard) return;
+    if (this.remote || !centerDir || radiusM <= 0 || !wizard) return;
     for (const c of this.list) {
       if (c.dead || c.gone) continue;
       if (surfaceDist(c.dir, centerDir) <= radiusM) c.beginCharm(wizard, hold);
     }
+  }
+
+  kill(id, dirArr, fromArr) {
+    const c = this.list[id];
+    if (!c) return;
+    const dir = dirArr ? new THREE.Vector3(dirArr[0], dirArr[1], dirArr[2]) : null;
+    c.die({ atDir: dir, fromDir: fromArr || null, fromNet: true });
   }
 
   clear() {

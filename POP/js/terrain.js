@@ -14,6 +14,7 @@ import { createIcosphereGeometry } from "./icosphere.js";
 import { generateHeights } from "./maps.js";
 import { applyCapClip, createCapUniforms } from "./cap-material.js";
 import { applyGrassDetail } from "./grass-material.js";
+import { mulberry32 } from "./animalsAI.js";
 
 /** Pod touto výškou nad hladinou se voda může rozlít na sousední vrchol. */
 const WET_EPS = 0.03;
@@ -751,7 +752,7 @@ export class Terrain {
     const north = new THREE.Vector3();
     tangentFrame(center, east, north);
 
-    const blocks = opts.blocks ?? placeQuakeBlocks(radiusM);
+    const blocks = opts.blocks ?? placeQuakeBlocks(radiusM, quakeRng(center));
     const edgeFade = opts.edgeFade ?? 2.2;
     const cosR = Math.cos(radiusM / CONFIG.planetR);
     const pos = this.geometry.attributes.position;
@@ -1053,14 +1054,22 @@ function smoothFalloff(t) {
 }
 
 /** Náhodné semínka Voronoi desek v kruhu — nepravidelné, s vlastní fází kývání. */
-function placeQuakeBlocks(radiusM) {
+function quakeRng(dir) {
+  const seed =
+    ((Math.round(dir.x * 1e5) * 73856093) ^
+      (Math.round(dir.y * 1e5) * 19349663) ^
+      (Math.round(dir.z * 1e5) * 83492791)) >>> 0;
+  return mulberry32(seed ^ 0x51a7e);
+}
+
+function placeQuakeBlocks(radiusM, rng = Math.random) {
   const blocks = [];
-  const target = 8 + Math.floor(Math.random() * 5);
+  const target = 8 + Math.floor(rng() * 5);
   let minDist = 4.2;
   for (let guard = 0; guard < 4 && blocks.length < 6; guard++) {
     for (let t = 0; t < 90 && blocks.length < target; t++) {
-      const a = Math.random() * Math.PI * 2;
-      const r = Math.sqrt(Math.random()) * radiusM * 0.8;
+      const a = rng() * Math.PI * 2;
+      const r = Math.sqrt(rng()) * radiusM * 0.8;
       const x = Math.cos(a) * r;
       const y = Math.sin(a) * r;
       let ok = true;
@@ -1071,15 +1080,15 @@ function placeQuakeBlocks(radiusM) {
         }
       }
       if (!ok) continue;
-      blocks.push(makeQuakeBlock(x, y));
+      blocks.push(makeQuakeBlock(x, y, rng));
     }
     minDist *= 0.72;
   }
-  const extra = 1 + Math.floor(Math.random() * 2);
+  const extra = 1 + Math.floor(rng() * 2);
   for (let e = 0; e < extra && blocks.length; e++) {
-    const host = blocks[Math.floor(Math.random() * blocks.length)];
-    const a = Math.random() * Math.PI * 2;
-    const r = 2.1 + Math.random() * 2.8;
+    const host = blocks[Math.floor(rng() * blocks.length)];
+    const a = rng() * Math.PI * 2;
+    const r = 2.1 + rng() * 2.8;
     let x = host.x + Math.cos(a) * r;
     let y = host.y + Math.sin(a) * r;
     const lim = radiusM * 0.84;
@@ -1088,19 +1097,19 @@ function placeQuakeBlocks(radiusM) {
       x *= lim / d;
       y *= lim / d;
     }
-    blocks.push(makeQuakeBlock(x, y));
+    blocks.push(makeQuakeBlock(x, y, rng));
   }
-  if (!blocks.length) blocks.push(makeQuakeBlock(0, 0));
+  if (!blocks.length) blocks.push(makeQuakeBlock(0, 0, rng));
   return blocks;
 }
 
-function makeQuakeBlock(x, y) {
+function makeQuakeBlock(x, y, rng = Math.random) {
   return {
     x,
     y,
-    phase: Math.random() * Math.PI * 2,
-    cycles: 2.1 + Math.random() * 1.5,
-    sign: Math.random() < 0.5 ? 1 : -1
+    phase: rng() * Math.PI * 2,
+    cycles: 2.1 + rng() * 1.5,
+    sign: rng() < 0.5 ? 1 : -1
   };
 }
 

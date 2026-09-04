@@ -3,6 +3,7 @@ import { CONFIG } from "./config.js";
 import { tangentFrame, surfaceOffsetDir, slerpDirection } from "./utils.js";
 import { mulberry32, bearingOf } from "./animalsAI.js";
 import { spawnWaterWake } from "./spells/water-fx.js";
+import { applyEntityNet } from "./net/world-sync.js";
 
 /** Pod tímto počtem vertexů = jezírko, bez života. */
 const TINY_VERTS = 70;
@@ -356,6 +357,7 @@ class WaterCritter {
     /** Kratší úvodní plavba v hloubce — vynořuje se dřív a pak i častěji. */
     this.modeT = kind === "whale" ? this.#whaleCruiseTime(true) : 5 + rng() * 6;
     this.hue = built.hue ?? rng();
+    this.remote = false;
     this.hullHalfLen = (built.hullHalfLen ?? 0.35) * size;
     this.hullHalfW = (built.hullHalfW ?? 0.2) * size;
     this.hullDown = (built.hullDown ?? 0.12) * size;
@@ -574,7 +576,65 @@ class WaterCritter {
     return true;
   }
 
+  #presentWater(dt) {
+    if (this.kind === "amoeba") {
+      const skin = this.mats[0];
+      const core = this.mats[1];
+      skin.color.setHSL(this.hue, 0.88, 0.52);
+      skin.emissive.setHSL(this.hue, 0.95, 0.38);
+      core.color.setHSL((this.hue + 0.18) % 1, 1, 0.55);
+      core.emissive.setHSL((this.hue + 0.18) % 1, 1, 0.48);
+      for (const b of this.parts.blobs) {
+        const w = 1 + Math.sin(this.phase * 2.4 + b.phase) * 0.28;
+        b.mesh.scale.set(b.s * w, (b.sy ?? b.s) * w, (b.sz ?? b.s) * w);
+        b.mesh.position.set(
+          b.ox + Math.sin(this.phase * 1.6 + b.phase) * 0.03,
+          b.oy + Math.cos(this.phase * 1.9 + b.phase) * 0.025,
+          b.oz + Math.sin(this.phase * 1.3 + b.phase * 1.4) * 0.03
+        );
+      }
+    } else if (this.kind === "fish") {
+      const body = this.parts.body;
+      body.rotation.y = Math.sin(this.phase * 3.2) * 0.18;
+      body.position.y = Math.sin(this.phase * 2.1) * 0.03;
+      this.parts.tail.rotation.y = Math.sin(this.phase * 6.2) * 0.55;
+      for (let i = 0; i < this.parts.stalks.length; i++) {
+        const s = this.parts.stalks[i];
+        s.g.rotation.x = Math.sin(this.phase * 1.15 + i * 1.3) * 0.22;
+        s.g.rotation.z = Math.sin(this.phase * 0.85 + i) * 0.28;
+      }
+    } else {
+      if (this.mode === "look") {
+        const head = this.parts.head;
+        head.rotation.y = Math.sin(this.phase * 0.55) * 0.55;
+        head.rotation.x = Math.sin(this.phase * 0.4) * 0.12;
+      } else {
+        this.parts.head.rotation.y *= 1 - dt * 2;
+        this.parts.head.rotation.x *= 1 - dt * 2;
+      }
+      this.parts.body.rotation.x = Math.sin(this.phase * 0.7) * 0.04;
+      this.parts.tail.rotation.y = Math.sin(this.phase * 1.15) * (this.mode === "look" ? 0.12 : 0.28);
+      const look = this.mode === "look" ? 1 : 0.25;
+      for (let i = 0; i < this.parts.stalks.length; i++) {
+        const s = this.parts.stalks[i];
+        s.g.rotation.x = Math.sin(this.phase * 0.9 + i * 1.1) * 0.35 * look;
+        s.g.rotation.z = s.tilt + Math.sin(this.phase * 0.7 + i) * 0.4 * look;
+      }
+    }
+    this.#applyPose();
+  }
+
+  #updateRemote(dt) {
+    this.phase += dt;
+    applyEntityNet(this);
+    this.#presentWater(dt);
+  }
+
   update(dt) {
+    if (this.remote) {
+      this.#updateRemote(dt);
+      return;
+    }
     this.phase += dt;
     if (!this.#ok(this.dir)) this.#relocate();
 
@@ -765,6 +825,7 @@ export class WaterLife {
     this.terrain = terrain;
     this.seed = seed + 3301;
     this.list = [];
+    this.remote = false;
     this.whaleHavens = [];
     this._havenEast = new THREE.Vector3();
     this._havenNorth = new THREE.Vector3();
@@ -840,6 +901,9 @@ export class WaterLife {
         this.list.push(new WaterCritter(this, "whale", wdir, mulberry32(this.seed + 9000 + nW * 421), createWhale(this.geos, rng)));
         nW++;
       }
+    }
+    if (this.remote) {
+      for (const c of this.list) c.remote = true;
     }
   }
 

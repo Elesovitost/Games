@@ -71,6 +71,8 @@ export const CONFIG = {
   netPoseInterval: 0.05,
   /** Zpoždění interpolace vzdáleného hráče (s) — vyhlazuje skoky mezi snímky */
   netPoseInterpDelay: 0.08,
+  /** Interval snímku zvířat / vodního života od hosta (s) — ~12 Hz */
+  netWorldInterval: 0.08,
   /** Min. damage pro knockdown */
   wizardKnockMinDamage: 10,
   wizardKnockFallDur: 0.08,

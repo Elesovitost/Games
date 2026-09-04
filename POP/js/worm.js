@@ -13,6 +13,7 @@ import {
   aoeFalloff,
   claimHit
 } from "./animalsAI.js";
+import { applyEntityNet } from "./net/world-sync.js";
 
 const COUNT = 16;
 const MAX_HP = 30;
@@ -189,6 +190,8 @@ class Worm {
     this.stateT = 3.5 + rng() * 5;
     this.dead = false;
     this.gone = false;
+    this.remote = false;
+    this.netMoving = false;
     this.charm = null;
     this.treeSlot = null;
     this.treeFocus = null;
@@ -227,7 +230,7 @@ class Worm {
   }
 
   beginCharm(wizard, hold) {
-    if (this.dead || this.gone || !wizard) return;
+    if (this.remote || this.dead || this.gone || !wizard) return;
     if (this.state !== "peek" || this.peekStage !== "hold") {
       if (this.state !== "charm") return;
     }
@@ -541,6 +544,7 @@ class Worm {
   }
 
   takeDamage(amount, opts = {}) {
+    if (this.remote && !opts.fromNet) return false;
     if (this.dead || this.gone || amount <= 0) return false;
     if (!this.exposed && !opts.force) return false;
     this.hp = Math.max(0, this.hp - amount);
@@ -549,6 +553,7 @@ class Worm {
   }
 
   die(opts = {}) {
+    if (this.remote && !opts.fromNet) return false;
     if (this.dead) return false;
     if (!this.exposed && !opts.force) return false;
     this.dead = true;
@@ -561,6 +566,7 @@ class Worm {
       this.gone = true;
       this.mesh.visible = false;
     }
+    if (!opts.fromNet) this.herd.onDied?.(this);
     return true;
   }
 
@@ -568,8 +574,50 @@ class Worm {
     if (!this.exposed || this.dead) return;
   }
 
+  #updateRemote(dt) {
+    this.phase += dt;
+    applyEntityNet(this);
+    if (this.gone) {
+      this.mesh.visible = false;
+      return;
+    }
+    if (this.dead) {
+      const last = this.path[this.path.length - 1];
+      if (last) {
+        const up = this._up.copy(last).normalize();
+        last.addScaledVector(up, -dt * 1.1);
+        this.#pushPath(last);
+      }
+      this.#poseLinks(dt);
+      return;
+    }
+
+    this.peekFwd.copy(this.facing).addScaledVector(this.dir, -this.facing.dot(this.dir));
+    if (this.peekFwd.lengthSq() < 1e-8) tangentFrame(this.dir, this._east, this.peekFwd);
+    else this.peekFwd.normalize();
+
+    const peeking = this.state === "peek" || (this.state === "treeTrance" && this.arrivedTree);
+    if (peeking) {
+      this.peekHole.copy(this.dir);
+      if (this.peekStage === "rise") this.#risePos(this.peekT || 0, this._pos);
+      else if (this.peekStage === "dive") this.#divePos(this.peekT || 0, this._pos);
+      else this.#risePos(1, this._pos);
+      this.#pushPath(this._pos);
+    } else {
+      this.#surfPos(this.dir, this.state === "charm" ? 0.05 : 0.014, this._pos);
+      this.#pushPath(this._pos);
+    }
+    this.netMoving = this.state === "tunnel" || this.state === "charm" ||
+      (this.state === "treeTrance" && !this.arrivedTree);
+    this.#poseLinks(dt);
+  }
+
   update(dt) {
     if (this.gone) return;
+    if (this.remote) {
+      this.#updateRemote(dt);
+      return;
+    }
     this.phase += dt;
     if (!this.dead) regenAnimalHp(this, dt);
 
@@ -689,6 +737,8 @@ export class WormHerd {
     this.segments = null;
     this.seed = seed + 9029;
     this.list = [];
+    this.remote = false;
+    this.onDied = null;
     this.geos = {
       sphere: new THREE.SphereGeometry(1, 12, 10),
       cyl: new THREE.CylinderGeometry(1, 1, 1, 8)
@@ -719,10 +769,13 @@ export class WormHerd {
     for (let i = 0; i < dirs.length; i++) {
       this.list.push(new Worm(this, i, dirs[i], mulberry32(this.seed + (i + 1) * 7717)));
     }
+    if (this.remote) {
+      for (const c of this.list) c.remote = true;
+    }
   }
 
   hurtNear(centerDir, radiusM, dmgCenter, dmgEdge, opts = {}) {
-    if (!centerDir || radiusM <= 0) return false;
+    if (this.remote || !centerDir || radiusM <= 0) return false;
     let hit = false;
     const { hitSet, hitKey = "w", ignite, ...rest } = opts;
     for (const c of this.list) {
@@ -737,7 +790,7 @@ export class WormHerd {
   }
 
   charmNear(centerDir, radiusM, wizard, hold) {
-    if (!centerDir || radiusM <= 0 || !wizard) return;
+    if (this.remote || !centerDir || radiusM <= 0 || !wizard) return;
     for (const c of this.list) {
       if (!c.lureable || c.state === "treeTrance") continue;
       if (surfaceDist(c.dir, centerDir) <= radiusM) c.beginCharm(wizard, hold);
@@ -745,7 +798,7 @@ export class WormHerd {
   }
 
   blastNear(centerDir, vaporizeR, damageR) {
-    if (!centerDir) return false;
+    if (this.remote || !centerDir) return false;
     let hit = false;
     for (const c of this.list) {
       if (c.dead) continue;
@@ -758,6 +811,13 @@ export class WormHerd {
       }
     }
     return hit;
+  }
+
+  kill(id, dirArr, fromArr) {
+    const c = this.list[id];
+    if (!c) return;
+    const dir = dirArr ? new THREE.Vector3(dirArr[0], dirArr[1], dirArr[2]) : null;
+    c.die({ atDir: dir, fromDir: fromArr || null, fromNet: true, force: true });
   }
 
   clear() {

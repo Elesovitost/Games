@@ -1,4 +1,5 @@
 import * as THREE from "../three.js";
+import { applyWorldPacket } from "./world-sync.js";
 
 /**
  * Směrování vzdálených intentů.
@@ -36,9 +37,18 @@ export function createGameIntentHandlers(game) {
     /** Pose už nese pohyb; destination na remote se nepoužívá. */
     walk() {},
 
-    /** Mrtvé zvíře — jeden intent, idempotentní. AI jinak běží lokálně. */
+    /** Mrtvé zvíře — rychlý intent od hosta; world snapshot je záloha. */
     beast(_fromId, intent) {
-      game.critters?.kill(intent.id, intent.dir, intent.from);
+      if (game.session?.isHost) return;
+      const kind = intent.who || "c";
+      const herd = kind === "l" ? game.longnecks : kind === "w" ? game.worms : game.critters;
+      herd?.kill?.(intent.id, intent.dir, intent.from);
+    },
+
+    /** Hostovský snímek zvířat a vodního života. */
+    world(_fromId, intent) {
+      if (game.session?.isHost) return;
+      applyWorldPacket(game, intent);
     },
 
     cast(fromId, intent) {

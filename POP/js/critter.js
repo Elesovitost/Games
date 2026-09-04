@@ -23,6 +23,7 @@ import {
   aoeFalloff,
   claimHit
 } from "./animalsAI.js";
+import { applyEntityNet } from "./net/world-sync.js";
 
 const COUNT = 32;
 const MAX_HP = 10;
@@ -214,6 +215,7 @@ class Critter {
     this.tornado = null;
     this.diesOnTornadoLand = true;
     this.remote = false;
+    this.netMoving = false;
     this.godMode = false;
     this.burning = false;
     this.charred = false;
@@ -251,7 +253,7 @@ class Critter {
   }
 
   beginCharm(wizard, hold) {
-    if (this.dead || !wizard) return;
+    if (this.remote || this.dead || !wizard) return;
     this.charm = { wizard, t: 0, hold: hold ?? 20 };
     this.state = "charm";
     this.stateT = hold ?? 16;
@@ -341,6 +343,7 @@ class Critter {
   }
 
   takeDamage(amount, opts = {}) {
+    if (this.remote && !opts.fromNet) return false;
     if (this.dead || amount <= 0) return false;
     this.hp = Math.max(0, this.hp - amount);
     if (opts.ignite) this.ignite();
@@ -349,6 +352,7 @@ class Critter {
   }
 
   die(opts = {}) {
+    if (this.remote && !opts.fromNet) return false;
     if (this.dead) return false;
     if (this.tornado) this.endTornadoCapture();
     this.dead = true;
@@ -476,8 +480,17 @@ class Critter {
     this.#snap();
   }
 
+  syncBurn(burning, charred) {
+    if (charred) {
+      if (!this.burning && !this.charred) this.ignite();
+      if (!this.charred) this.#charBody();
+    } else if (burning && !this.burning && !this.charred) {
+      this.ignite();
+    }
+  }
+
   beginTornadoCapture(centerDir, source = null) {
-    if (this.tornado || this.dead) return false;
+    if (this.remote || this.tornado || this.dead) return false;
     this.tornado = {
       phase: "climb",
       t: 0,
@@ -499,7 +512,7 @@ class Critter {
   }
 
   pullOnSurface(towardDir, stepM) {
-    if (this.tornado || this.dead) return false;
+    if (this.remote || this.tornado || this.dead) return false;
     const target = towardDir.clone().normalize();
     const dot = Math.min(1, Math.max(-1, this.dir.dot(target)));
     const angle = Math.acos(dot);
@@ -512,6 +525,7 @@ class Critter {
   }
 
   onTornadoLand(centerDir) {
+    if (this.remote) return;
     this.takeDamage(SPELLS.tornado.fallDamage, { fromDir: centerDir });
   }
 
@@ -532,10 +546,94 @@ class Critter {
     parts.body.position.set(0, 0, 0);
   }
 
+  #presentRemote(dt, speed) {
+    this.neckX += (this.neckTarget - this.neckX) * Math.min(1, dt * 3.2);
+    this.parts.neck.rotation.x = this.neckX;
+    this.parts.neck2.rotation.x = this.neckX * 0.35 + Math.sin(this.phase * 1.1) * 0.04;
+
+    const gait = this.state === "flee" ? 1.6 : this.state === "swim" ? 0.5 : speed > 0.05 ? 1 : 0.15;
+    for (const leg of this.parts.legs) {
+      const off = leg.k * 2.1 + (leg.side > 0 ? 0 : Math.PI);
+      const swing = Math.sin(this.walkPhase + off) * 0.42 * gait;
+      leg.hip.rotation.x = swing;
+      leg.shin.rotation.x = Math.max(0, -swing) * 0.7 + 0.15;
+    }
+    for (let i = 0; i < this.parts.sails.length; i++) {
+      this.parts.sails[i].rotation.x = Math.sin(this.phase * 1.3 + i * 0.7) * 0.12;
+    }
+    for (let i = 0; i < this.parts.stalks.length; i++) {
+      this.parts.stalks[i].rotation.x = Math.sin(this.phase * 2.1 + i) * 0.18
+        + (this.state === "look" ? -0.35 : 0);
+    }
+    this.parts.tail.rotation.y = Math.sin(this.phase * 1.6) * 0.35;
+
+    if (this.state === "treeTrance" && speed < 0.05) {
+      this.parts.body.rotation.z = treeSwayZ();
+    } else {
+      this.parts.body.rotation.z *= 0.8;
+    }
+
+    this.#snap();
+    this.#applyPose();
+    this.#updateBurn(dt);
+  }
+
+  #updateRemote(dt) {
+    this.phase += dt;
+    applyEntityNet(this);
+    if (this.vanished) {
+      this.mesh.visible = false;
+      return;
+    }
+    if (this.dead) {
+      this.dieT = Math.min(1, this.dieT + dt / 0.45);
+      const u = this.dieT * this.dieT * (3 - 2 * this.dieT);
+      this.parts.body.rotation.z = u * (Math.PI * 0.5);
+      this.parts.body.rotation.x = 0;
+      this.parts.body.rotation.y = 0;
+      this.parts.body.position.set(0, u * this.lieLift, 0);
+      this.parts.neck.rotation.x = THREE.MathUtils.lerp(this.parts.neck.rotation.x, 0.15, 0.12);
+      for (const leg of this.parts.legs) {
+        leg.hip.rotation.x *= 1 - dt * 8;
+        leg.shin.rotation.x = THREE.MathUtils.lerp(leg.shin.rotation.x, 0.08, 0.2);
+      }
+      this.#snap();
+      this.#updateBurn(dt);
+      this.#applyPose();
+      return;
+    }
+
+    let speed = 0;
+    this.neckTarget = 0.18;
+    if (this.state === "treeTrance") this.neckTarget = -0.58;
+    else if (this.state === "charm") this.neckTarget = 0.05;
+    else if (this.state === "flee") this.neckTarget = -0.28;
+    else if (this.state === "swim") this.neckTarget = -0.1;
+    else if (this.state === "graze") this.neckTarget = 0.92;
+    else if (this.state === "look") this.neckTarget = -0.62;
+
+    if (this.netMoving) {
+      speed = this.state === "flee" ? FLEE_SPEED : this.state === "swim" ? SWIM_SPEED : WALK_SPEED;
+      this.walkPhase += dt * speed * 2.4;
+    }
+    if (this.state === "look") {
+      this.parts.head.rotation.y = Math.sin(this.phase * 1.4) * 0.25;
+    } else {
+      this.parts.head.rotation.y *= 0.85;
+    }
+    if (this.netTornado) this.parts.body.rotation.y += dt * 14;
+    this.#presentRemote(dt, speed);
+  }
+
   update(dt, wizards) {
+    if (this.remote) {
+      this.#updateRemote(dt);
+      return;
+    }
     this.phase += dt;
     if (!this.dead) regenAnimalHp(this, dt);
     if (this.dead) {
+      this.netMoving = false;
       this.dieT = Math.min(1, this.dieT + dt / 0.45);
       const u = this.dieT * this.dieT * (3 - 2 * this.dieT);
       this.parts.body.rotation.z = u * (Math.PI * 0.5);
@@ -555,6 +653,7 @@ class Critter {
     }
 
     if (this.tornado) {
+      this.netMoving = true;
       this.#applyTornadoPose();
       this.#applyPose();
       return;
@@ -758,6 +857,7 @@ class Critter {
       this.parts.body.rotation.z *= 0.8;
     }
 
+    this.netMoving = speed > 0.05;
     this.#snap();
     this.#applyPose();
   }
@@ -795,6 +895,7 @@ export class CritterHerd {
     this.blockers = null;
     this.fx = null;
     this.segments = null;
+    this.remote = false;
     this.geos = {
       sphere: new THREE.SphereGeometry(1, 12, 10),
       cyl: new THREE.CylinderGeometry(1, 1, 1, 8),
@@ -825,6 +926,9 @@ export class CritterHerd {
       const crng = mulberry32(this.seed + (i + 1) * 9973);
       this.list.push(new Critter(this, i, dirs[i], crng));
     }
+    if (this.remote) {
+      for (const c of this.list) c.remote = true;
+    }
   }
 
   clear() {
@@ -840,7 +944,7 @@ export class CritterHerd {
 
   /** Zásah v rádiusu — damage podle vzdálenosti. Vrací true, pokud někdo umřel. */
   hurtNear(centerDir, radiusM, dmgCenter, dmgEdge, opts = {}) {
-    if (!centerDir || radiusM <= 0) return false;
+    if (this.remote || !centerDir || radiusM <= 0) return false;
     let hit = false;
     const { hitSet, hitKey = "c", ignite, ...rest } = opts;
     for (const c of this.list) {
@@ -855,7 +959,7 @@ export class CritterHerd {
   }
 
   charmNear(centerDir, radiusM, wizard, hold) {
-    if (!centerDir || radiusM <= 0 || !wizard) return;
+    if (this.remote || !centerDir || radiusM <= 0 || !wizard) return;
     for (const c of this.list) {
       if (c.dead) continue;
       if (surfaceDist(c.dir, centerDir) <= radiusM) c.beginCharm(wizard, hold);
@@ -867,7 +971,7 @@ export class CritterHerd {
    * Bez náhody, aby MP klienti dopadli stejně.
    */
   blastNear(centerDir, vaporizeR, damageR) {
-    if (!centerDir) return false;
+    if (this.remote || !centerDir) return false;
     let hit = false;
     for (const c of this.list) {
       if (c.dead) continue;

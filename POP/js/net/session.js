@@ -1,6 +1,7 @@
 import { NetClient, loadProfile, saveProfile } from "./client.js";
 import { CONFIG } from "../config.js";
 import { buildPosePacket } from "./wizard-sync.js";
+import { buildWorldPacket } from "./world-sync.js";
 
 /**
  * Multiplayer session — relay intents přes WebSocket.
@@ -15,6 +16,7 @@ export class MultiplayerSession {
     this.isMp = false;
     this.playing = false;
     this._poseAcc = 0;
+    this._worldAcc = 0;
 
     this.client.onMessage = (msg) => this.#onMsg(msg);
     this.client.onClose = () => {
@@ -97,6 +99,16 @@ export class MultiplayerSession {
     if (packet) this.sendIntent(packet);
   }
 
+  /** Host posílá stav zvířat a vodního života. */
+  tickWorld(dt) {
+    if (!this.isMp || !this.playing || !this.isHost) return;
+    this._worldAcc += dt;
+    if (this._worldAcc < CONFIG.netWorldInterval) return;
+    this._worldAcc = 0;
+    const packet = buildWorldPacket(this.game);
+    if (packet) this.sendIntent(packet);
+  }
+
   #onMsg(msg) {
     if (msg.type === "welcome") {
       this.localId = String(msg.playerId);
@@ -128,6 +140,7 @@ export class MultiplayerSession {
         mapId: msg.mapId ?? 0
       });
       this._poseAcc = 1;
+      this._worldAcc = 1;
       this.game.lobby?.render(this.room);
       return;
     }

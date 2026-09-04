@@ -21,6 +21,7 @@ import { assignTreeTrance } from "./animalsAI.js";
 import { MultiplayerSession } from "./net/session.js";
 import { LobbyUI } from "./net/lobby.js";
 import { createIntentRouter, createGameIntentHandlers } from "./net/intents.js";
+import { markHerdRemote } from "./net/world-sync.js";
 import { mountGameVersion } from "./game-version.js";
 import { GameAudio } from "./audio.js";
 import { WIZARD_COLORS, loadProfile, saveProfile, loadMusicEnabled, saveMusicEnabled } from "./net/client.js";
@@ -133,14 +134,9 @@ class Game {
     this.session = new MultiplayerSession(this);
     this.lobby = new LobbyUI(this, this.session);
     this.#applyRemoteIntent = createIntentRouter(createGameIntentHandlers(this));
-    this.critters.onDied = (c) => {
-      this.session.sendIntent({
-        kind: "beast",
-        id: c.id,
-        dir: [c.dir.x, c.dir.y, c.dir.z],
-        from: c.knockFrom ? [c.knockFrom.x, c.knockFrom.y, c.knockFrom.z] : null
-      });
-    };
+    this.critters.onDied = (c) => this.#sendBeastDeath("c", c);
+    this.longnecks.onDied = (c) => this.#sendBeastDeath("l", c);
+    this.worms.onDied = (c) => this.#sendBeastDeath("w", c);
 
     this.enterSolo();
 
@@ -243,6 +239,7 @@ class Game {
     this.longnecks?.spawn(this.landSpawns);
     this.worms?.spawn(this.landSpawns);
     this.#selectSpell(null);
+    this.#syncWorldAuthority(false);
   }
 
   beginMatch({ players, localId }) {
@@ -292,6 +289,7 @@ class Game {
     this.applyRoomColors({ players: list });
     document.getElementById("btn-1p")?.classList.add("active");
     document.getElementById("btn-mp")?.classList.remove("active");
+    this.#syncWorldAuthority();
   }
 
   applyRemoteIntent(fromId, intent) {
@@ -299,6 +297,28 @@ class Game {
   }
 
   #applyRemoteIntent;
+
+  #sendBeastDeath(who, c) {
+    if (!this.session?.isMp || !this.session.isPlaying || !this.session.isHost) return;
+    this.session.sendIntent({
+      kind: "beast",
+      who,
+      id: c.id,
+      dir: [c.dir.x, c.dir.y, c.dir.z],
+      from: c.knockFrom ? [c.knockFrom.x, c.knockFrom.y, c.knockFrom.z] : null
+    });
+  }
+
+  #syncWorldAuthority(forceRemote) {
+    const remote =
+      forceRemote != null
+        ? !!forceRemote
+        : !!(this.session?.isMp && this.session.isPlaying && !this.session.isHost);
+    markHerdRemote(this.critters, remote);
+    markHerdRemote(this.longnecks, remote);
+    markHerdRemote(this.worms, remote);
+    markHerdRemote(this.waterLife, remote);
+  }
 
   #pixelRatio() {
     const base = Math.min(window.devicePixelRatio || 1, CONFIG.pixelRatioMax);
@@ -827,7 +847,9 @@ class Game {
       }
     }
     this.#updatePendingCast();
-    assignTreeTrance(this.critters?.list, this.longnecks?.list, this.trees, dt, this.worms?.list);
+    if (!this.session?.isMp || this.session.isHost) {
+      assignTreeTrance(this.critters?.list, this.longnecks?.list, this.trees, dt, this.worms?.list);
+    }
     this.critters?.update(dt, [...this.wizards.values()]);
     this.longnecks?.update(dt);
     this.worms?.update(dt);
@@ -840,6 +862,7 @@ class Game {
     this.water.update(dt);
     this.sky.update(dt);
     this.session.tickPose(dt);
+    this.session.tickWorld(dt);
 
     const viewAxis = getPlanetViewAxis(this.camera, this.planetGroup, tmp.v);
     this.terrain.setViewAxis(viewAxis);

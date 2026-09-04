@@ -27,7 +27,10 @@ const SOURCES = [
   "./spells/hypnosis.js",
   "./net/session.js",
   "./net/client.js",
-  "./net/lobby.js"
+  "./net/lobby.js",
+  "./net/world-sync.js",
+  "./net/wizard-sync.js",
+  "./net/intents.js"
 ];
 
 function formatVersion(ms) {
