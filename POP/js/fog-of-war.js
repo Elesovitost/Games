@@ -169,9 +169,15 @@ export class FogOfWar {
       st.seen = true;
       if (allowGhost) this.#capturePose(e, st);
       if (mesh.userData._fowHidden) delete mesh.userData._fowHidden;
-      // Zvířata (kromě water-life, které si visible řeší samo) znovu ukaž.
-      if (!allowGhost && !this.#isWaterLife(e) && !e.dead && !e.gone) {
-        mesh.visible = true;
+      // Po schování mimo FOV znovu ukaž (zvířata i remote wizard — sami visible neobnovují).
+      if (!e.dead && !e.gone) {
+        if (this.#isWaterLife(e)) {
+          // water-life si visible nastaví podle hloubky v update
+        } else if (e.invis && e.remote && (e.invis.remoteOpacity ?? 0) < 0.02) {
+          mesh.visible = false;
+        } else {
+          mesh.visible = true;
+        }
       }
       return;
     }
