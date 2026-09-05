@@ -216,7 +216,7 @@ function createDemonMesh() {
 }
 
 function living(e) {
-  if (!e || e.dead || e.gone || e.vanished) return false;
+  if (!e || e.dead || e.gone || e.vanished || e.corrupted) return false;
   if (e.godMode || e.immortal) return false;
   if (e.state === "swim") return false;
   return true;
@@ -239,6 +239,7 @@ function pickPrey(sys, fromDir) {
   for (const c of sys.worms?.list || []) {
     if (c.exposed) consider(c);
   }
+  for (const w of sys.watchers || []) consider(w);
   return best;
 }
 
@@ -576,6 +577,10 @@ function holdPrey(prey, on) {
 }
 
 function blackenPrey(prey) {
+  if (typeof prey?.applyDemonCorrupt === "function") {
+    prey.applyDemonCorrupt();
+    return;
+  }
   const root = prey?.mesh;
   if (!root) return;
   root.traverse((ch) => {

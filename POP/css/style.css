@@ -128,6 +128,14 @@ html, body {
   background: rgba(212, 180, 106, 0.22);
   box-shadow: inset 0 0 0 1px rgba(212, 180, 106, 0.45), 0 0 12px rgba(212, 180, 106, 0.15);
 }
+.spell.spell-empty {
+  pointer-events: none;
+  opacity: 0.22;
+  background: rgba(0, 0, 0, 0.12);
+  border: 1px dashed rgba(212, 180, 106, 0.18);
+  cursor: default;
+  min-height: 48px;
+}
 .spell-label {
   line-height: 1;
   opacity: 0.92;
@@ -519,6 +527,36 @@ html, body {
   box-shadow: 0 0 6px rgba(255, 200, 80, 0.85);
 }
 
+/* Hlídač — zelené liány + kalich + žluté oko */
+.spell-icon.watcher {
+  background: transparent;
+}
+.spell-icon.watcher::before {
+  left: 50%;
+  bottom: 1px;
+  width: 8px;
+  height: 14px;
+  margin-left: -4px;
+  border-radius: 40% 40% 30% 30%;
+  background:
+    linear-gradient(180deg, #5a9a48 0%, #2d6a3a 100%);
+  box-shadow:
+    -4px 2px 0 -2px #3a8048,
+    4px 3px 0 -2px #458a50,
+    0 0 4px rgba(70, 140, 70, 0.45);
+}
+.spell-icon.watcher::after {
+  left: 50%;
+  top: 1px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: 50%;
+    background:
+    radial-gradient(circle at 50% 50%, #050508 0 24%, #c4a02a 25% 62%, #ffffff 63% 100%);
+  box-shadow: 0 0 5px rgba(196, 160, 42, 0.5);
+}
+
 /* Stín — průhledná silueta s fialovým leskem */
 .spell-icon.invisibility {
   background: transparent;
@@ -653,6 +691,54 @@ html, body {
   text-align: right;
   font-size: 0.62rem;
   color: var(--ink);
+}
+.watcher-alarm {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 1px solid rgba(220, 60, 50, 0.85);
+  background: rgba(40, 12, 10, 0.85);
+  cursor: pointer;
+  appearance: none;
+}
+.watcher-alarm.hidden {
+  display: none;
+}
+.watcher-alarm.pulse {
+  animation: watcher-alarm-pulse 0.55s ease-in-out infinite;
+}
+.watcher-alarm-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+.watcher-alarm-icon::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 32%, #fff 0%, #e8e0d0 28%, #c04040 55%, #401010 82%, #100404 100%);
+}
+@keyframes watcher-alarm-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 40, 30, 0.55);
+    border-color: rgba(220, 60, 50, 0.85);
+    background: rgba(40, 12, 10, 0.85);
+  }
+  50% {
+    box-shadow: 0 0 10px 2px rgba(255, 50, 40, 0.75);
+    border-color: #ff5040;
+    background: rgba(90, 18, 14, 0.95);
+  }
 }
 
 .play-modes { display: none; }

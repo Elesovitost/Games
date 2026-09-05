@@ -21,6 +21,15 @@ export function applyAoeDamage(sys, centerDir, radiusM, dmgCenter, dmgEdge) {
   sys.critters?.hurtNear(centerDir, radiusM, dmgCenter, dmgEdge);
   sys.longnecks?.hurtNear(centerDir, radiusM, dmgCenter, dmgEdge);
   sys.worms?.hurtNear(centerDir, radiusM, dmgCenter, dmgEdge);
+  /** Hlídači — inline (watcher.js importuje surfaceDist odsud). */
+  for (const w of sys.watchers || []) {
+    if (!w || w.corrupted) continue;
+    const dist = surfaceDist(centerDir, w.dir);
+    if (dist >= radiusM) continue;
+    const t = dist / radiusM;
+    const dmg = dmgCenter + (dmgEdge - dmgCenter) * t;
+    w.takeDamage?.(dmg, { fromDir: centerDir });
+  }
 }
 
 export function spawnBurst(sys, pos, up, color, life = 0.45) {

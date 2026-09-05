@@ -960,6 +960,11 @@ function applyLavaDamage(sys, field, list, def, dt, hotFactor) {
       c.takeDamage(def.lavaDps * dt, { fromDir: field.center });
     }
   }
+  for (const w of sys.watchers || []) {
+    if (!w || w.corrupted) continue;
+    if (!onHotLava(w.dir)) continue;
+    w.takeDamage?.(def.lavaDps * dt, { fromDir: field.center });
+  }
   sys.trees?.igniteWhere(onHotLava);
 }
 

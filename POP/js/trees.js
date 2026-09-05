@@ -561,12 +561,19 @@ export class Trees {
 
   /**
    * FoW: live stromy jen ve FOV; mimo FOV šedý zamrzlý ghost pokud už viděny.
-   * @param {THREE.Vector3|null} eye
+   * @param {import("./fog-of-war.js").FogOfWar|THREE.Vector3|null} fowOrEye
    * @param {boolean} fowOn
-   * @param {number} [radiusM]
+   * @param {number} [radiusM] legacy single-eye radius
    */
-  applyFow(eye, fowOn, radiusM = CONFIG.fowRadiusM) {
-    if (!fowOn || !eye) {
+  applyFow(fowOrEye, fowOn, radiusM = CONFIG.fowRadiusM) {
+    const inFovFn =
+      fowOrEye && typeof fowOrEye.inFov === "function"
+        ? (dir) => fowOrEye.inFov(dir)
+        : fowOrEye
+          ? (dir) => surfaceDist(dir, fowOrEye) <= radiusM
+          : null;
+
+    if (!fowOn || !inFovFn) {
       for (const { mesh, list } of this.ghostMeshes) {
         for (let i = 0; i < list.length; i++) mesh.setMatrixAt(i, this._zeroMat);
         mesh.instanceMatrix.needsUpdate = true;
@@ -586,7 +593,7 @@ export class Trees {
           mesh.setMatrixAt(i, this._mat4);
           continue;
         }
-        const inFov = surfaceDist(p.dir, eye) <= radiusM;
+        const inFov = inFovFn(p.dir);
         if (inFov) {
           p.fowSeen = true;
           this.#matrixForPlacement(p, this._mat4);
@@ -602,7 +609,7 @@ export class Trees {
     for (const { mesh, list } of this.ghostMeshes) {
       for (let i = 0; i < list.length; i++) {
         const p = list[i];
-        const inFov = !p.gone && surfaceDist(p.dir, eye) <= radiusM;
+        const inFov = !p.gone && inFovFn(p.dir);
         if (!inFov && p.fowSeen && !p.gone && !p.burning) {
           mesh.setMatrixAt(i, p._fowGhostMat);
         } else {
@@ -613,8 +620,7 @@ export class Trees {
     }
 
     for (const entry of this.burns) {
-      const inFov = surfaceDist(entry.p.dir, eye) <= radiusM;
-      entry.group.visible = inFov;
+      entry.group.visible = inFovFn(entry.p.dir);
     }
   }
 

@@ -7,6 +7,7 @@ import { surfaceDist } from "./fx-common.js";
 import { isWaterAt, spawnWaterSplash } from "./water-fx.js";
 import { LAVA_VERT, LAVA_FRAG } from "./volcano.js";
 import { spawnFireShards } from "./fireball.js";
+import { hurtWatchersNear } from "./watcher.js";
 
 const _start = new THREE.Vector3();
 const _impact = new THREE.Vector3();
@@ -600,6 +601,12 @@ function applyCometLavaDamage(sys, comet, dt) {
       c.takeDamage(SPELLS.volcano.lavaDps * dt, { fromDir: comet.target });
     }
   }
+  for (const w of sys.watchers || []) {
+    if (!w || w.corrupted) continue;
+    const heat = cometLavaHeat(comet, w.dir);
+    if (heat <= 0) continue;
+    w.takeDamage?.(SPELLS.volcano.lavaDps * dt, { fromDir: comet.target });
+  }
   sys.trees?.igniteWhere((dir) => cometLavaHeat(comet, dir) > 0);
 }
 
@@ -699,6 +706,7 @@ function applyCometBlast(sys, dir) {
   sys.critters?.blastNear(dir, def.craterRadius, def.damageRadius);
   sys.longnecks?.blastNear(dir, def.craterRadius, def.damageRadius);
   sys.worms?.blastNear(dir, def.craterRadius, def.damageRadius);
+  hurtWatchersNear(sys, dir, def.damageRadius, def.damageCenter, def.damageEdge);
   sys.trees?.vaporizeNear(dir, def.craterRadius);
   sys.trees?.igniteNear(dir, def.damageRadius);
 }

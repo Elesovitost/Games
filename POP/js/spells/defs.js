@@ -193,6 +193,16 @@ export const SPELLS = {
     color: 0xd080ff,
     hint: "Klikni v dosahu — hypnóza. Zvířata v 8 m jdou za tebou (max 20 s)."
   },
+  watcher: {
+    id: "watcher",
+    range: 16,
+    castTime: 3,
+    cooldown: 5,
+    radius: 30,
+    maxCount: 5,
+    color: 0xe8e0d0,
+    hint: "Klikni v dosahu — Hlídač (max 5). FOV 30 m + alarm při cizím wizardovi. Do smrti majitele."
+  },
   invisibility: {
     id: "invisibility",
     /** Klik na ikonu = rovnou cast (bez míření) */

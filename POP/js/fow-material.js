@@ -1,12 +1,25 @@
 import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 
+/** Max FOV zdrojů ve shaderu (1 wizard + až 5 Hlídačů). */
+export const FOW_MAX_EYES = 6;
+
 /** Sdílené FoW uniformy (terrain + water). */
 export function createFowUniforms() {
+  const eyes = [];
+  const radii = [];
+  for (let i = 0; i < FOW_MAX_EYES; i++) {
+    eyes.push(new THREE.Vector3(0, 1, 0));
+    radii.push(CONFIG.fowRadiusM);
+  }
   return {
     uFowEnabled: { value: CONFIG.fowEnabledDefault ? 1 : 0 },
-    uFowEye: { value: new THREE.Vector3(0, 1, 0) },
+    /** @deprecated single-eye — drženo kvůli zpětné kompatibilitě zápisů */
+    uFowEye: { value: eyes[0] },
     uFowRadius: { value: CONFIG.fowRadiusM },
+    uFowEyes: { value: eyes },
+    uFowRadii: { value: radii },
+    uFowEyeCount: { value: 1 },
     uFowSoft: { value: CONFIG.fowSoftM },
     uPlanetR: { value: CONFIG.planetR }
   };
@@ -17,8 +30,9 @@ attribute float aFowExplore;
 attribute float aFowMemH;
 attribute vec3 aFowMemColor;
 uniform float uFowEnabled;
-uniform vec3 uFowEye;
-uniform float uFowRadius;
+uniform vec3 uFowEyes[${FOW_MAX_EYES}];
+uniform float uFowRadii[${FOW_MAX_EYES}];
+uniform int uFowEyeCount;
 uniform float uFowSoft;
 uniform float uPlanetR;
 varying float vFowInFov;
@@ -30,8 +44,13 @@ const FOW_VERT_APPLY = `
 {
   float liveH = length(transformed);
   vec3 fowDir = liveH > 1e-5 ? transformed / liveH : vec3(0.0, 1.0, 0.0);
-  float angDist = acos(clamp(dot(fowDir, normalize(uFowEye)), -1.0, 1.0)) * uPlanetR;
-  float inFov = 1.0 - smoothstep(uFowRadius - uFowSoft, uFowRadius, angDist);
+  float inFov = 0.0;
+  for (int i = 0; i < ${FOW_MAX_EYES}; i++) {
+    if (i >= uFowEyeCount) break;
+    float angDist = acos(clamp(dot(fowDir, normalize(uFowEyes[i])), -1.0, 1.0)) * uPlanetR;
+    float r = uFowRadii[i];
+    inFov = max(inFov, 1.0 - smoothstep(r - uFowSoft, r, angDist));
+  }
   vFowInFov = uFowEnabled < 0.5 ? 1.0 : inFov;
   vFowExplored = uFowEnabled < 0.5 ? 1.0 : aFowExplore;
   vFowMemColor = aFowMemColor;
@@ -85,8 +104,9 @@ export function applyFowTerrain(material, uniforms) {
     prevOnBeforeCompile?.(shader);
     Object.assign(shader.uniforms, {
       uFowEnabled: uniforms.uFowEnabled,
-      uFowEye: uniforms.uFowEye,
-      uFowRadius: uniforms.uFowRadius,
+      uFowEyes: uniforms.uFowEyes,
+      uFowRadii: uniforms.uFowRadii,
+      uFowEyeCount: uniforms.uFowEyeCount,
       uFowSoft: uniforms.uFowSoft,
       uPlanetR: uniforms.uPlanetR
     });
@@ -108,5 +128,5 @@ export function applyFowTerrain(material, uniforms) {
     );
   };
   const prevCacheKey = material.customProgramCacheKey;
-  material.customProgramCacheKey = () => "fow3_" + (prevCacheKey ? prevCacheKey() : "");
+  material.customProgramCacheKey = () => "fow4_" + (prevCacheKey ? prevCacheKey() : "");
 }

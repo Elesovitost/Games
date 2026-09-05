@@ -27,6 +27,13 @@
       </button>
     </div>
     <div class="spell-group">
+      <button type="button" class="spell" data-spell="watcher" title="Hlídač">
+        <span class="spell-icon watcher" aria-hidden="true"></span>
+        <span class="spell-label">HLÍDAČ</span>
+      </button>
+      <div class="spell spell-empty" aria-hidden="true"></div>
+    </div>
+    <div class="spell-group">
       <button type="button" class="spell" data-spell="invisibility" title="Stín">
         <span class="spell-icon invisibility" aria-hidden="true"></span>
         <span class="spell-label">STÍN</span>
@@ -137,6 +144,9 @@
       <div id="health-fill" class="health-fill"></div>
     </div>
     <span id="health-text">100</span>
+    <button type="button" id="watcher-alarm" class="watcher-alarm hidden" title="Alarm — klikni pro pohled" aria-label="Alarm Hlídače">
+      <span class="watcher-alarm-icon" aria-hidden="true"></span>
+    </button>
   </div>
   <script type="module" src="./js/main.js"></script>
 </body>

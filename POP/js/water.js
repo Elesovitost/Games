@@ -18,8 +18,9 @@ uniform float uLevel;
 uniform vec3 uViewAxis;
 uniform float uVisibleDot;
 uniform float uFowEnabled;
-uniform vec3 uFowEye;
-uniform float uFowRadius;
+uniform vec3 uFowEyes[6];
+uniform float uFowRadii[6];
+uniform int uFowEyeCount;
 uniform float uFowSoft;
 uniform float uPlanetR;
 attribute float aShore;
@@ -38,8 +39,13 @@ void main() {
     gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
     return;
   }
-  float angDist = acos(clamp(dot(dir, normalize(uFowEye)), -1.0, 1.0)) * uPlanetR;
-  float inFov = 1.0 - smoothstep(uFowRadius - uFowSoft, uFowRadius, angDist);
+  float inFov = 0.0;
+  for (int i = 0; i < 6; i++) {
+    if (i >= uFowEyeCount) break;
+    float angDist = acos(clamp(dot(dir, normalize(uFowEyes[i])), -1.0, 1.0)) * uPlanetR;
+    float r = uFowRadii[i];
+    inFov = max(inFov, 1.0 - smoothstep(r - uFowSoft, r, angDist));
+  }
   vFowInFov = uFowEnabled < 0.5 ? 1.0 : inFov;
   vFowExplored = uFowEnabled < 0.5 ? 1.0 : aFowExplore;
   float t = uTime * 0.7;
@@ -140,8 +146,9 @@ export class Water {
         uViewAxis: this.capUniforms.uViewAxis,
         uVisibleDot: this.capUniforms.uVisibleDot,
         uFowEnabled: this.fowUniforms.uFowEnabled,
-        uFowEye: this.fowUniforms.uFowEye,
-        uFowRadius: this.fowUniforms.uFowRadius,
+        uFowEyes: this.fowUniforms.uFowEyes,
+        uFowRadii: this.fowUniforms.uFowRadii,
+        uFowEyeCount: this.fowUniforms.uFowEyeCount,
         uFowSoft: this.fowUniforms.uFowSoft,
         uPlanetR: this.fowUniforms.uPlanetR,
         uColor: {

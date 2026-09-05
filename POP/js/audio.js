@@ -58,6 +58,13 @@ export const SFX = {
     maxDist: CONFIG.sfxMaxDist,
     gain: 1.35
   },
+  /** Procedurální alarm Hlídače */
+  watcherAlarm: {
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 0.95
+  },
   bodyfall: {
     url: "./audio/bodyfall.mp3",
     refDist: CONFIG.sfxRefDist,
@@ -1305,6 +1312,100 @@ export class GameAudio {
     handle.gain.gain.linearRampToValueAtTime(0, t + fade);
     try {
       handle.src.stop(t + fade + 0.05);
+    } catch (_) {
+      /* already stopped */
+    }
+  }
+
+  /**
+   * Procedurální siréna Hlídače (loop). Vrací handle pro update/stop.
+   */
+  startWatcherAlarm(sourceDir, listenerDir, opts = {}) {
+    const ctx = this.#ensureCtx();
+    if (!ctx) return null;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+
+    const oscA = ctx.createOscillator();
+    oscA.type = "square";
+    oscA.frequency.value = 680;
+    const oscB = ctx.createOscillator();
+    oscB.type = "sawtooth";
+    oscB.frequency.value = 520;
+
+    const band = ctx.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.value = 900;
+    band.Q.value = 1.4;
+
+    const gA = ctx.createGain();
+    gA.gain.value = 0.22;
+    const gB = ctx.createGain();
+    gB.gain.value = 0.12;
+
+    const gain = ctx.createGain();
+    const base = opts.volume ?? 1;
+    const vol = this.#spatialVolume(sourceDir, listenerDir, {
+      id: "watcherAlarm",
+      mul: base
+    });
+    gain.gain.value = Math.min(1, vol);
+
+    oscA.connect(gA);
+    oscB.connect(gB);
+    gA.connect(band);
+    gB.connect(band);
+    band.connect(gain);
+    gain.connect(this.master);
+
+    const t0 = ctx.currentTime;
+    oscA.start(t0);
+    oscB.start(t0);
+
+    return {
+      kind: "watcherAlarm",
+      oscA,
+      oscB,
+      band,
+      gain,
+      base,
+      alive: true,
+      t: 0
+    };
+  }
+
+  updateWatcherAlarm(handle, sourceDir, listenerDir, dt = 0.016) {
+    if (!handle?.alive) return;
+    const ctx = this.ctx;
+    if (!ctx) return;
+    handle.t += dt;
+
+    const vol = this.#spatialVolume(sourceDir, listenerDir, {
+      id: "watcherAlarm",
+      mul: handle.base
+    });
+    handle.gain.gain.setTargetAtTime(Math.min(1, vol), ctx.currentTime, 0.05);
+
+    const sweep = 0.5 + 0.5 * Math.sin(handle.t * Math.PI * 2 * 2.4);
+    const fA = 520 + sweep * 420;
+    const fB = 400 + (1 - sweep) * 380;
+    handle.oscA.frequency.setTargetAtTime(fA, ctx.currentTime, 0.03);
+    handle.oscB.frequency.setTargetAtTime(fB, ctx.currentTime, 0.03);
+    handle.band.frequency.setTargetAtTime(700 + sweep * 500, ctx.currentTime, 0.04);
+  }
+
+  stopWatcherAlarm(handle, fade = 0.2) {
+    if (!handle?.alive) return;
+    handle.alive = false;
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const cur = handle.gain.gain.value;
+    handle.gain.gain.cancelScheduledValues(t);
+    handle.gain.gain.setValueAtTime(cur, t);
+    handle.gain.gain.linearRampToValueAtTime(0, t + fade);
+    try {
+      handle.oscA.stop(t + fade + 0.02);
+      handle.oscB.stop(t + fade + 0.02);
     } catch (_) {
       /* already stopped */
     }

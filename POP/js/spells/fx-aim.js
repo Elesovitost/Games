@@ -157,6 +157,26 @@ function buildSpellGlyph(spellId) {
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), glyphMat(0xfff0c0));
     eye.position.z = 0.34;
     g.add(ring, ring2, eye);
+  } else if (spellId === "watcher") {
+    const vineMat = glyphMat(0x3a8048);
+    const vineA = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.4, 6), vineMat);
+    vineA.rotation.x = Math.PI / 2;
+    vineA.position.set(-0.05, 0.02, 0.26);
+    vineA.rotation.z = 0.25;
+    const vineB = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.38, 6), glyphMat(0x5a9a48));
+    vineB.rotation.x = Math.PI / 2;
+    vineB.position.set(0.06, -0.02, 0.26);
+    vineB.rotation.z = -0.3;
+    const cup = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), glyphMat(0x4cae5a, 0.95));
+    cup.scale.set(1.2, 0.55, 1.2);
+    cup.position.z = 0.46;
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), glyphMat(0xffffff));
+    bulb.position.z = 0.58;
+    const iris = new THREE.Mesh(new THREE.CircleGeometry(0.06, 16), glyphMat(0xc4a02a));
+    iris.position.z = 0.7;
+    const pupil = new THREE.Mesh(new THREE.CircleGeometry(0.025, 12), glyphMat(0x050508));
+    pupil.position.z = 0.71;
+    g.add(vineA, vineB, cup, bulb, iris, pupil);
   } else if (spellId === "demon") {
     const torso = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), glyphMat(0x1a1412));
     torso.scale.set(1.1, 0.75, 1.6);
@@ -333,7 +353,7 @@ export class AimReticle {
     this.glyphRoot = new THREE.Group();
     this.glyphs = {};
     this._glyphMats = [];
-    for (const id of ["elevate", "depress", "lightning", "fireball", "iceball", "tornado", "volcano", "comet", "earthquake", "tree", "hypnosis", "demon"]) {
+    for (const id of ["elevate", "depress", "lightning", "fireball", "iceball", "tornado", "volcano", "comet", "earthquake", "tree", "hypnosis", "watcher", "demon"]) {
       const glyph = buildSpellGlyph(id);
       glyph.visible = false;
       this.glyphs[id] = glyph;

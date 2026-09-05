@@ -16,6 +16,7 @@ import { applyInvisibility } from "./invisibility.js";
 import { applyImmortality } from "./immortality.js";
 import { beginTreeSeed, releaseTreeSeed, updateTreeSeed, disposeTreeSeed, updateMagicTrees, disposeMagicTrees } from "./tree.js";
 import { spawnHypnosis, updateHypnoses, disposeHypnoses } from "./hypnosis.js";
+import { spawnWatcher, updateWatchers, disposeWatchers, canSpawnWatcher } from "./watcher.js";
 import { spawnDemon, updateDemons, disposeDemons } from "./demon.js";
 import { incantationFileForSpell } from "../incantations.js";
 
@@ -46,9 +47,15 @@ export class SpellSystem {
     this.comets = [];
     this.magicTrees = [];
     this.hypnoses = [];
+    this.watchers = [];
     this.demons = [];
+    /** Doplní main.js — FogOfWar pro Hlídače. */
+    this.fow = null;
     /** Doplní main.js — kometa z ní počítá přílet do záběru. */
     this.camera = null;
+    /** Callbacky alarmu Hlídače (main.js). */
+    this.onWatcherAlarm = null;
+    this.onWatcherAlarmClear = null;
     this.activeSpellId = null;
     this._sfxLoops = new Set();
 
@@ -219,6 +226,7 @@ export class SpellSystem {
     disposeComets(this);
     disposeMagicTrees(this);
     disposeHypnoses(this);
+    disposeWatchers(this);
     disposeDemons(this);
     for (const h of this._sfxLoops) this.audio?.stopSfxLoop(h, 0.05);
     this._sfxLoops.clear();
@@ -362,6 +370,7 @@ export class SpellSystem {
     updateComets(this, dt);
     updateMagicTrees(this, dt);
     updateHypnoses(this, dt);
+    updateWatchers(this, dt);
     updateDemons(this, dt);
     this.#updateTrackedLoops();
     updateBolts(this, dt);
@@ -438,6 +447,7 @@ export class SpellSystem {
       if (spellId === "earthquake") doSpawnEarthquake(this, target);
       if (spellId === "comet") doSpawnComet(this, target);
       if (spellId === "hypnosis") spawnHypnosis(this, target);
+      if (spellId === "watcher") spawnWatcher(this, target);
       if (spellId === "demon") spawnDemon(this, target);
       this.clearSpiral(spiral);
       if (spellId === "lightning") this.strikeLightning(target);
@@ -469,6 +479,12 @@ export class SpellSystem {
       }
       return true;
     };
+
+    if (spellId === "watcher" && !canSpawnWatcher(this, wizard.id)) {
+      this.clearSpiral(spiral);
+      restore();
+      return;
+    }
 
     if (spellId === "tree") {
       const seed = beginTreeSeed(this, target);

@@ -4,6 +4,7 @@ import { tangentFrame, tmp, surfaceOffsetDir } from "../utils.js";
 import { SPELLS } from "./defs.js";
 import { surfaceDist } from "./fx-common.js";
 import { isWaterAt } from "./water-fx.js";
+import { hurtWatchersNear } from "./watcher.js";
 
 /** Zdvih jedné desky (m) — každá jede vlastní fází, zlom až 40 cm. */
 const AMP = 0.2;
@@ -281,6 +282,7 @@ function updateVictims(sys, quake) {
   sys.critters?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "c" });
   sys.longnecks?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "l" });
   sys.worms?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "w" });
+  hurtWatchersNear(sys, quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "watcher" });
   sys.longnecks?.dodgeNear(quake.centerDir, radius);
   const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
   const now = quake.elapsed;

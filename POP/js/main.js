@@ -14,6 +14,7 @@ import { Blockers } from "./blockers.js";
 import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
 import { burstImmortalShell } from "./spells/immortality.js";
+import { canSpawnWatcher, disposeWatchersForOwner } from "./spells/watcher.js";
 import { pumpFireQueue } from "./burn.js";
 import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./visibility.js";
 import { tmp } from "./utils.js";
@@ -131,6 +132,7 @@ class Game {
     this.spells.longnecks = this.longnecks;
     this.spells.worms = this.worms;
     this.spells.blockers = this.blockers;
+    this.spells.fow = this.fow;
     this.critters.fx = this.spells;
     this.longnecks.fx = this.spells;
     this.worms.fx = this.spells;
@@ -139,6 +141,10 @@ class Game {
     this.spells.camera = this.camera;
     this.spells.getListenerDir = (out = this._listenerDir) =>
       getPlanetViewAxis(this.camera, this.planetGroup, out);
+    this.spells.onWatcherAlarm = (dir) => this.#showWatcherAlarm(dir);
+    this.spells.onWatcherAlarmClear = () => this.#hideWatcherAlarm();
+    this._watcherAlarmT = 0;
+    this._watcherAlarmDir = null;
 
     this.session = new MultiplayerSession(this);
     this.lobby = new LobbyUI(this, this.session);
@@ -157,6 +163,7 @@ class Game {
     this.#bindVisibility();
     this.#bindSpells();
     this.#bindGameBar();
+    this.#bindWatcherAlarm();
     this.#updateColorSwatch();
     window.addEventListener("resize", () => this.#applyRendererSize());
     this.#hideLoader();
@@ -184,6 +191,7 @@ class Game {
     this.longnecks?.spawn(this.landSpawns);
     this.worms?.spawn(this.landSpawns);
     this.fow?.reset();
+    this.#hideWatcherAlarm();
   }
 
   #wireWizardAudio(w) {
@@ -191,7 +199,10 @@ class Game {
     const listener = () => this.spells.getListenerDir(this._listenerDir);
     w.onBodyFall = (opts) =>
       this.audio?.playAt(opts?.short ? "bodyfallShort" : "bodyfall", w.dir, listener());
-    w.onDeath = () => this.audio?.playAt("wizardDeath", w.dir, listener());
+    w.onDeath = () => {
+      this.audio?.playAt("wizardDeath", w.dir, listener());
+      disposeWatchersForOwner(this.spells, w.id);
+    };
     w.onScream = () => this.audio?.playRandomScream(w.dir, listener());
     w.onImmortalPop = (wiz) => burstImmortalShell(this.spells, wiz);
   }
@@ -443,7 +454,7 @@ class Game {
   }
 
   #updateSpellBar() {
-    document.querySelectorAll("#spell-bar .spell").forEach((el) => {
+    document.querySelectorAll("#spell-bar .spell[data-spell]").forEach((el) => {
       const id = el.getAttribute("data-spell");
       const spent = !!this._spellSpent[id];
       const ready = this.#spellReady(id);
@@ -480,7 +491,7 @@ class Game {
     }
     if (!id) this._pendingCast = null;
     this.selectedSpell = id;
-    document.querySelectorAll("#spell-bar .spell").forEach((el) => {
+    document.querySelectorAll("#spell-bar .spell[data-spell]").forEach((el) => {
       el.classList.toggle("active", el.getAttribute("data-spell") === id);
     });
     if (id && this.wizard) this.spells.showRange(id);
@@ -673,7 +684,11 @@ class Game {
   }
 
   #centerCameraOnWizard() {
-    const dir = this.wizard?.dir;
+    this.centerCameraOnDir(this.wizard?.dir);
+  }
+
+  /** Přesune pohled na libovolný surface dir (stejná animace jako Space). */
+  centerCameraOnDir(dir) {
     if (!dir) return;
     this.planetGroup.updateMatrixWorld(true);
     const from = tmp.dir.copy(dir).transformDirection(this.planetGroup.matrixWorld);
@@ -694,6 +709,41 @@ class Game {
     this._camRecenterT = 0;
     const maxDur = Math.max(0.2, CONFIG.camRecenterSec);
     this._camRecenterDur = 0.2 + (maxDur - 0.2) * (ang / Math.PI);
+  }
+
+  #bindWatcherAlarm() {
+    const btn = document.getElementById("watcher-alarm");
+    if (!btn) return;
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (this._watcherAlarmDir) this.centerCameraOnDir(this._watcherAlarmDir);
+    });
+  }
+
+  #showWatcherAlarm(dir) {
+    if (!dir) return;
+    this._watcherAlarmDir = dir.clone ? dir.clone() : dir;
+    this._watcherAlarmT = 5;
+    const btn = document.getElementById("watcher-alarm");
+    if (!btn) return;
+    btn.classList.remove("hidden");
+    btn.classList.add("pulse");
+  }
+
+  #hideWatcherAlarm() {
+    this._watcherAlarmT = 0;
+    this._watcherAlarmDir = null;
+    const btn = document.getElementById("watcher-alarm");
+    if (!btn) return;
+    btn.classList.add("hidden");
+    btn.classList.remove("pulse");
+  }
+
+  #tickWatcherAlarm(dt) {
+    if (!(this._watcherAlarmT > 0)) return;
+    this._watcherAlarmT -= dt;
+    if (this._watcherAlarmT <= 0) this.#hideWatcherAlarm();
   }
 
   #tickCamRecenter(dt) {
@@ -879,6 +929,10 @@ class Game {
 
   #beginCast(spellId, target) {
     this._pendingCast = null;
+    if (spellId === "watcher" && !canSpawnWatcher(this.spells, this.wizard?.id)) {
+      this.#selectSpell(null);
+      return;
+    }
     this.session.sendIntent({
       kind: "cast",
       spell: spellId,
@@ -1004,6 +1058,7 @@ class Game {
     }
     this.#updatePendingCast();
     this.#tickSpellCooldowns(dt);
+    this.#tickWatcherAlarm(dt);
     if (!this.session?.isMp || this.session.isHost) {
       assignTreeTrance(this.critters?.list, this.longnecks?.list, this.trees, dt, this.worms?.list);
     }
