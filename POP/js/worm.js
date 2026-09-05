@@ -101,14 +101,24 @@ export function createWormMesh(mats, geos) {
   for (let i = 0; i < LINKS; i++) {
     const u = 1 - i / (LINKS - 1);
     const r = 0.24 + u * 0.2;
+    const tip = i === LINKS - 1;
     const g = new THREE.Group();
     const flesh = new THREE.Group();
-    flesh.add(sph(S, mats.hide, r * 1.02, r * 0.8, r * 1.38, 0, 0, 0));
-    flesh.add(cylZ(C, mats.hide, r * 0.84, r * 1.65, 0, 0, -r * 0.42));
-    if (i % 2) flesh.add(sph(S, mats.band, r * 1.08, r * 0.9, r * 0.38, 0, 0, 0.04));
+    if (tip) {
+      // Kulatý konec — bez zadní trubky, ať nevypadá usekle.
+      flesh.add(sph(S, mats.hide, r * 1.05, r * 0.95, r * 1.05, 0, 0, -r * 0.15));
+    } else {
+      flesh.add(sph(S, mats.hide, r * 1.02, r * 0.8, r * 1.38, 0, 0, 0));
+      flesh.add(cylZ(C, mats.hide, r * 0.84, r * 1.65, 0, 0, -r * 0.42));
+      if (i % 2) flesh.add(sph(S, mats.band, r * 1.08, r * 0.9, r * 0.38, 0, 0, 0.04));
+    }
     const ridge = new THREE.Group();
-    ridge.add(sph(S, mats.ridge, r * 1.1, r * 0.34, r * 1.48, 0, 0, 0));
-    ridge.add(cylZ(C, mats.ridge, r * 0.88, r * 1.7, 0, 0, -r * 0.42));
+    if (tip) {
+      ridge.add(sph(S, mats.ridge, r * 1.12, r * 0.4, r * 1.12, 0, 0, -r * 0.15));
+    } else {
+      ridge.add(sph(S, mats.ridge, r * 1.1, r * 0.34, r * 1.48, 0, 0, 0));
+      ridge.add(cylZ(C, mats.ridge, r * 0.88, r * 1.7, 0, 0, -r * 0.42));
+    }
     noShadow(ridge);
     g.add(flesh, ridge);
     g.frustumCulled = false;
@@ -190,7 +200,7 @@ class Worm {
     this.state = "tunnel";
     this.peekStage = null;
     this.peekT = 0;
-    this.stateT = 3.5 + rng() * 5;
+    this.stateT = 18 + rng() * 25;
     this.dead = false;
     this.burying = false;
     this.buryU = 0;
@@ -559,7 +569,7 @@ class Worm {
       this.#pushPath(this._pos);
       this.state = "tunnel";
       this.peekStage = null;
-      this.stateT = 4 + this.rng() * 6;
+      this.stateT = 20 + this.rng() * 30;
       if (this.rng() < 0.22) this.eightSign *= -1;
       this.eightYaw += (this.rng() - 0.5) * 0.7;
     }
@@ -808,7 +818,7 @@ class Worm {
     }
     this.state = "tunnel";
     this.peekStage = null;
-    this.stateT = 3 + this.rng() * 4;
+    this.stateT = 15 + this.rng() * 20;
   }
 
   dispose() {
