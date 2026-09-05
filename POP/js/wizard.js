@@ -68,6 +68,9 @@ export function createWizardMesh(robeColor = ROBE) {
   const bootMat = mat(0x14100c, { roughness: 0.78 });
   const voidMat = mkBasic(0x000000);
   const liningMat = mkBasic(0x040308, { side: THREE.BackSide });
+  const hoodLiningMat = mat(robeDark, { roughness: 0.92 });
+  hoodLiningMat.side = THREE.BackSide;
+  hoodLiningMat.userData.robeRole = "dark";
   const eyeGlowMat = mkBasic(0xffd56a);
 
   const leftLeg = new THREE.Group();
@@ -154,28 +157,28 @@ export function createWizardMesh(robeColor = ROBE) {
   head.position.set(0, 1.64, 0.03);
   body.add(head);
 
-  // Kápi: otevřená vpředu, uvnitř neosvětlená tma
+  // Kápi: otevřená vpředu, barva jako hábit
   const hoodOpen = 1.58;
   const hoodPhi0 = Math.PI / 2 + hoodOpen * 0.5;
   const hoodPhiLen = Math.PI * 2 - hoodOpen;
   const cowl = addMesh(
     head,
     new THREE.SphereGeometry(0.255, 18, 14, hoodPhi0, hoodPhiLen),
-    robeDarkMat,
+    robeMat,
     0, 0.1, -0.06
   );
   cowl.scale.set(1.04, 1.0, 1.12);
   const cowlInner = addMesh(
     head,
     new THREE.SphereGeometry(0.242, 18, 14, hoodPhi0, hoodPhiLen),
-    liningMat,
+    hoodLiningMat,
     0, 0.1, -0.06
   );
   cowlInner.scale.set(1.04, 1.0, 1.12);
-  addMesh(head, new THREE.SphereGeometry(0.12, 12, 10), robeDarkMat, 0, 0.26, -0.16).scale.set(0.92, 0.78, 1.08);
-  addMesh(head, new THREE.SphereGeometry(0.1, 10, 8), robeDarkMat, 0, 0.2, 0.0).scale.set(1.45, 0.38, 0.62);
-  addMesh(head, new THREE.SphereGeometry(0.095, 8, 6), robeDarkMat, -0.165, 0.05, 0.0);
-  addMesh(head, new THREE.SphereGeometry(0.095, 8, 6), robeDarkMat, 0.165, 0.05, 0.0);
+  addMesh(head, new THREE.SphereGeometry(0.12, 12, 10), robeMat, 0, 0.26, -0.16).scale.set(0.92, 0.78, 1.08);
+  addMesh(head, new THREE.SphereGeometry(0.1, 10, 8), robeMat, 0, 0.2, 0.0).scale.set(1.45, 0.38, 0.62);
+  addMesh(head, new THREE.SphereGeometry(0.095, 8, 6), robeMat, -0.165, 0.05, 0.0);
+  addMesh(head, new THREE.SphereGeometry(0.095, 8, 6), robeMat, 0.165, 0.05, 0.0);
   addMesh(head, new THREE.TorusGeometry(0.13, 0.018, 6, 20), goldMat, 0, 0.06, 0.11, 0.18, 0, 0);
 
   const voidFill = addMesh(head, new THREE.SphereGeometry(0.13, 12, 10), voidMat, 0, 0.05, 0.02);
