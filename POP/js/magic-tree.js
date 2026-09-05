@@ -96,7 +96,7 @@ function buildSkeleton(rng) {
     y += h;
   }
 
-  function addLeafOnWood(start, end, along, radial, size, pathStart, pathEnd) {
+  function addLeafOnWood(start, end, along, radial, size, pathStart, pathEnd, followTip = false) {
     leaves.push({
       start: start.clone(),
       end: end.clone(),
@@ -105,7 +105,8 @@ function buildSkeleton(rng) {
       radAng: rng() * Math.PI * 2,
       size,
       pathStart,
-      pathEnd
+      pathEnd,
+      followTip
     });
   }
 
@@ -113,6 +114,7 @@ function buildSkeleton(rng) {
     const end = start.clone().addScaledVector(dir, len);
     const pathEnd = pathStart + len;
     woods.push({ start: start.clone(), end, r, order, pathStart, pathEnd });
+    addLeafOnWood(start, end, 1, r * 0.18, Math.max(0.18 * S, r * 3.1), pathStart, pathEnd, true);
 
     if (order >= 4) {
       addLeafOnWood(start, end, 0.55, r * 0.4, Math.max(0.26 * S, r * 4.2), pathStart, pathEnd);
@@ -166,6 +168,9 @@ function buildSkeleton(rng) {
     addBranch(start, dir, len, (0.13 + rng() * 0.03) * S, 1, startY);
   }
 
+  addLeafOnWood(woods[0].start, woods[0].end, 1, 0.03 * S, 0.14 * S, woods[0].pathStart, woods[0].pathEnd, true);
+  addLeafOnWood(woods[1].start, woods[1].end, 1, 0.04 * S, 0.16 * S, woods[1].pathStart, woods[1].pathEnd, true);
+  addLeafOnWood(woods[2].start, woods[2].end, 1, 0.04 * S, 0.16 * S, woods[2].pathStart, woods[2].pathEnd, true);
   addLeafOnWood(woods[1].start, woods[1].end, 0.7, 0.06 * S, 0.18 * S, woods[1].pathStart, woods[1].pathEnd);
   addLeafOnWood(woods[2].start, woods[2].end, 0.85, 0.05 * S, 0.16 * S, woods[2].pathStart, woods[2].pathEnd);
 
@@ -197,7 +202,7 @@ function poseWood(seg, size, thick, appear) {
   _dir.multiplyScalar(1 / len);
   _mid.copy(_pos).addScaledVector(_dir, len * 0.5);
   _quat.setFromUnitVectors(_yUp, _dir);
-  const rad = seg.r * size * thick * (0.55 + 0.45 * appear);
+  const rad = seg.r * size * thick * (0.52 + 0.48 * appear);
   _dummy.position.copy(_mid);
   _dummy.quaternion.copy(_quat);
   _dummy.scale.set(rad, len, rad);
@@ -205,16 +210,17 @@ function poseWood(seg, size, thick, appear) {
   return _dummy.matrix;
 }
 
-/** List sedí na větvi a objeví se, až dřevo doroste k jeho místu. */
+/** List sedí na větvi. Tip jede se špičkou; ostatní až je dřevo kousek za nimi. */
 function poseLeaf(leaf, size, woodAppear, leafAppear) {
-  if (leafAppear < 0.004 || woodAppear < leaf.along * 0.82) {
+  const minWood = leaf.followTip ? 0.02 : leaf.along * 0.2;
+  if (leafAppear < 0.004 || woodAppear < minWood) {
     _dummy.scale.set(0, 0, 0);
     _dummy.position.set(0, 0, 0);
     _dummy.quaternion.set(0, 0, 0, 1);
     _dummy.updateMatrix();
     return _dummy.matrix;
   }
-  const along = leaf.along * woodAppear;
+  const along = leaf.followTip ? Math.max(0.14, woodAppear) : leaf.along * woodAppear;
   _pos.copy(leaf.start).multiplyScalar(size);
   _end.copy(leaf.end).multiplyScalar(size);
   _dir.subVectors(_end, _pos);
@@ -446,7 +452,7 @@ export class MagicTree {
     for (let i = 0; i < this.leaves.length; i++) {
       const leaf = this.leaves[i];
       const woodA = pathAppear(front, leaf.pathStart, leaf.pathEnd);
-      const leafA = leafAppearAlong(woodA, leaf.along);
+      const leafA = leafAppearAlong(woodA, leaf.along, this.growth, { followTip: !!leaf.followTip });
       this.leafMesh.setMatrixAt(i, poseLeaf(leaf, worldSize, woodA, leafA));
     }
     this.leafMesh.instanceMatrix.needsUpdate = true;
