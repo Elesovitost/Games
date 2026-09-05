@@ -54,6 +54,8 @@ export const CONFIG = {
   fowRadiusM: 30,
   /** Měkký okraj FOV (m) */
   fowSoftM: 3,
+  /** Šířka měkkého přechodu černá↔šedá u explore masky (m / ~kruhy vrcholů) */
+  fowExploreSoftM: 8,
   spellDuration: 5,
   /** Poloměr morphu elevace/deprese (m) */
   spellRadius: 7.5,

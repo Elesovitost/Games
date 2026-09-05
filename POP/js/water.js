@@ -97,7 +97,7 @@ void main() {
 
   float alpha = (0.85 + fres * 0.08 + foam * 0.03) * edge;
   if (uFowEnabled > 0.5) {
-    float exploredSoft = smoothstep(0.04, 0.88, vFowExplored);
+    float exploredSoft = smoothstep(0.0, 0.95, vFowExplored);
     float gray = dot(col, vec3(0.299, 0.587, 0.114));
     vec3 ghost = vec3(gray) * 0.35;
     vec3 shown = mix(ghost, col, vFowInFov);
@@ -195,8 +195,10 @@ export class Water {
       const dot = Math.min(1, Math.max(-1, dx * ndx + dy * ndy + dz * ndz));
       const dist = Math.acos(dot) * CONFIG.planetR;
       if (dist > radiusM) continue;
-      this.fowExplore[i] = 1;
-      any = true;
+      if (this.fowExplore[i] < 1) {
+        this.fowExplore[i] = 1;
+        any = true;
+      }
     }
     if (any) this.mesh.geometry.attributes.aFowExplore.needsUpdate = true;
   }

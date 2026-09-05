@@ -110,13 +110,15 @@ export class FogOfWar {
     }
     for (const w of this.game.wizards?.values?.() || []) {
       if (w === this.game.wizard) {
-        if (w.mesh) w.mesh.visible = !w.dead;
-        if (w._soul?.mesh) w._soul.mesh.visible = this.inFov(w.dir);
+        // Lokální wizard i mrtvé tělo vždy vidět (duše je navíc).
+        if (w.mesh) w.mesh.visible = true;
+        if (w._soul?.mesh) w._soul.mesh.visible = true;
         continue;
       }
       if (w.dead) {
-        this.#hideSoul(w);
-        if (w._soul?.mesh) w._soul.mesh.visible = this.inFov(w.dir);
+        const inFov = this.inFov(w.dir);
+        if (w.mesh) w.mesh.visible = inFov;
+        if (w._soul?.mesh) w._soul.mesh.visible = inFov;
         continue;
       }
       this.#showUnit(w, this.inFov(w.dir));

@@ -303,8 +303,10 @@ export class Terrain {
     const ndz = eyeDir.z / clen;
     const pos = this.geometry.attributes.position;
     const col = this.geometry.attributes.color?.array;
-    const candidates = this.#nearbyIndices(ndy, radiusM + 0.5);
-    let any = false;
+    const soft = CONFIG.fowExploreSoftM ?? 8;
+    const candidates = this.#nearbyIndices(ndy, radiusM + soft + 0.5);
+    let exploreDirty = false;
+    let memDirty = false;
     for (let ci = 0; ci < candidates.length; ci++) {
       const i = candidates[ci];
       const dx = this.dirs[i * 3];
@@ -313,7 +315,12 @@ export class Terrain {
       const dot = Math.min(1, Math.max(-1, dx * ndx + dy * ndy + dz * ndz));
       const dist = Math.acos(dot) * CONFIG.planetR;
       if (dist > radiusM) continue;
-      this.fowExplore[i] = 1;
+      // Plné permanentní odkrytí — žádné částečné explore na okraji FOV
+      // (to by po odchodu zase „zatáhlo“ černotu zpět).
+      if (this.fowExplore[i] < 1) {
+        this.fowExplore[i] = 1;
+        exploreDirty = true;
+      }
       const x = pos.getX(i);
       const y = pos.getY(i);
       const z = pos.getZ(i);
@@ -323,12 +330,45 @@ export class Terrain {
         this.fowMemColor[i * 3 + 1] = col[i * 3 + 1];
         this.fowMemColor[i * 3 + 2] = col[i * 3 + 2];
       }
-      any = true;
+      memDirty = true;
     }
-    if (!any) return;
-    this.geometry.attributes.aFowExplore.needsUpdate = true;
-    this.geometry.attributes.aFowMemH.needsUpdate = true;
-    this.geometry.attributes.aFowMemColor.needsUpdate = true;
+    if (exploreDirty) {
+      // Permanentní měkké halo ven z odkryté oblasti (nezávislé na FOV).
+      this.#smoothFowExplore(4);
+      this.geometry.attributes.aFowExplore.needsUpdate = true;
+    }
+    if (memDirty) {
+      this.geometry.attributes.aFowMemH.needsUpdate = true;
+      this.geometry.attributes.aFowMemColor.needsUpdate = true;
+    }
+  }
+
+  /**
+   * Zjemní zubatou hranici explore masky: měkký „halo“ po sousedech
+   * (1 → 0.72 → 0.44 …), ať černá/šedá není po hranách trojúhelníků.
+   */
+  #smoothFowExplore(passes = 3) {
+    const e = this.fowExplore;
+    const adj = this.vertAdj;
+    if (!e || !adj) return;
+    const n = e.length;
+    if (!this._fowScratch || this._fowScratch.length !== n) {
+      this._fowScratch = new Float32Array(n);
+    }
+    const s = this._fowScratch;
+    const step = 0.26;
+    for (let p = 0; p < passes; p++) {
+      s.set(e);
+      for (let i = 0; i < n; i++) {
+        let best = e[i];
+        for (let j = adj.start[i]; j < adj.start[i + 1]; j++) {
+          const nb = e[adj.list[j]] - step;
+          if (nb > best) best = nb;
+        }
+        s[i] = best;
+      }
+      e.set(s);
+    }
   }
 
   resetFow() {
