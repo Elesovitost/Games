@@ -10,18 +10,27 @@ import {
   dirNearCaps
 } from "./utils.js";
 import { createCapUniforms } from "./cap-material.js";
+import { createFowUniforms } from "./fow-material.js";
 
 const WATER_VERT = `
 uniform float uTime;
 uniform float uLevel;
 uniform vec3 uViewAxis;
 uniform float uVisibleDot;
+uniform float uFowEnabled;
+uniform vec3 uFowEye;
+uniform float uFowRadius;
+uniform float uFowSoft;
+uniform float uPlanetR;
 attribute float aShore;
 attribute float aMask;
+attribute float aFowExplore;
 varying vec3 vN;
 varying vec3 vW;
 varying float vShore;
 varying float vMask;
+varying float vFowInFov;
+varying float vFowExplored;
 
 void main() {
   vec3 dir = normalize(position);
@@ -29,6 +38,10 @@ void main() {
     gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
     return;
   }
+  float angDist = acos(clamp(dot(dir, normalize(uFowEye)), -1.0, 1.0)) * uPlanetR;
+  float inFov = 1.0 - smoothstep(uFowRadius - uFowSoft, uFowRadius, angDist);
+  vFowInFov = uFowEnabled < 0.5 ? 1.0 : inFov;
+  vFowExplored = uFowEnabled < 0.5 ? 1.0 : aFowExplore;
   float t = uTime * 0.7;
   /** Velký pomalý příboj + drobné vlnky — v metrech, aby to bylo vidět i zblízka. */
   float swell =
@@ -53,13 +66,17 @@ void main() {
 const WATER_FRAG = `
 uniform float uTime;
 uniform vec3 uColor;
+uniform float uFowEnabled;
 varying vec3 vN;
 varying vec3 vW;
 varying float vShore;
 varying float vMask;
+varying float vFowInFov;
+varying float vFowExplored;
 
 void main() {
   if (vMask < 0.04) discard;
+  if (uFowEnabled > 0.5 && vFowExplored < 0.5 && vFowInFov < 0.02) discard;
   /** Maska je teď plynulá (ne 0/1) — okraj přiblendujeme, ať nekopíruje hrany hrubé sítě. */
   float edge = smoothstep(0.04, 0.6, vMask);
   vec3 N = normalize(vN);
@@ -79,7 +96,14 @@ void main() {
   float foam = smoothstep(0.4, 0.95, vShore) * (0.22 + 0.22 * pulse + band * 0.16);
   col = mix(col, vec3(0.9, 0.95, 1.0), foam);
 
+  if (uFowEnabled > 0.5 && vFowInFov < 0.999) {
+    float gray = dot(col, vec3(0.299, 0.587, 0.114));
+    vec3 ghost = vec3(gray) * 0.35;
+    col = mix(ghost, col, vFowInFov);
+  }
+
   float alpha = (0.85 + fres * 0.08 + foam * 0.03) * edge;
+  if (uFowEnabled > 0.5) alpha *= mix(0.55, 1.0, vFowInFov);
   gl_FragColor = vec4(col, alpha);
 }
 `;
@@ -90,6 +114,7 @@ export class Water {
     this.terrain = terrain;
     this.planetGroup = planetGroup;
     this.capUniforms = createCapUniforms();
+    this.fowUniforms = terrain.fowUniforms || createFowUniforms();
     this.#buildMesh();
   }
 
@@ -101,6 +126,7 @@ export class Water {
 
     const geo = createIcosphereGeometry(CONFIG.waterLevel, CONFIG.waterSubdiv);
     this.#fillShore(geo);
+    this.#initFowAttrs(geo);
     /** Sousednost pro dílčí přepočet normál — jen okolí pobřeží dotčené morphem. */
     this.adjacency = buildVertexFaceAdjacency(geo.index, geo.attributes.position.count);
     this._normalAccum = new Float32Array(geo.attributes.position.count * 3);
@@ -111,6 +137,11 @@ export class Water {
         uLevel: { value: CONFIG.waterLevel },
         uViewAxis: this.capUniforms.uViewAxis,
         uVisibleDot: this.capUniforms.uVisibleDot,
+        uFowEnabled: this.fowUniforms.uFowEnabled,
+        uFowEye: this.fowUniforms.uFowEye,
+        uFowRadius: this.fowUniforms.uFowRadius,
+        uFowSoft: this.fowUniforms.uFowSoft,
+        uPlanetR: this.fowUniforms.uPlanetR,
         uColor: {
           value: new THREE.Color(
             CONFIG.waterColor[0] * 1.15,
@@ -135,6 +166,45 @@ export class Water {
     this.mesh.frustumCulled = false;
     this.mesh.raycast = () => {};
     this.planetGroup.add(this.mesh);
+  }
+
+  #initFowAttrs(geo) {
+    const count = geo.attributes.position.count;
+    this.fowExplore = new Float32Array(count);
+    geo.setAttribute("aFowExplore", new THREE.BufferAttribute(this.fowExplore, 1));
+  }
+
+  snapshotFow(eyeDir, radiusM = CONFIG.fowRadiusM) {
+    if (!eyeDir || !this.fowExplore || !this.mesh) return;
+    const clen = Math.hypot(eyeDir.x, eyeDir.y, eyeDir.z) || 1;
+    const ndx = eyeDir.x / clen;
+    const ndy = eyeDir.y / clen;
+    const ndz = eyeDir.z / clen;
+    const pos = this.mesh.geometry.attributes.position;
+    let any = false;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      const len = Math.hypot(x, y, z) || 1;
+      const dx = x / len;
+      const dy = y / len;
+      const dz = z / len;
+      const dot = Math.min(1, Math.max(-1, dx * ndx + dy * ndy + dz * ndz));
+      const dist = Math.acos(dot) * CONFIG.planetR;
+      if (dist > radiusM) continue;
+      this.fowExplore[i] = 1;
+      any = true;
+    }
+    if (any) this.mesh.geometry.attributes.aFowExplore.needsUpdate = true;
+  }
+
+  resetFow() {
+    if (!this.fowExplore) return;
+    this.fowExplore.fill(0);
+    if (this.mesh?.geometry?.attributes?.aFowExplore) {
+      this.mesh.geometry.attributes.aFowExplore.needsUpdate = true;
+    }
   }
 
   setViewAxis(viewAxis) {

@@ -48,6 +48,12 @@ export const CONFIG = {
   wizardArrive: 0.55,
   /** GOD MODE — násobič rychlosti chůze (testování) */
   godModeSpeedMul: 10,
+  /** Fog of war — default zapnutý; God mode ho vypíná */
+  fowEnabledDefault: true,
+  /** Poloměr viditelnosti kouzelníka (m po povrchu) */
+  fowRadiusM: 30,
+  /** Měkký okraj FOV (m) */
+  fowSoftM: 3,
   spellDuration: 5,
   /** Poloměr morphu elevace/deprese (m) */
   spellRadius: 7.5,

@@ -24,6 +24,7 @@ import { createIntentRouter, createGameIntentHandlers } from "./net/intents.js";
 import { markHerdRemote } from "./net/world-sync.js";
 import { mountGameVersion } from "./game-version.js";
 import { GameAudio } from "./audio.js";
+import { FogOfWar } from "./fog-of-war.js";
 import { WIZARD_COLORS, loadProfile, saveProfile, loadMusicEnabled, saveMusicEnabled } from "./net/client.js";
 
 class Game {
@@ -116,6 +117,8 @@ class Game {
     this.longnecks.spawn(this.landSpawns);
     this.worms.spawn(this.landSpawns);
 
+    this.fow = new FogOfWar(this);
+
     this.wizard = null;
     this.spells = new SpellSystem(
       this.planetGroup,
@@ -171,6 +174,7 @@ class Game {
     this.terrain.reset();
     this.spells.resetWorld();
     this.water.refreshShore();
+    this.water.resetFow?.();
     this._shoreRefreshAt = 0;
     this.spawnMarkers?.refresh();
     this.trees?.clearBurns();
@@ -179,6 +183,7 @@ class Game {
     this.waterLife?.spawn();
     this.longnecks?.spawn(this.landSpawns);
     this.worms?.spawn(this.landSpawns);
+    this.fow?.reset();
   }
 
   #wireWizardAudio(w) {
@@ -1015,6 +1020,8 @@ class Game {
     this.sky.update(dt);
     this.session.tickPose(dt);
     this.session.tickWorld(dt);
+
+    this.fow?.update(this.wizard?.dir);
 
     const viewAxis = getPlanetViewAxis(this.camera, this.planetGroup, tmp.v);
     this.terrain.setViewAxis(viewAxis);

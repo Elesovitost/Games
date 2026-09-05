@@ -230,6 +230,22 @@ export class Trees {
       flatShading: true,
       side: THREE.DoubleSide
     });
+    this.ghostWoodMat = new THREE.MeshStandardMaterial({
+      color: 0x5a5a5a,
+      roughness: 0.95,
+      metalness: 0,
+      side: THREE.DoubleSide
+    });
+    this.ghostLeafMat = new THREE.MeshStandardMaterial({
+      color: 0x6e6e6e,
+      roughness: 0.92,
+      metalness: 0,
+      flatShading: true,
+      side: THREE.DoubleSide
+    });
+    this.ghostMeshes = [];
+    this._zeroMat = new THREE.Matrix4().makeScale(0, 0, 0);
+    this._ghostMat4 = new THREE.Matrix4();
 
     this.#scatter(seed);
     this.#createInstances();
@@ -310,16 +326,20 @@ export class Trees {
 
   #createInstances() {
     const buckets = Array.from({ length: VARIANTS }, () => []);
-    for (const p of this.placements) buckets[p.variant].push(p);
+    for (const p of this.placements) {
+      p.fowSeen = false;
+      p._fowGhostMat = new THREE.Matrix4();
+      buckets[p.variant].push(p);
+    }
 
     for (let v = 0; v < VARIANTS; v++) {
       const list = buckets[v];
       if (!list.length) continue;
       const proto = this.variants[v];
 
-      for (const [geo, mat, shadow] of [
-        [proto.wood, this.woodMat, true],
-        [proto.leaf, this.leafMat, false]
+      for (const [geo, mat, ghostMat, shadow] of [
+        [proto.wood, this.woodMat, this.ghostWoodMat, true],
+        [proto.leaf, this.leafMat, this.ghostLeafMat, false]
       ]) {
         const mesh = new THREE.InstancedMesh(geo, mat, list.length);
         mesh.castShadow = shadow;
@@ -328,6 +348,16 @@ export class Trees {
         mesh.userData.treePart = true;
         this.planetGroup.add(mesh);
         this.meshes.push({ mesh, list });
+
+        const ghost = new THREE.InstancedMesh(geo, ghostMat, list.length);
+        ghost.castShadow = false;
+        ghost.receiveShadow = false;
+        ghost.frustumCulled = false;
+        ghost.userData.treeGhost = true;
+        this.planetGroup.add(ghost);
+        this.ghostMeshes.push({ mesh: ghost, list });
+        for (let i = 0; i < list.length; i++) ghost.setMatrixAt(i, this._zeroMat);
+        ghost.instanceMatrix.needsUpdate = true;
       }
     }
   }
@@ -517,6 +547,77 @@ export class Trees {
     for (const entry of this.burns) this.#poseBurnGroup(entry);
   }
 
+  resetFow() {
+    for (const p of this.placements) {
+      p.fowSeen = false;
+      p._fowGhostMat?.identity();
+    }
+    for (const { mesh, list } of this.ghostMeshes) {
+      for (let i = 0; i < list.length; i++) mesh.setMatrixAt(i, this._zeroMat);
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+    this.refresh();
+  }
+
+  /**
+   * FoW: live stromy jen ve FOV; mimo FOV šedý zamrzlý ghost pokud už viděny.
+   * @param {THREE.Vector3|null} eye
+   * @param {boolean} fowOn
+   * @param {number} [radiusM]
+   */
+  applyFow(eye, fowOn, radiusM = CONFIG.fowRadiusM) {
+    if (!fowOn || !eye) {
+      for (const { mesh, list } of this.ghostMeshes) {
+        for (let i = 0; i < list.length; i++) mesh.setMatrixAt(i, this._zeroMat);
+        mesh.instanceMatrix.needsUpdate = true;
+      }
+      this.refresh();
+      for (const entry of this.burns) {
+        entry.group.visible = true;
+      }
+      return;
+    }
+
+    for (const { mesh, list } of this.meshes) {
+      for (let i = 0; i < list.length; i++) {
+        const p = list[i];
+        if (p.gone || p.burning) {
+          this.#matrixForPlacement(p, this._mat4);
+          mesh.setMatrixAt(i, this._mat4);
+          continue;
+        }
+        const inFov = surfaceDist(p.dir, eye) <= radiusM;
+        if (inFov) {
+          p.fowSeen = true;
+          this.#matrixForPlacement(p, this._mat4);
+          p._fowGhostMat.copy(this._mat4);
+          mesh.setMatrixAt(i, this._mat4);
+        } else {
+          mesh.setMatrixAt(i, this._zeroMat);
+        }
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+
+    for (const { mesh, list } of this.ghostMeshes) {
+      for (let i = 0; i < list.length; i++) {
+        const p = list[i];
+        const inFov = !p.gone && surfaceDist(p.dir, eye) <= radiusM;
+        if (!inFov && p.fowSeen && !p.gone && !p.burning) {
+          mesh.setMatrixAt(i, p._fowGhostMat);
+        } else {
+          mesh.setMatrixAt(i, this._zeroMat);
+        }
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+
+    for (const entry of this.burns) {
+      const inFov = surfaceDist(entry.p.dir, eye) <= radiusM;
+      entry.group.visible = inFov;
+    }
+  }
+
   /**
    * Přepočítá jen stromy poblíž aktivních morphů terénu (`terrain.morphs`),
    * ne všech 100 instancí každý frame. Bez morphů = plný refresh (dosednutí).
@@ -552,11 +653,17 @@ export class Trees {
       mesh.geometry.dispose();
     }
     this.meshes.length = 0;
+    for (const { mesh } of this.ghostMeshes) {
+      this.planetGroup.remove(mesh);
+    }
+    this.ghostMeshes.length = 0;
     for (const v of this.variants) {
       v.wood.dispose();
       v.leaf.dispose();
     }
     this.woodMat.dispose();
     this.leafMat.dispose();
+    this.ghostWoodMat.dispose();
+    this.ghostLeafMat.dispose();
   }
 }

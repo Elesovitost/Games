@@ -14,6 +14,7 @@ import { createIcosphereGeometry } from "./icosphere.js";
 import { generateHeights } from "./maps.js";
 import { applyCapClip, createCapUniforms } from "./cap-material.js";
 import { applyGrassDetail } from "./grass-material.js";
+import { applyFowTerrain, createFowUniforms } from "./fow-material.js";
 import { mulberry32 } from "./animalsAI.js";
 
 /** Pod touto výškou nad hladinou se voda může rozlít na sousední vrchol. */
@@ -25,6 +26,7 @@ export class Terrain {
     this.seed = CONFIG.defaultMapSeed >>> 0;
     this.noise = createNoise(this.seed);
     this.capUniforms = createCapUniforms();
+    this.fowUniforms = createFowUniforms();
     this.geometry = createIcosphereGeometry(CONFIG.planetR, CONFIG.icoSubdiv);
     this.#sculpt();
     this.material = new THREE.MeshStandardMaterial({
@@ -34,6 +36,7 @@ export class Terrain {
     });
     applyCapClip(this.material, this.capUniforms);
     applyGrassDetail(this.material, 1.25);
+    applyFowTerrain(this.material, this.fowUniforms);
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
@@ -256,6 +259,7 @@ export class Terrain {
       colors[i * 3 + 2] = col[2];
     }
     this.geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    this.#initFowAttrs(count);
     this.geometry.computeVertexNormals();
     this.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), CONFIG.maxR);
     this.morphs = [];
@@ -266,6 +270,87 @@ export class Terrain {
     this.tornadoTrailMask = new Float32Array(count);
     this.iceTrailLife = new Float32Array(count);
     this.faultMask = new Float32Array(count);
+  }
+
+  #initFowAttrs(count) {
+    this.fowExplore = new Float32Array(count);
+    this.fowMemH = new Float32Array(count);
+    this.fowMemColor = new Float32Array(count * 3);
+    const pos = this.geometry.attributes.position;
+    const col = this.geometry.attributes.color?.array;
+    for (let i = 0; i < count; i++) {
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      this.fowMemH[i] = Math.hypot(x, y, z) || CONFIG.planetR;
+      if (col) {
+        this.fowMemColor[i * 3] = col[i * 3];
+        this.fowMemColor[i * 3 + 1] = col[i * 3 + 1];
+        this.fowMemColor[i * 3 + 2] = col[i * 3 + 2];
+      }
+    }
+    this.geometry.setAttribute("aFowExplore", new THREE.BufferAttribute(this.fowExplore, 1));
+    this.geometry.setAttribute("aFowMemH", new THREE.BufferAttribute(this.fowMemH, 1));
+    this.geometry.setAttribute("aFowMemColor", new THREE.BufferAttribute(this.fowMemColor, 3));
+  }
+
+  /** Snapshot live výšky/barvy do FoW paměti v radiu kolem oka. */
+  snapshotFow(eyeDir, radiusM = CONFIG.fowRadiusM) {
+    if (!eyeDir || !this.fowExplore) return;
+    const clen = Math.hypot(eyeDir.x, eyeDir.y, eyeDir.z) || 1;
+    const ndx = eyeDir.x / clen;
+    const ndy = eyeDir.y / clen;
+    const ndz = eyeDir.z / clen;
+    const pos = this.geometry.attributes.position;
+    const col = this.geometry.attributes.color?.array;
+    const candidates = this.#nearbyIndices(ndy, radiusM + 0.5);
+    let any = false;
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const i = candidates[ci];
+      const dx = this.dirs[i * 3];
+      const dy = this.dirs[i * 3 + 1];
+      const dz = this.dirs[i * 3 + 2];
+      const dot = Math.min(1, Math.max(-1, dx * ndx + dy * ndy + dz * ndz));
+      const dist = Math.acos(dot) * CONFIG.planetR;
+      if (dist > radiusM) continue;
+      this.fowExplore[i] = 1;
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      this.fowMemH[i] = Math.hypot(x, y, z) || CONFIG.planetR;
+      if (col) {
+        this.fowMemColor[i * 3] = col[i * 3];
+        this.fowMemColor[i * 3 + 1] = col[i * 3 + 1];
+        this.fowMemColor[i * 3 + 2] = col[i * 3 + 2];
+      }
+      any = true;
+    }
+    if (!any) return;
+    this.geometry.attributes.aFowExplore.needsUpdate = true;
+    this.geometry.attributes.aFowMemH.needsUpdate = true;
+    this.geometry.attributes.aFowMemColor.needsUpdate = true;
+  }
+
+  resetFow() {
+    if (!this.fowExplore) return;
+    this.fowExplore.fill(0);
+    const pos = this.geometry.attributes.position;
+    const col = this.geometry.attributes.color?.array;
+    const count = pos.count;
+    for (let i = 0; i < count; i++) {
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      this.fowMemH[i] = Math.hypot(x, y, z) || CONFIG.planetR;
+      if (col) {
+        this.fowMemColor[i * 3] = col[i * 3];
+        this.fowMemColor[i * 3 + 1] = col[i * 3 + 1];
+        this.fowMemColor[i * 3 + 2] = col[i * 3 + 2];
+      }
+    }
+    this.geometry.attributes.aFowExplore.needsUpdate = true;
+    this.geometry.attributes.aFowMemH.needsUpdate = true;
+    this.geometry.attributes.aFowMemColor.needsUpdate = true;
   }
 
   /**
@@ -990,6 +1075,7 @@ export class Terrain {
     this.#sculpt();
     this.buckets = null;
     this.#recomputeWet();
+    this.resetFow();
   }
 
   #smoothCoast(heights, idx, count) {
