@@ -130,15 +130,15 @@ export function createWizardMesh(robeColor = ROBE) {
   cloak.position.set(0, 1.5, -0.04);
   body.add(cloak);
   const cloakPts = [
-    new THREE.Vector2(0.14, 0.04),
-    new THREE.Vector2(0.22, -0.28),
+    new THREE.Vector2(0.44, -1.12),
     new THREE.Vector2(0.32, -0.7),
-    new THREE.Vector2(0.44, -1.12)
+    new THREE.Vector2(0.22, -0.28),
+    new THREE.Vector2(0.14, 0.04)
   ];
   addMesh(
     cloak,
     new THREE.LatheGeometry(cloakPts, 14, Math.PI - 1.15, 2.3),
-    robeDarkMat,
+    robeMat,
     0, 0, 0
   );
   addMesh(
