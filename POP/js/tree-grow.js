@@ -15,6 +15,17 @@
 
 export const TREE_GROW_TIME = 20;
 export const TREE_MAX_HEIGHT = 15;
+/** Po zasazení vyraší jen sem a dál jen z modlitby. */
+export const TREE_GROW_FLOOR = 0.25;
+/** Úvodní výhon: 30 cm/s. */
+export const TREE_SPROUT_M_PER_S = 0.3;
+/** +5 cm/s za každé živé modlící se zvíře. */
+export const TREE_WORSHIP_M_PER_S = 0.05;
+/** −5 cm/s, když nikdo nemodlí; ne pod podlahu. */
+export const TREE_WILT_M_PER_S = 0.05;
+export const TREE_SPROUT_G_PER_S = TREE_SPROUT_M_PER_S / TREE_MAX_HEIGHT;
+export const TREE_WORSHIP_G_PER_S = TREE_WORSHIP_M_PER_S / TREE_MAX_HEIGHT;
+export const TREE_WILT_G_PER_S = TREE_WILT_M_PER_S / TREE_MAX_HEIGHT;
 
 function clamp01(t) {
   return Math.min(1, Math.max(0, t));

@@ -21,6 +21,8 @@ const MELT = 0.9;
 const HEIGHT = 1.56;
 const DAMAGE = DEF.damage ?? 101;
 const PUDDLE_R = 1.7;
+/** Tělo při tání padá dopředu — flek i zkapalnění sedí na stejném místě. */
+const MELT_ALONG = 0.48;
 const ARM_L1 = 0.36;
 const ARM_L2 = 0.34;
 const LEG_L1 = 0.38;
@@ -533,9 +535,11 @@ function poseScream(d, u) {
 function poseMelt(d, u) {
   poseScream(d, 1);
   const p = d.mesh.userData.parts;
-  p.body.position.y = p.restY - 0.16 - u * 0.22;
-  p.body.rotation.x = 0.5 + u * 0.35;
-  p.head.rotation.x = -1.17 + u * 0.25;
+  const zScale = (d.baseScale || 1) * (1 + u * 0.35);
+  p.body.position.y = p.restY - 0.16 - u * 0.3;
+  p.body.position.z = (MELT_ALONG / Math.max(0.08, zScale)) * u;
+  p.body.rotation.x = 0.4 + u * 0.16;
+  p.head.rotation.x = -1.17 + u * 0.4;
   for (const arm of p.arms) {
     arm.root.rotation.z = arm.side * (0.46 + u * 0.35);
     arm.elbow.rotation.x = 1.6;
@@ -654,6 +658,39 @@ function walkTo(d, goal, dt) {
   return moved;
 }
 
+const _meltEast = new THREE.Vector3();
+const _meltNorth = new THREE.Vector3();
+const _meltDir = new THREE.Vector3();
+let _puddleAlpha = null;
+
+function dirAlongFacing(fromDir, facing, meters, out) {
+  tangentFrame(fromDir, _meltEast, _meltNorth);
+  const ang = Math.atan2(facing.dot(_meltNorth), facing.dot(_meltEast));
+  return surfaceOffsetDir(fromDir, _meltEast, _meltNorth, ang, meters, out);
+}
+
+function puddleAlphaMap() {
+  if (_puddleAlpha) return _puddleAlpha;
+  const s = 160;
+  const canvas = document.createElement("canvas");
+  canvas.width = s;
+  canvas.height = s;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, s, s);
+  const g = ctx.createRadialGradient(s * 0.5, s * 0.5, s * 0.1, s * 0.5, s * 0.5, s * 0.5);
+  g.addColorStop(0, "#ffffff");
+  g.addColorStop(0.4, "#e6e6e6");
+  g.addColorStop(0.68, "#666666");
+  g.addColorStop(0.86, "#1a1a1a");
+  g.addColorStop(1, "#000000");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, s, s);
+  _puddleAlpha = new THREE.CanvasTexture(canvas);
+  _puddleAlpha.needsUpdate = true;
+  return _puddleAlpha;
+}
+
 function refreshPuddle(terrain, mark) {
   if (!mark?.mesh?.geometry) return;
   const pos = mark.mesh.geometry.attributes.position;
@@ -682,10 +719,12 @@ function spawnDemonPuddle(sys, dir, radiusM) {
   const segments = 28;
   const lift = 0.04;
   const positions = [];
+  const uvs = [];
   const indices = [];
   const ringDirs = [];
   const ch = sys.terrain.height(centerDir);
   positions.push(centerDir.x * (ch + lift), centerDir.y * (ch + lift), centerDir.z * (ch + lift));
+  uvs.push(0.5, 0.5);
   for (let i = 0; i < segments; i++) {
     const angle = (i / segments) * Math.PI * 2;
     const wobble =
@@ -697,21 +736,27 @@ function spawnDemonPuddle(sys, dir, radiusM) {
     ringDirs.push(d.x, d.y, d.z);
     const h = sys.terrain.height(d);
     positions.push(d.x * (h + lift), d.y * (h + lift), d.z * (h + lift));
+    uvs.push(0.5 + Math.cos(angle) * 0.5, 0.5 + Math.sin(angle) * 0.5);
     indices.push(0, i + 1, i + 1 < segments ? i + 2 : 1);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
   geo.setIndex(indices);
   geo.computeVertexNormals();
   const puddleMat = new THREE.MeshStandardMaterial({
-    color: 0x060504,
+    color: 0x0a0806,
     roughness: 0.22,
     metalness: 0.22,
     emissive: 0x080605,
     emissiveIntensity: 0.18,
     transparent: true,
     opacity: 0,
-    depthWrite: false
+    depthWrite: false,
+    alphaMap: puddleAlphaMap(),
+    polygonOffset: true,
+    polygonOffsetFactor: -3,
+    polygonOffsetUnits: -3
   });
   const mesh = new THREE.Mesh(geo, puddleMat);
   mesh.renderOrder = 1;
@@ -922,7 +967,11 @@ function tickDemon(d, dt) {
     if (u >= 1) {
       d.phase = "melt";
       d.meltT = 0;
-      d.puddle = spawnDemonPuddle(d.sys, d.dir, PUDDLE_R);
+      d.puddle = spawnDemonPuddle(
+        d.sys,
+        dirAlongFacing(d.dir, d.facing, MELT_ALONG, _meltDir),
+        PUDDLE_R
+      );
     }
     return true;
   }
@@ -933,7 +982,7 @@ function tickDemon(d, dt) {
   snap(d);
   poseMelt(d, e);
   d.mesh.scale.set(d.baseScale * (1 + e * 0.55), d.baseScale * (1 - e * 0.9), d.baseScale * (1 + e * 0.35));
-  d.mesh.position.addScaledVector(d.dir, -e * 0.22);
+  d.mesh.position.addScaledVector(d.dir, -e * 0.06);
   setOpacity(d, 1 - e);
   applyPose(d);
   if (d.puddle?.mat) d.puddle.mat.opacity = 0.92 * e;

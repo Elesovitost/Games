@@ -3,8 +3,11 @@ import { CONFIG } from "./config.js";
 import { mulberry32 } from "./animalsAI.js";
 import { makeTreeBlockR } from "./blockers.js";
 import {
-  TREE_GROW_TIME,
+  TREE_GROW_FLOOR,
   TREE_MAX_HEIGHT,
+  TREE_SPROUT_G_PER_S,
+  TREE_WORSHIP_G_PER_S,
+  TREE_WILT_G_PER_S,
   treeSizeAt,
   treeThickAt,
   growthFront,
@@ -477,15 +480,20 @@ export class MagicTree {
     this.group.quaternion.copy(_quat);
   }
 
-  update(dt) {
+  update(dt, worshippers = 0) {
     if (this.disposed) return;
     this.glowT += dt;
-    if (!this.grown) {
-      this.age += dt;
-      this.setGrowth(this.age / TREE_GROW_TIME);
+    this.age += dt;
+    let g = this.growth;
+    if (g < TREE_GROW_FLOOR) {
+      g = Math.min(TREE_GROW_FLOOR, g + dt * TREE_SPROUT_G_PER_S);
     } else {
-      this.applyGlow();
+      const n = Math.max(0, worshippers | 0);
+      if (n > 0) g += n * TREE_WORSHIP_G_PER_S * dt;
+      else g -= TREE_WILT_G_PER_S * dt;
+      g = Math.min(1, Math.max(TREE_GROW_FLOOR, g));
     }
+    this.setGrowth(g);
     this.pose();
   }
 

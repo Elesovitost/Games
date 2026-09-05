@@ -309,6 +309,33 @@ export function treeSwayZ() {
   return Math.sin(_treeSwayT * 1.05) * 0.32;
 }
 
+/** Živé zvíře stojí u stromu a klaní se — ne jen běží k němu. */
+export function isWorshippingTree(a, treeDir) {
+  if (!a || a.dead || a.gone || !treeDir) return false;
+  const d = surfDist(a.dir, treeDir);
+  if (d > TREE_TRANCE_RING + 2.2) return false;
+  if (a.arrivedTree) return true;
+  if (a.state !== "treeTrance") return false;
+  if (a.remote) return !a.netMoving;
+  if (!a.treeSlot) return false;
+  const ring = a.treeRingR ?? TREE_TRANCE_RING;
+  const focus = a.treeFocus || treeDir;
+  const dTree = surfDist(a.dir, focus);
+  const onRing = Math.abs(dTree - ring) < 1.25;
+  return onRing || surfDist(a.dir, a.treeSlot) <= 1.1;
+}
+
+export function countTreeWorshippers(treeDir, critters, longnecks, worms) {
+  let n = 0;
+  for (const list of [critters, longnecks, worms]) {
+    if (!list) continue;
+    for (const a of list) {
+      if (isWorshippingTree(a, treeDir)) n++;
+    }
+  }
+  return n;
+}
+
 /**
  * Zvířata do 20 m od magického stromu dostanou slot na kružnici.
  * Přepisuje ostatní chování — volá se před `update` hejn.

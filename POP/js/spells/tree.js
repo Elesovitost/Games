@@ -3,6 +3,7 @@ import { CONFIG } from "../config.js";
 import { slerpDirection } from "../utils.js";
 import { surfaceDist } from "./fx-common.js";
 import { MagicTree } from "../magic-tree.js";
+import { countTreeWorshippers } from "../animalsAI.js";
 
 const _world = new THREE.Vector3();
 const _dir = new THREE.Vector3();
@@ -202,7 +203,8 @@ export function updateMagicTrees(sys, dt) {
     } else if (sys.wizard) {
       t.setColor(sys.wizard.color);
     }
-    t.update(dt);
+    const n = countTreeWorshippers(t.dir, sys.critters?.list, sys.longnecks?.list, sys.worms?.list);
+    t.update(dt, n);
   }
 }
 
