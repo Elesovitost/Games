@@ -53,21 +53,24 @@ varying vec3 vFowMemColor;
 const FOW_FRAG_APPLY = `
 {
   if (uFowEnabled > 0.5) {
-    if (vFowExplored < 0.5 && vFowInFov < 0.02) {
-      diffuseColor.rgb = vec3(0.0);
-    } else if (vFowInFov < 0.999) {
-      float gray = dot(vFowMemColor, vec3(0.299, 0.587, 0.114));
-      vec3 ghost = mix(vFowMemColor, vec3(gray), 0.62) * 0.42;
-      diffuseColor.rgb = mix(ghost, diffuseColor.rgb, vFowInFov);
-    }
+    /** Měkký okraj neodkrytého (interpolace aFowExplore + smoothstep). */
+    float exploredSoft = smoothstep(0.04, 0.88, vFowExplored);
+    float gray = dot(vFowMemColor, vec3(0.299, 0.587, 0.114));
+    vec3 ghost = mix(vFowMemColor, vec3(gray), 0.62) * 0.42;
+    vec3 shown = mix(ghost, diffuseColor.rgb, vFowInFov);
+    float cover = max(vFowInFov, exploredSoft);
+    diffuseColor.rgb = mix(vec3(0.0), shown, cover);
   }
 }
 `;
 
 const FOW_FOG_KILL = `
 {
-  if (uFowEnabled > 0.5 && vFowExplored < 0.5 && vFowInFov < 0.02) {
-    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+  if (uFowEnabled > 0.5) {
+    float exploredSoft = smoothstep(0.04, 0.88, vFowExplored);
+    float cover = max(vFowInFov, exploredSoft);
+    gl_FragColor.rgb = mix(vec3(0.0), gl_FragColor.rgb, cover);
+    if (cover < 0.002) gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
   }
 }
 `;
@@ -105,5 +108,5 @@ export function applyFowTerrain(material, uniforms) {
     );
   };
   const prevCacheKey = material.customProgramCacheKey;
-  material.customProgramCacheKey = () => "fow_" + (prevCacheKey ? prevCacheKey() : "");
+  material.customProgramCacheKey = () => "fow2_" + (prevCacheKey ? prevCacheKey() : "");
 }

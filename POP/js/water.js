@@ -76,7 +76,6 @@ varying float vFowExplored;
 
 void main() {
   if (vMask < 0.04) discard;
-  if (uFowEnabled > 0.5 && vFowExplored < 0.5 && vFowInFov < 0.02) discard;
   /** Maska je teď plynulá (ne 0/1) — okraj přiblendujeme, ať nekopíruje hrany hrubé sítě. */
   float edge = smoothstep(0.04, 0.6, vMask);
   vec3 N = normalize(vN);
@@ -96,14 +95,17 @@ void main() {
   float foam = smoothstep(0.4, 0.95, vShore) * (0.22 + 0.22 * pulse + band * 0.16);
   col = mix(col, vec3(0.9, 0.95, 1.0), foam);
 
-  if (uFowEnabled > 0.5 && vFowInFov < 0.999) {
+  float alpha = (0.85 + fres * 0.08 + foam * 0.03) * edge;
+  if (uFowEnabled > 0.5) {
+    float exploredSoft = smoothstep(0.04, 0.88, vFowExplored);
     float gray = dot(col, vec3(0.299, 0.587, 0.114));
     vec3 ghost = vec3(gray) * 0.35;
-    col = mix(ghost, col, vFowInFov);
+    vec3 shown = mix(ghost, col, vFowInFov);
+    float cover = max(vFowInFov, exploredSoft);
+    col = mix(vec3(0.0), shown, cover);
+    alpha *= mix(0.0, mix(0.55, 1.0, vFowInFov), cover);
+    if (cover < 0.02) discard;
   }
-
-  float alpha = (0.85 + fres * 0.08 + foam * 0.03) * edge;
-  if (uFowEnabled > 0.5) alpha *= mix(0.55, 1.0, vFowInFov);
   gl_FragColor = vec4(col, alpha);
 }
 `;
