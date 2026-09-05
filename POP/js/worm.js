@@ -123,9 +123,9 @@ export function createWormMesh(mats, geos) {
   head.add(sph(S, mats.dark, 0.09, 0.07, 0.11, 0, -0.1, 0.44));
   const stalks = [];
   const defs = [
-    { x: -0.12, y: 0.4, z: 0.4, tilt: -0.16, h: 0.72 },
-    { x: 0.12, y: 0.42, z: 0.36, tilt: 0.18, h: 0.8 },
-    { x: 0.0, y: 0.44, z: 0.5, tilt: 0.03, h: 0.6 }
+    { x: -0.14, y: 0.24, z: 0.2, tilt: -0.32, h: 0.22 },
+    { x: 0.14, y: 0.26, z: 0.16, tilt: 0.34, h: 0.24 },
+    { x: 0.0, y: 0.3, z: 0.34, tilt: 0.02, h: 0.18 }
   ];
   for (const s of defs) {
     const st = new THREE.Group();
@@ -296,6 +296,14 @@ class Worm {
       }
       left -= d;
     }
+    // Za koncem stopy: extrapoluj dál (ať se ocas neslepuje na path[0]).
+    if (this.path.length >= 2 && left > 0) {
+      out.subVectors(this.path[0], this.path[1]);
+      if (out.lengthSq() > 1e-12) {
+        out.normalize().multiplyScalar(left).add(this.path[0]);
+        return out;
+      }
+    }
     return out.copy(this.path[0]);
   }
 
@@ -303,17 +311,23 @@ class Worm {
     const links = this.parts.links;
     const peeking = this.state === "peek" || (this.state === "treeTrance" && this.arrivedTree) || this.burying;
     const surfaced = this.state === "charm" && !this.burying;
+    let hasPrevFwd = false;
     for (let i = 0; i < LINKS; i++) {
       this.#samplePath(i * this.spacing, this._pos);
       const up = this._up.copy(this._pos).normalize();
       const h = this.terrain.height(up);
       const lift = this._pos.length() - h;
       const link = links[i];
-      if (i + 1 < LINKS) this.#samplePath((i + 1) * this.spacing, this._posB);
-      else this._posB.copy(this._pos).addScaledVector(this.facing, -this.spacing);
+      // Tečna vždy ze stopy (i za posledním článkem) — ne facing hlavy.
+      this.#samplePath((i + 1) * this.spacing, this._posB);
       this._fwd.subVectors(this._pos, this._posB);
-      if (this._fwd.lengthSq() < 1e-6) this._fwd.copy(this.facing);
+      if (this._fwd.lengthSq() < 1e-6) {
+        if (hasPrevFwd) this._fwd.copy(this._move);
+        else this._fwd.copy(this.facing);
+      }
       this._fwd.normalize();
+      this._move.copy(this._fwd);
+      hasPrevFwd = true;
       this._right.crossVectors(up, this._fwd);
       if (this._right.lengthSq() < 1e-6) {
         this._right.crossVectors(this.peekFwd.lengthSq() > 1e-6 ? this.peekFwd : this.facing, this._fwd);
