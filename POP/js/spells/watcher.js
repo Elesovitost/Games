@@ -358,11 +358,20 @@ function dropFow(sys, w) {
   w.fowRegistered = false;
 }
 
+/** True local player (ne remote) — castAs dočasně přepisuje sys.wizard. */
+function isLocalOwner(sys, ownerId) {
+  if (ownerId == null) return false;
+  const list = sys.getWizards?.() || [];
+  for (const w of list) {
+    if (!w || w.remote) continue;
+    if (String(w.id) === String(ownerId)) return !w.dead;
+  }
+  return false;
+}
+
 function restoreFow(sys, w) {
   if (w.corrupted || w.blindT > 0 || w.fowRegistered) return;
-  const localId = sys.wizard?.id;
-  if (localId == null || String(localId) !== String(w.ownerId)) return;
-  if (sys.wizard?.dead) return;
+  if (!isLocalOwner(sys, w.ownerId)) return;
   sys.fow?.addSource?.(w.id, w.dir, SPELLS.watcher?.radius ?? 30);
   w.fowRegistered = true;
 }
@@ -534,7 +543,7 @@ export function spawnWatcher(sys, targetDir) {
   poseWatcher(sys, entry);
 
   const localId = sys.wizard?.id;
-  if (localId != null && String(localId) === String(ownerId)) {
+  if (isLocalOwner(sys, ownerId)) {
     sys.fow?.addSource?.(id, dir, def.radius ?? 30);
     entry.fowRegistered = true;
   }
@@ -631,9 +640,10 @@ function updateAlarmAudio(sys, tower, dt) {
 
 function scanEnemies(sys, tower) {
   if (tower.corrupted || tower.blindT > 0 || !tower.fowRegistered) return;
-  const local = sys.wizard;
-  if (!local || String(local.id) !== String(tower.ownerId)) return;
-  if (local.dead) return;
+  if (!isLocalOwner(sys, tower.ownerId)) return;
+
+  const local = (sys.getWizards?.() || []).find((w) => w && !w.remote);
+  if (!local || local.dead) return;
 
   const radius = SPELLS.watcher?.radius ?? 30;
   const wizards = sys.getWizards?.() || [];
@@ -701,6 +711,7 @@ export function updateWatchers(sys, dt) {
     w.t += dt;
     poseWatcher(sys, w);
     tickBlind(sys, w, dt);
+    if (w.fowRegistered && !isLocalOwner(sys, w.ownerId)) dropFow(sys, w);
 
     if (w.phase === "rise") {
       const u = Math.min(1, w.t / VINE_RISE);
