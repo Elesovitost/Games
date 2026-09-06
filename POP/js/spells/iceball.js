@@ -124,9 +124,8 @@ export function updateIceball(sys, p, dt) {
     for (const w of list) {
       if (!w || w.dead) continue;
       if (surfaceDist(p.dir, w.dir) <= touchR) {
-        if (!w.remote) {
-          w.takeDamage(SPELLS.iceball.contactDamage, { fromDir: p.dir.clone() });
-        }
+        if (w.remote) continue;
+        w.takeDamage(SPELLS.iceball.contactDamage, { fromDir: p.dir.clone() });
         shatterIceball(sys, p.ball.position.clone(), p.dir.clone(), p);
         disposeProjectile(sys, p);
         return false;

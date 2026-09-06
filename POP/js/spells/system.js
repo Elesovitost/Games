@@ -49,6 +49,8 @@ export class SpellSystem {
     this.hypnoses = [];
     this.watchers = [];
     this.demons = [];
+    /** true = klient bez world autority (nehost v MP). */
+    this.worldRemote = false;
     /** Doplní main.js — FogOfWar pro Hlídače. */
     this.fow = null;
     /** Doplní main.js — kometa z ní počítá přílet do záběru. */
@@ -56,6 +58,7 @@ export class SpellSystem {
     /** Callbacky alarmu Hlídače (main.js). */
     this.onWatcherAlarm = null;
     this.onWatcherAlarmClear = null;
+    this.onWatcherAlarmBroadcast = null;
     this.activeSpellId = null;
     this._sfxLoops = new Set();
 

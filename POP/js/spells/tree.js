@@ -53,6 +53,7 @@ export function hasStandingTreeForOwner(sys, ownerId) {
 }
 
 export function hurtMagicTreesNear(sys, centerDir, radiusM, dmgCenter, dmgEdge) {
+  if (sys.worldRemote) return false;
   const list = sys.magicTrees;
   if (!list?.length || !centerDir || !(radiusM > 0)) return false;
   let hit = false;
@@ -69,6 +70,7 @@ export function hurtMagicTreesNear(sys, centerDir, radiusM, dmgCenter, dmgEdge) 
 
 /** DPS s proměnným faktorem podle pozice (láva). */
 export function hurtMagicTreesAt(sys, factorFn, amount) {
+  if (sys.worldRemote) return;
   if (!(amount > 0) || !factorFn) return;
   for (const t of sys.magicTrees || []) {
     if (!t || t.disposed) continue;
@@ -290,8 +292,13 @@ export function updateMagicTrees(sys, dt) {
     } else if (sys.wizard) {
       t.setColor(sys.wizard.color);
     }
-    const n = countTreeWorshippers(t.dir, sys.critters?.list, sys.longnecks?.list, sys.worms?.list);
-    t.update(dt, n);
+    if (sys.worldRemote) {
+      t.glowT += dt;
+      t.pose();
+    } else {
+      const n = countTreeWorshippers(t.dir, sys.critters?.list, sys.longnecks?.list, sys.worms?.list);
+      t.update(dt, n);
+    }
   }
   syncMagicTreeHealthUi(sys);
 }

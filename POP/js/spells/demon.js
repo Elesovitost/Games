@@ -562,7 +562,7 @@ function setOpacity(d, a) {
 }
 
 function holdPrey(prey, on) {
-  if (!prey) return;
+  if (!prey || prey.remote) return;
   if (on) {
     if (typeof prey.beginDemonHold === "function") prey.beginDemonHold();
     else {
@@ -577,6 +577,7 @@ function holdPrey(prey, on) {
 }
 
 function blackenPrey(prey) {
+  if (!prey || prey.remote) return;
   if (typeof prey?.applyDemonCorrupt === "function") {
     prey.applyDemonCorrupt();
     return;
@@ -602,7 +603,7 @@ function blackenPrey(prey) {
 }
 
 function hurtPrey(prey, fromDir) {
-  if (!prey || prey.gone) return;
+  if (!prey || prey.gone || prey.remote) return;
   if (typeof prey.takeDamage === "function") {
     prey.takeDamage(DAMAGE, { fromDir, knock: false, noSlide: true, force: true });
   }

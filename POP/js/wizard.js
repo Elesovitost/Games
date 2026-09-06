@@ -393,6 +393,7 @@ export class Wizard {
     this.soulDelay = null;
     this.respawning = false;
     this.respawnPhase = null;
+    this.eliminated = false;
     this._netBuf = [];
     this.godMode = false;
     this._godGlow = [];
@@ -534,12 +535,24 @@ export class Wizard {
     }
 
     const latest = buf[buf.length - 1];
+    if (latest.elim) this.eliminated = true;
     if (latest.dead && !this.dead) {
       this.hp = 0;
       this.#die();
+    } else if (!latest.dead && this.dead) {
+      this.#reviveFromNet(latest);
     } else if (typeof latest.hp === "number" && !this.dead) {
       this.hp = latest.hp;
       if (this.hp <= 0) this.#die();
+    }
+    if (
+      this.remote &&
+      this.dead &&
+      this.tornado &&
+      (this.tornado.phase === "air" || this.tornado.phase === "climb")
+    ) {
+      this.onBodyFall?.();
+      this.tornado = null;
     }
     applyKnockFromSnapshot(this, latest.knock, latest.hp);
     if (latest.knock && this.knockdown?.seq === latest.knock.seq) {
@@ -616,7 +629,7 @@ export class Wizard {
   }
 
   beginDemonHold() {
-    if (this.godMode || this.immortal || this.dead) return false;
+    if (this.remote || this.godMode || this.immortal || this.dead) return false;
     this.demonHold = true;
     this.breakInvisibility();
     this.#clearTarget();
@@ -1135,6 +1148,29 @@ export class Wizard {
     this.#die();
   }
 
+  /** Remote: oživení z pose (respawn u oběti). */
+  #reviveFromNet(latest) {
+    if (!this.remote || !this.dead) return;
+    this.dead = false;
+    this.eliminated = !!latest.elim;
+    this.respawning = false;
+    this.respawnPhase = null;
+    this.dieT = 0;
+    this.soulDelay = null;
+    this._standFallPending = false;
+    this._bodyFell = false;
+    this._soul = disposeSoul(this._soul, this.planetGroup);
+    this.knockdown = null;
+    this.demonHold = false;
+    this.hp = typeof latest.hp === "number" && latest.hp > 0 ? latest.hp : this.maxHp;
+    this.mesh.visible = true;
+    const parts = this.mesh.userData.parts;
+    if (parts?.body) {
+      parts.body.rotation.set(0, 0, 0);
+      parts.body.position.set(0, 0, 0);
+    }
+  }
+
   #die() {
     if (this.dead || this.godMode) return;
     const kd = this.knockdown;
@@ -1156,6 +1192,7 @@ export class Wizard {
     this.moving = false;
     const parts = this.mesh.userData.parts;
     if (parts?.castFx) parts.castFx.visible = false;
+    this.onCastAudioStop?.();
 
     this.soulDelay = Math.max(SOUL_DELAY, DIE_FALL_DUR + 0.25);
     this.onDeath?.();
@@ -1363,7 +1400,7 @@ export class Wizard {
     this.throwing = false;
     this._onThrowRelease = null;
     this._throwReleased = false;
-    if (wasCasting && !this.remote) this.onCastAudioStop?.();
+    if (wasCasting) this.onCastAudioStop?.();
     const cb = this._onCastComplete;
     this._onCastComplete = null;
     const parts = this.mesh.userData.parts;
@@ -1507,7 +1544,7 @@ export class Wizard {
   beginInvisibility(opts = {}) {
     if (this.dead) return;
     this.invis = {
-      t: 0,
+      t: opts.t ?? 0,
       hold: opts.hold ?? 10,
       localOpacity: opts.localOpacity ?? 0.5,
       remoteOpacity: opts.remoteOpacity ?? 0
@@ -1717,6 +1754,7 @@ export class Wizard {
 
   #finishRespawn() {
     this.dead = false;
+    this.eliminated = false;
     this.respawning = false;
     this.respawnPhase = null;
     this.dieT = 0;

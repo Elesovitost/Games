@@ -20,6 +20,44 @@ function vecFromArr(out, arr) {
 }
 
 const FX_HANDLERS = {
+  invisibility: {
+    serialize(w) {
+      const inv = w.invis;
+      if (!inv) return null;
+      return {
+        type: "invisibility",
+        t: inv.t,
+        hold: inv.hold,
+        localOpacity: inv.localOpacity,
+        remoteOpacity: inv.remoteOpacity
+      };
+    },
+    lerp(a, b, alpha) {
+      return {
+        type: "invisibility",
+        t: a.t + (b.t - a.t) * alpha,
+        hold: b.hold,
+        localOpacity: b.localOpacity,
+        remoteOpacity: b.remoteOpacity
+      };
+    },
+    apply(w, fx) {
+      if (!w.invis) {
+        w.beginInvisibility({
+          hold: fx.hold,
+          t: fx.t,
+          localOpacity: fx.localOpacity,
+          remoteOpacity: fx.remoteOpacity
+        });
+      } else {
+        w.invis.t = fx.t;
+        w.invis.hold = fx.hold;
+      }
+    },
+    clear(w) {
+      if (w.invis) w.breakInvisibility();
+    }
+  },
   immortality: {
     serialize(w) {
       const inv = w.immortal;
@@ -152,6 +190,7 @@ export function buildPosePacket(w) {
     moving: !!w.moving,
     hp: w.hp,
     dead: !!w.dead,
+    elim: !!w.eliminated,
     color: w.color,
     knock: w.knockdown
       ? {
@@ -237,6 +276,7 @@ export function poseSnapshotFromIntent(flags, dirArr, facingArr) {
     moving: !!flags.moving,
     hp: flags.hp,
     dead: !!flags.dead,
+    elim: !!flags.elim,
     color: flags.color ?? null,
     knock: flags.knock || null,
     fx: flags.fx || null,

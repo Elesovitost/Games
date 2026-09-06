@@ -435,6 +435,20 @@ function bindWatcherCombat(sys, entry) {
     if (opts.force) applyCorrupt(sys, entry);
   };
 
+  entry.applyNetCorrupt = (s) => applyCorrupt(s || sys, entry);
+  entry.applyNetBlind = (s) => {
+    const sp = s || sys;
+    if (entry.corrupted) return;
+    setEyeColors(entry, COLOR_BLIND_SCLERA, COLOR_BLIND_IRIS);
+    dropFow(sp, entry);
+  };
+  entry.applyNetUnblind = (s) => {
+    const sp = s || sys;
+    if (entry.corrupted || entry.blindT > 0) return;
+    setEyeColors(entry, COLOR_SCLERA, COLOR_IRIS);
+    restoreFow(sp, entry);
+  };
+
   entry.beginDemonHold = () => {
     entry.demonHold = true;
   };
@@ -466,6 +480,7 @@ export function canSpawnWatcher(sys, ownerId) {
 
 /** AOE hitbox — stejný falloff jako zvířata. */
 export function hurtWatchersNear(sys, centerDir, radiusM, dmgCenter, dmgEdge, opts = {}) {
+  if (sys.worldRemote) return false;
   const list = sys.watchers;
   if (!list?.length || !centerDir || !(radiusM > 0)) return false;
   let hit = false;
@@ -620,7 +635,33 @@ function triggerAlarm(sys, tower) {
   } else {
     tower.alarmT = ALARM_SEC;
   }
-  sys.onWatcherAlarm?.(tower.dir.clone());
+  /** UI rámeček jen majitel; SFX + broadcast pro ostatní. */
+  if (isLocalOwner(sys, tower.ownerId)) {
+    sys.onWatcherAlarm?.(tower.dir.clone());
+  }
+  sys.onWatcherAlarmBroadcast?.(tower.dir.clone());
+}
+
+/** Cizí klient — jen spatial siréna (bez UI). */
+export function playRemoteWatcherAlarm(sys, dirArr) {
+  if (!dirArr || !sys.audio?.startWatcherAlarm) return;
+  const listener = sys.getListenerDir?.();
+  if (!listener) return;
+  const dir = new THREE.Vector3(dirArr[0], dirArr[1], dirArr[2]).normalize();
+  const handle = sys.audio.startWatcherAlarm(dir, listener, { volume: 0.35 });
+  if (!handle) return;
+  const t0 = performance.now();
+  const tick = () => {
+    const elapsed = (performance.now() - t0) / 1000;
+    const lis = sys.getListenerDir?.();
+    if (lis) sys.audio?.updateWatcherAlarm?.(handle, dir, lis, 0.05);
+    if (elapsed >= ALARM_SEC) {
+      sys.audio?.stopWatcherAlarm?.(handle, 0.2);
+      return;
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 function updateAlarmAudio(sys, tower, dt) {
@@ -710,7 +751,7 @@ export function updateWatchers(sys, dt) {
 
     w.t += dt;
     poseWatcher(sys, w);
-    tickBlind(sys, w, dt);
+    if (!sys.worldRemote) tickBlind(sys, w, dt);
     if (w.fowRegistered && !isLocalOwner(sys, w.ownerId)) dropFow(sys, w);
 
     if (w.phase === "rise") {

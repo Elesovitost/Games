@@ -138,8 +138,110 @@ export function buildWorldPacket(game) {
     c: packList(game.critters?.list || [], packLand),
     l: packList(game.longnecks?.list || [], packLand),
     w: packList(game.worms?.list || [], packLand),
-    a: packList(game.waterLife?.list || [], packWater)
+    a: packList(game.waterLife?.list || [], packWater),
+    t: packMagicTrees(game.spells?.magicTrees),
+    u: packWatchers(game.spells?.watchers)
   };
+}
+
+function packMagicTrees(list) {
+  if (!list?.length) return [];
+  const out = [];
+  for (const t of list) {
+    if (!t || t.disposed) continue;
+    out.push({
+      o: String(t.ownerId ?? ""),
+      d: packDir(t.dir),
+      h: Math.round(t.hp ?? 0),
+      g: round4(t.growth ?? 0)
+    });
+  }
+  return out;
+}
+
+function packWatchers(list) {
+  if (!list?.length) return [];
+  const out = [];
+  for (const w of list) {
+    if (!w) continue;
+    out.push({
+      id: String(w.id),
+      o: String(w.ownerId ?? ""),
+      b: round4(Math.max(0, w.blindT || 0)),
+      c: w.corrupted ? 1 : 0
+    });
+  }
+  return out;
+}
+
+function applyMagicTrees(game, rows) {
+  const list = game.spells?.magicTrees;
+  if (!list) return;
+  const byOwner = new Map();
+  for (const row of rows || []) {
+    if (row?.o != null) byOwner.set(String(row.o), row);
+  }
+  for (let i = list.length - 1; i >= 0; i--) {
+    const t = list[i];
+    if (!t) continue;
+    if (t.disposed) {
+      list.splice(i, 1);
+      continue;
+    }
+    const row = byOwner.get(String(t.ownerId));
+    if (!row) {
+      t.dispose();
+      list.splice(i, 1);
+      continue;
+    }
+    if (typeof row.h === "number") t.hp = row.h;
+    if (typeof row.g === "number" && Math.abs((t.growth ?? 0) - row.g) > 0.002) {
+      t.setGrowth(row.g);
+    }
+    if (t.hp <= 0) {
+      t.dispose();
+      list.splice(i, 1);
+    }
+  }
+}
+
+function applyWatchers(game, rows) {
+  const list = game.spells?.watchers;
+  if (!list?.length) return;
+  const byId = new Map();
+  for (const row of rows || []) {
+    if (row?.id != null) byId.set(String(row.id), row);
+  }
+  for (const w of list) {
+    if (!w) continue;
+    const row = byId.get(String(w.id));
+    if (!row) continue;
+    const wasBlind = w.blindT > 0;
+    const wasCorrupt = !!w.corrupted;
+    if (row.c && !w.corrupted) {
+      w.applyNetCorrupt?.(game.spells);
+    }
+    w.blindT = row.b > 0 ? row.b : 0;
+    if (!w.corrupted && w.blindT > 0 && !wasBlind) {
+      w.applyNetBlind?.(game.spells);
+    } else if (wasBlind && !(w.blindT > 0) && !w.corrupted) {
+      w.applyNetUnblind?.(game.spells);
+    }
+    void wasCorrupt;
+  }
+}
+
+/** Příchozí hostovský snímek. */
+export function applyWorldPacket(game, intent) {
+  if (!intent) return;
+  applyHerdSnaps(game.critters?.list, intent.c);
+  applyHerdSnaps(game.longnecks?.list, intent.l);
+  applyHerdSnaps(game.worms?.list, intent.w);
+  applyHerdSnaps(game.waterLife?.list, intent.a);
+  if (game.spells?.worldRemote) {
+    applyMagicTrees(game, intent.t);
+    applyWatchers(game, intent.u);
+  }
 }
 
 export function markHerdRemote(herd, remote) {
@@ -292,13 +394,4 @@ function applyHerdSnaps(list, rows) {
     if (!c) continue;
     pushEntitySnap(c, row);
   }
-}
-
-/** Příchozí hostovský snímek. */
-export function applyWorldPacket(game, intent) {
-  if (!intent) return;
-  applyHerdSnaps(game.critters?.list, intent.c);
-  applyHerdSnaps(game.longnecks?.list, intent.l);
-  applyHerdSnaps(game.worms?.list, intent.w);
-  applyHerdSnaps(game.waterLife?.list, intent.a);
 }

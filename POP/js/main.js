@@ -146,8 +146,17 @@ class Game {
       getPlanetViewAxis(this.camera, this.planetGroup, out);
     this.spells.onWatcherAlarm = (dir) => this.#showWatcherAlarm(dir);
     this.spells.onWatcherAlarmClear = () => this.#hideWatcherAlarm();
+    this.spells.onWatcherAlarmBroadcast = (dir) => {
+      if (!this.session?.isMp || !this.session.playing) return;
+      this.session.sendIntent({
+        kind: "watcherAlarm",
+        dir: [dir.x, dir.y, dir.z]
+      });
+    };
     this._watcherAlarmT = 0;
     this._watcherAlarmDir = null;
+    this._matchEnded = false;
+    this._spectator = false;
 
     this.session = new MultiplayerSession(this);
     this.lobby = new LobbyUI(this, this.session);
@@ -214,8 +223,11 @@ class Game {
         this.inputEnabled = false;
         w.beginRespawnSequence();
         this.centerCameraOnDir(w.spawnDir);
-      } else if (!this.gameOver) {
-        this.#triggerGameOver();
+      } else if (!this.gameOver && !this._matchEnded) {
+        w.eliminated = true;
+        this.session?.flushPose?.();
+        if (this.#isMpPlaying()) this.#enterSpectator();
+        else this.#triggerGameOver();
       }
     };
     w.onRespawn = () => {
@@ -224,6 +236,7 @@ class Game {
     };
     w.onScream = () => this.audio?.playRandomScream(w.dir, listener());
     w.onImmortalPop = (wiz) => burstImmortalShell(this.spells, wiz);
+    w.onCastAudioStop = () => this.audio?.stopCastBackground(w.id);
   }
 
   /** Kroky slyší jen vlastní kouzelník; hlasitost podle vzdálenosti kamery. */
@@ -255,12 +268,13 @@ class Game {
         reverseRoll: !!kd.reverse
       });
     };
-    w.onCastAudioStop = () => this.audio?.stopCastBackground(w.id);
   }
 
   enterSolo() {
     this.inputEnabled = true;
     this.gameOver = false;
+    this._spectator = false;
+    this._matchEnded = false;
     this.#hideGameOver();
     this.#stopCamRecenter();
     this.planetGroup.rotation.set(0, 0, 0);
@@ -293,6 +307,8 @@ class Game {
   beginMatch({ players, localId }) {
     this.inputEnabled = true;
     this.gameOver = false;
+    this._spectator = false;
+    this._matchEnded = false;
     this.#hideGameOver();
     this.#stopCamRecenter();
     this.planetGroup.rotation.set(0, 0, 0);
@@ -369,6 +385,7 @@ class Game {
     markHerdRemote(this.longnecks, remote);
     markHerdRemote(this.worms, remote);
     markHerdRemote(this.waterLife, remote);
+    if (this.spells) this.spells.worldRemote = remote;
   }
 
   #pixelRatio() {
@@ -605,18 +622,67 @@ class Game {
   #bindGameOver() {
     document.getElementById("game-over-restart")?.addEventListener("click", () => {
       this.#hideGameOver();
+      if (this.session?.isMp) {
+        this.session.leave();
+        this.lobby?.show?.();
+      }
       this.enterSolo();
     });
+  }
+
+  #setGameOverText(title, body) {
+    const card = document.querySelector("#game-over .game-over-card");
+    if (!card) return;
+    const h2 = card.querySelector("h2");
+    const p = card.querySelector("p");
+    if (h2) h2.textContent = title;
+    if (p) p.textContent = body;
   }
 
   #triggerGameOver() {
     this.gameOver = true;
     this.inputEnabled = false;
+    this.#setGameOverText("Konec hry", "Padl jsi dřív, než tvůj strom vyrostl.");
     document.getElementById("game-over")?.classList.remove("hidden");
+  }
+
+  #enterSpectator() {
+    this._spectator = true;
+    this.inputEnabled = false;
+  }
+
+  #triggerMatchEnd(winner) {
+    if (this._matchEnded) return;
+    this._matchEnded = true;
+    this.inputEnabled = false;
+    const me = this.wizard;
+    const won = winner && me && String(winner.id) === String(me.id);
+    this.#setGameOverText(
+      won ? "Vyhrál jsi" : "Konec zápasu",
+      won ? "Zůstal jsi poslední naživu." : "Zbyl jen jeden hráč."
+    );
+    document.getElementById("game-over")?.classList.remove("hidden");
+    this.gameOver = true;
+  }
+
+  #tickMatchEnd() {
+    if (!this.#isMpPlaying() || this._matchEnded) return;
+    if (this.wizards.size < 2) return;
+    let alive = null;
+    let aliveN = 0;
+    for (const w of this.wizards.values()) {
+      if (!w || w.eliminated) continue;
+      if (w.dead && !w.respawning) continue;
+      aliveN++;
+      alive = w;
+    }
+    if (aliveN <= 1) this.#triggerMatchEnd(alive);
   }
 
   #hideGameOver() {
     this.gameOver = false;
+    this._spectator = false;
+    this._matchEnded = false;
     document.getElementById("game-over")?.classList.add("hidden");
   }
 
@@ -1134,6 +1200,7 @@ class Game {
     this.sky.update(dt);
     this.session.tickPose(dt);
     this.session.tickWorld(dt);
+    this.#tickMatchEnd();
 
     this.fow?.update(this.wizard?.dir);
 

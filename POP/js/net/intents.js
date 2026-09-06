@@ -1,5 +1,6 @@
 import * as THREE from "../three.js";
 import { applyWorldPacket } from "./world-sync.js";
+import { playRemoteWatcherAlarm } from "../spells/watcher.js";
 
 /**
  * Směrování vzdálených intentů.
@@ -50,6 +51,10 @@ export function createGameIntentHandlers(game) {
     world(_fromId, intent) {
       if (game.session?.isHost) return;
       applyWorldPacket(game, intent);
+    },
+
+    watcherAlarm(_fromId, intent) {
+      playRemoteWatcherAlarm(game.spells, intent.dir);
     },
 
     cast(fromId, intent) {
