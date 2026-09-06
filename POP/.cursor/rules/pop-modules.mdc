@@ -1,0 +1,33 @@
+---
+description: POP — mechanic separation and module boundaries
+globs: js/**/*.js
+alwaysApply: false
+---
+
+# Mechanic separation
+
+## Module map
+| Area | Files | Belongs here |
+|------|-------|--------------|
+| Tunables | `config.js`, `spells/defs.js` | numbers, CD, range, spell colors |
+| Orchestrator | `main.js` | loop, input, system wiring |
+| Terrain | `terrain.js`, `maps.js`, `icosphere.js` | height, morph, wet, pick |
+| Spells | `spells/*.js` + `spells/system.js` | 1 file = 1 spell/FX family |
+| Animals | `critter.js`, `longneck.js`, `worm.js`, `water-life.js` | species-specific |
+| Shared AI | `animalsAI.js` | geodesic step, land/water tests, PRNG |
+| Collision | `blockers.js` | trees + animals + lookup |
+| Fire | `burn.js` | mesh burning, light cap |
+| FOW | `fog-of-war.js`, `fow-material.js` | visibility, explore mask |
+| Net | `net/*`, `server/` | session, intents, world sync |
+
+## Rules
+- New spell: `defs.js` (data) + `spells/<id>.js` (logic/VFX) + wire in `system.js` + `index.html` button only if UI is needed.
+- Shared animal motion → `animalsAI.js`, do not copy-paste `stepToward` into a herd.
+- Collision → `blockers.clear` / radius helpers; no ad-hoc placement loops in spells when an API already exists.
+- `spells.js` is re-export only — do not put logic back there.
+- Cross-wiring (fx, blockers, fow) is done in `main.js` after construction; leave `null` in constructors + a “wired by main” comment.
+
+## Anti-patterns
+- God-object in `main.js` with spell/morph logic.
+- A spell that mutates another herd without an existing API (`kill`, `applyDamage`, …).
+- Duplicating `SPELLS` constants outside `defs.js`.

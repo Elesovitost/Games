@@ -1,0 +1,36 @@
+---
+description: POP — known pitfalls, bugs, and regression bottlenecks
+alwaysApply: true
+---
+
+# Known pitfalls (read before a “quick fix”)
+
+## Terrain / shadows / cap
+- Dual mesh / chunky terrain / synced height texture → breaks shadows and pick. **Do not touch.**
+- `receiveShadow` + small shadow frustum = dark blotches / missing shadows.
+- Cap clip (`uViewAxis`, `uVisibleDot`): seam = bad view axis or unsynced uniforms across materials.
+- `shadowMap.autoUpdate` must stay on while terrain casts/receives shadow.
+
+## Normals and morph
+- Full-planet `computeVertexNormals()` after morph = frame spike. Use `recomputeNormalsPartial` only.
+- Forgotten `needsUpdate` on position/color = “morph invisible”.
+- Wet/ocean flood outside the dirty region = stutter on every hill.
+
+## Memory / FX
+- PointLight per flame without `MAX_FIRE_LIGHTS` → GPU death.
+- Dispose without `parent.remove` → ghost objects in the scene.
+- FOW ghost: `clone(true)` only lazy (`ensureWatcherGhost` / trees), not every frame.
+
+## Game logic
+- Damage loops must skip `remote` / `godMode` / `immortal` / `dead` consistently with other spells.
+- `wetness` ≠ height below waterline (dry pit vs ocean).
+- Wizard in water: `wizardMinLand`, drown, `wizardWaterSpeedMul` — do not change one without checking the others.
+
+## Net
+- Remote movement via `walk` intent = desync; `pose` is authoritative.
+- Double-handling cast (local + echo) without owner checks = double damage/FX.
+
+## LLM regression habits
+- “Optimization” that changes spell VFX appearance.
+- Adding quality presets / a second resolution path.
+- 500+ line “cleanup” refactor during a one-line bugfix.

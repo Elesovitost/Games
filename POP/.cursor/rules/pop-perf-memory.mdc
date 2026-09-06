@@ -1,0 +1,35 @@
+---
+description: POP — memory, GC, dispose, hot-path performance
+globs: js/**/*.js
+alwaysApply: false
+---
+
+# Memory and hot path
+
+## Allocation
+- In `update` / every frame: **no** `new THREE.Vector3|Quaternion|Matrix4|Color|Array`.
+- Scratch: module-level `const _pos = new THREE.Vector3()`, or `tmp` from `utils.js`, or `this._tmp` on the instance.
+- `stepToward(..., stepScratch)` — caller owns the scratch; no allocation inside.
+
+## GPU / geometry
+- Terrain morph: only touched indices + `recomputeNormalsPartial` + adjacency from the `terrain` constructor.
+- **Do not** call `geometry.computeVertexNormals()` on the whole planet after a morph.
+- `attribute.needsUpdate = true` only when data actually changed; batch dirty flags (`_morphDirty`).
+- Cap clip + `CONFIG.pixelRatioMax` / `resolutionScale` — do not tweak ad-hoc “for FPS”.
+
+## Dispose (required on despawn)
+- `geometry.dispose()`, `material.dispose()` (including arrays), textures, `light.dispose()`.
+- Remove from parent group before dropping references.
+- Spells: extend existing `disposeX` / `disposeObject` — do not silently leak.
+- Fire: `MAX_FIRE_LIGHTS` in `burn.js` — do not add uncapped PointLights.
+
+## Render budget (do not change without reason)
+- One terrain mesh, shadow map 1024, frustum covers the whole planet (`shadowFrustumHalf`).
+- No quality presets, no “low/med/high”.
+- Do not change spell VFX appearance for optimization.
+
+## Bottlenecks (watch)
+- Full vertex passes / wet BFS outside the morph region.
+- `clone(true)` meshes every frame (FOW ghosts only via lazy `ensure*Ghost`).
+- New CanvasTexture / DataTexture in the loop — cache like `burn.js` `ensureMaps()`.
+- Planet-wide instanced trees / dual terrain mesh = regression no-go.

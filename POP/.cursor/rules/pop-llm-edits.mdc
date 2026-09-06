@@ -1,0 +1,26 @@
+---
+description: POP — LLM edit efficiency (tokens, no full-file rewrites)
+alwaysApply: true
+---
+
+# LLM edits — token discipline
+
+## Before changing
+- Read only the relevant slice (offset/limit), not an entire 20–70 KB file.
+- Find the symbol first (`Grep`) / API (`export function`), then read the surrounding code.
+- Large files: `wizard.js`, `terrain.js`, `main.js`, `audio.js`, `volcano.js`, `critter.js`, `longneck.js`, `worm.js`, `comet.js`, `demon.js`.
+
+## How to write
+- **Do not** rewrite a whole file (`Write` on an existing .js) unless it is a new file or an explicit full rewrite request.
+- Prefer surgical patches (StrReplace / small diff). One change = one area.
+- Do not change formatting, imports, or naming outside the diff.
+- Do not delete neighboring code “just in case” or add out-of-scope refactors.
+
+## Response
+- Do not paste entire files. At most a short diff / 5–15 lines of context.
+- After a fix, do not dump the whole file “as it looks now”.
+- Do not restate the task; briefly: what changed + where.
+
+## Scope
+- One mechanic / one bug = one mental PR. Do not mix spell + net + UI unless the user asks.
+- Tuning constants → `js/config.js` / `js/spells/defs.js`, not scattered magic literals.

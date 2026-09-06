@@ -1,0 +1,30 @@
+---
+description: POP — game logic, terrain, spells, animals, CONFIG
+globs: js/**/*.js
+alwaysApply: false
+---
+
+# Game logic
+
+## Units and space
+- 1 world unit = 1 m; `CONFIG.planetR` = 80. Surface motion = geodesic (`slerpDirection` / `stepToward`), not Euclidean chord length as “walk distance”.
+- Directions on the planet = normalized `dir` from the center; height = `terrain.height(dir)` / `sampleSurface`.
+- Water: `wetness` (ocean flood), not merely `length() < waterLevel`.
+
+## Terrain
+- One geometry = pick, morph, shadows, colors, FOW attributes.
+- Morph API (`elevate`/`depress`/driven) — do not rewrite vertex positions outside the existing morph queue.
+- After morph, rely on `updateMorphs` + partial normals; shore/trees refresh via existing dirty paths in `main`.
+
+## Spells
+- Data in `SPELLS` (`defs.js`); runtime in `SpellSystem` + the spell file.
+- Wizard damage: respect `dead`, `remote`, `godMode`, `immortal` (see patterns in comet/volcano/earthquake).
+- Local cast vs MP: `castAs(wizard, …)` must work for a remote owner without double damage on the host (`cast` intent runs FX+morph on every client).
+
+## Animals / blockers
+- Host simulates herds; remotes receive `world` / `beast` intents (`net/intents.js`, `world-sync.js`).
+- `markHerdRemote` — do not run authoritative AI on the client.
+- Movement collision via `Blockers`, not a custom brute-force loop when the API is enough.
+
+## Tunables
+- New gameplay number → `CONFIG` or `SPELLS[id]`, with a short JSDoc comment matching nearby keys (Czech comments in code are fine / keep consistency with neighbors).

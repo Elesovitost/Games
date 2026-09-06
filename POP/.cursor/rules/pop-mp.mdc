@@ -1,0 +1,31 @@
+---
+description: POP — multiplayer sync, host authority, intents
+globs: "{js/net/**/*.js,server/**/*}"
+alwaysApply: false
+---
+
+# Multiplayer
+
+## Authority
+- **Host**: combat/morph terrain authority per the existing session model; animal herds + `world` snapshot.
+- **Client**: applies `pose`, `cast`, `knock`, `beast`, `world`; does not run host-only herd simulation.
+
+## Intents (`net/intents.js`)
+| kind | Note |
+|------|------|
+| `pose` | movement source of truth ~`CONFIG.netPoseInterval` |
+| `walk` | **no-op** (compat) — do not put movement back here |
+| `cast` | `spells.castAs` locally on every client |
+| `knock` | low-latency; dedupe via `seq` vs pose.knock |
+| `beast` / `world` | host → clients; host ignores inbound |
+
+## Checklist when changing sync
+- [ ] No unnecessary full state every frame (intervals from CONFIG).
+- [ ] Remote wizard: `w.remote === true`, interpolation `netPoseInterpDelay`.
+- [ ] Tab hide: `pageCatchUpMax` / `pageCatchUpStep` — do not let dt explode.
+- [ ] Same map seed / spawn logic on all clients.
+
+## Anti-patterns
+- Simulating critters on non-host without `markHerdRemote`.
+- Damaging a remote wizard “locally” outside the agreed cast/knock flow.
+- New intent without a handler in `createGameIntentHandlers`.

@@ -1,51 +1,56 @@
 ---
-description: POP3 browser hra — architektura, fáze vývoje, anti-patterns
+description: POP3 browser game — architecture, development phases, anti-patterns
 globs: POP/**
 alwaysApply: false
 ---
 
-# POP Rebuild — pravidla projektu
+# POP Rebuild — project rules
 
-## Cíl
-Multiplayerová browser hra ve stylu Populous 3: kulatá planeta, kouzelníci, kouzla, morph terénu.
-**Jedno grafické nastavení** — hezké + plynulé na PC i MacBook Air. Žádné quality presety.
+## Goal
+Multiplayer browser game in the style of Populous 3: round planet, wizards, spells, terrain morph.
+**One graphics setting** — looks good and stays smooth on PC and MacBook Air. No quality presets.
 
-## Architektura terénu (KRITICKÉ)
-- **Jedna geometrie = logika + render** (icosphere subdiv 6–7).
-- Height, morph, raycast, stíny na stejné mesh.
-- Viditelná **horní čtvrtina** směrem ke kameře: shader cap clip (`uViewAxis`, `uVisibleDot`).
-- **Zákaz:** dual mesh, terrain-chunks, sync textur, více quality presetů.
+## Terrain architecture (CRITICAL)
+- **One geometry = logic + render** (icosphere subdiv 6–7).
+- Height, morph, raycast, shadows on the same mesh.
+- Visible **upper quarter** toward the camera: shader cap clip (`uViewAxis`, `uVisibleDot`).
+- **Forbidden:** dual mesh, terrain chunks, texture sync, multiple quality presets.
 
-## Světla a stíny
-- Sun (DirectionalLight) v `planetGroup`, target `(0,0,0)`.
-- Shadow frustum **celá planeta** (`shadowFrustumHalf ≈ 128`).
-- `shadowMap.autoUpdate = true` pokud `receiveShadow = true`.
-- Shadow map 1024, PCFShadowMap; normalBias ~0.08 (bez acne čárek).
+## Lights and shadows
+- Sun (DirectionalLight) in `planetGroup`, target `(0,0,0)`.
+- Shadow frustum covers the **whole planet** (`shadowFrustumHalf ≈ 128`).
+- `shadowMap.autoUpdate = true` when `receiveShadow = true`.
+- Shadow map 1024, PCFShadowMap; normalBias ~0.08 (no acne streaks).
 
-## Výkon (jeden CONFIG)
+## Performance (single CONFIG)
 - `pixelRatioMax` 1.35, `resolutionScale` 0.92
-- Cap clip ~25 % povrchu render
-- Žádné instanced stromy po planetě
-- Spell VFX nesmí měnit vzhled kvůli optimalizaci
+- Cap clip ~25 % of surface rendered
+- No planet-wide instanced trees
+- Spell VFX must not change appearance for optimization
 
-## Fáze
-1. Planeta + světla + stíny + rotace
-2. Kouzelník + kouzla
+## Phases
+1. Planet + lights + shadows + rotation
+2. Wizard + spells
 3. Multiplayer
-4. Boj + polish
+4. Combat + polish
 
-## MP sync checklist (fáze 3+)
-- Host autorita pro terén a combat
-- Sync: pozice, kouzla (intent), morph, HP/lives/state
+## MP sync checklist (phase 3+)
+- Host authority for terrain and combat
+- Sync: pose, spells (intent), morph, HP/lives/state
 
 ## Anti-patterns
-- Dva meshe pro terén
-- Chunk systém bez testu stínů
-- Malý shadow frustum + receiveShadow
-- Optimalizace měnící vzhled kouzel
+- Two meshes for terrain
+- Chunk system without testing shadows
+- Small shadow frustum + receiveShadow
+- Optimizations that change spell look
 
-## Před merge
-- [ ] Terén osvětlený, ne tmavý
-- [ ] Stíny stabilní při rotaci
-- [ ] Cap clip bez seamů
-- [ ] Konzole bez chyb
+## Before merge
+- [ ] Terrain lit, not dark
+- [ ] Shadows stable while rotating
+- [ ] Cap clip without seams
+- [ ] Console clean
+
+## LLM rules (detail)
+Edit discipline, modules, memory, MP, and pitfalls live in `POP/.cursor/rules/`
+(`pop-llm-edits`, `pop-modules`, `pop-perf-memory`, `pop-game-logic`, `pop-mp`, `pop-pitfalls`).
+Do not rewrite large `.js` files wholesale; use surgical diffs.
