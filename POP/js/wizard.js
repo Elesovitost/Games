@@ -540,7 +540,7 @@ export class Wizard {
       if (this.hp <= 0) this.#die();
     }
     applyKnockFromSnapshot(this, latest.knock, latest.hp);
-    if (!latest.knock && this.knockdown) this.forceEndKnockdown();
+    /** Nesmí forceEnd při pose bez knock — starší pose v letu by zrušila kotoul (zůstane jen posun). */
 
     let hasPos = false;
     if (buf.length === 1) {
@@ -743,7 +743,9 @@ export class Wizard {
   }
 
   #knockMove(kd, step) {
-    if (this.remote || step <= 1e-5) return 0;
+    if (step <= 1e-5) return 0;
+    /** Remote: pozice ze sítě, step jen pro barrel animaci. */
+    if (this.remote) return step;
     const before = this._slopeSample.copy(this.dir);
     this._trial.copy(this.mesh.position).addScaledVector(kd.rollDir, step);
     if (this._trial.lengthSq() > 1e-8) {
@@ -1756,6 +1758,10 @@ export class Wizard {
       }
       if (!this.demonHold) this.#updateNetPose();
       if (this.knockdown) this.#updateKnockdown(dt);
+      if (this.knockdown && !this.dead) {
+        const lift = this.#knockLift(this.knockdown);
+        this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir) + lift);
+      }
       if (this.immortal) this.#updateImmortality(dt);
       this.#applyPose();
       this.#updateWalkBlend(dt);
