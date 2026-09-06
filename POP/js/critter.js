@@ -84,10 +84,10 @@ export function createCritterMesh(mats, geos) {
   const C = geos.cyl;
   const N = geos.cone;
 
-  body.add(sph(S, mats.hide, 0.38, 0.22, 0.52, 0, 0.42, 0.04));
-  body.add(sph(S, mats.belly, 0.3, 0.1, 0.44, 0, 0.24, 0.06));
-  body.add(sph(S, mats.hide, 0.12, 0.14, 0.12, 0.32, 0.52, -0.1));
-  body.add(sph(S, mats.sail, 0.1, 0.16, 0.1, -0.3, 0.56, 0.14));
+  // Trup = jedna souvislá hladká skořápka (ne dvě vedle sebe slepené koule).
+  body.add(sph(S, mats.hide, 0.4, 0.22, 0.55, 0, 0.41, 0.03));
+  // Břicho = mělký kýl jen zespodu pod trupem, žádný boční výstupek.
+  body.add(sph(S, mats.belly, 0.34, 0.12, 0.45, 0, 0.25, 0.04));
 
   const sails = [];
   for (let i = 0; i < 5; i++) {
@@ -102,24 +102,26 @@ export function createCritterMesh(mats, geos) {
   }
 
   const neck = new THREE.Group();
-  neck.position.set(0, 0.5, 0.46);
-  neck.add(sph(S, mats.hide, 0.1, 0.09, 0.2, 0, 0.04, 0.14));
+  neck.position.set(0, 0.46, 0.44);
+  // Spodní článek krku — začíná uvnitř krunýře, ať nevznikne šev ani "kulička".
+  neck.add(sph(S, mats.hide, 0.12, 0.12, 0.24, 0, 0, 0.1));
   const neck2 = new THREE.Group();
-  neck2.position.set(0, 0.02, 0.32);
-  neck2.add(sph(S, mats.hide, 0.12, 0.1, 0.16, 0, 0.05, 0.1));
+  neck2.position.set(0, 0, 0.2);
+  // Prostřední článek silně překrývá spodní → krk je plynulá trubka, ne kuličky.
+  neck2.add(sph(S, mats.hide, 0.1, 0.11, 0.2, 0, 0.02, 0.14));
   neck.add(neck2);
 
   const head = new THREE.Group();
-  head.position.set(0, 0.08, 0.28);
-  head.add(sph(S, mats.hide, 0.2, 0.16, 0.18, 0, 0.05, 0.02));
-  head.add(sph(S, mats.dark, 0.06, 0.08, 0.05, 0, 0.02, 0.16));
-  head.add(sph(S, mats.belly, 0.05, 0.04, 0.12, 0, -0.06, 0.1));
+  head.position.set(0, 0.06, 0.26);
+  // Hlava = protažená tobolka navazující na krk, ne "kulička na kuličce".
+  head.add(sph(S, mats.hide, 0.15, 0.15, 0.22, 0, 0.05, 0.04));
+  head.add(sph(S, mats.belly, 0.05, 0.05, 0.1, 0, -0.08, 0.1));
 
   const stalks = [];
   const stalkDefs = [
-    { x: -0.1, y: 0.18, z: 0.02, tilt: -0.35, h: 0.28 },
-    { x: 0.1, y: 0.2, z: -0.04, tilt: 0.4, h: 0.3 },
-    { x: 0.0, y: 0.24, z: 0.08, tilt: 0.05, h: 0.26 }
+    { x: -0.1, y: 0.15, z: 0.02, tilt: -0.35, h: 0.24 },
+    { x: 0.1, y: 0.16, z: -0.04, tilt: 0.4, h: 0.26 },
+    { x: 0.0, y: 0.17, z: 0.08, tilt: 0.05, h: 0.22 }
   ];
   for (const s of stalkDefs) {
     const g = new THREE.Group();
@@ -134,13 +136,16 @@ export function createCritterMesh(mats, geos) {
   neck2.add(head);
   body.add(neck);
 
+  // Ocas = jeden plynule se zužující kužel místo řetězu kuliček.
   const tail = new THREE.Group();
-  tail.position.set(0, 0.36, -0.48);
-  for (let i = 0; i < 4; i++) {
-    const r = 0.09 - i * 0.012;
-    const seg = sph(S, i % 2 ? mats.sail : mats.hide, r, r, r * 1.15, Math.sin(i * 0.9) * 0.07, Math.cos(i * 0.7) * 0.05, -i * 0.15);
-    tail.add(seg);
-  }
+  tail.position.set(0, 0.34, -0.52);
+  const tailCone = new THREE.Mesh(N, mats.hide);
+  tailCone.scale.set(0.1, 0.42, 0.1);
+  tailCone.rotation.x = -Math.PI / 2;
+  tailCone.position.set(0, 0, 0);
+  tailCone.castShadow = true;
+  tailCone.receiveShadow = true;
+  tail.add(tailCone);
   body.add(tail);
 
   const legs = [];
@@ -932,10 +937,11 @@ export class CritterHerd {
     this.fx = null;
     this.segments = null;
     this.remote = false;
+    // Jemnější síť = hladký (ne fasetovaný) povrch koulí, válečků i kuželů.
     this.geos = {
-      sphere: new THREE.SphereGeometry(1, 12, 10),
-      cyl: new THREE.CylinderGeometry(1, 1, 1, 8),
-      cone: new THREE.ConeGeometry(1, 1, 8)
+      sphere: new THREE.SphereGeometry(1, 24, 16),
+      cyl: new THREE.CylinderGeometry(1, 1, 1, 12),
+      cone: new THREE.ConeGeometry(1, 1, 12)
     };
     this.mats = {
       hide: mat(0x6a3d7a),
