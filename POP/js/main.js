@@ -15,7 +15,8 @@ import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
 import { burstImmortalShell } from "./spells/immortality.js";
 import { canSpawnWatcher, disposeWatchersForOwner } from "./spells/watcher.js";
-import { hasStandingTreeForOwner } from "./spells/tree.js";
+import { hasStandingTreeForOwner, getMagicTreeForOwner } from "./spells/tree.js";
+import { TREE_MAX_HP, TREE_BASE_HP } from "./tree-grow.js";
 import { pumpFireQueue } from "./burn.js";
 import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./visibility.js";
 import { tmp } from "./utils.js";
@@ -423,6 +424,7 @@ class Game {
     this._spellSpent = Object.create(null);
     this._spellCd = Object.create(null);
     for (const id of Object.keys(SPELLS)) {
+      if (id === "tree") continue;
       const cd = SPELLS[id]?.cooldown ?? 0;
       if (cd > 0) this._spellCd[id] = cd;
     }
@@ -453,13 +455,27 @@ class Game {
     this.#updateSpellBar();
   }
 
+  /** 1× bez stromu / při 1 HP → 5× při max HP stromu. */
+  #spellCooldownRate() {
+    const w = this.wizard;
+    if (!w || w.remote) return 1;
+    const tree = getMagicTreeForOwner(this.spells, w.id);
+    if (!tree || tree.disposed) return 1;
+    const span = TREE_MAX_HP - TREE_BASE_HP;
+    if (!(span > 0)) return 1;
+    const t = Math.min(1, Math.max(0, (tree.hp - TREE_BASE_HP) / span));
+    return 1 + 4 * t;
+  }
+
   #tickSpellCooldowns(dt) {
     let dirty = false;
+    const rate = this.#spellCooldownRate();
+    const step = dt * rate;
     for (const id of Object.keys(this._spellCd)) {
       if (this._spellSpent[id]) continue;
       const left = this._spellCd[id];
       if (!(left > 0)) continue;
-      this._spellCd[id] = Math.max(0, left - dt);
+      this._spellCd[id] = Math.max(0, left - step);
       dirty = true;
     }
     if (dirty) this.#updateSpellBar();
@@ -708,7 +724,7 @@ class Game {
   }
 
   #isUiTarget(target) {
-    return !!target?.closest?.("#spell-bar, #game-bar, #mp-panel, #health, #game-over");
+    return !!target?.closest?.("#hud-left, #spell-bar, #game-bar, #mp-panel, #health, #game-over");
   }
 
   #setCameraFocus(focusArr, resetZoom = false) {

@@ -46,11 +46,24 @@ html, body {
   font-weight: normal;
   margin-bottom: 8px;
 }
-#spell-bar {
+#hud-left {
   position: fixed;
   top: 10px;
   left: 10px;
   z-index: 12;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: max-content;
+  max-width: calc(100vw - 20px);
+  cursor: default;
+}
+#spell-bar {
+  position: relative;
+  top: auto;
+  left: auto;
+  z-index: auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -142,23 +155,26 @@ html, body {
 }
 
 .game-bar {
-  position: fixed;
-  left: 10px;
-  bottom: 10px;
-  z-index: 12;
+  position: relative;
+  left: auto;
+  bottom: auto;
+  z-index: auto;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 3px;
-  padding: 3px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px;
   background: var(--panel);
   border: 1px solid var(--gold-dim);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
   cursor: default;
 }
 .bar-btn {
-  min-width: 22px;
-  height: 20px;
-  padding: 0 6px;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 24px;
+  padding: 0 4px;
   font-family: var(--ui-font);
   font-size: 0.62rem;
   font-weight: 700;
@@ -648,25 +664,36 @@ html, body {
   user-select: none;
 }
 #health {
-  position: fixed;
-  left: 50%;
-  bottom: 12px;
-  transform: translateX(-50%);
+  position: relative;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 5px 6px;
+  background: var(--panel);
+  border: 1px solid var(--gold-dim);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  cursor: default;
+  z-index: auto;
+}
+.health-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 200px;
-  padding: 5px 8px;
-  background: var(--panel);
-  border: 1px solid var(--gold-dim);
-  cursor: default;
-  z-index: 5;
+  width: 100%;
+  min-height: 16px;
 }
 .health-icon {
   position: relative;
   flex-shrink: 0;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 .health-icon::before,
 .health-icon::after {
@@ -674,54 +701,58 @@ html, body {
   position: absolute;
   box-sizing: border-box;
 }
+/* Klasické srdce ze dvou kapek */
+.health-icon.heart::before,
+.health-icon.heart::after {
+  top: 1px;
+  width: 8px;
+  height: 12px;
+  background: linear-gradient(180deg, #ef6a6a 0%, #c83030 100%);
+  border-radius: 8px 8px 1px 1px;
+}
 .health-icon.heart::before {
-  left: 50%;
-  top: 2px;
-  width: 7px;
-  height: 7px;
-  margin-left: -3.5px;
-  border-radius: 50%;
-  background: #e05050;
-  box-shadow: -4px 0 0 #e05050;
+  left: 8px;
+  transform: rotate(-45deg);
+  transform-origin: 0 100%;
+  box-shadow: 0 0 4px rgba(200, 40, 40, 0.45);
 }
 .health-icon.heart::after {
-  left: 50%;
-  bottom: 1px;
-  width: 8px;
-  height: 8px;
-  margin-left: -4px;
-  background: #e05050;
+  left: 0;
   transform: rotate(45deg);
+  transform-origin: 100% 100%;
 }
+/* Strom — kmen + laločnatá koruna (jako spell ikona) */
 .health-icon.tree::before {
   left: 50%;
   bottom: 0;
-  width: 4px;
+  width: 3px;
   height: 7px;
-  margin-left: -2px;
-  border-radius: 1px;
+  margin-left: -1.5px;
+  border-radius: 1px 1px 1px 1px;
   background: linear-gradient(180deg, #c9a227 0%, #7a5814 100%);
+  z-index: 0;
 }
 .health-icon.tree::after {
   left: 50%;
   top: 0;
-  width: 12px;
-  height: 10px;
-  margin-left: -6px;
-  border-radius: 50% 50% 46% 48%;
-  background: radial-gradient(circle at 38% 32%, #fff6b0 0%, #ffe566 40%, #b8860b 85%);
-}
-.tree-health {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  width: 11px;
+  height: 11px;
+  margin-left: -5.5px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 32%, #fff6b0 0%, #ffe566 22%, #e8c030 55%, #b8860b 82%, transparent 83%);
+  box-shadow:
+    -5px 5px 0 -3.5px #e8c44a,
+    5px 4.5px 0 -3.5px #d4a017,
+    0 6px 0 -4px #f0d060;
+  z-index: 1;
 }
 .tree-health.hidden {
   display: none;
 }
 .health-track {
   flex: 1;
-  width: 56px;
+  min-width: 0;
   height: 6px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(212, 180, 106, 0.35);
@@ -951,9 +982,13 @@ html, body {
 }
 
 @media (max-width: 720px) {
-  #spell-bar {
+  #hud-left {
     top: 6px;
     left: 6px;
+    gap: 4px;
+    max-width: calc(100vw - 12px);
+  }
+  #spell-bar {
     gap: 4px;
     padding: 4px;
   }
@@ -965,9 +1000,5 @@ html, body {
   .spell-icon {
     width: 30px;
     height: 30px;
-  }
-  #health {
-    min-width: 120px;
-    bottom: 40px;
   }
 }

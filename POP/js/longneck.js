@@ -228,6 +228,13 @@ class Longneck {
     this._fire = null;
     this._burnMats = [];
     this.lieLift = this.mesh.userData.lieLift ?? 0.32;
+    this.tornado = null;
+    this.diesOnTornadoLand = true;
+    this.netRadius = 0;
+    this._tornadoMoveMul = 1;
+    this._tornadoPullSpeed = 0;
+    this._tornadoPullDir = null;
+    this._tornadoSource = null;
 
     tangentFrame(this.dir, this._east, this.facing);
     this.#pickWander();
@@ -333,9 +340,65 @@ class Longneck {
     return this.die(opts);
   }
 
+  beginTornadoCapture(centerDir, source = null) {
+    if (this.remote || this.tornado || this.dead || this.gone) return false;
+    this.dodgeT = 0;
+    this.dodgeCrouchT = 0;
+    this.dodgeHop = 0;
+    this.tornado = {
+      phase: "climb",
+      t: 0,
+      source,
+      centerDir: centerDir.clone(),
+      spinY: 0,
+      sideZ: 0,
+      preAmp: 0,
+      orbitAng: this.rng() * Math.PI * 2,
+      height: 0,
+      wallU: 0,
+      bodyRoll: 0
+    };
+    return true;
+  }
+
+  endTornadoCapture() {
+    this.tornado = null;
+  }
+
+  pullOnSurface(towardDir, stepM) {
+    if (this.remote || this.tornado || this.dead || this.gone) return false;
+    const target = towardDir.clone().normalize();
+    const dot = Math.min(1, Math.max(-1, this.dir.dot(target)));
+    const angle = Math.acos(dot);
+    if (angle < 1e-5) return false;
+    const t = Math.min(1, stepM / CONFIG.planetR / angle);
+    slerpDirection(this._trial, this.dir, target, t);
+    this.dir.copy(this._trial);
+    this.#snap();
+    return true;
+  }
+
+  #applyTornadoPose() {
+    const td = this.tornado;
+    if (!td) return;
+    const parts = this.parts;
+    const side = td.sideZ ?? 0;
+    if (td.phase === "climb") {
+      parts.body.rotation.set(
+        Math.sin(td.spinY * 1.8) * (td.preAmp || 0) * 0.3,
+        td.spinY,
+        -side
+      );
+    } else {
+      parts.body.rotation.set(0, td.bodyRoll || 0, -side);
+    }
+    parts.body.position.set(0, 0, 0);
+  }
+
   die(opts = {}) {
     if (this.remote && !opts.fromNet) return false;
     if (this.dead) return false;
+    if (this.tornado) this.endTornadoCapture();
     this.dead = true;
     this.state = "dead";
     this.charm = null;
@@ -498,6 +561,15 @@ class Longneck {
       speed = this.state === "swim" ? SWIM_SPEED : WALK_SPEED;
       this.walkPhase += dt * speed * 2.1;
     }
+    if (this.tornado || this.netTornado) {
+      this.#applyTornadoPose();
+      const r = this.netRadius;
+      if (r > 1) this.mesh.position.copy(this.dir).multiplyScalar(r);
+      else this.#snap();
+      this.#applyPose();
+      this.#updateBurn(dt);
+      return;
+    }
     const gait = this.state === "swim" ? 0.45 : speed > 0.05 ? 1 : 0.12;
     for (const leg of this.parts.hips) {
       const swing = Math.sin(this.walkPhase + (leg.side > 0 ? 0 : Math.PI)) * 0.48 * gait;
@@ -543,9 +615,21 @@ class Longneck {
       return;
     }
 
+    if (this.tornado) {
+      this.netMoving = true;
+      this.#applyTornadoPose();
+      this.#applyPose();
+      return;
+    }
+
     if (this.demonHold) {
       this.netMoving = false;
       this.#snap();
+      this.#applyPose();
+      return;
+    }
+
+    if (this._tornadoPullSpeed > 0) {
       this.#applyPose();
       return;
     }

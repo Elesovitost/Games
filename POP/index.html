@@ -15,6 +15,7 @@
   </div>
   <canvas id="c"></canvas>
 
+  <aside id="hud-left" aria-label="Herní panel">
   <nav id="spell-bar" class="spell-bar" role="toolbar" aria-label="Kouzla">
     <div class="spell-group">
       <button type="button" class="spell" data-spell="tree" title="Strom">
@@ -66,16 +67,12 @@
         <span class="spell-icon lightning" aria-hidden="true"></span>
         <span class="spell-label">BLESK</span>
       </button>
-      <button type="button" class="spell" data-spell="demon" title="Démon">
-        <span class="spell-icon demon" aria-hidden="true"></span>
-        <span class="spell-label">DÉMON</span>
-      </button>
-    </div>
-    <div class="spell-group">
       <button type="button" class="spell" data-spell="tornado" title="Tornádo">
         <span class="spell-icon tornado" aria-hidden="true"></span>
         <span class="spell-label">TORNÁDO</span>
       </button>
+    </div>
+    <div class="spell-group">
       <button type="button" class="spell" data-spell="earthquake" title="Zemětřas">
         <span class="spell-icon earthquake" aria-hidden="true"></span>
         <span class="spell-label">ZEMĚTŘAS</span>
@@ -84,9 +81,13 @@
         <span class="spell-icon volcano" aria-hidden="true"></span>
         <span class="spell-label">SOPKA</span>
       </button>
-      <button type="button" class="spell" data-spell="comet" title="Kometa">
+      <button type="button" class="spell" data-spell="comet" title="Meteor">
         <span class="spell-icon comet" aria-hidden="true"></span>
-        <span class="spell-label">KOMETA</span>
+        <span class="spell-label">METEOR</span>
+      </button>
+      <button type="button" class="spell" data-spell="demon" title="Démon">
+        <span class="spell-icon demon" aria-hidden="true"></span>
+        <span class="spell-label">DÉMON</span>
       </button>
     </div>
   </nav>
@@ -102,6 +103,25 @@
       <span id="color-swatch" class="color-dot" aria-hidden="true"></span>
     </button>
   </footer>
+
+  <div id="health" aria-label="Zdraví">
+    <div class="health-row" aria-label="Kouzelník">
+      <span class="health-icon heart" aria-hidden="true"></span>
+      <div class="health-track">
+        <div id="health-fill" class="health-fill"></div>
+      </div>
+      <button type="button" id="watcher-alarm" class="watcher-alarm hidden" title="Alarm — klikni pro pohled" aria-label="Alarm Hlídače">
+        <span class="watcher-alarm-icon" aria-hidden="true"></span>
+      </button>
+    </div>
+    <div id="tree-health" class="health-row tree-health hidden" aria-label="Strom">
+      <span class="health-icon tree" aria-hidden="true"></span>
+      <div class="health-track">
+        <div id="tree-health-fill" class="health-fill tree-fill"></div>
+      </div>
+    </div>
+  </div>
+  </aside>
 
   <aside id="mp-panel" class="mp-panel hidden" aria-label="Multiplayer">
     <button type="button" id="mp-close" class="mp-close" aria-label="Zavřít">×</button>
@@ -138,21 +158,6 @@
   </aside>
 
   <div id="game-version" aria-label="Verze hry"></div>
-  <div id="health" aria-label="Zdraví">
-    <span class="health-icon heart" aria-hidden="true"></span>
-    <div class="health-track">
-      <div id="health-fill" class="health-fill"></div>
-    </div>
-    <div id="tree-health" class="tree-health hidden" aria-label="Strom">
-      <span class="health-icon tree" aria-hidden="true"></span>
-      <div class="health-track">
-        <div id="tree-health-fill" class="health-fill tree-fill"></div>
-      </div>
-    </div>
-    <button type="button" id="watcher-alarm" class="watcher-alarm hidden" title="Alarm — klikni pro pohled" aria-label="Alarm Hlídače">
-      <span class="watcher-alarm-icon" aria-hidden="true"></span>
-    </button>
-  </div>
   <div id="game-over" class="game-over hidden" role="dialog" aria-label="Konec hry">
     <div class="game-over-card">
       <h2>Konec hry</h2>

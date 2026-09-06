@@ -3,6 +3,7 @@ import { CONFIG } from "./config.js";
 import { surfaceDist } from "./spells/fx-common.js";
 import { FOW_MAX_EYES } from "./fow-material.js";
 import { ensureWatcherGhost } from "./spells/watcher.js";
+import { ensureMagicTreeGhost, disposeMagicTreeGhost } from "./magic-tree.js";
 
 const _pos = new THREE.Vector3();
 
@@ -76,6 +77,7 @@ export class FogOfWar {
       this.#revealAll();
       this.game.trees?.applyFow?.(this, false);
       this.#applyWatchers(false);
+      this.#applyMagicTrees(false);
       return;
     }
 
@@ -90,6 +92,7 @@ export class FogOfWar {
       this.game.trees?.applyFow?.(this, false);
       this.#applySpellFx(false);
       this.#applyWatchers(false);
+      this.#applyMagicTrees(false);
       this.#applySpawnMarkers(false);
       return;
     }
@@ -105,6 +108,7 @@ export class FogOfWar {
     this.#applyUnits();
     this.#applySpellFx(true);
     this.#applyWatchers(true);
+    this.#applyMagicTrees(true);
     this.#applySpawnMarkers(true);
   }
 
@@ -162,6 +166,7 @@ export class FogOfWar {
     }
     this.#applySpellFx(false);
     this.#applyWatchers(false);
+    this.#applyMagicTrees(false);
     this.#applySpawnMarkers(false);
   }
 
@@ -274,8 +279,7 @@ export class FogOfWar {
     for (const h of sys.hypnoses || []) push(h, h.dir);
     for (const d of sys.demons || []) push(d, d.dir);
     for (const s of sys.spirals || []) push(s, s.dir);
-    for (const m of sys.magicTrees || []) push(m, m.dir);
-    /** Watchers mají `#applyWatchers` (šedý ghost když oslepeni). */
+    /** Magické stromy — `#applyMagicTrees` (šedý ghost). */
     for (const b of sys.bursts || []) push(b, b.dir);
     for (const p of sys.smokePuffs || []) push(p, p.dir);
     for (const d of sys.fireDebris || []) push(d, d.dir);
@@ -354,6 +358,40 @@ export class FogOfWar {
         if (w.ghostGroup) w.ghostGroup.visible = true;
       } else if (w.ghostGroup) {
         w.ghostGroup.visible = false;
+      }
+    }
+  }
+
+  /** Magický strom: live ve FOV; mimo FOV šedý otisk poslední viděné pose. */
+  #applyMagicTrees(fowOn) {
+    const list = this.game.spells?.magicTrees;
+    if (!list?.length) return;
+
+    for (const t of list) {
+      if (t.disposed) continue;
+      const live = t.group;
+      if (!live) continue;
+
+      if (!fowOn) {
+        live.visible = true;
+        if (t.ghostGroup) t.ghostGroup.visible = false;
+        continue;
+      }
+
+      const inFov = this.inFov(t.dir);
+      if (inFov) {
+        t.fowSeen = true;
+        live.visible = true;
+        disposeMagicTreeGhost(t);
+        continue;
+      }
+
+      live.visible = false;
+      if (t.fowSeen) {
+        ensureMagicTreeGhost(t);
+        if (t.ghostGroup) t.ghostGroup.visible = true;
+      } else if (t.ghostGroup) {
+        t.ghostGroup.visible = false;
       }
     }
   }

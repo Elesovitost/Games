@@ -420,11 +420,14 @@ function collectTossables(sys) {
   if (sys.critters?.list) {
     for (const c of sys.critters.list) if (c) list.push(c);
   }
+  if (sys.longnecks?.list) {
+    for (const c of sys.longnecks.list) if (c) list.push(c);
+  }
   return list;
 }
 
 function canBePulled(body) {
-  if (!body || body.dead || body.godMode || body.tornado || body.immortal) return false;
+  if (!body || body.dead || body.gone || body.godMode || body.tornado || body.immortal) return false;
   if (body.remote) return false;
   if (body.casting || body.knockdown) return false;
   return true;

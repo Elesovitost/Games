@@ -340,6 +340,9 @@ export class MagicTree {
     this.disposed = false;
     this.maxHp = TREE_MAX_HP;
     this.hp = TREE_BASE_HP;
+    this.fowSeen = false;
+    this.ghostGroup = null;
+    this._ghostMats = null;
 
     const rng = mulberry32(opts.seed ?? hashDir(this.dir) ^ 0x51ed);
     const skel = buildSkeleton(rng);
@@ -520,6 +523,7 @@ export class MagicTree {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    disposeMagicTreeGhost(this);
     this.placement.gone = true;
     this.planetGroup.remove(this.group);
     this.woodMat.dispose();
@@ -527,6 +531,52 @@ export class MagicTree {
     this.flyMat.dispose();
     this.light.dispose();
   }
+}
+
+/** Šedý FOW otisk magického stromu — zamrzlá pose při odchodu z FOV. */
+export function ensureMagicTreeGhost(tree) {
+  if (tree.ghostGroup || !tree.group || tree.disposed) return;
+  const ghost = tree.group.clone(true);
+  ghost.traverse((ch) => {
+    if (ch.isLight || ch.isPoints) {
+      ch.visible = false;
+      return;
+    }
+    if (!ch.isMesh || !ch.material) return;
+    const srcList = Array.isArray(ch.material) ? ch.material : [ch.material];
+    const grayList = srcList.map((src) => {
+      const m = src.clone();
+      m.color?.setHex(0x6a6a6a);
+      if (m.emissive) {
+        m.emissive.setHex(0x000000);
+        m.emissiveIntensity = 0;
+      }
+      m.transparent = true;
+      m.opacity = 0.52;
+      m.depthWrite = false;
+      return m;
+    });
+    ch.material = Array.isArray(ch.material) ? grayList : grayList[0];
+    ch.castShadow = false;
+    ch.receiveShadow = false;
+    if (!tree._ghostMats) tree._ghostMats = [];
+    tree._ghostMats.push(...grayList);
+  });
+  ghost.position.copy(tree.group.position);
+  ghost.quaternion.copy(tree.group.quaternion);
+  ghost.scale.copy(tree.group.scale);
+  ghost.visible = false;
+  ghost.frustumCulled = false;
+  tree.planetGroup.add(ghost);
+  tree.ghostGroup = ghost;
+}
+
+export function disposeMagicTreeGhost(tree) {
+  if (!tree?.ghostGroup) return;
+  if (tree.ghostGroup.parent) tree.ghostGroup.parent.remove(tree.ghostGroup);
+  for (const m of tree._ghostMats || []) m.dispose?.();
+  tree._ghostMats = null;
+  tree.ghostGroup = null;
 }
 
 /** Sázej všude kromě vody — hráč mířil na konkrétní místo. */
