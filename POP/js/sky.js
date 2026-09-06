@@ -175,7 +175,7 @@ export class Sky {
   }
 }
 
-/** Slunce v planetGroup — stejný prostor jako terén. */
+/** Slunce pevně v planetGroup — stíny stabilní (neotáčí se s dnem na obloze). */
 export function createSun(planetGroup) {
   const sun = new THREE.DirectionalLight(0xfff1c8, 2.05);
   sun.position.set(220, 180, -70);

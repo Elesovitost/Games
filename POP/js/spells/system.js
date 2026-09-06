@@ -67,6 +67,15 @@ export class SpellSystem {
     this._axis = new THREE.Vector3();
   }
 
+  /** Lokální caster pro aim/range — castAs dočasně přepisuje this.wizard. */
+  #aimWizard() {
+    const list = this.getWizards?.() || [];
+    for (const w of list) {
+      if (w && !w.remote) return w;
+    }
+    return this.wizard && !this.wizard.remote ? this.wizard : null;
+  }
+
   showRange(spellId) {
     const def = SPELLS[spellId];
     if (!def) {
@@ -83,7 +92,7 @@ export class SpellSystem {
     this.aim.setColor(def.color);
     this.aim.setSpell(spellId);
     this.aim.hide();
-    this.wizard.footprints?.hide();
+    this.#aimWizard()?.footprints?.hide();
   }
 
   hideRange() {
@@ -95,21 +104,22 @@ export class SpellSystem {
     this.rangeRing.hide();
     this.aim.hide();
     this.aim.setSpell(null);
-    if (this.wizard?.hasTarget) {
-      this.wizard.footprints?.show(this.wizard.targetDir, this.wizard.dir);
+    const w = this.#aimWizard();
+    if (w?.hasTarget) {
+      w.footprints?.show(w.targetDir, w.dir);
     }
   }
 
   /** Lokální hráč má aktivní spirálu — terč se neukazuje. */
   #localSpiralActive() {
-    const w = this.wizard;
-    if (!w || w.remote) return false;
+    const w = this.#aimWizard();
+    if (!w) return false;
     return this.spirals.some((s) => s.ownerId === w.id);
   }
 
   /** Posune terč pod kurzor (local hit point). */
   updateAim(localPoint, camera = null) {
-    if (!this.activeSpellId || this.wizard?.isBusy || this.#localSpiralActive()) {
+    if (!this.activeSpellId || this.#aimWizard()?.isBusy || this.#localSpiralActive()) {
       this.aim.hide();
       return;
     }
@@ -275,16 +285,18 @@ export class SpellSystem {
 
   /** Výška nad referenční rovinou (m) — bonus k dosahu kouzel. */
   elevationRangeBonus() {
-    if (!this.wizard) return 0;
-    const h = this.terrain.height(this.wizard.dir);
+    const w = this.#aimWizard();
+    if (!w) return 0;
+    const h = this.terrain.height(w.dir);
     const elev = Math.max(0, h - CONFIG.planetR);
     return elev * CONFIG.spellRangePerHeightM;
   }
 
   /** Sklon mezi kouzelníkem a cílem — kladný = do kopce. */
   #slopeGradeToTarget(targetDir) {
-    if (!this.wizard) return 0;
-    const from = this.wizard.dir;
+    const w = this.#aimWizard();
+    if (!w) return 0;
+    const from = w.dir;
     const to = this._tmp.copy(targetDir).normalize();
     const h0 = this.terrain.height(from);
     const h1 = this.terrain.height(to);
@@ -319,9 +331,10 @@ export class SpellSystem {
   /** Bod na hranici dosahu v azimutu — přímo z inRange (stejně jako terč). */
   rangeAtBearing(spellId, east, north, angle) {
     const def = SPELLS[spellId];
-    if (!def || !this.wizard) return def?.range ?? 0;
+    const w = this.#aimWizard();
+    if (!def || !w) return def?.range ?? 0;
 
-    const from = this.wizard.dir;
+    const from = w.dir;
     const maxM =
       (def.range + this.elevationRangeBonus()) *
       CONFIG.wizardDownhillBoost *
@@ -354,9 +367,10 @@ export class SpellSystem {
 
   inRange(spellId, targetDir) {
     const def = SPELLS[spellId];
-    if (!def) return false;
+    const w = this.#aimWizard();
+    if (!def || !w) return false;
     const cosMax = Math.cos(this.effectiveRange(spellId, targetDir) / CONFIG.planetR);
-    return this.wizard.dir.dot(this._tmp2.copy(targetDir).normalize()) >= cosMax;
+    return w.dir.dot(this._tmp2.copy(targetDir).normalize()) >= cosMax;
   }
 
   prepareTornadoEffects(dt) {
@@ -369,14 +383,15 @@ export class SpellSystem {
       if (w) w._lavaMoveMul = 1;
     }
 
-    if (this.wizard) {
+    const aimW = this.#aimWizard();
+    if (aimW) {
       if (this.activeSpellId) {
         const spellId = this.activeSpellId;
         this.rangeRing.setBoundaryFn((a, _c, e, n) =>
           this.rangeAtBearing(spellId, e, n, a)
         );
       }
-      this.rangeRing.update(this.wizard.dir, (from, e, n, a, d, out) =>
+      this.rangeRing.update(aimW.dir, (from, e, n, a, d, out) =>
         this.dirAtBearing(from, e, n, a, d, out)
       );
     }
