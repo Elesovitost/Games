@@ -534,6 +534,7 @@ export class Wizard {
     const latest = buf[buf.length - 1];
     if (typeof latest.hp === "number" && !this.dead) this.hp = latest.hp;
     applyKnockFromSnapshot(this, latest.knock, latest.hp);
+    if (!latest.knock && this.knockdown) this.forceEndKnockdown();
     if (this.hp <= 0 && !this.dead) this.#die();
 
     let hasPos = false;
@@ -780,6 +781,7 @@ export class Wizard {
     } else {
       this.#computeKnockRollDir(fromDir, rollDir);
     }
+    if (opts.reverseRoll) rollDir.negate();
     this.facing.copy(rollDir);
 
     const rotCount =
@@ -817,11 +819,23 @@ export class Wizard {
       minRot,
       rotations: rotCount,
       away: !!opts.awayFrom,
+      reverse: !!opts.reverseRoll,
       riseDur: CONFIG.wizardKnockRiseDur,
       lieDur: CONFIG.wizardKnockLieDur
     };
 
     if (!this.remote && this.onKnockdown) this.onKnockdown(this.knockdown);
+  }
+
+  /** Okamžitě vstát (konec zemětřasu). */
+  forceEndKnockdown() {
+    if (!this.knockdown) return;
+    this.knockdown = null;
+    const parts = this.mesh?.userData?.parts;
+    if (parts?.body) {
+      parts.body.rotation.set(0, 0, 0);
+      parts.body.position.set(0, 0, 0);
+    }
   }
 
   #updateKnockdown(dt) {

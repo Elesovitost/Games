@@ -24,7 +24,8 @@ export function createGameIntentHandlers(game) {
         hp: intent.hp,
         rotations: intent.rotations ?? undefined,
         rollDistance: intent.rollDistance ?? undefined,
-        awayFrom: intent.away ? intent.from : undefined
+        awayFrom: intent.away ? intent.from : undefined,
+        reverseRoll: !!intent.reverseRoll
       });
     },
 

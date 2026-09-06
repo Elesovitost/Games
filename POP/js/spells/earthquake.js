@@ -258,36 +258,50 @@ function applyQuakeDrive(q, terrain) {
   if (q.wall) writeWalls(q.wall, terrain, front);
 }
 
-function triggerQuakeFall(w, centerDir) {
+function triggerQuakeFall(w, centerDir, opts = {}) {
   const def = SPELLS.earthquake;
-  const dmg = def.fallDamage;
-  w.takeDamage(dmg, { fromDir: centerDir, knock: false });
-  if (!w.dead && !w.godMode && !w.immortal) {
-    w.applyKnockdown(dmg, centerDir, {
-      awayFrom: centerDir,
-      rotations: def.fallRotations ?? 1,
-      rollDistance: def.fallDistance ?? 3
-    });
-  }
+  if (w.dead || w.godMode || w.immortal) return;
+  w.applyKnockdown(def.dps, centerDir, {
+    awayFrom: centerDir,
+    rotations: def.fallRotations ?? 1,
+    rollDistance: def.fallDistance ?? 3,
+    reverseRoll: !!opts.reverseRoll
+  });
 }
 
 function victimKey(w) {
   return String(w.id ?? "local");
 }
 
-function updateVictims(sys, quake) {
+function wizardByKey(sys, key) {
+  const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
+  for (const w of list) {
+    if (w && victimKey(w) === key) return w;
+  }
+  return null;
+}
+
+function releaseQuakeHold(sys, quake) {
+  for (const key of quake.victims.keys()) {
+    const w = wizardByKey(sys, key);
+    w?.forceEndKnockdown?.();
+  }
+  quake.victims.clear();
+  sys.critters?.endQuakeStuns?.();
+  sys.longnecks?.endQuakeStuns?.();
+}
+
+function updateVictims(sys, quake, dt) {
   const def = SPELLS.earthquake;
   const radius = quake.front ?? def.effectRadius;
-  const dmg = def.fallDamage;
+  const dmg = def.dps;
   const hits = quake.animalHits;
-  sys.critters?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "c" });
-  sys.longnecks?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "l" });
+  sys.critters?.stunNear?.(quake.centerDir, radius);
+  sys.longnecks?.stunNear?.(quake.centerDir, radius);
   sys.worms?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "w" });
   hurtWatchersNear(sys, quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "watcher" });
   hurtMagicTreesNear(sys, quake.centerDir, radius, dmg, dmg);
-  sys.longnecks?.dodgeNear(quake.centerDir, radius);
   const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
-  const now = quake.elapsed;
   const active = new Set();
 
   for (const w of list) {
@@ -304,8 +318,14 @@ function updateVictims(sys, quake) {
     active.add(victimKey(w));
     let st = quake.victims.get(victimKey(w));
     if (!st) {
-      st = { wasDown: false, graceUntil: -1 };
+      st = { wasDown: false, rollSign: 1 };
       quake.victims.set(victimKey(w), st);
+    }
+
+    w.takeDamage(def.dps * dt, { fromDir: quake.centerDir, knock: false });
+    if (w.dead) {
+      quake.victims.delete(victimKey(w));
+      continue;
     }
 
     if (w.knockdown || w.tornado) {
@@ -315,13 +335,14 @@ function updateVictims(sys, quake) {
 
     if (st.wasDown) {
       st.wasDown = false;
-      st.graceUntil = now + def.walkGrace;
+      triggerQuakeFall(w, quake.centerDir, { reverseRoll: st.rollSign < 0 });
+      st.rollSign *= -1;
+      st.wasDown = true;
       continue;
     }
 
-    if (now < st.graceUntil) continue;
-
-    triggerQuakeFall(w, quake.centerDir);
+    triggerQuakeFall(w, quake.centerDir, { reverseRoll: st.rollSign < 0 });
+    st.rollSign *= -1;
     st.wasDown = true;
   }
 
@@ -399,13 +420,13 @@ export function updateEarthquakes(sys, dt) {
     }
 
     applyQuakeDrive(q, sys.terrain);
-    if (q.life > 0) updateVictims(sys, q);
+    if (q.life > 0) updateVictims(sys, q, dt);
 
     if (q.life <= 0) {
       q.shaking = false;
       sys.audio?.stopSfxLoop(q.sfx);
       q.sfx = null;
-      q.victims.clear();
+      releaseQuakeHold(sys, q);
       if (q.morph) q.morph.released = true;
     }
   }
@@ -422,7 +443,7 @@ function disposeOneEarthquake(sys, q) {
       q.wall.material.dispose();
     }
   }
-  q.victims?.clear();
+  releaseQuakeHold(sys, q);
 }
 
 export function disposeEarthquakes(sys) {

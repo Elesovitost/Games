@@ -13,7 +13,8 @@ const FLAGS = {
   TORNADO: 8,
   MOVING: 16,
   ARRIVED_TREE: 32,
-  CHARRED: 64
+  CHARRED: 64,
+  QUAKE: 128
 };
 
 const LAND_STATES = [
@@ -60,6 +61,7 @@ function vecFromArr(out, arr) {
 
 function landMoving(c) {
   if (c.dead || c.gone || c.vanished) return false;
+  if (c.quakeStun) return false;
   if (c.tornado) return true;
   if (c.netMoving) return true;
   const s = c.state;
@@ -75,6 +77,7 @@ function landFlags(c) {
   if (c.charred) k |= FLAGS.CHARRED;
   if (c.gone || c.vanished) k |= FLAGS.GONE;
   if (c.tornado) k |= FLAGS.TORNADO;
+  if (c.quakeStun) k |= FLAGS.QUAKE;
   if (landMoving(c)) k |= FLAGS.MOVING;
   if (c.arrivedTree) k |= FLAGS.ARRIVED_TREE;
   return k;
@@ -204,6 +207,7 @@ function applyFlags(entity, k) {
   entity.arrivedTree = !!(k & FLAGS.ARRIVED_TREE);
   entity.netMoving = !!(k & FLAGS.MOVING);
   entity.netTornado = !!(k & FLAGS.TORNADO);
+  entity.netQuake = !!(k & FLAGS.QUAKE);
 }
 
 function lerpScalar(a, b, t) {

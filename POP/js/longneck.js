@@ -229,6 +229,8 @@ class Longneck {
     this._burnMats = [];
     this.lieLift = this.mesh.userData.lieLift ?? 0.32;
     this.tornado = null;
+    this.quakeStun = null;
+    this.netQuake = false;
     this.diesOnTornadoLand = true;
     this.netRadius = 0;
     this._tornadoMoveMul = 1;
@@ -365,6 +367,45 @@ class Longneck {
     this.tornado = null;
   }
 
+  beginQuakeStun(opts = {}) {
+    if (this.dead || this.gone || this.quakeStun) return false;
+    if (this.remote && !opts.fromNet) return false;
+    if (this.tornado) return false;
+    this.dodgeT = 0;
+    this.dodgeCrouchT = 0;
+    this.dodgeHop = 0;
+    this.quakeStun = { t: 0, sideZ: 0 };
+    this.netMoving = false;
+    return true;
+  }
+
+  endQuakeStun() {
+    if (!this.quakeStun) return;
+    this.quakeStun = null;
+    this.parts.body.rotation.set(0, 0, 0);
+    this.parts.body.position.set(0, 0, 0);
+  }
+
+  #updateQuakeStun(dt) {
+    const qs = this.quakeStun;
+    if (!qs) return;
+    qs.t += dt;
+    const sideU = Math.min(1, qs.t / 0.28);
+    const sideE = sideU * sideU * (3 - 2 * sideU);
+    qs.sideZ = sideE * Math.PI * 0.5;
+    this.parts.body.rotation.set(0, 0, -qs.sideZ);
+    this.parts.body.position.set(0, this.lieLift * sideE, 0);
+    this.walkPhase += dt * 8.5;
+    for (const leg of this.parts.hips) {
+      const swing = Math.sin(this.walkPhase + (leg.side > 0 ? 0 : Math.PI)) * 0.9;
+      leg.hip.rotation.x = swing;
+      leg.shin.rotation.x = Math.max(0.1, -swing) * 0.7 + 0.15;
+    }
+    this.parts.neck1.rotation.x = THREE.MathUtils.lerp(this.parts.neck1.rotation.x, 0.06, 0.12);
+    this.parts.neck2.rotation.x = THREE.MathUtils.lerp(this.parts.neck2.rotation.x, 0.04, 0.12);
+    this.parts.neck3.rotation.x = THREE.MathUtils.lerp(this.parts.neck3.rotation.x, 0.03, 0.12);
+  }
+
   pullOnSurface(towardDir, stepM) {
     if (this.remote || this.tornado || this.dead || this.gone) return false;
     const target = towardDir.clone().normalize();
@@ -399,6 +440,7 @@ class Longneck {
     if (this.remote && !opts.fromNet) return false;
     if (this.dead) return false;
     if (this.tornado) this.endTornadoCapture();
+    if (this.quakeStun) this.endQuakeStun();
     this.dead = true;
     this.state = "dead";
     this.charm = null;
@@ -489,7 +531,7 @@ class Longneck {
   }
 
   dodgeFrom(hazardDir) {
-    if (this.remote || this.dead || this.gone || this.charm || this.treeSlot || this.dodgeT > 0 || this.dodgeCrouchT > 0 || this.dodgeCool > 0) return false;
+    if (this.remote || this.dead || this.gone || this.charm || this.treeSlot || this.quakeStun || this.dodgeT > 0 || this.dodgeCrouchT > 0 || this.dodgeCool > 0) return false;
     tangentFrame(this.dir, this._east, this._north);
     this._move.copy(hazardDir).addScaledVector(this.dir, -hazardDir.dot(this.dir));
     if (this._move.lengthSq() < 1e-8) tangentFrame(this.dir, this._east, this._move);
@@ -570,6 +612,19 @@ class Longneck {
       this.#updateBurn(dt);
       return;
     }
+    if (this.netQuake) {
+      if (!this.quakeStun) this.beginQuakeStun({ fromNet: true });
+    } else if (this.quakeStun) {
+      this.endQuakeStun();
+    }
+    if (this.quakeStun) {
+      this.netMoving = false;
+      this.#updateQuakeStun(dt);
+      this.#snap();
+      this.#applyPose();
+      this.#updateBurn(dt);
+      return;
+    }
     const gait = this.state === "swim" ? 0.45 : speed > 0.05 ? 1 : 0.12;
     for (const leg of this.parts.hips) {
       const swing = Math.sin(this.walkPhase + (leg.side > 0 ? 0 : Math.PI)) * 0.48 * gait;
@@ -618,6 +673,15 @@ class Longneck {
     if (this.tornado) {
       this.netMoving = true;
       this.#applyTornadoPose();
+      this.#applyPose();
+      return;
+    }
+
+    if (this.quakeStun) {
+      this.netMoving = false;
+      this.#updateQuakeStun(dt);
+      this.#snap();
+      this.#updateBurn(dt);
       this.#applyPose();
       return;
     }
@@ -957,6 +1021,20 @@ export class LongneckHerd {
       if (c.dodgeFrom(centerDir)) any = true;
     }
     return any;
+  }
+
+  /** Zemětřas — pád na bok bez damage. */
+  stunNear(centerDir, radiusM) {
+    if (this.remote || !centerDir || radiusM <= 0) return;
+    for (const c of this.list) {
+      if (c.dead || c.gone) continue;
+      if (surfaceDist(c.dir, centerDir) > radiusM) continue;
+      c.beginQuakeStun();
+    }
+  }
+
+  endQuakeStuns() {
+    for (const c of this.list) c.endQuakeStun();
   }
 
   /** Zásah v rádiusu — damage podle vzdálenosti, přeživší uskočí. */

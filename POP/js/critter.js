@@ -219,6 +219,8 @@ class Critter {
     this._knockAxis = new THREE.Vector3();
     this.lieLift = this.mesh.userData.lieLift ?? 0.28;
     this.tornado = null;
+    this.quakeStun = null;
+    this.netQuake = false;
     this.netRadius = 0;
     this.demonHold = false;
     this.diesOnTornadoLand = true;
@@ -365,6 +367,7 @@ class Critter {
     if (this.remote && !opts.fromNet) return false;
     if (this.dead) return false;
     if (this.tornado) this.endTornadoCapture();
+    if (this.quakeStun) this.endQuakeStun();
     this.dead = true;
     this.state = "dead";
     this.charm = null;
@@ -535,6 +538,45 @@ class Critter {
     this.tornado = null;
   }
 
+  beginQuakeStun(opts = {}) {
+    if (this.dead || this.quakeStun) return false;
+    if (this.remote && !opts.fromNet) return false;
+    if (this.tornado) return false;
+    this.quakeStun = { t: 0, sideZ: 0, backX: 0 };
+    this.netMoving = false;
+    return true;
+  }
+
+  endQuakeStun() {
+    if (!this.quakeStun) return;
+    this.quakeStun = null;
+    this.parts.body.rotation.set(0, 0, 0);
+    this.parts.body.position.set(0, 0, 0);
+  }
+
+  #updateQuakeStun(dt) {
+    const qs = this.quakeStun;
+    if (!qs) return;
+    qs.t += dt;
+    const sideU = Math.min(1, qs.t / 0.22);
+    const sideE = sideU * sideU * (3 - 2 * sideU);
+    qs.sideZ = sideE * Math.PI * 0.5;
+    const backU = Math.min(1, Math.max(0, (qs.t - 0.28) / 0.38));
+    const backE = backU * backU * (3 - 2 * backU);
+    qs.backX = backE * Math.PI;
+    const lift = this.lieLift * (0.45 * sideE + 0.55 * backE);
+    this.parts.body.rotation.set(qs.backX, 0, -qs.sideZ);
+    this.parts.body.position.set(0, lift, 0);
+    this.walkPhase += dt * 9.5;
+    for (const leg of this.parts.legs) {
+      const off = leg.k * 2.1 + (leg.side > 0 ? 0 : Math.PI);
+      const swing = Math.sin(this.walkPhase + off) * 0.95;
+      leg.hip.rotation.x = swing;
+      leg.shin.rotation.x = Math.max(0.1, -swing) * 0.85 + 0.2;
+    }
+    this.parts.neck.rotation.x = THREE.MathUtils.lerp(this.parts.neck.rotation.x, 0.05, 0.15);
+  }
+
   pullOnSurface(towardDir, stepM) {
     if (this.remote || this.tornado || this.dead) return false;
     const target = towardDir.clone().normalize();
@@ -654,6 +696,19 @@ class Critter {
       this.#updateBurn(dt);
       return;
     }
+    if (this.netQuake) {
+      if (!this.quakeStun) this.beginQuakeStun({ fromNet: true });
+    } else if (this.quakeStun) {
+      this.endQuakeStun();
+    }
+    if (this.quakeStun) {
+      this.netMoving = false;
+      this.#updateQuakeStun(dt);
+      this.#snap();
+      this.#applyPose();
+      this.#updateBurn(dt);
+      return;
+    }
     this.#presentRemote(dt, speed);
   }
 
@@ -688,6 +743,15 @@ class Critter {
     if (this.tornado) {
       this.netMoving = true;
       this.#applyTornadoPose();
+      this.#applyPose();
+      return;
+    }
+
+    if (this.quakeStun) {
+      this.netMoving = false;
+      this.#updateQuakeStun(dt);
+      this.#snap();
+      this.#updateBurn(dt);
       this.#applyPose();
       return;
     }
@@ -998,6 +1062,20 @@ export class CritterHerd {
       if (c.takeDamage(damage, { fromDir: centerDir, ignite, ...rest })) hit = true;
     }
     return hit;
+  }
+
+  /** Zemětřas — pád na bok/záda bez damage. */
+  stunNear(centerDir, radiusM) {
+    if (this.remote || !centerDir || radiusM <= 0) return;
+    for (const c of this.list) {
+      if (c.dead) continue;
+      if (surfaceDist(c.dir, centerDir) > radiusM) continue;
+      c.beginQuakeStun();
+    }
+  }
+
+  endQuakeStuns() {
+    for (const c of this.list) c.endQuakeStun();
   }
 
   charmNear(centerDir, radiusM, wizard, hold) {

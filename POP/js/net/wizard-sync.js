@@ -153,7 +153,8 @@ export function buildPosePacket(w) {
           from: [w.knockdown.fromDir.x, w.knockdown.fromDir.y, w.knockdown.fromDir.z],
           rotations: w.knockdown.rotations ?? null,
           rollDistance: w.knockdown.rollDist ?? null,
-          away: !!w.knockdown.away
+          away: !!w.knockdown.away,
+          reverseRoll: !!w.knockdown.reverse
         }
       : null,
     fx: serializeFx(w)
@@ -243,6 +244,7 @@ export function applyKnockFromSnapshot(w, knock, hp) {
     hp,
     rotations: knock.rotations ?? undefined,
     rollDistance: knock.rollDistance ?? undefined,
-    awayFrom: knock.away ? knock.from : undefined
+    awayFrom: knock.away ? knock.from : undefined,
+    reverseRoll: !!knock.reverseRoll
   });
 }

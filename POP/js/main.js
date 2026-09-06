@@ -250,7 +250,8 @@ class Game {
         hp: w.hp,
         rotations: kd.rotations ?? null,
         rollDistance: kd.rollDist ?? null,
-        away: !!kd.away
+        away: !!kd.away,
+        reverseRoll: !!kd.reverse
       });
     };
     w.onCastAudioStop = () => this.audio?.stopCastBackground(w.id);

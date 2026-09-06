@@ -227,12 +227,12 @@ export const SPELLS = {
     cooldown: 300,
     effectRadius: 18,
     duration: 5,
-    fallDamage: 10,
-    walkGrace: 0.5,
+    /** Wizard v zóně — HP/s (kutálení sem a tam) */
+    dps: 10,
     /** Jedna otočka, posun od epicentra */
     fallRotations: 1,
     fallDistance: 3,
     color: 0xc4a060,
-    hint: "Klikni v dosahu — 18 m zóny, rovné zlomy, 5 s kývání desek. V zóně padáš (−10 HP) dokud nevyjdeš."
+    hint: "Klikni v dosahu — 18 m zóny, 5 s. V zóně 10 HP/s a kutálení sem a tam, dokud nevyjdeš."
   }
 };
