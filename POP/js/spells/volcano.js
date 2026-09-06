@@ -972,7 +972,7 @@ function applyLavaDamage(sys, field, list, def, dt, hotFactor) {
     const temp = sampleGrid(field.temp, _cell.x, _cell.y);
     if (temp <= 0.12) return 0;
     return Math.max(0.35, temp) * hotFactor;
-  }, def.lavaDps * dt);
+  }, def.treeLavaDps * dt);
   sys.trees?.igniteWhere(onHotLava);
 }
 

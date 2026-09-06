@@ -121,6 +121,8 @@ export const SPELLS = {
     /** Tuhnutí do trvalé spáleniny po konci výlevu (s) */
     lavaFreezeTime: 6,
     lavaDps: 20,
+    /** Magický strom — DPS horké lávy */
+    treeLavaDps: 40,
     hint: "3 s kouzlení, pak sopka — láva teče po spádu ~30 m, 20 HP/s. Zůstane spáleniště."
   },
   comet: {
