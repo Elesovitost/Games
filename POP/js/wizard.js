@@ -406,6 +406,8 @@ export class Wizard {
     this._bodyMats = [];
     this._knockSeq = 0;
     this._lastKnockSeqApplied = 0;
+    /** Remote: seq knockdownu už potvrzený pose (ať starší pose bez knock nezruší kotoul). */
+    this._netKnockSeenInPose = 0;
     /** MP — po knockdownu pošle intent (nastaví main.js). */
     this.onKnockdown = null;
     /** Ukončení cast audia při #endCast (main.js). */
@@ -540,7 +542,16 @@ export class Wizard {
       if (this.hp <= 0) this.#die();
     }
     applyKnockFromSnapshot(this, latest.knock, latest.hp);
-    /** Nesmí forceEnd při pose bez knock — starší pose v letu by zrušila kotoul (zůstane jen posun). */
+    if (latest.knock && this.knockdown?.seq === latest.knock.seq) {
+      this._netKnockSeenInPose = latest.knock.seq;
+    } else if (
+      !latest.knock &&
+      this.knockdown &&
+      this._netKnockSeenInPose === this.knockdown.seq
+    ) {
+      this.forceEndKnockdown();
+      this._netKnockSeenInPose = 0;
+    }
 
     let hasPos = false;
     if (buf.length === 1) {
