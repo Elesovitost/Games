@@ -206,6 +206,7 @@ class Game {
     w.onDeath = () => {
       this.audio?.playAt("wizardDeath", w.dir, listener());
       disposeWatchersForOwner(this.spells, w.id);
+      if (!w.remote) this.session?.flushPose?.();
     };
     w.onSoulDeparted = () => {
       if (w.remote) return;

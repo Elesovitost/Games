@@ -532,10 +532,15 @@ export class Wizard {
     }
 
     const latest = buf[buf.length - 1];
-    if (typeof latest.hp === "number" && !this.dead) this.hp = latest.hp;
+    if (latest.dead && !this.dead) {
+      this.hp = 0;
+      this.#die();
+    } else if (typeof latest.hp === "number" && !this.dead) {
+      this.hp = latest.hp;
+      if (this.hp <= 0) this.#die();
+    }
     applyKnockFromSnapshot(this, latest.knock, latest.hp);
     if (!latest.knock && this.knockdown) this.forceEndKnockdown();
-    if (this.hp <= 0 && !this.dead) this.#die();
 
     let hasPos = false;
     if (buf.length === 1) {

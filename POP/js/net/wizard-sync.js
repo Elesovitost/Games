@@ -145,6 +145,7 @@ export function buildPosePacket(w) {
     facing: [w.facing.x, w.facing.y, w.facing.z],
     moving: !!w.moving,
     hp: w.hp,
+    dead: !!w.dead,
     color: w.color,
     knock: w.knockdown
       ? {
@@ -229,6 +230,7 @@ export function poseSnapshotFromIntent(flags, dirArr, facingArr) {
     facing: facingArr ? facingArr.slice() : dirArr.slice(),
     moving: !!flags.moving,
     hp: flags.hp,
+    dead: !!flags.dead,
     color: flags.color ?? null,
     knock: flags.knock || null,
     fx: flags.fx || null,

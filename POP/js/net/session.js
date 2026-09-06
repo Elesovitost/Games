@@ -87,16 +87,23 @@ export class MultiplayerSession {
     return this.client.send({ type: "intent", intent });
   }
 
-  /** Periodický pose sync pro vzdálené hráče. */
+  /** Periodický pose sync pro vzdálené hráče (i po smrti — ať ostatní uvidí mrtvolu). */
   tickPose(dt) {
     if (!this.isMp || !this.playing) return;
     this._poseAcc += dt;
     if (this._poseAcc < CONFIG.netPoseInterval) return;
     this._poseAcc = 0;
+    this.flushPose();
+  }
+
+  /** Okamžitý pose (smrt / kritický stav). */
+  flushPose() {
+    if (!this.isMp || !this.playing) return false;
     const w = this.game.wizard;
-    if (!w || w.dead) return;
+    if (!w) return false;
     const packet = buildPosePacket(w);
-    if (packet) this.sendIntent(packet);
+    if (!packet) return false;
+    return this.sendIntent(packet);
   }
 
   /** Host posílá stav zvířat a vodního života. */
