@@ -86,6 +86,7 @@ const FX_HANDLERS = {
       };
     },
     apply(w, fx, _alpha) {
+      const prev = w.tornado?.phase;
       if (!w.tornado) {
         w.tornado = {
           phase: fx.phase,
@@ -107,6 +108,11 @@ const FX_HANDLERS = {
         w.tornado.preAmp = fx.preAmp;
         w.tornado.bodyRoll = fx.bodyRoll;
         w.tornado.netRadius = fx.radius || 0;
+      }
+      /** Remote: sim neběží — křik/dopad jen z přechodu fáze v pose FX. */
+      if (w.remote && fx.phase !== prev) {
+        if (fx.phase === "air") w.onScream?.();
+        if (fx.phase === "lie") w.onBodyFall?.();
       }
     },
     clear(w) {
