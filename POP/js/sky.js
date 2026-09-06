@@ -163,14 +163,13 @@ export class Sky {
   update(dt) {
     this.t += dt;
     this.skyMat.uniforms.uTime.value = this.t;
-    const period = Math.max(1, CONFIG.skySpinPeriodSec);
-    this.celestial.rotation.y += (Math.PI * 2 * dt) / period;
+    // Obloha se netočí — disk slunce sedí na pevném DirectionalLight (stíny/osvětlení).
+    // Mraky běží ve shaderu přes uTime.
   }
 
   setSunDirection(sun) {
-    const rest = sun?.userData.restPos;
-    if (!rest) return;
-    _sunLocal.copy(rest).normalize();
+    if (!sun) return;
+    _sunLocal.copy(sun.position).normalize();
     this.skyMat.uniforms.uSunDir.value.copy(_sunLocal);
   }
 }
