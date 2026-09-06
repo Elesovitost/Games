@@ -3,6 +3,7 @@ import { CONFIG } from "../config.js";
 import { tangentFrame, tmp } from "../utils.js";
 import { SPELLS } from "./defs.js";
 import { applyAoeDamage, spawnScorchMark } from "./fx-common.js";
+import { hurtMagicTreesNear } from "./tree.js";
 import { isWaterAt, spawnWaterSplash } from "./water-fx.js";
 
 /** Fractal mid-point path (ostré zlomy jako reálný blesk). */
@@ -231,6 +232,13 @@ export function strikeLightning(sys, targetDir) {
       sys.trees?.igniteNear(dir, SPELLS.lightning.burnRadius + 0.7);
     }
     applyAoeDamage(
+      sys,
+      dir,
+      SPELLS.lightning.damageRadius,
+      SPELLS.lightning.damageCenter,
+      SPELLS.lightning.damageEdge
+    );
+    hurtMagicTreesNear(
       sys,
       dir,
       SPELLS.lightning.damageRadius,

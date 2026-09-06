@@ -2,6 +2,7 @@ import * as THREE from "../three.js";
 import { CONFIG } from "../config.js";
 import { SPELLS } from "./defs.js";
 import { spawnBurst } from "./fx-common.js";
+import { hurtMagicTreesAt } from "./tree.js";
 import { tangentFrame, surfaceOffsetDir } from "../utils.js";
 
 /**
@@ -965,6 +966,13 @@ function applyLavaDamage(sys, field, list, def, dt, hotFactor) {
     if (!onHotLava(w.dir)) continue;
     w.takeDamage?.(def.lavaDps * dt, { fromDir: field.center });
   }
+  hurtMagicTreesAt(sys, (dir) => {
+    if (!gridCoordAt(field, dir, _cell)) return 0;
+    if (sampleGrid(field.vis, _cell.x, _cell.y) < 0.05) return 0;
+    const temp = sampleGrid(field.temp, _cell.x, _cell.y);
+    if (temp <= 0.12) return 0;
+    return Math.max(0.35, temp) * hotFactor;
+  }, def.lavaDps * dt);
   sys.trees?.igniteWhere(onHotLava);
 }
 

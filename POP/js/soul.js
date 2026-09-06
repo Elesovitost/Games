@@ -54,6 +54,27 @@ export function updateSoul(soul, planetGroup, dir, dt) {
   return soul;
 }
 
+/** Reverzní odchodu — duše sestupuje shora, opacity roste. */
+export function spawnSoulDescend(planetGroup, mesh, dir) {
+  const soul = spawnSoul(planetGroup, mesh);
+  if (!soul || !dir) return null;
+  const surfaceR = mesh.position.length();
+  soul.mesh.position.copy(dir).normalize().multiplyScalar(surfaceR + RISE * LIFE);
+  soul.mesh.quaternion.copy(mesh.quaternion);
+  for (const m of soul.mats) m.opacity = 0;
+  return soul;
+}
+
+export function updateSoulDescend(soul, planetGroup, dir, dt) {
+  if (!soul) return null;
+  soul.t += dt;
+  if (dir) soul.mesh.position.addScaledVector(dir, -RISE * dt);
+  const fade = Math.min(1, soul.t / LIFE);
+  for (const m of soul.mats) m.opacity = OPACITY * fade;
+  if (soul.t >= LIFE) return disposeSoul(soul, planetGroup);
+  return soul;
+}
+
 export function disposeSoul(soul, planetGroup) {
   if (!soul) return null;
   planetGroup?.remove(soul.mesh);

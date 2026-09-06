@@ -5,9 +5,12 @@ import { makeTreeBlockR } from "./blockers.js";
 import {
   TREE_GROW_FLOOR,
   TREE_MAX_HEIGHT,
+  TREE_MAX_HP,
+  TREE_BASE_HP,
   TREE_SPROUT_G_PER_S,
-  TREE_WORSHIP_G_PER_S,
-  TREE_WILT_G_PER_S,
+  TREE_WORSHIP_HP_PER_S,
+  TREE_WILT_HP_PER_S,
+  growthFromHp,
   treeSizeAt,
   treeThickAt,
   growthFront,
@@ -335,6 +338,8 @@ export class MagicTree {
     this.growth = 0;
     this.grown = false;
     this.disposed = false;
+    this.maxHp = TREE_MAX_HP;
+    this.hp = TREE_BASE_HP;
 
     const rng = mulberry32(opts.seed ?? hashDir(this.dir) ^ 0x51ed);
     const skel = buildSkeleton(rng);
@@ -480,6 +485,17 @@ export class MagicTree {
     this.group.quaternion.copy(_quat);
   }
 
+  takeDamage(amount) {
+    if (this.disposed || amount <= 0) return false;
+    this.hp = Math.max(0, this.hp - amount);
+    if (this.hp <= 0) {
+      this.dispose();
+      return true;
+    }
+    if (this.growth >= TREE_GROW_FLOOR) this.setGrowth(growthFromHp(this.hp));
+    return true;
+  }
+
   update(dt, worshippers = 0) {
     if (this.disposed) return;
     this.glowT += dt;
@@ -487,13 +503,17 @@ export class MagicTree {
     let g = this.growth;
     if (g < TREE_GROW_FLOOR) {
       g = Math.min(TREE_GROW_FLOOR, g + dt * TREE_SPROUT_G_PER_S);
+      this.hp = TREE_BASE_HP;
+      this.setGrowth(g);
     } else {
       const n = Math.max(0, worshippers | 0);
-      if (n > 0) g += n * TREE_WORSHIP_G_PER_S * dt;
-      else g -= TREE_WILT_G_PER_S * dt;
-      g = Math.min(1, Math.max(TREE_GROW_FLOOR, g));
+      if (n > 0) {
+        this.hp = Math.min(TREE_MAX_HP, this.hp + n * TREE_WORSHIP_HP_PER_S * dt);
+      } else {
+        this.hp = Math.max(TREE_BASE_HP, this.hp - TREE_WILT_HP_PER_S * dt);
+      }
+      this.setGrowth(growthFromHp(this.hp));
     }
-    this.setGrowth(g);
     this.pose();
   }
 

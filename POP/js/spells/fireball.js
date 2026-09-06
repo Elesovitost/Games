@@ -3,6 +3,7 @@ import { CONFIG } from "../config.js";
 import { SPELLS } from "./defs.js";
 import { tangentFrame, tmp } from "../utils.js";
 import { applyAoeDamage, spawnBurst, spawnScorchMark } from "./fx-common.js";
+import { hurtMagicTreesNear } from "./tree.js";
 import { isWaterAt, spawnWaterSplash } from "./water-fx.js";
 
 const SMOKE_COLORS = [0x3a3835, 0x4a4844, 0x555048, 0x2e2c28];
@@ -199,6 +200,7 @@ function explodeFireball(sys, pos, dir, casterId = null) {
       def.damageCenter,
       def.damageEdge
     );
+    hurtMagicTreesNear(sys, dir, def.damageRadius, def.damageCenter, def.damageEdge);
   });
 }
 

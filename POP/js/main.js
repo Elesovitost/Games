@@ -15,6 +15,7 @@ import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
 import { burstImmortalShell } from "./spells/immortality.js";
 import { canSpawnWatcher, disposeWatchersForOwner } from "./spells/watcher.js";
+import { hasStandingTreeForOwner } from "./spells/tree.js";
 import { pumpFireQueue } from "./burn.js";
 import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./visibility.js";
 import { tmp } from "./utils.js";
@@ -45,6 +46,7 @@ class Game {
     this._spawnCamIdx = 0;
     this.wizards = new Map();
     this.inputEnabled = true;
+    this.gameOver = false;
     this._orbitDrag = false;
     this._orbitPointerId = null;
     this._lastOrbitX = 0;
@@ -163,6 +165,7 @@ class Game {
     this.#bindVisibility();
     this.#bindSpells();
     this.#bindGameBar();
+    this.#bindGameOver();
     this.#bindWatcherAlarm();
     this.#updateColorSwatch();
     window.addEventListener("resize", () => this.#applyRendererSize());
@@ -203,6 +206,20 @@ class Game {
       this.audio?.playAt("wizardDeath", w.dir, listener());
       disposeWatchersForOwner(this.spells, w.id);
     };
+    w.onSoulDeparted = () => {
+      if (w.remote) return;
+      if (hasStandingTreeForOwner(this.spells, w.id)) {
+        this.inputEnabled = false;
+        w.beginRespawnSequence();
+        this.centerCameraOnDir(w.spawnDir);
+      } else if (!this.gameOver) {
+        this.#triggerGameOver();
+      }
+    };
+    w.onRespawn = () => {
+      if (w.remote) return;
+      this.inputEnabled = true;
+    };
     w.onScream = () => this.audio?.playRandomScream(w.dir, listener());
     w.onImmortalPop = (wiz) => burstImmortalShell(this.spells, wiz);
   }
@@ -240,6 +257,8 @@ class Game {
 
   enterSolo() {
     this.inputEnabled = true;
+    this.gameOver = false;
+    this.#hideGameOver();
     this.#stopCamRecenter();
     this.planetGroup.rotation.set(0, 0, 0);
     this.#clearWizards();
@@ -270,6 +289,8 @@ class Game {
 
   beginMatch({ players, localId }) {
     this.inputEnabled = true;
+    this.gameOver = false;
+    this.#hideGameOver();
     this.#stopCamRecenter();
     this.planetGroup.rotation.set(0, 0, 0);
     this.#resetWorld();
@@ -563,6 +584,24 @@ class Game {
     this.session?.sendColor?.(hex);
   }
 
+  #bindGameOver() {
+    document.getElementById("game-over-restart")?.addEventListener("click", () => {
+      this.#hideGameOver();
+      this.enterSolo();
+    });
+  }
+
+  #triggerGameOver() {
+    this.gameOver = true;
+    this.inputEnabled = false;
+    document.getElementById("game-over")?.classList.remove("hidden");
+  }
+
+  #hideGameOver() {
+    this.gameOver = false;
+    document.getElementById("game-over")?.classList.add("hidden");
+  }
+
   #bindGameBar() {
     const btn1p = document.getElementById("btn-1p");
     const btnMp = document.getElementById("btn-mp");
@@ -669,7 +708,7 @@ class Game {
   }
 
   #isUiTarget(target) {
-    return !!target?.closest?.("#spell-bar, #game-bar, #mp-panel, #health");
+    return !!target?.closest?.("#spell-bar, #game-bar, #mp-panel, #health, #game-over");
   }
 
   #setCameraFocus(focusArr, resetZoom = false) {

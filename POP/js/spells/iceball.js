@@ -5,6 +5,7 @@ import { SPELLS } from "./defs.js";
 import { disposeProjectile, spawnBurst, surfaceDist } from "./fx-common.js";
 import { isWaterAt, spawnWaterSplash } from "./water-fx.js";
 import { hurtWatchersNear } from "./watcher.js";
+import { hurtMagicTreesNear } from "./tree.js";
 
 const _yUp = new THREE.Vector3(0, 1, 0);
 const _quat = new THREE.Quaternion();
@@ -136,6 +137,7 @@ export function updateIceball(sys, p, dt) {
       sys.longnecks?.hurtNear(p.dir, touchR, SPELLS.iceball.contactDamage, SPELLS.iceball.contactDamage) ||
       sys.worms?.hurtNear(p.dir, touchR, SPELLS.iceball.contactDamage, SPELLS.iceball.contactDamage) ||
       hurtWatchersNear(sys, p.dir, touchR, SPELLS.iceball.contactDamage, SPELLS.iceball.contactDamage) ||
+      hurtMagicTreesNear(sys, p.dir, touchR, SPELLS.iceball.contactDamage, SPELLS.iceball.contactDamage) ||
       sys.trees?.hasNear(p.dir, touchR)
     ) {
       shatterIceball(sys, p.ball.position.clone(), p.dir.clone(), p);

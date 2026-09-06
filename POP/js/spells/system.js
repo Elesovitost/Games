@@ -14,7 +14,7 @@ import { spawnComet as doSpawnComet, updateComets, disposeComets } from "./comet
 import { updateWaterFx } from "./water-fx.js";
 import { applyInvisibility } from "./invisibility.js";
 import { applyImmortality } from "./immortality.js";
-import { beginTreeSeed, releaseTreeSeed, updateTreeSeed, disposeTreeSeed, updateMagicTrees, disposeMagicTrees } from "./tree.js";
+import { beginTreeSeed, releaseTreeSeed, updateTreeSeed, disposeTreeSeed, updateMagicTrees, disposeMagicTrees, canPlantMagicTreeForOwner } from "./tree.js";
 import { spawnHypnosis, updateHypnoses, disposeHypnoses } from "./hypnosis.js";
 import { spawnWatcher, updateWatchers, disposeWatchers, canSpawnWatcher } from "./watcher.js";
 import { spawnDemon, updateDemons, disposeDemons } from "./demon.js";
@@ -481,6 +481,12 @@ export class SpellSystem {
     };
 
     if (spellId === "watcher" && !canSpawnWatcher(this, wizard.id)) {
+      this.clearSpiral(spiral);
+      restore();
+      return;
+    }
+
+    if (spellId === "tree" && !canPlantMagicTreeForOwner(this, wizard.id)) {
       this.clearSpiral(spiral);
       restore();
       return;

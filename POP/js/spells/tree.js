@@ -3,11 +3,98 @@ import { CONFIG } from "../config.js";
 import { slerpDirection } from "../utils.js";
 import { surfaceDist } from "./fx-common.js";
 import { MagicTree } from "../magic-tree.js";
-import { countTreeWorshippers } from "../animalsAI.js";
+import { aoeFalloff, countTreeWorshippers } from "../animalsAI.js";
+import { TREE_GROW_FLOOR } from "../tree-grow.js";
 
 const _world = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _aim = new THREE.Vector3();
+
+export function countMagicTreesForOwner(sys, ownerId) {
+  const list = sys.magicTrees;
+  if (!list?.length || ownerId == null) return 0;
+  const oid = String(ownerId);
+  let n = 0;
+  for (const t of list) {
+    if (!t || t.disposed) continue;
+    if (String(t.ownerId) === oid) n++;
+  }
+  return n;
+}
+
+export function hasTreeSeedForOwner(sys, ownerId) {
+  if (ownerId == null) return false;
+  const oid = String(ownerId);
+  for (const p of sys.projectiles || []) {
+    if (p?.kind === "treeseed" && String(p.casterId) === oid) return true;
+  }
+  return false;
+}
+
+export function canPlantMagicTreeForOwner(sys, ownerId) {
+  return countMagicTreesForOwner(sys, ownerId) === 0 && !hasTreeSeedForOwner(sys, ownerId);
+}
+
+export function getMagicTreeForOwner(sys, ownerId) {
+  const list = sys.magicTrees;
+  if (!list?.length || ownerId == null) return null;
+  const oid = String(ownerId);
+  for (let i = list.length - 1; i >= 0; i--) {
+    const t = list[i];
+    if (!t || t.disposed) continue;
+    if (String(t.ownerId) === oid) return t;
+  }
+  return null;
+}
+
+export function hasStandingTreeForOwner(sys, ownerId) {
+  const t = getMagicTreeForOwner(sys, ownerId);
+  return !!t && !t.disposed && t.growth >= TREE_GROW_FLOOR;
+}
+
+export function hurtMagicTreesNear(sys, centerDir, radiusM, dmgCenter, dmgEdge) {
+  const list = sys.magicTrees;
+  if (!list?.length || !centerDir || !(radiusM > 0)) return false;
+  let hit = false;
+  for (const t of list) {
+    if (!t || t.disposed) continue;
+    const dist = surfaceDist(centerDir, t.dir);
+    if (dist >= radiusM) continue;
+    const dmg = aoeFalloff(dist, radiusM, dmgCenter, dmgEdge);
+    if (dmg <= 0) continue;
+    if (t.takeDamage(dmg)) hit = true;
+  }
+  return hit;
+}
+
+/** DPS s proměnným faktorem podle pozice (láva). */
+export function hurtMagicTreesAt(sys, factorFn, amount) {
+  if (!(amount > 0) || !factorFn) return;
+  for (const t of sys.magicTrees || []) {
+    if (!t || t.disposed) continue;
+    const mul = factorFn(t.dir);
+    if (mul <= 0) continue;
+    t.takeDamage(amount * mul);
+  }
+}
+
+export function syncMagicTreeHealthUi(sys) {
+  const w = sys.wizard;
+  if (!w || w.remote) return;
+  const panel = document.getElementById("tree-health");
+  const fill = document.getElementById("tree-health-fill");
+  if (!panel || !fill) return;
+  const tree = getMagicTreeForOwner(sys, w.id);
+  if (!tree) {
+    panel.classList.add("hidden");
+    return;
+  }
+  panel.classList.remove("hidden");
+  const pct = (tree.hp / tree.maxHp) * 100;
+  fill.style.width = `${pct}%`;
+  fill.classList.toggle("low", pct <= 30);
+  fill.classList.toggle("mid", pct > 30 && pct <= 60);
+}
 
 function makeSeedBall() {
   const group = new THREE.Group();
@@ -206,6 +293,7 @@ export function updateMagicTrees(sys, dt) {
     const n = countTreeWorshippers(t.dir, sys.critters?.list, sys.longnecks?.list, sys.worms?.list);
     t.update(dt, n);
   }
+  syncMagicTreeHealthUi(sys);
 }
 
 export function disposeMagicTrees(sys) {

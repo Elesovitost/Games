@@ -13,7 +13,7 @@ import {
 } from "./spells/immortality.js";
 import { WIZARD_BODY_R } from "./blockers.js";
 import { surfaceDist } from "./spells/fx-common.js";
-import { spawnSoul, updateSoul, disposeSoul, SOUL_DELAY } from "./soul.js";
+import { spawnSoul, updateSoul, spawnSoulDescend, updateSoulDescend, disposeSoul, SOUL_DELAY } from "./soul.js";
 
 const ROBE = 0x1a2848;
 const GOLD = 0xd4a837;
@@ -339,6 +339,7 @@ export class Wizard {
     this.#createSoftShadow();
 
     this.dir = new THREE.Vector3().fromArray(spawnDir).normalize();
+    this.spawnDir = this.dir.clone();
     this.facing = new THREE.Vector3();
     this.targetDir = new THREE.Vector3();
     this.hasTarget = false;
@@ -390,6 +391,8 @@ export class Wizard {
     this._bodyFell = false;
     this._soul = null;
     this.soulDelay = null;
+    this.respawning = false;
+    this.respawnPhase = null;
     this._netBuf = [];
     this.godMode = false;
     this._godGlow = [];
@@ -411,6 +414,10 @@ export class Wizard {
     this.onBodyFall = null;
     /** Smrt kouzelníka — wizard-death (main.js). */
     this.onDeath = null;
+    /** Duše odešla z místa smrti (main.js). */
+    this.onSoulDeparted = null;
+    /** Dokončen respawn na spawnu (main.js). */
+    this.onRespawn = null;
     /** Výkřik při velkém zásahu / letu z tornáda (main.js). */
     this.onScream = null;
     /** Kroky — jen lokální hráč (main.js). */
@@ -561,7 +568,7 @@ export class Wizard {
   }
 
   get isBusy() {
-    return this.casting || this.dead || !!this.knockdown || !!this.tornado || !!this.demonHold;
+    return this.casting || this.dead || this.respawning || !!this.knockdown || !!this.tornado || !!this.demonHold;
   }
 
   beginTornadoCapture(centerDir, source = null) {
@@ -640,6 +647,8 @@ export class Wizard {
       this.dieT = 0;
       this._standFallPending = false;
       this._bodyFell = false;
+      this.respawning = false;
+      this.respawnPhase = null;
       this.hp = this.maxHp;
       this.soulDelay = null;
       this._soul = disposeSoul(this._soul, this.planetGroup);
@@ -681,7 +690,7 @@ export class Wizard {
 
   takeDamage(amount, opts = {}) {
     // Vzdálený hráč: HP/knock jen ze sítě (pose + knock intent), ne z lokální simulace.
-    if (this.remote || this.godMode || this.dead || this.immortal || amount <= 0) return;
+    if (this.remote || this.godMode || this.dead || this.immortal || this.respawning || amount <= 0) return;
     this.hp = Math.max(0, this.hp - amount);
     this.#syncHealthUi();
 
@@ -1082,14 +1091,12 @@ export class Wizard {
   #syncHealthUi() {
     if (this.remote) return;
     const fill = document.getElementById("health-fill");
-    const text = document.getElementById("health-text");
     const pct = (this.hp / this.maxHp) * 100;
     if (fill) {
       fill.style.width = `${pct}%`;
       fill.classList.toggle("low", pct <= 30);
       fill.classList.toggle("mid", pct > 30 && pct <= 60);
     }
-    if (text) text.textContent = String(Math.ceil(this.hp));
   }
 
   die(_opts = {}) {
@@ -1658,6 +1665,69 @@ export class Wizard {
     }
   }
 
+  #tickRespawn(dt) {
+    this.dieT = Math.max(0, this.dieT - dt / DIE_FALL_DUR);
+    this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir) + this.#deathLift());
+    this.#applyPose();
+    const parts = this.mesh.userData.parts;
+    if (parts) this.#applyDeathPose(parts);
+    if (this.dieT <= 0) this.#finishRespawn();
+  }
+
+  beginRespawnSequence() {
+    if (this.respawnPhase) return;
+    this.respawning = true;
+    this.respawnPhase = "soulIn";
+    this.mesh.visible = false;
+    this.#snap(this.spawnDir);
+    this._soul = spawnSoulDescend(this.planetGroup, this.mesh, this.spawnDir);
+  }
+
+  #finishRespawn() {
+    this.dead = false;
+    this.respawning = false;
+    this.respawnPhase = null;
+    this.dieT = 0;
+    this.hp = this.maxHp;
+    this.soulDelay = null;
+    this._standFallPending = false;
+    this._bodyFell = false;
+    this.mesh.visible = true;
+    this.#snap(this.spawnDir);
+    this.#applyPose();
+    this.#syncHealthUi();
+    this.onRespawn?.();
+  }
+
+  #updateGhost(dt) {
+    if (this.respawnPhase === "soulIn") {
+      this._soul = updateSoulDescend(this._soul, this.planetGroup, this.spawnDir, dt);
+      if (this._soul) return;
+      this.mesh.visible = true;
+      this.respawnPhase = "rising";
+      this.dieT = 1;
+      this.mesh.position.copy(this.dir).multiplyScalar(this.#height(this.dir) + this.#deathLift());
+      this.#applyPose();
+      const parts = this.mesh.userData.parts;
+      if (parts) this.#applyDeathPose(parts);
+      return;
+    }
+
+    const prevSoul = this._soul;
+    this._soul = updateSoul(this._soul, this.planetGroup, this.dir, dt);
+    if (this._soul) return;
+    if (prevSoul && this.dead && !this.respawnPhase) {
+      this.onSoulDeparted?.();
+      return;
+    }
+    if (this.soulDelay == null) return;
+    this.soulDelay -= dt;
+    if (this.soulDelay > 0) return;
+    this.soulDelay = null;
+    this.#applyPose();
+    this._soul = spawnSoul(this.planetGroup, this.mesh);
+  }
+
   update(dt, keys, camRight) {
     if (this.remote) {
       if (this.casting) {
@@ -1680,7 +1750,11 @@ export class Wizard {
     }
 
     if (this.dead) {
-      this.#tickDeath(dt);
+      if (this.respawnPhase === "rising") {
+        this.#tickRespawn(dt);
+      } else if (this.respawnPhase !== "soulIn") {
+        this.#tickDeath(dt);
+      }
       this.#updateGhost(dt);
       this.footprints?.update(dt);
       return;
@@ -1814,16 +1888,6 @@ export class Wizard {
     this.#animate(dt);
     this.#updateInvisibility(dt);
     this.footprints?.update(dt);
-  }
-
-  #updateGhost(dt) {
-    this._soul = updateSoul(this._soul, this.planetGroup, this.dir, dt);
-    if (this._soul || this.soulDelay == null) return;
-    this.soulDelay -= dt;
-    if (this.soulDelay > 0) return;
-    this.soulDelay = null;
-    this.#applyPose();
-    this._soul = spawnSoul(this.planetGroup, this.mesh);
   }
 
   /** Plynulý rozjezd / dojezd chůze (0 = stojí, 1 = plná chůze). */

@@ -139,14 +139,26 @@
 
   <div id="game-version" aria-label="Verze hry"></div>
   <div id="health" aria-label="Zdraví">
-    <span class="health-label">HP</span>
+    <span class="health-icon heart" aria-hidden="true"></span>
     <div class="health-track">
       <div id="health-fill" class="health-fill"></div>
     </div>
-    <span id="health-text">100</span>
+    <div id="tree-health" class="tree-health hidden" aria-label="Strom">
+      <span class="health-icon tree" aria-hidden="true"></span>
+      <div class="health-track">
+        <div id="tree-health-fill" class="health-fill tree-fill"></div>
+      </div>
+    </div>
     <button type="button" id="watcher-alarm" class="watcher-alarm hidden" title="Alarm — klikni pro pohled" aria-label="Alarm Hlídače">
       <span class="watcher-alarm-icon" aria-hidden="true"></span>
     </button>
+  </div>
+  <div id="game-over" class="game-over hidden" role="dialog" aria-label="Konec hry">
+    <div class="game-over-card">
+      <h2>Konec hry</h2>
+      <p>Padl jsi dřív, než tvůj strom vyrostl.</p>
+      <button type="button" id="game-over-restart">Nová hra</button>
+    </div>
   </div>
   <script type="module" src="./js/main.js"></script>
 </body>

@@ -5,6 +5,7 @@ import { SPELLS } from "./defs.js";
 import { surfaceDist } from "./fx-common.js";
 import { isWaterAt } from "./water-fx.js";
 import { hurtWatchersNear } from "./watcher.js";
+import { hurtMagicTreesNear, hurtMagicTreesAt } from "./tree.js";
 
 /** Zdvih jedné desky (m) — každá jede vlastní fází, zlom až 40 cm. */
 const AMP = 0.2;
@@ -283,6 +284,7 @@ function updateVictims(sys, quake) {
   sys.longnecks?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "l" });
   sys.worms?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "w" });
   hurtWatchersNear(sys, quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "watcher" });
+  hurtMagicTreesNear(sys, quake.centerDir, radius, dmg, dmg);
   sys.longnecks?.dodgeNear(quake.centerDir, radius);
   const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
   const now = quake.elapsed;

@@ -27,6 +27,31 @@ export const TREE_SPROUT_G_PER_S = TREE_SPROUT_M_PER_S / TREE_MAX_HEIGHT;
 export const TREE_WORSHIP_G_PER_S = TREE_WORSHIP_M_PER_S / TREE_MAX_HEIGHT;
 export const TREE_WILT_G_PER_S = TREE_WILT_M_PER_S / TREE_MAX_HEIGHT;
 
+/** Plně vyrostlý magický strom. */
+export const TREE_MAX_HP = 500;
+/** Od semínka po základní velikost (floor). */
+export const TREE_BASE_HP = 1;
+
+const _HP_SPAN = TREE_MAX_HP - TREE_BASE_HP;
+const _G_SPAN = 1 - TREE_GROW_FLOOR;
+const _HP_PER_G = _HP_SPAN / _G_SPAN;
+
+/** Stejný rytmus růstu jako dřív — floor→1 za ~225 s / 1 modlící se. */
+export const TREE_WORSHIP_HP_PER_S = TREE_WORSHIP_G_PER_S * _HP_PER_G;
+export const TREE_WILT_HP_PER_S = TREE_WILT_G_PER_S * _HP_PER_G;
+
+/** HP z růstu po dosažení floor. */
+export function hpFromGrowth(g) {
+  if (g <= TREE_GROW_FLOOR) return TREE_BASE_HP;
+  return TREE_BASE_HP + _HP_SPAN * clamp01((g - TREE_GROW_FLOOR) / _G_SPAN);
+}
+
+/** Růst odvozený z HP (po fázi výhonu). */
+export function growthFromHp(hp) {
+  if (hp <= TREE_BASE_HP) return TREE_GROW_FLOOR;
+  return TREE_GROW_FLOOR + _G_SPAN * clamp01((hp - TREE_BASE_HP) / _HP_SPAN);
+}
+
 function clamp01(t) {
   return Math.min(1, Math.max(0, t));
 }
