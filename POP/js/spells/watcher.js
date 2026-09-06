@@ -372,7 +372,7 @@ function isLocalOwner(sys, ownerId) {
 function restoreFow(sys, w) {
   if (w.corrupted || w.blindT > 0 || w.fowRegistered) return;
   if (!isLocalOwner(sys, w.ownerId)) return;
-  sys.fow?.addSource?.(w.id, w.dir, SPELLS.watcher?.radius ?? 30);
+  sys.fow?.addSource?.(w.id, w.dir, SPELLS.watcher?.radius ?? 35);
   w.fowRegistered = true;
 }
 
@@ -544,7 +544,7 @@ export function spawnWatcher(sys, targetDir) {
 
   const localId = sys.wizard?.id;
   if (isLocalOwner(sys, ownerId)) {
-    sys.fow?.addSource?.(id, dir, def.radius ?? 30);
+    sys.fow?.addSource?.(id, dir, def.radius ?? 35);
     entry.fowRegistered = true;
   }
 
@@ -615,7 +615,7 @@ function triggerAlarm(sys, tower) {
   const listener = sys.getListenerDir?.();
   if (listener && sys.audio?.startWatcherAlarm) {
     if (tower.alarmSfx) sys.audio.stopWatcherAlarm(tower.alarmSfx, 0.05);
-    tower.alarmSfx = sys.audio.startWatcherAlarm(tower.dir, listener, { volume: 0.9 });
+    tower.alarmSfx = sys.audio.startWatcherAlarm(tower.dir, listener, { volume: 0.4 });
     tower.alarmT = ALARM_SEC;
   } else {
     tower.alarmT = ALARM_SEC;
@@ -645,7 +645,7 @@ function scanEnemies(sys, tower) {
   const local = (sys.getWizards?.() || []).find((w) => w && !w.remote);
   if (!local || local.dead) return;
 
-  const radius = SPELLS.watcher?.radius ?? 30;
+  const radius = SPELLS.watcher?.radius ?? 35;
   const wizards = sys.getWizards?.() || [];
   const present = new Set();
 

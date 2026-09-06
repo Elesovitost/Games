@@ -774,13 +774,15 @@ class Game {
       e.preventDefault();
       e.stopPropagation();
       if (this._watcherAlarmDir) this.centerCameraOnDir(this._watcherAlarmDir);
+      this.#hideWatcherAlarm();
     });
   }
 
   #showWatcherAlarm(dir) {
     if (!dir) return;
     this._watcherAlarmDir = dir.clone ? dir.clone() : dir;
-    this._watcherAlarmT = 5;
+    /** 5 s siréna + ještě 10 s rámeček (klik = hned pryč) */
+    this._watcherAlarmT = 15;
     const btn = document.getElementById("watcher-alarm");
     if (!btn) return;
     btn.classList.remove("hidden");

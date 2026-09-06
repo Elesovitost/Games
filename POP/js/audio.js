@@ -1338,9 +1338,9 @@ export class GameAudio {
     band.Q.value = 1.4;
 
     const gA = ctx.createGain();
-    gA.gain.value = 0.22;
+    gA.gain.value = 0.12;
     const gB = ctx.createGain();
-    gB.gain.value = 0.12;
+    gB.gain.value = 0.06;
 
     const gain = ctx.createGain();
     const base = opts.volume ?? 1;

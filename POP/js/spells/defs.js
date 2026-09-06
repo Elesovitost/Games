@@ -197,13 +197,13 @@ export const SPELLS = {
   },
   watcher: {
     id: "watcher",
-    range: 16,
+    range: 25,
     castTime: 3,
     cooldown: 180,
-    radius: 30,
+    radius: 35,
     maxCount: 5,
     color: 0xe8e0d0,
-    hint: "Klikni v dosahu — Hlídač (max 5). FOV 30 m + alarm při cizím wizardovi. Do smrti majitele."
+    hint: "Klikni v dosahu — Hlídač (max 5). FOV 35 m + alarm při cizím wizardovi. Do smrti majitele."
   },
   invisibility: {
     id: "invisibility",
