@@ -179,11 +179,10 @@ export const SPELLS = {
     castTime: 0.55,
     throwCast: true,
     cooldown: 10,
-    once: true,
     growthTime: 20,
     maxHeight: 10,
     color: 0xe8c44a,
-    hint: "Hod žlutou kuličku — na místě vyroste strom (20 s, 15 m)."
+    hint: "Hod žlutou kuličku — na místě vyroste strom (20 s, 15 m). Po smrti stromu znovu."
   },
   hypnosis: {
     id: "hypnosis",

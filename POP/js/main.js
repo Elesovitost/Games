@@ -15,7 +15,7 @@ import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
 import { burstImmortalShell } from "./spells/immortality.js";
 import { canSpawnWatcher, disposeWatchersForOwner } from "./spells/watcher.js";
-import { hasStandingTreeForOwner, getMagicTreeForOwner } from "./spells/tree.js";
+import { hasStandingTreeForOwner, getMagicTreeForOwner, canPlantMagicTreeForOwner } from "./spells/tree.js";
 import { TREE_MAX_HP, TREE_BASE_HP } from "./tree-grow.js";
 import { pumpFireQueue } from "./burn.js";
 import { getPlanetViewAxis, configureShadowFrustum, updateSunShadow } from "./visibility.js";
@@ -146,13 +146,6 @@ class Game {
       getPlanetViewAxis(this.camera, this.planetGroup, out);
     this.spells.onWatcherAlarm = (dir) => this.#showWatcherAlarm(dir);
     this.spells.onWatcherAlarmClear = () => this.#hideWatcherAlarm();
-    this.spells.onWatcherAlarmBroadcast = (dir) => {
-      if (!this.session?.isMp || !this.session.playing) return;
-      this.session.sendIntent({
-        kind: "watcherAlarm",
-        dir: [dir.x, dir.y, dir.z]
-      });
-    };
     this._watcherAlarmT = 0;
     this._watcherAlarmDir = null;
     this._matchEnded = false;
@@ -215,6 +208,7 @@ class Game {
     w.onDeath = () => {
       this.audio?.playAt("wizardDeath", w.dir, listener());
       disposeWatchersForOwner(this.spells, w.id);
+      this.spells?.clearSpiralsForOwner?.(w.id);
       if (!w.remote) this.session?.flushPose?.();
     };
     w.onSoulDeparted = () => {
@@ -458,7 +452,9 @@ class Game {
 
   #spellReady(id) {
     if (!id || this._spellSpent[id]) return false;
-    return !(this._spellCd[id] > 0);
+    if (this._spellCd[id] > 0) return false;
+    if (id === "tree" && !canPlantMagicTreeForOwner(this.spells, this.wizard?.id)) return false;
+    return true;
   }
 
   #startSpellCooldown(id) {
@@ -495,6 +491,11 @@ class Game {
       const left = this._spellCd[id];
       if (!(left > 0)) continue;
       this._spellCd[id] = Math.max(0, left - step);
+      dirty = true;
+    }
+    const canTree = canPlantMagicTreeForOwner(this.spells, this.wizard?.id);
+    if (canTree !== this._canTreeWas) {
+      this._canTreeWas = canTree;
       dirty = true;
     }
     if (dirty) this.#updateSpellBar();

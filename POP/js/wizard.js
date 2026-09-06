@@ -428,6 +428,7 @@ export class Wizard {
     /** Prasknutí koule nesmrtelnosti (main.js). */
     this.onImmortalPop = null;
 
+    this._appearanceBase = [];
     this.mesh.traverse((ch) => {
       if (!ch.isMesh || !ch.material || ch === this._softShadow) return;
       const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
@@ -436,6 +437,13 @@ export class Wizard {
           m.userData._invisBaseOp = m.opacity ?? 1;
         }
         this._bodyMats.push(m);
+        this._appearanceBase.push({
+          mat: m,
+          color: m.color?.clone?.() ?? null,
+          emissive: m.emissive?.clone?.() ?? null,
+          intensity: m.emissiveIntensity ?? 0,
+          roughness: "roughness" in m ? m.roughness : null
+        });
         if (!m.isMeshStandardMaterial) continue;
         this._godGlow.push({
           mat: m,
@@ -474,6 +482,23 @@ export class Wizard {
         o.mesh.material.color.setHex(bright ? castBright.getHex() : castSoft.getHex());
       }
     }
+  }
+
+  /** Po démonovi / černění — zpět výchozí barvy + aktuální hábit. */
+  restoreAppearance() {
+    for (const e of this._appearanceBase || []) {
+      const m = e.mat;
+      if (!m) continue;
+      if (m.userData?.robeRole) continue;
+      if (e.color && m.color) m.color.copy(e.color);
+      if (e.emissive && m.emissive) {
+        m.emissive.copy(e.emissive);
+        m.emissiveIntensity = e.intensity;
+      }
+      if (e.roughness != null && "roughness" in m) m.roughness = e.roughness;
+      m.needsUpdate = true;
+    }
+    this.setRobeColor(this.color);
   }
 
   dispose() {
@@ -1164,6 +1189,7 @@ export class Wizard {
     this.demonHold = false;
     this.hp = typeof latest.hp === "number" && latest.hp > 0 ? latest.hp : this.maxHp;
     this.mesh.visible = true;
+    this.restoreAppearance();
     const parts = this.mesh.userData.parts;
     if (parts?.body) {
       parts.body.rotation.set(0, 0, 0);
@@ -1763,6 +1789,7 @@ export class Wizard {
     this._standFallPending = false;
     this._bodyFell = false;
     this.mesh.visible = true;
+    this.restoreAppearance();
     this.#snap(this.spawnDir);
     this.#applyPose();
     this.#syncHealthUi();

@@ -58,7 +58,6 @@ export class SpellSystem {
     /** Callbacky alarmu Hlídače (main.js). */
     this.onWatcherAlarm = null;
     this.onWatcherAlarmClear = null;
-    this.onWatcherAlarmBroadcast = null;
     this.activeSpellId = null;
     this._sfxLoops = new Set();
 
@@ -120,10 +119,16 @@ export class SpellSystem {
     this.aim.place(dir, this.inRange(this.activeSpellId, dir), camera);
   }
 
+  /** Vlastní spirály bílé, cizí červené (z pohledu lokálního hráče). */
+  #spiralColorForOwner(ownerId) {
+    const local = (this.getWizards?.() || []).find((w) => w && !w.remote);
+    if (local && ownerId != null && String(local.id) === String(ownerId)) return 0xffffff;
+    return 0xff2020;
+  }
+
   /** Spirála v cíli — dokud se nezavolá clearSpiral / clearAllSpirals. */
-  startSpiral(targetDir, spellId) {
-    const def = SPELLS[spellId];
-    const color = def?.color ?? 0xffe08a;
+  startSpiral(targetDir, _spellId) {
+    const color = this.#spiralColorForOwner(this._castOwnerId);
     const spiral = new CastSpiral(this.planetGroup, this.terrain, targetDir, color);
     spiral.ownerId = this._castOwnerId;
     this.spirals.push(spiral);
@@ -135,6 +140,17 @@ export class SpellSystem {
     if (i < 0) return;
     spiral.dispose();
     this.spirals.splice(i, 1);
+  }
+
+  clearSpiralsForOwner(ownerId) {
+    if (ownerId == null) return;
+    const oid = String(ownerId);
+    for (let i = this.spirals.length - 1; i >= 0; i--) {
+      const s = this.spirals[i];
+      if (String(s.ownerId) !== oid) continue;
+      s.dispose();
+      this.spirals.splice(i, 1);
+    }
   }
 
   clearAllSpirals() {
@@ -437,7 +453,7 @@ export class SpellSystem {
     /** Zvířata reagují už na položení kouzla, ne až na výbuch/škodu. */
     const alertR = this.#castAlertRadius(spellId, def);
     if (alertR > 0) this.longnecks?.dodgeNear(target, alertR);
-    const spiral = wizard.remote || def.throwCast ? null : this.startSpiral(target, spellId);
+    const spiral = def.throwCast ? null : this.startSpiral(target, spellId);
     if (!wizard.remote) this.aim.hide();
 
     const restore = () => {

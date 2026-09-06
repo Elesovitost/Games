@@ -14,7 +14,6 @@ const EYE_R = 0.84;
 /** Pomalá rotace kalichu+oka kolem svislé osy (rad/s). */
 const HEAD_SPIN = 0.55;
 const EYE_LOOK_MAX = 0.45;
-const ALARM_SEC = 5;
 const BLIND_SEC = 20;
 
 const COLOR_SCLERA = 0xf4f4ef;
@@ -24,7 +23,44 @@ const COLOR_BLIND_IRIS = 0x5a0a10;
 const COLOR_CORRUPT_SCLERA = 0x4a080c;
 const COLOR_CORRUPT_IRIS = 0x050508;
 
-const VINE_COLORS = [0x2d6a3a, 0x3a8048, 0x4a8f42, 0x5a9a48, 0x287038, 0x458a50];
+function ownerVineColors(hex) {
+  const base = new THREE.Color(Number(hex) || 0x3a8048);
+  const out = [];
+  for (let i = 0; i < 6; i++) {
+    const c = base.clone();
+    const t = i / 5 - 0.5;
+    c.offsetHSL(t * 0.04, 0.06 + t * 0.1, t * 0.18);
+    out.push(c.getHex());
+  }
+  return out;
+}
+
+function ownerIrisHex(hex) {
+  return Number(hex) || COLOR_IRIS;
+}
+
+function irisRestHex(w) {
+  return ownerIrisHex(w?.irisBase ?? COLOR_IRIS);
+}
+
+function syncWatcherOwnerColor(w, hex) {
+  const color = ownerIrisHex(hex);
+  if (w._ownerColorSynced === color) return;
+  w._ownerColorSynced = color;
+  w.irisBase = color;
+
+  const vineMats = w.vines?.userData?.mats;
+  if (vineMats?.length && !w.corrupted) {
+    const colors = ownerVineColors(color);
+    for (let i = 0; i < vineMats.length; i++) {
+      vineMats[i]?.color?.setHex(colors[i % colors.length]);
+    }
+  }
+
+  if (!w.corrupted && !(w.blindT > 0)) {
+    setEyeColors(w, COLOR_SCLERA, color);
+  }
+}
 
 let _nextId = 1;
 
@@ -57,16 +93,17 @@ function makeVineCurve(i, count) {
   return new THREE.CatmullRomCurve3(pts);
 }
 
-function makeVines() {
+function makeVines(ownerHex) {
   const root = new THREE.Group();
   const geos = [];
   const mats = [];
+  const colors = ownerVineColors(ownerHex);
   const count = 6;
   for (let i = 0; i < count; i++) {
     const curve = makeVineCurve(i, count);
     const radius = 0.04 + (i % 3) * 0.012;
     const geo = new THREE.TubeGeometry(curve, 20, radius, 5, false);
-    const mat = vineMat(VINE_COLORS[i % VINE_COLORS.length]);
+    const mat = vineMat(colors[i % colors.length]);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -222,7 +259,7 @@ function addScleraVeins(group, irisAng, geos, mats) {
  *
  * Three.js SphereGeometry: theta=0 je pól +Y → rotace X = π/2 natočí pól na +Z.
  */
-function makeEye() {
+function makeEye(irisHex) {
   const group = new THREE.Group();
   const R = 1;
   /** Poloviční úhel duhovky / zornice (od středu oka, osa +Z). */
@@ -240,7 +277,7 @@ function makeEye() {
     metalness: 0.02
   });
   const irisMat = new THREE.MeshStandardMaterial({
-    color: 0xb8922e,
+    color: ownerIrisHex(irisHex),
     roughness: 0.48,
     metalness: 0.04
   });
@@ -445,7 +482,7 @@ function bindWatcherCombat(sys, entry) {
   entry.applyNetUnblind = (s) => {
     const sp = s || sys;
     if (entry.corrupted || entry.blindT > 0) return;
-    setEyeColors(entry, COLOR_SCLERA, COLOR_IRIS);
+    setEyeColors(entry, COLOR_SCLERA, irisRestHex(entry));
     restoreFow(sp, entry);
   };
 
@@ -510,13 +547,16 @@ export function spawnWatcher(sys, targetDir) {
   if (ownerId == null) return null;
   if (!canSpawnWatcher(sys, ownerId)) return null;
 
+  const owner = (sys.getWizards?.() || []).find((w) => w && String(w.id) === String(ownerId));
+  const ownerColor = owner?.color ?? def.color ?? 0xe8e0d0;
+
   const dir = targetDir.clone().normalize();
   const id = `watcher-${ownerId}-${_nextId++}`;
 
   const group = new THREE.Group();
   group.frustumCulled = false;
 
-  const vines = makeVines();
+  const vines = makeVines(ownerColor);
   group.add(vines);
 
   const headPivot = new THREE.Group();
@@ -526,7 +566,7 @@ export function spawnWatcher(sys, targetDir) {
   const calyx = makeCalyx();
   headPivot.add(calyx);
 
-  const eye = makeEye();
+  const eye = makeEye(ownerColor);
   /** Sedí v otevřeném kalichu, jasně nad listy. */
   eye.position.y = 0.55;
   headPivot.add(eye);
@@ -536,6 +576,7 @@ export function spawnWatcher(sys, targetDir) {
   const entry = {
     id,
     ownerId,
+    irisBase: ownerIrisHex(ownerColor),
     dir,
     group,
     vines,
@@ -557,7 +598,6 @@ export function spawnWatcher(sys, targetDir) {
   sys.watchers.push(entry);
   poseWatcher(sys, entry);
 
-  const localId = sys.wizard?.id;
   if (isLocalOwner(sys, ownerId)) {
     sys.fow?.addSource?.(id, dir, def.radius ?? 35);
     entry.fowRegistered = true;
@@ -627,55 +667,9 @@ export function disposeWatchers(sys) {
 }
 
 function triggerAlarm(sys, tower) {
-  const listener = sys.getListenerDir?.();
-  if (listener && sys.audio?.startWatcherAlarm) {
-    if (tower.alarmSfx) sys.audio.stopWatcherAlarm(tower.alarmSfx, 0.05);
-    tower.alarmSfx = sys.audio.startWatcherAlarm(tower.dir, listener, { volume: 0.4 });
-    tower.alarmT = ALARM_SEC;
-  } else {
-    tower.alarmT = ALARM_SEC;
-  }
-  /** UI rámeček jen majitel; SFX + broadcast pro ostatní. */
+  /** Jen UI rámeček majitele — žádný alarm SFX. */
   if (isLocalOwner(sys, tower.ownerId)) {
     sys.onWatcherAlarm?.(tower.dir.clone());
-  }
-  sys.onWatcherAlarmBroadcast?.(tower.dir.clone());
-}
-
-/** Cizí klient — jen spatial siréna (bez UI). */
-export function playRemoteWatcherAlarm(sys, dirArr) {
-  if (!dirArr || !sys.audio?.startWatcherAlarm) return;
-  const listener = sys.getListenerDir?.();
-  if (!listener) return;
-  const dir = new THREE.Vector3(dirArr[0], dirArr[1], dirArr[2]).normalize();
-  const handle = sys.audio.startWatcherAlarm(dir, listener, { volume: 0.35 });
-  if (!handle) return;
-  const t0 = performance.now();
-  const tick = () => {
-    const elapsed = (performance.now() - t0) / 1000;
-    const lis = sys.getListenerDir?.();
-    if (lis) sys.audio?.updateWatcherAlarm?.(handle, dir, lis, 0.05);
-    if (elapsed >= ALARM_SEC) {
-      sys.audio?.stopWatcherAlarm?.(handle, 0.2);
-      return;
-    }
-    requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-}
-
-function updateAlarmAudio(sys, tower, dt) {
-  if (!(tower.alarmT > 0)) return;
-  tower.alarmT -= dt;
-  const listener = sys.getListenerDir?.();
-  if (tower.alarmSfx && listener) {
-    sys.audio?.updateWatcherAlarm?.(tower.alarmSfx, tower.dir, listener, dt);
-  }
-  if (tower.alarmT <= 0) {
-    if (tower.alarmSfx) {
-      sys.audio?.stopWatcherAlarm?.(tower.alarmSfx, 0.2);
-      tower.alarmSfx = null;
-    }
   }
 }
 
@@ -711,7 +705,7 @@ function tickBlind(sys, w, dt) {
   w.blindT -= dt;
   if (w.blindT > 0) return;
   w.blindT = 0;
-  setEyeColors(w, COLOR_SCLERA, COLOR_IRIS);
+  setEyeColors(w, COLOR_SCLERA, irisRestHex(w));
   restoreFow(sys, w);
 }
 
@@ -748,6 +742,9 @@ export function updateWatchers(sys, dt) {
       list.splice(i, 1);
       continue;
     }
+
+    const owner = wizards.find((wiz) => wiz && String(wiz.id) === String(w.ownerId));
+    if (owner) syncWatcherOwnerColor(w, owner.color);
 
     w.t += dt;
     poseWatcher(sys, w);
@@ -792,7 +789,6 @@ export function updateWatchers(sys, dt) {
       w.eye.scale.setScalar(EYE_R);
       updateIdleMotion(w, dt);
       scanEnemies(sys, w);
-      updateAlarmAudio(sys, w, dt);
     }
   }
 }
