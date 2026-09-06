@@ -226,7 +226,7 @@ class Game {
       } else if (!this.gameOver && !this._matchEnded) {
         w.eliminated = true;
         this.session?.flushPose?.();
-        if (this.#isMpPlaying()) this.#enterSpectator();
+        if (this.#inMpMatch()) this.#enterSpectator();
         else this.#triggerGameOver();
       }
     };
@@ -665,14 +665,20 @@ class Game {
     this.gameOver = true;
   }
 
+  /** Ještě ve hře: živý, respawnuje, nebo má strom (i když leží mrtvý). */
+  #stillInMatch(w) {
+    if (!w || w.eliminated) return false;
+    if (!w.dead || w.respawning) return true;
+    return hasStandingTreeForOwner(this.spells, w.id);
+  }
+
   #tickMatchEnd() {
-    if (!this.#isMpPlaying() || this._matchEnded) return;
+    if (!this.#inMpMatch() || this._matchEnded) return;
     if (this.wizards.size < 2) return;
     let alive = null;
     let aliveN = 0;
     for (const w of this.wizards.values()) {
-      if (!w || w.eliminated) continue;
-      if (w.dead && !w.respawning) continue;
+      if (!this.#stillInMatch(w)) continue;
       aliveN++;
       alive = w;
     }
