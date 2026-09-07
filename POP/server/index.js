@@ -128,8 +128,19 @@ function leaveRoom(ws) {
   }
 }
 
-const httpServer = createServer((_req, res) => {
-  res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+const httpServer = createServer((req, res) => {
+  const headers = {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type"
+  };
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, headers);
+    res.end();
+    return;
+  }
+  res.writeHead(200, headers);
   res.end("Populous MP relay OK\n");
 });
 

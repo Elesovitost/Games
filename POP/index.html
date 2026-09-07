@@ -132,11 +132,16 @@
       <input id="lobby-name" type="text" maxlength="18" autocomplete="nickname" />
     </label>
 
+    <div class="lobby-mode" role="group" aria-label="Typ serveru">
+      <button type="button" id="lobby-mode-local" class="mode-btn active" aria-pressed="true">Lokální</button>
+      <button type="button" id="lobby-mode-internet" class="mode-btn" aria-pressed="false">Internet</button>
+    </div>
+
     <div class="lobby-actions">
       <button type="button" id="lobby-create">Založit hru (host)</button>
     </div>
 
-    <label class="field">
+    <label class="field" id="lobby-host-field">
       <span>IP hostitele</span>
       <input id="lobby-host" type="text" maxlength="64" placeholder="192.168.1.10" autocomplete="off" />
     </label>

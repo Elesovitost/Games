@@ -921,6 +921,31 @@ html, body {
   border: 1px solid var(--gold-dim);
   color: var(--ink);
 }
+.field.hidden { display: none; }
+.lobby-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.lobby-mode .mode-btn {
+  font: inherit;
+  padding: 7px 8px;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--gold-dim);
+  color: var(--ink);
+  opacity: 0.75;
+}
+.lobby-mode .mode-btn:hover {
+  border-color: var(--gold);
+  opacity: 1;
+}
+.lobby-mode .mode-btn.active {
+  background: rgba(212, 180, 106, 0.2);
+  border-color: var(--gold);
+  opacity: 1;
+}
 .color-swatches { display: none; }
 .lobby-actions {
   display: flex;

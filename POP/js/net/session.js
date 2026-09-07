@@ -43,17 +43,19 @@ export class MultiplayerSession {
     this.playing = false;
   }
 
-  async create(name, color) {
-    saveProfile({ name, color, host: "localhost" });
-    await this.client.connect("localhost");
+  async create(name, color, host = "localhost") {
+    const h = String(host || "localhost").trim() || "localhost";
+    saveProfile({ name, color });
+    await this.client.connect(h);
     this.isMp = true;
     this.localId = String(this.client.playerId);
     this.client.send({ type: "create", name, color });
   }
 
   async join(host, name, color, code) {
-    saveProfile({ name, color, host });
-    await this.client.connect(host);
+    const h = String(host || "localhost").trim() || "localhost";
+    saveProfile({ name, color });
+    await this.client.connect(h);
     this.isMp = true;
     this.localId = String(this.client.playerId);
     this.client.send({

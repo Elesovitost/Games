@@ -73,6 +73,13 @@ export const CONFIG = {
   sandColor: [0.9, 0.76, 0.46],
   swampColor: [0.22, 0.08, 0.16],
   netPort: 2567,
+  /**
+   * Hostname Render MP relay (bez https://) — po `render.yaml` deployi.
+   * Výchozí = název služby v render.yaml.
+   */
+  netInternetHost: "populous-mp.onrender.com",
+  /** Timeout WebSocket welcome při internetovém serveru (ms) — cold start free tier */
+  netInternetConnectMs: 90000,
   /** Interval odesílání pose v MP (s) — ~20 Hz */
   netPoseInterval: 0.05,
   /** Zpoždění interpolace vzdáleného hráče (s) — vyhlazuje skoky mezi snímky */
