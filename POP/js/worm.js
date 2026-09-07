@@ -413,12 +413,31 @@ class Worm {
     surfaceOffsetDir(this.home, this._east, this._north, ang, Math.max(0.4, dist), out);
   }
 
+  #rehomeEight() {
+    this.home.copy(this.dir).normalize();
+    this.eightYaw = this.rng() * Math.PI * 2;
+    this.eightAmp = 7 + this.rng() * 7;
+    this.eightSign *= -1;
+    this.steerSide *= -1;
+  }
+
   #pickAim(out) {
+    if (!isWalkLand(this.terrain, this.home)) this.home.copy(this.dir).normalize();
     for (let k = 0; k < 16; k++) {
       this.#eightPoint(this.eightT + this.eightSign * k * 0.12, out);
       if (isWalkLand(this.terrain, out)) return out;
     }
-    return out.copy(this.home);
+    if (isWalkLand(this.terrain, this.home)) return out.copy(this.home);
+    tangentFrame(this.dir, this._east, this._north);
+    for (let k = 0; k < 16; k++) {
+      const ang = (k / 16) * Math.PI * 2;
+      surfaceOffsetDir(this.dir, this._east, this._north, ang, 2.5 + (k % 4) * 1.2, out);
+      if (isWalkLand(this.terrain, out)) {
+        this.home.copy(out);
+        return out;
+      }
+    }
+    return out.copy(this.dir);
   }
 
   #probe(ang, dist, out) {
@@ -460,18 +479,27 @@ class Worm {
         }
       }
       if (picked == null) {
-        const turn = faceAng + this.steerSide * maxTurn;
-        tangentFrame(this.dir, this._east, this._north);
-        this.facing
-          .copy(this._east).multiplyScalar(Math.cos(turn))
-          .addScaledVector(this._north, Math.sin(turn))
-          .normalize();
-        return false;
-      }
-      want = faceAng + Math.max(-maxTurn * 1.6, Math.min(maxTurn * 1.6, wrapPi(picked - faceAng)));
-      if (!this.#probe(want, step, this._trial)) {
-        if (!this.#probe(picked, step, this._trial)) return false;
-        want = picked;
+        if (this.#probe(want, step * 0.35, this._trial)) {
+          // kratší krok dopředu
+        } else if (this.#probe(faceAng + Math.PI, step * 0.35, this._trial)) {
+          want = faceAng + Math.PI;
+        } else if (this.#probe(faceAng + Math.PI, step, this._trial)) {
+          want = faceAng + Math.PI;
+        } else {
+          const turn = faceAng + this.steerSide * maxTurn;
+          tangentFrame(this.dir, this._east, this._north);
+          this.facing
+            .copy(this._east).multiplyScalar(Math.cos(turn))
+            .addScaledVector(this._north, Math.sin(turn))
+            .normalize();
+          return false;
+        }
+      } else {
+        want = faceAng + Math.max(-maxTurn * 1.6, Math.min(maxTurn * 1.6, wrapPi(picked - faceAng)));
+        if (!this.#probe(want, step, this._trial)) {
+          if (!this.#probe(picked, step, this._trial)) return false;
+          want = picked;
+        }
       }
     } else {
       this.wallT = Math.max(0, this.wallT - dt * 2);
@@ -495,7 +523,10 @@ class Worm {
     this.#pickAim(this._trial);
     if (surfaceDist(this.dir, this._trial) < 2.6 || this.wallT > 1.4) {
       this.eightT += this.eightSign * dt * (WALK_SPEED / Math.max(5.5, this.eightAmp));
-      if (this.wallT > 1.4) this.wallT = 0;
+      if (this.wallT > 1.4) {
+        this.#rehomeEight();
+        this.wallT = 0;
+      }
     }
     this.#drive(dt, this._trial);
   }
