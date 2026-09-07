@@ -50,6 +50,8 @@ class Game {
     this.gameOver = false;
     this._orbitDrag = false;
     this._orbitPointerId = null;
+    this._walkDrag = false;
+    this._walkPointerId = null;
     this._lastOrbitX = 0;
     this._lastOrbitY = 0;
     this._camFocus = CONFIG.focusDir.slice();
@@ -962,6 +964,13 @@ class Game {
     return this._hitLocal;
   }
 
+  #endWalkDrag(e) {
+    if (!this._walkDrag) return;
+    if (e && e.pointerId !== this._walkPointerId) return;
+    this._walkDrag = false;
+    this._walkPointerId = null;
+  }
+
   #onPointerMove(e) {
     if (this._orbitDrag && e.pointerId === this._orbitPointerId) {
       const dx = e.clientX - this._lastOrbitX;
@@ -975,6 +984,12 @@ class Game {
 
     if (!this.inputEnabled || !this.wizard || this.wizard.isBusy) return;
     const hit = this.#pickTerrain(e);
+
+    /** Držení LMB — stopy jedou s myší, kouzelník pořád míří k nim. */
+    if (this._walkDrag && e.pointerId === this._walkPointerId) {
+      if (hit) this.wizard.setDestination(hit);
+      return;
+    }
 
     if (this._pendingCast) {
       this.spells.aim.show();
@@ -998,12 +1013,13 @@ class Game {
   }
 
   #onPointerLeave() {
-    if (this._orbitDrag) return;
+    if (this._orbitDrag || this._walkDrag) return;
     if (!this.wizard || this.wizard.hasTarget || this.selectedSpell) return;
     this.wizard.hideWalkPreview();
   }
 
   #onPointerUp(e) {
+    if (e.button === 0) this.#endWalkDrag(e);
     if (e.button === 2) this.#endOrbitDrag(e);
   }
 
@@ -1013,6 +1029,7 @@ class Game {
     if (e.button === 2) {
       if (!this.inputEnabled) return;
       if (this.selectedSpell) this.#selectSpell(null);
+      this.#endWalkDrag();
       this.#startOrbitDrag(e);
       e.preventDefault();
       return;
@@ -1030,6 +1047,8 @@ class Game {
     }
 
     if (this.wizard.setDestination(hit)) {
+      this._walkDrag = true;
+      this._walkPointerId = e.pointerId;
       // Pohyb na remote jde přes pose; walk intent je no-op (kompatibilita protokolu).
       this.session.sendIntent({
         kind: "walk",
