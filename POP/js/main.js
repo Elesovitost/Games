@@ -2,7 +2,7 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 import { Terrain } from "./terrain.js";
 import { Water } from "./water.js";
-import { Sky, createSun, placeCamera } from "./sky.js";
+import { Sky, createSun, createSecondSun, placeCamera } from "./sky.js";
 import { SPAWN_SEEDS, resolveLandSpawns, pickRandomSpawn, landSegmentIndex } from "./maps.js";
 import { SpawnMarkers } from "./spawns.js";
 import { Trees } from "./trees.js";
@@ -98,7 +98,9 @@ class Game {
     this.water = new Water(this.planetGroup, this.terrain);
     this.sky = new Sky(this.planetGroup);
     this.sun = createSun(this.planetGroup);
+    this.sun2 = createSecondSun(this.planetGroup, this.sun);
     configureShadowFrustum(this.sun);
+    configureShadowFrustum(this.sun2);
 
     this.landSpawns = resolveLandSpawns(this.terrain, SPAWN_SEEDS);
     this.spawnMarkers = new SpawnMarkers(this.planetGroup, this.terrain, this.landSpawns);
@@ -1219,7 +1221,8 @@ class Game {
     if (!render) return;
 
     updateSunShadow(this.sun, this.planetGroup);
-    this.sky.setSunDirection(this.sun);
+    updateSunShadow(this.sun2, this.planetGroup);
+    this.sky.setSunDirection(this.sun, this.sun2);
 
     this.renderer.render(this.scene, this.camera);
   }

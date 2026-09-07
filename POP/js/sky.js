@@ -2,6 +2,8 @@ import * as THREE from "./three.js";
 import { CONFIG } from "./config.js";
 
 const _sunLocal = new THREE.Vector3();
+const _sun2Local = new THREE.Vector3();
+const _sun2Axis = new THREE.Vector3();
 
 const SKY_VERT = `
 varying vec3 vDir;
@@ -13,16 +15,13 @@ void main() {
 
 const SKY_FRAG = `
 uniform vec3 uSunDir;
+uniform vec3 uSun2Dir;
 uniform float uTime;
 varying vec3 vDir;
 
 float smoothGrad(float edge0, float edge1, float x) {
   float t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
   return t * t * (3.0 - 2.0 * t);
-}
-
-float hash12(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
 
 float hash13(vec3 p) {
@@ -61,48 +60,39 @@ float cloudFbm(vec3 p) {
   return v;
 }
 
-float starField(vec3 dir) {
-  float u = atan(dir.z, dir.x) * 0.15915494 + 0.5;
-  float v = asin(clamp(dir.y, -1.0, 1.0)) * 0.31830989 + 0.5;
-  vec2 uv = vec2(u, v) * 520.0;
-  vec2 id = floor(uv);
-  vec2 f = fract(uv);
-  float h = hash12(id);
-  if (h < 0.982) return 0.0;
-  vec2 pos = vec2(hash12(id + 17.3), hash12(id + 41.9));
-  float d = length(f - pos);
-  return exp(-d * d * 480.0) * (0.5 + 0.5 * hash12(id + 3.7));
-}
-
 void main() {
   vec3 dir = normalize(vDir);
   vec3 sd = normalize(uSunDir);
+  vec3 sd2 = normalize(uSun2Dir);
   float sunDot = dot(dir, sd);
+  float sun2Dot = dot(dir, sd2);
+  float litDot = max(sunDot, sun2Dot);
 
   float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
 
-  vec3 nightZenith = vec3(0.012, 0.018, 0.045);
-  vec3 nightHorizon = vec3(0.035, 0.042, 0.08);
+  // Strana odvrácená od sluncí — teplá rudá, bez původní tmavé noci
+  vec3 nightZenith = vec3(0.58, 0.30, 0.24);
+  vec3 nightHorizon = vec3(0.78, 0.42, 0.30);
   vec3 night = mix(nightHorizon, nightZenith, smoothGrad(0.05, 0.95, h));
 
   vec3 dayZenith = vec3(0.34, 0.58, 0.94);
   vec3 dayHorizon = vec3(0.82, 0.78, 0.62);
   vec3 day = mix(dayHorizon, dayZenith, smoothGrad(0.06, 0.88, h));
 
-  float dayAmt = sunDot * 0.5 + 0.5;
-  dayAmt = pow(dayAmt, 0.62);
-  dayAmt = smoothGrad(0.0, 1.0, dayAmt);
+  float dayAmt = litDot * 0.5 + 0.5;
+  dayAmt = pow(dayAmt, 0.55);
+  dayAmt = mix(0.62, 1.0, smoothGrad(0.0, 1.0, dayAmt));
   vec3 col = mix(night, day, dayAmt);
 
-  float twi = smoothGrad(-0.42, 0.06, sunDot) * (1.0 - smoothGrad(0.06, 0.68, sunDot));
-  col += vec3(0.22, 0.10, 0.16) * twi * 0.20;
-  col += vec3(0.18, 0.08, 0.04) * twi * (1.0 - h) * 0.16;
+  float twi = smoothGrad(-0.42, 0.06, litDot) * (1.0 - smoothGrad(0.06, 0.68, litDot));
+  col += vec3(0.20, 0.08, 0.04) * twi * 0.12;
+  col += vec3(0.16, 0.06, 0.03) * twi * (1.0 - h) * 0.10;
 
-  float scatter = smoothGrad(-0.22, 0.90, sunDot);
+  float scatter = smoothGrad(-0.22, 0.90, litDot);
   col = mix(col, col + vec3(0.12, 0.09, 0.02), scatter * 0.32);
 
   float horiz = pow(1.0 - abs(dir.y), 5.0);
-  col += mix(vec3(0.02, 0.025, 0.04), vec3(0.10, 0.09, 0.06), dayAmt) * horiz * 0.32;
+  col += mix(vec3(0.18, 0.07, 0.04), vec3(0.10, 0.09, 0.06), dayAmt) * horiz * 0.28;
 
   // Chmury — otáčející se vrstva (3D šum, bezešvé)
   float wind = uTime * 0.0262;
@@ -124,11 +114,11 @@ void main() {
   col += vec3(1.0, 0.95, 0.78) * sunCore * 0.82;
   col += vec3(1.0, 0.84, 0.50) * sunHalo * 0.18;
 
-  float starVis = 1.0 - smoothGrad(0.14, 0.58, dayAmt);
-  starVis *= starVis;
-  float horizonFade = smoothGrad(0.04, 0.28, abs(dir.y) + 0.06);
-  float stars = starField(dir) * starVis * horizonFade;
-  col += vec3(0.88, 0.93, 1.0) * stars * 1.25;
+  // Druhé slunce — větší disk, do ruda
+  float sun2Core = pow(max(sun2Dot, 0.0), 72.0);
+  float sun2Halo = pow(max(sun2Dot, 0.0), 4.5);
+  col += vec3(1.0, 0.52, 0.28) * sun2Core * 0.95;
+  col += vec3(1.0, 0.32, 0.14) * sun2Halo * 0.28;
 
   gl_FragColor = vec4(col, 1.0);
 }
@@ -145,6 +135,7 @@ export class Sky {
     this.skyMat = new THREE.ShaderMaterial({
       uniforms: {
         uSunDir: { value: new THREE.Vector3(0.6, 0.7, -0.3) },
+        uSun2Dir: { value: new THREE.Vector3(-0.4, 0.55, 0.7) },
         uTime: { value: 0 }
       },
       vertexShader: SKY_VERT,
@@ -167,10 +158,15 @@ export class Sky {
     // Mraky běží ve shaderu přes uTime.
   }
 
-  setSunDirection(sun) {
-    if (!sun) return;
-    _sunLocal.copy(sun.position).normalize();
-    this.skyMat.uniforms.uSunDir.value.copy(_sunLocal);
+  setSunDirection(sun, sun2) {
+    if (sun) {
+      _sunLocal.copy(sun.position).normalize();
+      this.skyMat.uniforms.uSunDir.value.copy(_sunLocal);
+    }
+    if (sun2) {
+      _sun2Local.copy(sun2.position).normalize();
+      this.skyMat.uniforms.uSun2Dir.value.copy(_sun2Local);
+    }
   }
 }
 
@@ -194,6 +190,32 @@ export function createSun(planetGroup) {
   planetGroup.add(sun);
   planetGroup.add(sun.target);
   return sun;
+}
+
+/** Druhé slunce ~140° od primárního — do ruda, se stíny. Obě statická. */
+export function createSecondSun(planetGroup, primarySun) {
+  const sun2 = new THREE.DirectionalLight(0xff6a3a, 1.35);
+  _sun2Local.copy(primarySun.position).normalize();
+  _sun2Axis.set(0, 1, 0).cross(_sun2Local);
+  if (_sun2Axis.lengthSq() < 1e-8) _sun2Axis.set(1, 0, 0).cross(_sun2Local);
+  _sun2Axis.normalize();
+  _sun2Local.applyAxisAngle(_sun2Axis, (140 * Math.PI) / 180);
+  sun2.position.copy(_sun2Local).multiplyScalar(primarySun.position.length());
+  sun2.castShadow = true;
+  sun2.shadow.mapSize.set(CONFIG.shadowMapSize, CONFIG.shadowMapSize);
+  sun2.shadow.radius = CONFIG.shadowSoftRadius;
+  sun2.shadow.bias = -0.0004;
+  sun2.shadow.normalBias = 0.08;
+  sun2.target.position.set(0, 0, 0);
+  sun2.userData.restPos = sun2.position.clone();
+  const cam = sun2.shadow.camera;
+  const sunDist = sun2.position.length();
+  const extent = CONFIG.shadowFrustumHalf + 8;
+  cam.near = Math.max(1, sunDist - extent);
+  cam.far = sunDist + extent;
+  planetGroup.add(sun2);
+  planetGroup.add(sun2.target);
+  return sun2;
 }
 
 export function cameraPose(focusDir, zoom = 1) {
