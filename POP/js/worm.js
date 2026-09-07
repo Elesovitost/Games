@@ -33,6 +33,9 @@ const DEAD_BURY_DUR = 0.28;
 const PEEK_HOLD_MIN = 2.4;
 const PEEK_HOLD_MAX = 4.2;
 const PATH_MIN_STEP = 0.018;
+/** Fejk obrys na shelli — radiálně nízko, ať na svahu „články“ nevyčnívají. */
+const RIDGE_LIFT = 0.01;
+const RIDGE_FLAT_Y = 0.2;
 
 function mat(color, opts = {}) {
   const m = new THREE.MeshStandardMaterial({
@@ -324,8 +327,8 @@ class Worm {
     let hasPrevFwd = false;
     for (let i = 0; i < LINKS; i++) {
       this.#samplePath(i * this.spacing, this._pos);
-      const up = this._up.copy(this._pos).normalize();
-      const h = this.terrain.height(up);
+      const radial = this._trial.copy(this._pos).normalize();
+      const h = this.terrain.height(radial);
       const lift = this._pos.length() - h;
       const link = links[i];
       // Tečna vždy ze stopy (i za posledním článkem) — ne facing hlavy.
@@ -338,14 +341,23 @@ class Worm {
       this._fwd.normalize();
       this._move.copy(this._fwd);
       hasPrevFwd = true;
-      this._right.crossVectors(up, this._fwd);
+      this._right.crossVectors(radial, this._fwd);
       if (this._right.lengthSq() < 1e-6) {
         this._right.crossVectors(this.peekFwd.lengthSq() > 1e-6 ? this.peekFwd : this.facing, this._fwd);
       }
       this._right.normalize();
       this._up.crossVectors(this._fwd, this._right).normalize();
       this._mat.makeBasis(this._right, this._up, this._fwd);
-      const emerged = lift > 0.07;
+      // Tunel: nikdy flesh podle lift (na svahu/morph lift lže → „vykukující“ články).
+      // Flesh jen charm, nebo peek/bury nad prahem.
+      const emerged = surfaced || (peeking && lift > 0.07);
+      const showRidge = !emerged;
+      if (showRidge) {
+        this._pos.copy(radial).multiplyScalar(h + RIDGE_LIFT);
+        link.ridge.scale.set(1, RIDGE_FLAT_Y, 1);
+      } else {
+        link.ridge.scale.set(1, 1, 1);
+      }
       if (peeking && this.state === "treeTrance" && emerged) {
         const lean = treeSwayZ();
         this._pos.addScaledVector(this._right, lean * Math.max(0, lift));
@@ -357,10 +369,10 @@ class Worm {
         link.g.quaternion.setFromRotationMatrix(this._mat);
       }
 
-      link.flesh.visible = emerged || surfaced;
-      link.ridge.visible = !emerged && !surfaced;
+      link.flesh.visible = emerged;
+      link.ridge.visible = showRidge;
       if (link.head) {
-        link.head.visible = emerged || surfaced ||
+        link.head.visible = emerged ||
           (this.state === "treeTrance" && this.arrivedTree);
       }
     }
