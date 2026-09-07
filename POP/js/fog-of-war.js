@@ -233,26 +233,26 @@ export class FogOfWar {
     const markers = this.game.spawnMarkers;
     if (!markers?.entries?.length) return;
     for (const entry of markers.entries) {
-      const mush = entry.mush;
-      if (!mush) continue;
+      const mesh = entry.mesh;
+      if (!mesh) continue;
       if (!fowOn) {
-        if (mush.userData._fowHidden) {
-          mush.visible = mush.userData._fowWasVisible !== false;
-          delete mush.userData._fowHidden;
+        if (mesh.userData._fowHidden) {
+          mesh.visible = mesh.userData._fowWasVisible !== false;
+          delete mesh.userData._fowHidden;
         }
         continue;
       }
       const dir = entry.ringDir;
       const inFov = dir && this.inFov(dir);
       if (!inFov) {
-        if (!mush.userData._fowHidden) {
-          mush.userData._fowWasVisible = mush.visible;
-          mush.userData._fowHidden = true;
+        if (!mesh.userData._fowHidden) {
+          mesh.userData._fowWasVisible = mesh.visible;
+          mesh.userData._fowHidden = true;
         }
-        mush.visible = false;
-      } else if (mush.userData._fowHidden) {
-        mush.visible = mush.userData._fowWasVisible !== false;
-        delete mush.userData._fowHidden;
+        mesh.visible = false;
+      } else if (mesh.userData._fowHidden) {
+        mesh.visible = mesh.userData._fowWasVisible !== false;
+        delete mesh.userData._fowHidden;
       }
     }
   }

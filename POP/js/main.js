@@ -292,6 +292,7 @@ class Game {
     this.#wireWizardNet(w);
     this.#setCameraFocus(start, true);
     this.spawnMarkers?.show();
+    this.spawnMarkers?.syncFromWizards(this.wizards);
     this.critters?.spawn(this.landSpawns);
     this.longnecks?.spawn(this.landSpawns);
     this.worms?.spawn(this.landSpawns);
@@ -350,6 +351,7 @@ class Game {
     this.#resetSpellCooldowns();
     this.lobby?.hide();
     this.applyRoomColors({ players: list });
+    this.spawnMarkers?.syncFromWizards(this.wizards);
     document.getElementById("btn-1p")?.classList.add("active");
     document.getElementById("btn-mp")?.classList.remove("active");
     this.#syncWorldAuthority();
@@ -592,6 +594,7 @@ class Game {
         this.#updateColorSwatch();
       }
     }
+    this.spawnMarkers?.syncFromWizards(this.wizards);
   }
 
   #updateColorSwatch() {
@@ -619,6 +622,7 @@ class Game {
     this.lobby.selectedColor = hex;
     if (this.wizard && !this.wizard.remote) this.wizard.setRobeColor(hex);
     this.#updateColorSwatch();
+    this.spawnMarkers?.syncFromWizards(this.wizards);
     this.session?.sendColor?.(hex);
   }
 

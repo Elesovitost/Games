@@ -12,7 +12,10 @@ export function createGameIntentHandlers(game) {
     pose(fromId, intent) {
       const w = game.wizards.get(String(fromId));
       if (!w) return;
-      if (intent.color != null) w.setRobeColor(intent.color);
+      if (intent.color != null) {
+        w.setRobeColor(intent.color);
+        game.spawnMarkers?.syncFromWizards(game.wizards);
+      }
       w.applyNetPose(intent.dir, intent.facing, intent);
     },
 
@@ -33,6 +36,7 @@ export function createGameIntentHandlers(game) {
       const w = game.wizards.get(String(fromId));
       if (!w || intent.color == null) return;
       w.setRobeColor(intent.color);
+      game.spawnMarkers?.syncFromWizards(game.wizards);
     },
 
     /** Pose už nese pohyb; destination na remote se nepoužívá. */
