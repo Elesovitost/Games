@@ -6,7 +6,7 @@ export const SPAWN_ZONE_RADIUS = 2;
 const RING_RADIUS = SPAWN_ZONE_RADIUS;
 const STONE_COUNT = 12;
 const SURFACE_LIFT = 0.02;
-const POOL_RADIUS = 0.34;
+const POOL_RADIUS = 0.58;
 /** Výchozí barvy prázdných slotů (bez hráče). */
 const DEFAULT_SLOT_COLORS = [0x66ffc8, 0xa8f0ff, 0xffd080, 0xe8a0ff];
 
@@ -132,7 +132,7 @@ function makeStoneGeometry(seed) {
   const shape = new THREE.Shape();
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + (hash01(seed * 1.7 + i) - 0.5) * 0.35;
-    const r = 0.11 + hash01(seed * 3.3 + i * 2.1) * 0.07;
+    const r = 0.2 + hash01(seed * 3.3 + i * 2.1) * 0.1;
     const x = Math.cos(a) * r;
     const y = Math.sin(a) * r;
     if (i === 0) shape.moveTo(x, y);
@@ -140,12 +140,12 @@ function makeStoneGeometry(seed) {
   }
   shape.closePath();
 
-  const h = 0.15 + hash01(seed * 9.1) * 0.07;
+  const h = 0.28 + hash01(seed * 9.1) * 0.1;
   const geo = new THREE.ExtrudeGeometry(shape, {
     depth: h,
     bevelEnabled: true,
-    bevelThickness: 0.018,
-    bevelSize: 0.016,
+    bevelThickness: 0.028,
+    bevelSize: 0.024,
     bevelSegments: 1,
     curveSegments: 1
   });
@@ -197,7 +197,7 @@ function makeRuneStone(glowColor, seed) {
   rock.receiveShadow = true;
 
   // ploška na vršku pod runou
-  const padR = 0.075 + hash01(seed * 4.5) * 0.02;
+  const padR = 0.13 + hash01(seed * 4.5) * 0.035;
   const padMat = new THREE.MeshStandardMaterial({
     color: 0x3e3b36,
     roughness: 0.78,
@@ -213,7 +213,7 @@ function makeRuneStone(glowColor, seed) {
     map: glyph.rim,
     color: RUNE_RIM_HEX,
     transparent: true,
-    opacity: 0.7,
+    opacity: 0.85,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide
@@ -222,7 +222,7 @@ function makeRuneStone(glowColor, seed) {
     map: glyph.core,
     color: glowColor,
     transparent: true,
-    opacity: 0.95,
+    opacity: 1,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide
@@ -239,7 +239,7 @@ function makeRuneStone(glowColor, seed) {
   const poolMat = new THREE.MeshBasicMaterial({
     color: glowColor,
     transparent: true,
-    opacity: 0.07,
+    opacity: 0.16,
     depthWrite: false
   });
   const pool = new THREE.Mesh(new THREE.CircleGeometry(POOL_RADIUS, 12), poolMat);
@@ -295,7 +295,7 @@ export class SpawnMarkers {
       const angle = (i / STONE_COUNT) * Math.PI * 2;
       const seed = slot * 97 + i * 13 + 5;
       const mesh = makeRuneStone(glowColor, seed);
-      mesh.scale.setScalar(0.88 + (i % 3) * 0.1);
+      mesh.scale.setScalar(1.15 + (i % 3) * 0.12);
       this.group.add(mesh);
       this.entries.push({
         mesh,
@@ -440,9 +440,9 @@ export class SpawnMarkers {
       const flicker = 0.5 + 0.5 * phase;
       const mix = wave * 0.65 + flicker * 0.35;
 
-      if (rimMat) rimMat.opacity = 0.35 + mix * 0.45;
-      if (runeMat) runeMat.opacity = 0.5 + mix * 0.5;
-      if (poolMat) poolMat.opacity = 0.03 + mix * 0.09;
+      if (rimMat) rimMat.opacity = 0.5 + mix * 0.5;
+      if (runeMat) runeMat.opacity = 0.7 + mix * 0.3;
+      if (poolMat) poolMat.opacity = 0.08 + mix * 0.14;
     }
   }
 
