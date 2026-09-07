@@ -97,7 +97,7 @@ function wrapPi(a) {
 }
 
 /**
- * Články se překrývají (kulička + trubka) — čelo vede, zbytek se sází po stopě.
+ * Články = koule (+ krátká trubka mezi nimi); vajíčkovitá jen hlava.
  * Ridge = podzemní obrys.
  */
 export function createWormMesh(mats, geos) {
@@ -114,18 +114,18 @@ export function createWormMesh(mats, geos) {
     const flesh = new THREE.Group();
     if (tip) {
       // Kulatý konec — bez zadní trubky, ať nevypadá usekle.
-      flesh.add(sph(S, mats.hide, r * 1.05, r * 0.95, r * 1.05, 0, 0, -r * 0.15));
+      flesh.add(sph(S, mats.hide, r, r, r, 0, 0, 0));
     } else {
-      flesh.add(sph(S, mats.hide, r * 1.02, r * 0.8, r * 1.38, 0, 0, 0));
-      flesh.add(cylZ(C, mats.hide, r * 0.84, r * 1.65, 0, 0, -r * 0.42));
-      if (i % 2) flesh.add(sph(S, mats.band, r * 1.08, r * 0.9, r * 0.38, 0, 0, 0.04));
+      flesh.add(sph(S, mats.hide, r, r, r, 0, 0, 0));
+      flesh.add(cylZ(C, mats.hide, r * 0.72, r * 1.15, 0, 0, -r * 0.42));
+      if (i % 2) flesh.add(sph(S, mats.band, r * 1.06, r * 1.06, r * 0.28, 0, 0, 0.02));
     }
     const ridge = new THREE.Group();
     if (tip) {
-      ridge.add(sph(S, mats.ridge, r * 1.12, r * 0.4, r * 1.12, 0, 0, -r * 0.15));
+      ridge.add(sph(S, mats.ridge, r * 1.08, r * 0.38, r * 1.08, 0, 0, 0));
     } else {
-      ridge.add(sph(S, mats.ridge, r * 1.1, r * 0.34, r * 1.48, 0, 0, 0));
-      ridge.add(cylZ(C, mats.ridge, r * 0.88, r * 1.7, 0, 0, -r * 0.42));
+      ridge.add(sph(S, mats.ridge, r * 1.08, r * 0.34, r * 1.08, 0, 0, 0));
+      ridge.add(cylZ(C, mats.ridge, r * 0.78, r * 1.2, 0, 0, -r * 0.42));
     }
     noShadow(ridge);
     g.add(flesh, ridge);
@@ -134,6 +134,7 @@ export function createWormMesh(mats, geos) {
     links.push({ g, flesh, ridge, head: null, stalks: null });
   }
 
+  // Hlava zůstává vajíčkovitá.
   const head = new THREE.Group();
   const hr = 0.48;
   head.add(sph(S, mats.hide, hr * 0.92, hr * 0.8, hr * 1.18, 0, 0.06, 0.1));
