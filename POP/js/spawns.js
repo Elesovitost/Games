@@ -6,7 +6,10 @@ export const SPAWN_ZONE_RADIUS = 2;
 const RING_RADIUS = SPAWN_ZONE_RADIUS;
 const STONE_COUNT = 12;
 const SURFACE_LIFT = 0.02;
-const POOL_RADIUS = 0.58;
+const POOL_RADIUS = 0.95;
+/** Úhlová rychlost pulzu (rad/s) — peak ≈ heart beat. */
+const PULSE_RATE = 3.6;
+const PULSE_BEAT_THRESH = 0.92;
 /** Výchozí barvy prázdných slotů (bez hráče). */
 const DEFAULT_SLOT_COLORS = [0x66ffc8, 0xa8f0ff, 0xffd080, 0xe8a0ff];
 
@@ -14,10 +17,30 @@ const RUNE_RIM_HEX = 0xffe29a;
 
 /** @type {{ core: THREE.CanvasTexture, rim: THREE.CanvasTexture }[]} */
 let _runeMaps = null;
+/** @type {THREE.CanvasTexture|null} */
+let _poolGlowMap = null;
 
 function hash01(n) {
   const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return x - Math.floor(x);
+}
+
+function ensurePoolGlowMap() {
+  if (_poolGlowMap) return _poolGlowMap;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const g = ctx.createRadialGradient(32, 32, 2, 32, 32, 31);
+  g.addColorStop(0, "rgba(255,255,255,0.95)");
+  g.addColorStop(0.28, "rgba(255,255,255,0.45)");
+  g.addColorStop(0.62, "rgba(255,255,255,0.14)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  _poolGlowMap = new THREE.CanvasTexture(canvas);
+  _poolGlowMap.needsUpdate = true;
+  return _poolGlowMap;
 }
 
 function makeRuneCanvas(pattern, style) {
@@ -237,14 +260,16 @@ function makeRuneStone(glowColor, seed) {
   rune.renderOrder = 3;
 
   const poolMat = new THREE.MeshBasicMaterial({
+    map: ensurePoolGlowMap(),
     color: glowColor,
     transparent: true,
-    opacity: 0.16,
-    depthWrite: false
+    opacity: 0.22,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
   });
-  const pool = new THREE.Mesh(new THREE.CircleGeometry(POOL_RADIUS, 12), poolMat);
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(POOL_RADIUS * 2, POOL_RADIUS * 2), poolMat);
   pool.rotation.x = -Math.PI / 2;
-  pool.position.y = 0.01;
+  pool.position.y = 0.012;
   pool.renderOrder = 1;
 
   g.add(rock, pad, rim, rune, pool);
@@ -267,6 +292,9 @@ export class SpawnMarkers {
     /** @type {number[]} */
     this.slotColors = spawnDirs.map((_, i) => DEFAULT_SLOT_COLORS[i % DEFAULT_SLOT_COLORS.length]);
     this.t = 0;
+    this._prevPulseSin = 0;
+    /** @type {boolean[]} */
+    this._slotOccupied = spawnDirs.map(() => false);
 
     this._east = new THREE.Vector3();
     this._north = new THREE.Vector3();
@@ -406,6 +434,27 @@ export class SpawnMarkers {
     return false;
   }
 
+  /** Je směr uvnitř konkrétního spawn slotu? */
+  isInSlotZone(slot, wizardDir) {
+    const center = this.spawnCenters[slot];
+    if (!center || !wizardDir) return false;
+    this._dir.copy(wizardDir).normalize();
+    const dot = Math.min(1, Math.max(-1, this._dir.dot(center)));
+    return Math.acos(dot) * CONFIG.planetR <= SPAWN_ZONE_RADIUS;
+  }
+
+  /** Slot obsazený svým vlastníkem (wizard se spawnDir na tomto slotu). */
+  #refreshOccupied(wizards) {
+    const n = this.spawnCenters.length;
+    for (let i = 0; i < n; i++) this._slotOccupied[i] = false;
+    if (!wizards) return;
+    for (const w of wizards.values()) {
+      if (!w?.spawnDir || w.eliminated) continue;
+      const slot = this.slotForDir(w.spawnDir);
+      if (this.isInSlotZone(slot, w.dir)) this._slotOccupied[slot] = true;
+    }
+  }
+
   /** Přepočítá pozice kamenů podle aktuálního terénu (po morphu / resetu). */
   refresh() {
     for (const entry of this.entries) this.#placeEntry(entry);
@@ -428,21 +477,43 @@ export class SpawnMarkers {
     }
   }
 
-  /** Jen pulz jasu run — pozice se mění jen přes refresh(). */
-  update(dt) {
+  /**
+   * Pulz run — výrazný jen když vlastník stojí ve svém kruhu.
+   * heart.mp3 na peak pulzu (prostorově ze středu spawnu).
+   */
+  update(dt, wizards, listenerDir, audio) {
     if (!this.group.visible) return;
     this.t += dt;
+    this.#refreshOccupied(wizards);
 
-    const wave = 0.5 + 0.5 * Math.sin(this.t * 2.4);
+    const wave = 0.5 + 0.5 * Math.sin(this.t * PULSE_RATE);
     for (let i = 0; i < this.entries.length; i++) {
-      const { runeMat, rimMat, poolMat } = this.entries[i].mesh.userData;
-      const phase = Math.sin(this.t * 2.4 + i * 0.55);
+      const entry = this.entries[i];
+      const { runeMat, rimMat, poolMat } = entry.mesh.userData;
+      const active = this._slotOccupied[entry.slot];
+      const phase = Math.sin(this.t * PULSE_RATE + i * 0.55);
       const flicker = 0.5 + 0.5 * phase;
       const mix = wave * 0.65 + flicker * 0.35;
 
-      if (rimMat) rimMat.opacity = 0.5 + mix * 0.5;
-      if (runeMat) runeMat.opacity = 0.7 + mix * 0.3;
-      if (poolMat) poolMat.opacity = 0.08 + mix * 0.14;
+      if (active) {
+        if (rimMat) rimMat.opacity = 0.35 + mix * 0.65;
+        if (runeMat) runeMat.opacity = 0.45 + mix * 0.55;
+        if (poolMat) poolMat.opacity = 0.18 + mix * 0.32;
+      } else {
+        if (rimMat) rimMat.opacity = 0.18 + mix * 0.14;
+        if (runeMat) runeMat.opacity = 0.22 + mix * 0.16;
+        if (poolMat) poolMat.opacity = 0.05 + mix * 0.07;
+      }
+    }
+
+    const s = Math.sin(this.t * PULSE_RATE);
+    const beat = this._prevPulseSin < PULSE_BEAT_THRESH && s >= PULSE_BEAT_THRESH;
+    this._prevPulseSin = s;
+    if (beat && audio && listenerDir) {
+      for (let slot = 0; slot < this._slotOccupied.length; slot++) {
+        if (!this._slotOccupied[slot]) continue;
+        audio.playAt("heart", this.spawnCenters[slot], listenerDir);
+      }
     }
   }
 

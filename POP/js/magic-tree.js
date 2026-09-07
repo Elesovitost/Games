@@ -38,6 +38,8 @@ let _leafGeo = null;
 let _flyGeo = null;
 
 const FIREFLY_N = 20;
+/** Od této velikosti světlušky vidět + treegrow SFX. */
+export const TREE_FIREFLY_GROW = 0.04;
 
 function woodGeo() {
   if (!_woodGeo) _woodGeo = new THREE.CylinderGeometry(1, 1, 1, 5, 1);
@@ -280,7 +282,7 @@ function makeFireflies(rng) {
 }
 
 function poseFirefly(f, t, g) {
-  if (g < 0.04) {
+  if (g < TREE_FIREFLY_GROW) {
     _dummy.scale.set(0, 0, 0);
     _dummy.position.set(0, 0, 0);
     _dummy.quaternion.set(0, 0, 0, 1);
@@ -351,6 +353,8 @@ export class MagicTree {
     this.maxPath = skel.maxPath;
     this.glowPhase = rng() * Math.PI * 2;
     this.fireflies = makeFireflies(rng);
+    this.sfxGrow = null;
+    this._growAudio = null;
 
     this.group = new THREE.Group();
     this.group.frustumCulled = false;
@@ -523,6 +527,7 @@ export class MagicTree {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.clearGrowSfx();
     disposeMagicTreeGhost(this);
     this.placement.gone = true;
     this.planetGroup.remove(this.group);
@@ -530,6 +535,17 @@ export class MagicTree {
     this.leafMat.dispose();
     this.flyMat.dispose();
     this.light.dispose();
+  }
+
+  /** Zastaví treegrow smyčku. */
+  clearGrowSfx(audio) {
+    if (!this.sfxGrow) {
+      this._growAudio = null;
+      return;
+    }
+    (audio || this._growAudio)?.stopSfxLoop(this.sfxGrow, 0.3);
+    this.sfxGrow = null;
+    this._growAudio = null;
   }
 }
 

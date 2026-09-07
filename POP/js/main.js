@@ -1208,7 +1208,6 @@ class Game {
     /** Rozloží start ohně u víc stromů/zvířat naráz (výbuch komety) do pár snímků. */
     pumpFireQueue();
     this.spells.update(dt);
-    this.spawnMarkers.update(dt);
     this.water.update(dt);
     this.sky.update(dt);
     this.session.tickPose(dt);
@@ -1218,6 +1217,7 @@ class Game {
     this.fow?.update(this.wizard?.dir);
 
     const viewAxis = getPlanetViewAxis(this.camera, this.planetGroup, tmp.v);
+    this.spawnMarkers.update(dt, this.wizards, viewAxis, this.audio);
     this.terrain.setViewAxis(viewAxis);
     this.water.setViewAxis(viewAxis);
     this.audio.updateCastSpatial(viewAxis, (id) => this.wizards.get(String(id))?.dir);

@@ -2,13 +2,28 @@ import * as THREE from "../three.js";
 import { CONFIG } from "../config.js";
 import { slerpDirection } from "../utils.js";
 import { surfaceDist } from "./fx-common.js";
-import { MagicTree } from "../magic-tree.js";
+import { MagicTree, TREE_FIREFLY_GROW } from "../magic-tree.js";
 import { aoeFalloff, countTreeWorshippers } from "../animalsAI.js";
 import { TREE_GROW_FLOOR } from "../tree-grow.js";
 
 const _world = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _aim = new THREE.Vector3();
+
+function syncTreeGrowSfx(sys, t) {
+  const want = !t.disposed && t.growth >= TREE_FIREFLY_GROW;
+  if (!want) {
+    t.clearGrowSfx?.(sys.audio);
+    return;
+  }
+  const listener = sys.getListenerDir?.();
+  if (!listener || !sys.audio) return;
+  if (!t.sfxGrow) {
+    t.sfxGrow = sys.audio.startSfxLoop("treegrow", t.dir, listener);
+    if (t.sfxGrow) t._growAudio = sys.audio;
+  }
+  if (t.sfxGrow) sys.audio.updateSfxLoop(t.sfxGrow, t.dir, listener);
+}
 
 export function countMagicTreesForOwner(sys, ownerId) {
   const list = sys.magicTrees;
@@ -281,6 +296,7 @@ export function updateMagicTrees(sys, dt) {
   for (let i = list.length - 1; i >= 0; i--) {
     const t = list[i];
     if (t.disposed || t.placement?.gone) {
+      t.clearGrowSfx?.(sys.audio);
       if (!t.disposed) t.dispose();
       list.splice(i, 1);
       continue;
@@ -294,18 +310,23 @@ export function updateMagicTrees(sys, dt) {
     }
     if (sys.worldRemote) {
       t.glowT += dt;
+      t.applyGlow();
       t.pose();
     } else {
       const n = countTreeWorshippers(t.dir, sys.critters?.list, sys.longnecks?.list, sys.worms?.list);
       t.update(dt, n);
     }
+    syncTreeGrowSfx(sys, t);
   }
   syncMagicTreeHealthUi(sys);
 }
 
 export function disposeMagicTrees(sys) {
   if (!sys.magicTrees) return;
-  for (const t of sys.magicTrees) t.dispose();
+  for (const t of sys.magicTrees) {
+    t.clearGrowSfx?.(sys.audio);
+    t.dispose();
+  }
   sys.magicTrees.length = 0;
   if (sys.trees?.placements) {
     const keep = sys.trees.placements.filter((p) => !p.magic);

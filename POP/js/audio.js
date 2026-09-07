@@ -142,6 +142,13 @@ export const SFX = {
     maxDist: CONFIG.sfxMaxDist,
     gain: 1
   },
+  treegrow: {
+    url: "./audio/tree-grow.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 0.15
+  },
   lava: {
     url: "./audio/lava.mp3",
     refDist: CONFIG.sfxRefDist,
@@ -204,6 +211,14 @@ export const SFX = {
     halfDist: CONFIG.sfxHalfDist,
     maxDist: CONFIG.sfxMaxDist,
     gain: 1.05
+  },
+  /** Tep spawnu — když vlastník stojí v kruhu (sync s pulzem run). */
+  heart: {
+    url: "./audio/heart.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 0.9
   }
 };
 
