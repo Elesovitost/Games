@@ -52,7 +52,7 @@ export const SPELLS = {
     /** Poloměr koule ≈ 15 cm → průměr 30 cm */
     radius: 0.15,
     color: 0xff7a28,
-    hint: "Klikni v dosahu — ohnivá koule letí přímkou."
+    hint: "Klikni v dosahu — ohnivá koule letí po oblouku planety (kopec ji zastaví)."
   },
   iceball: {
     id: "iceball",

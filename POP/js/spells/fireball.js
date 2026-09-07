@@ -1,8 +1,8 @@
 import * as THREE from "../three.js";
 import { CONFIG } from "../config.js";
 import { SPELLS } from "./defs.js";
-import { tangentFrame, tmp } from "../utils.js";
-import { applyAoeDamage, spawnBurst, spawnScorchMark } from "./fx-common.js";
+import { tangentFrame, tmp, slerpDirection } from "../utils.js";
+import { applyAoeDamage, spawnBurst, spawnScorchMark, surfaceDist } from "./fx-common.js";
 import { hurtMagicTreesNear } from "./tree.js";
 import { isWaterAt, spawnWaterSplash } from "./water-fx.js";
 
@@ -215,7 +215,7 @@ function disposeFireball(sys, p) {
   if (p.light) p.ball.remove(p.light);
 }
 
-/** Ohnivá koule: vystřel z hlavy kouzelníka směrem k cíli. */
+/** Ohnivá koule: vystřel z hlavy — geodetická dráha nad povrchem planety. */
 export function launchFireball(sys, targetDir) {
   const w = sys.wizard;
   if (!w) return;
@@ -226,16 +226,19 @@ export function launchFireball(sys, targetDir) {
 
   const headLift = CONFIG.wizardHeightM - 0.12;
   const from = w.mesh.position.clone().addScaledVector(w.dir, headLift);
+  const fromDir = from.clone().normalize();
+  const rStart = from.length();
 
-  sys._vel.copy(aim).sub(from);
-  const dist = sys._vel.length();
-  if (dist < 0.15) {
+  const arcLen = Math.max(0.2, surfaceDist(fromDir, target));
+  if (arcLen < 0.25) {
     explodeFireball(sys, aim, target, sys._castOwnerId);
     return;
   }
-  sys._vel.multiplyScalar(SPELLS.fireball.speed / dist);
 
   const r = SPELLS.fireball.radius;
+  /** Mírný peak nad ideální sférickou tětivou (ne kopírování terénu). */
+  const peak = Math.min(1.8, 0.35 + arcLen * 0.04);
+  const rEnd = th + r * 0.55;
   const geos = [];
   const mats = [];
 
@@ -299,7 +302,6 @@ export function launchFireball(sys, targetDir) {
   ball.frustumCulled = false;
   sys.planetGroup.add(ball);
 
-  const fromDir = from.clone().normalize();
   const listener = sys.getListenerDir?.(tmp.dir2);
   const sfxHiss =
     listener && sys.audio ? sys.audio.startHiss(fromDir, listener) : null;
@@ -310,12 +312,16 @@ export function launchFireball(sys, targetDir) {
     geos,
     mats,
     light,
-    vel: sys._vel.clone(),
+    vel: new THREE.Vector3(),
+    fromDir,
     target,
     aim,
+    rStart,
+    rEnd,
+    peak,
     radius: r,
     traveled: 0,
-    maxDist: dist + headLift + 6,
+    arcLen,
     life: 6,
     smokeAcc: 0,
     burnT: 0,
@@ -328,39 +334,45 @@ export function launchFireball(sys, targetDir) {
 export function updateFireball(sys, p, dt) {
   const speed = SPELLS.fireball.speed;
   const step = speed * dt;
-  p.ball.position.addScaledVector(p.vel, dt);
   p.traveled += step;
   p.burnT += dt;
   p.smokeAcc += dt;
 
+  const u = Math.min(1, p.traveled / Math.max(0.05, p.arcLen));
+  slerpDirection(sys._tmp, p.fromDir, p.target, u);
+  /** Ideální sféra: radius mezi start/cíl + mírný peak — bez sledování terénu. */
+  const arc = 4 * p.peak * u * (1 - u);
+  const rFlight = p.rStart * (1 - u) + p.rEnd * u + arc;
+  sys._tmp2.copy(sys._tmp).multiplyScalar(rFlight);
+
+  if (dt > 1e-6) {
+    p.vel.copy(sys._tmp2).sub(p.ball.position).multiplyScalar(1 / dt);
+  }
+  p.ball.position.copy(sys._tmp2);
+
   const pos = p.ball.position;
   const len = pos.length();
-  let hit = p.life <= 0 || p.traveled >= p.maxDist;
+  const terrainH = sys.terrain.height(sys._tmp);
+  /** Kopec v cestě — narazí, když ideální dráha protne povrch. */
+  let hit = p.life <= 0 || u >= 1 || rFlight - p.radius <= terrainH + 0.04;
 
-  if (len > 1e-5) {
-    sys._tmp.copy(pos).multiplyScalar(1 / len);
-    const terrainH = sys.terrain.height(sys._tmp);
-    const onWater = sys.terrain.wetness(sys._tmp) > 0.45;
-    const surface = onWater ? CONFIG.waterLevel : terrainH;
-    if (len - p.radius <= surface + 0.05) hit = true;
-
-    if (!hit) {
-      if (p.smokeAcc >= 0.022) {
-        p.smokeAcc = 0;
-        const back = p.vel.clone().normalize().multiplyScalar(-0.18);
-        spawnSmokeStreak(sys, pos.clone().add(back), p.vel, sys._tmp);
-        if (Math.random() > 0.45) {
-          const puffVel = p.vel
-            .clone()
-            .multiplyScalar(-0.2)
-            .addScaledVector(sys._tmp, 0.3 + Math.random() * 0.25);
-          spawnSmokePuff(sys, pos.clone().add(back), puffVel, {
-            opacity: 0.35,
-            life: 0.7,
-            grow: 0.28,
-            size: 0.1
-          });
-        }
+  if (!hit && p.smokeAcc >= 0.022) {
+    p.smokeAcc = 0;
+    const spd = p.vel.length();
+    if (spd > 0.5) {
+      const back = p.vel.clone().multiplyScalar(-0.18 / spd);
+      spawnSmokeStreak(sys, pos.clone().add(back), p.vel, sys._tmp);
+      if (Math.random() > 0.45) {
+        const puffVel = p.vel
+          .clone()
+          .multiplyScalar(-0.2)
+          .addScaledVector(sys._tmp, 0.3 + Math.random() * 0.25);
+        spawnSmokePuff(sys, pos.clone().add(back), puffVel, {
+          opacity: 0.35,
+          life: 0.7,
+          grow: 0.28,
+          size: 0.1
+        });
       }
     }
   }
@@ -384,12 +396,9 @@ export function updateFireball(sys, p, dt) {
   const wobble = 1 + 0.1 * Math.sin(p.burnT * 24);
   p.ball.scale.setScalar(wobble);
 
-  if (p.sfxHiss && len > 1e-5) {
+  if (p.sfxHiss) {
     const listener = sys.getListenerDir?.(tmp.dir2);
-    if (listener) {
-      sys._tmp.copy(pos).multiplyScalar(1 / len);
-      sys.audio?.updateHiss(p.sfxHiss, sys._tmp, listener, dt);
-    }
+    if (listener) sys.audio?.updateHiss(p.sfxHiss, sys._tmp, listener, dt);
   }
 
   if (hit) {
@@ -397,19 +406,17 @@ export function updateFireball(sys, p, dt) {
       sys.audio?.stopHiss(p.sfxHiss, 0.05);
       p.sfxHiss = null;
     }
-    const dir = len > 1e-5 ? sys._tmp.clone() : p.target.clone();
-    if (len > 1e-5) sys._tmp.copy(pos).multiplyScalar(1 / len);
-    const terrainH = len > 1e-5 ? sys.terrain.height(sys._tmp) : CONFIG.waterLevel;
-    const onWater = len > 1e-5 && sys.terrain.wetness(sys._tmp) > 0.45;
+    const dir = sys._tmp.clone();
+    const onWater = isWaterAt(sys, dir);
+    const terrainH = sys.terrain.height(dir);
     const surface = onWater ? CONFIG.waterLevel : terrainH;
-    const hitPos =
-      len > 1e-5
-        ? pos.clone().addScaledVector(sys._tmp, -(len - surface + 0.02))
-        : pos.clone();
+    const hitPos = dir.clone().multiplyScalar(surface + p.radius);
     explodeFireball(sys, hitPos, dir, p.casterId);
     disposeFireball(sys, p);
     return false;
   }
+
+  p.life -= dt;
   return true;
 }
 
