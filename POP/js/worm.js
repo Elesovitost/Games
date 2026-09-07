@@ -32,10 +32,15 @@ const DIVE_DUR = 0.95;
 const DEAD_BURY_DUR = 0.28;
 const PEEK_HOLD_MIN = 2.4;
 const PEEK_HOLD_MAX = 4.2;
+/** Plazení pod zemí mezi peeky. */
+const TUNNEL_PEEK_EVERY = 5;
 const PATH_MIN_STEP = 0.018;
-/** Fejk obrys na shelli — radiálně nízko, ať na svahu „články“ nevyčnívají. */
-const RIDGE_LIFT = 0.01;
-const RIDGE_FLAT_Y = 0.2;
+/** Potulování kolem home — radius v metrech. */
+const WANDER_R = 100;
+const WANDER_RETARGET_MIN = 4;
+const WANDER_RETARGET_MAX = 9;
+/** Preference dál od vody (wetness + blízkost hladiny). */
+const WATER_AVOID = 0.55;
 
 function mat(color, opts = {}) {
   const m = new THREE.MeshStandardMaterial({
@@ -192,18 +197,15 @@ class Worm {
     this.peekFwd = new THREE.Vector3();
 
     this.phase = rng() * 80;
-    this.eightT = rng() * Math.PI * 2;
-    this.eightSign = rng() < 0.5 ? 1 : -1;
-    this.eightAmp = 7 + rng() * 7;
-    this.eightStretch = 0.65 + rng() * 0.5;
-    this.eightYaw = rng() * Math.PI * 2;
     this.steerSide = rng() < 0.5 ? 1 : -1;
     this.wallT = 0;
+    this.targetDir = dir.clone().normalize();
+    this.wanderT = 1 + rng() * 3;
 
     this.state = "tunnel";
     this.peekStage = null;
     this.peekT = 0;
-    this.stateT = 18 + rng() * 25;
+    this.stateT = TUNNEL_PEEK_EVERY * (0.55 + rng() * 0.55);
     this.dead = false;
     this.burying = false;
     this.buryU = 0;
@@ -225,6 +227,7 @@ class Worm {
     tangentFrame(this.dir, this._east, this.facing);
     this.peekFwd.copy(this.facing);
     this.#initPath();
+    this.#pickWanderTarget();
     this.#poseLinks(0);
   }
 
@@ -327,8 +330,8 @@ class Worm {
     let hasPrevFwd = false;
     for (let i = 0; i < LINKS; i++) {
       this.#samplePath(i * this.spacing, this._pos);
-      const radial = this._trial.copy(this._pos).normalize();
-      const h = this.terrain.height(radial);
+      const up = this._up.copy(this._pos).normalize();
+      const h = this.terrain.height(up);
       const lift = this._pos.length() - h;
       const link = links[i];
       // Tečna vždy ze stopy (i za posledním článkem) — ne facing hlavy.
@@ -341,23 +344,14 @@ class Worm {
       this._fwd.normalize();
       this._move.copy(this._fwd);
       hasPrevFwd = true;
-      this._right.crossVectors(radial, this._fwd);
+      this._right.crossVectors(up, this._fwd);
       if (this._right.lengthSq() < 1e-6) {
         this._right.crossVectors(this.peekFwd.lengthSq() > 1e-6 ? this.peekFwd : this.facing, this._fwd);
       }
       this._right.normalize();
       this._up.crossVectors(this._fwd, this._right).normalize();
       this._mat.makeBasis(this._right, this._up, this._fwd);
-      // Tunel: nikdy flesh podle lift (na svahu/morph lift lže → „vykukující“ články).
-      // Flesh jen charm, nebo peek/bury nad prahem.
-      const emerged = surfaced || (peeking && lift > 0.07);
-      const showRidge = !emerged;
-      if (showRidge) {
-        this._pos.copy(radial).multiplyScalar(h + RIDGE_LIFT);
-        link.ridge.scale.set(1, RIDGE_FLAT_Y, 1);
-      } else {
-        link.ridge.scale.set(1, 1, 1);
-      }
+      const emerged = lift > 0.25;
       if (peeking && this.state === "treeTrance" && emerged) {
         const lean = treeSwayZ();
         this._pos.addScaledVector(this._right, lean * Math.max(0, lift));
@@ -369,10 +363,10 @@ class Worm {
         link.g.quaternion.setFromRotationMatrix(this._mat);
       }
 
-      link.flesh.visible = emerged;
-      link.ridge.visible = showRidge;
+      link.flesh.visible = emerged || surfaced;
+      link.ridge.visible = !emerged && !surfaced;
       if (link.head) {
-        link.head.visible = emerged ||
+        link.head.visible = emerged || surfaced ||
           (this.state === "treeTrance" && this.arrivedTree);
       }
     }
@@ -408,48 +402,37 @@ class Worm {
     }
   }
 
-  #eightPoint(t, out) {
-    const wobble = 0.78 + 0.22 * Math.sin(this.phase * 0.33);
-    const amp = this.eightAmp * wobble;
-    const stretch = this.eightStretch + 0.14 * Math.sin(this.phase * 0.19);
-    const x = amp * Math.sin(t);
-    const z = amp * stretch * Math.sin(t) * Math.cos(t);
-    const yaw = this.eightYaw + Math.sin(this.phase * 0.09) * 0.55;
+  /** Čím sušší a výš nad hladinou, tím lepší (nižší skóre). */
+  #dryScore(dir) {
+    const wet = this.terrain.wetness(dir);
+    const h = this.terrain.height(dir);
+    const shore = Math.max(0, CONFIG.waterLevel + WATER_AVOID - h);
+    return wet * 2.2 + shore * 1.4;
+  }
+
+  #pickWanderTarget() {
     tangentFrame(this.home, this._east, this._north);
-    const c = Math.cos(yaw);
-    const s = Math.sin(yaw);
-    const rx = x * c - z * s;
-    const rz = x * s + z * c;
-    const dist = Math.hypot(rx, rz);
-    const ang = Math.atan2(rz, rx);
-    surfaceOffsetDir(this.home, this._east, this._north, ang, Math.max(0.4, dist), out);
-  }
-
-  #rehomeEight() {
-    this.home.copy(this.dir).normalize();
-    this.eightYaw = this.rng() * Math.PI * 2;
-    this.eightAmp = 7 + this.rng() * 7;
-    this.eightSign *= -1;
-    this.steerSide *= -1;
-  }
-
-  #pickAim(out) {
-    if (!isWalkLand(this.terrain, this.home)) this.home.copy(this.dir).normalize();
-    for (let k = 0; k < 16; k++) {
-      this.#eightPoint(this.eightT + this.eightSign * k * 0.12, out);
-      if (isWalkLand(this.terrain, out)) return out;
-    }
-    if (isWalkLand(this.terrain, this.home)) return out.copy(this.home);
-    tangentFrame(this.dir, this._east, this._north);
-    for (let k = 0; k < 16; k++) {
-      const ang = (k / 16) * Math.PI * 2;
-      surfaceOffsetDir(this.dir, this._east, this._north, ang, 2.5 + (k % 4) * 1.2, out);
-      if (isWalkLand(this.terrain, out)) {
-        this.home.copy(out);
-        return out;
+    let bestScore = Infinity;
+    let found = false;
+    for (let k = 0; k < 18; k++) {
+      const dist = 8 + this.rng() * (WANDER_R * 0.92);
+      const ang = this.rng() * Math.PI * 2;
+      surfaceOffsetDir(this.home, this._east, this._north, ang, dist, this._trial);
+      if (!isWalkLand(this.terrain, this._trial)) continue;
+      if (surfaceDist(this.home, this._trial) > WANDER_R) continue;
+      let score = this.#dryScore(this._trial);
+      score -= Math.min(12, surfaceDist(this.dir, this._trial)) * 0.04;
+      if (score < bestScore) {
+        bestScore = score;
+        this.targetDir.copy(this._trial);
+        found = true;
       }
     }
-    return out.copy(this.dir);
+    if (!found) {
+      if (isWalkLand(this.terrain, this.home)) this.targetDir.copy(this.home);
+      else this.targetDir.copy(this.dir);
+    }
+    this.wanderT = WANDER_RETARGET_MIN + this.rng() * (WANDER_RETARGET_MAX - WANDER_RETARGET_MIN);
   }
 
   #probe(ang, dist, out) {
@@ -475,43 +458,58 @@ class Worm {
     const maxTurn = TURN_RATE * dt;
     want = faceAng + Math.max(-maxTurn, Math.min(maxTurn, wrapPi(want - faceAng)));
 
+    // Blízko vody: zatáčet k suššímu směru.
+    if (this.#probe(want, Math.max(step * 2.2, 1.2), this._trial)) {
+      const aheadWet = this.#dryScore(this._trial);
+      if (aheadWet > 0.55) {
+        let dryAng = want;
+        let dryBest = aheadWet;
+        for (const side of [this.steerSide, -this.steerSide]) {
+          for (let k = 1; k <= 8; k++) {
+            const a = want + side * k * 0.28;
+            if (!this.#probe(a, Math.max(step * 2.2, 1.2), this._trial)) continue;
+            const s = this.#dryScore(this._trial);
+            if (s < dryBest) {
+              dryBest = s;
+              dryAng = a;
+            }
+          }
+        }
+        want = faceAng + Math.max(-maxTurn * 1.8, Math.min(maxTurn * 1.8, wrapPi(dryAng - faceAng)));
+      }
+    }
+
     if (!this.#probe(want, step, this._trial)) {
       this.wallT += dt;
       let picked = null;
+      let pickedScore = Infinity;
       for (let k = 1; k <= 16; k++) {
         const d = k * 0.2;
-        if (this.#probe(faceAng + this.steerSide * d, step, this._trial)) {
-          picked = faceAng + this.steerSide * d;
-          break;
+        for (const side of [this.steerSide, -this.steerSide]) {
+          const a = faceAng + side * d;
+          if (!this.#probe(a, step, this._trial)) continue;
+          const s = this.#dryScore(this._trial);
+          if (s < pickedScore) {
+            pickedScore = s;
+            picked = a;
+            if (side !== this.steerSide) this.steerSide = side;
+          }
         }
-        if (this.#probe(faceAng - this.steerSide * d, step, this._trial)) {
-          picked = faceAng - this.steerSide * d;
-          this.steerSide *= -1;
-          break;
-        }
+        if (picked != null && pickedScore < 0.7) break;
       }
       if (picked == null) {
-        if (this.#probe(want, step * 0.35, this._trial)) {
-          // kratší krok dopředu
-        } else if (this.#probe(faceAng + Math.PI, step * 0.35, this._trial)) {
-          want = faceAng + Math.PI;
-        } else if (this.#probe(faceAng + Math.PI, step, this._trial)) {
-          want = faceAng + Math.PI;
-        } else {
-          const turn = faceAng + this.steerSide * maxTurn;
-          tangentFrame(this.dir, this._east, this._north);
-          this.facing
-            .copy(this._east).multiplyScalar(Math.cos(turn))
-            .addScaledVector(this._north, Math.sin(turn))
-            .normalize();
-          return false;
-        }
-      } else {
-        want = faceAng + Math.max(-maxTurn * 1.6, Math.min(maxTurn * 1.6, wrapPi(picked - faceAng)));
-        if (!this.#probe(want, step, this._trial)) {
-          if (!this.#probe(picked, step, this._trial)) return false;
-          want = picked;
-        }
+        const turn = faceAng + this.steerSide * maxTurn;
+        tangentFrame(this.dir, this._east, this._north);
+        this.facing
+          .copy(this._east).multiplyScalar(Math.cos(turn))
+          .addScaledVector(this._north, Math.sin(turn))
+          .normalize();
+        return false;
+      }
+      want = faceAng + Math.max(-maxTurn * 1.6, Math.min(maxTurn * 1.6, wrapPi(picked - faceAng)));
+      if (!this.#probe(want, step, this._trial)) {
+        if (!this.#probe(picked, step, this._trial)) return false;
+        want = picked;
       }
     } else {
       this.wallT = Math.max(0, this.wallT - dt * 2);
@@ -531,16 +529,19 @@ class Worm {
     return true;
   }
 
-  #followEight(dt) {
-    this.#pickAim(this._trial);
-    if (surfaceDist(this.dir, this._trial) < 2.6 || this.wallT > 1.4) {
-      this.eightT += this.eightSign * dt * (WALK_SPEED / Math.max(5.5, this.eightAmp));
-      if (this.wallT > 1.4) {
-        this.#rehomeEight();
-        this.wallT = 0;
+  #followWander(dt) {
+    this.wanderT -= dt;
+    const distHome = surfaceDist(this.dir, this.home);
+    const distAim = surfaceDist(this.dir, this.targetDir);
+    if (this.wanderT <= 0 || distAim < 2.4 || this.wallT > 1.6) {
+      if (distHome > WANDER_R * 0.92 || !isWalkLand(this.terrain, this.home)) {
+        if (!isWalkLand(this.terrain, this.home)) this.home.copy(this.dir);
       }
+      this.#pickWanderTarget();
+      this.wallT = 0;
     }
-    this.#drive(dt, this._trial);
+    if (distHome > WANDER_R) this.#drive(dt, this.home);
+    else this.#drive(dt, this.targetDir);
   }
 
   #holeSurf(out) {
@@ -612,9 +613,8 @@ class Worm {
       this.#pushPath(this._pos);
       this.state = "tunnel";
       this.peekStage = null;
-      this.stateT = 20 + this.rng() * 30;
-      if (this.rng() < 0.22) this.eightSign *= -1;
-      this.eightYaw += (this.rng() - 0.5) * 0.7;
+      this.stateT = TUNNEL_PEEK_EVERY;
+      this.#pickWanderTarget();
     }
   }
 
@@ -836,7 +836,7 @@ class Worm {
       return;
     }
 
-    this.#followEight(dt);
+    this.#followWander(dt);
     this.stateT -= dt;
     if (this.stateT <= 0) this.#enterPeek();
     this.#poseLinks(dt);
@@ -861,7 +861,7 @@ class Worm {
     }
     this.state = "tunnel";
     this.peekStage = null;
-    this.stateT = 15 + this.rng() * 20;
+    this.stateT = TUNNEL_PEEK_EVERY;
   }
 
   dispose() {
