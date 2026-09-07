@@ -466,9 +466,9 @@ export class AimReticle {
 }
 
 const FOOT_LIFT = 0.2;
-const FOOT_SPACING = 0.2;
+const FOOT_SPACING = 0.14;
 const FOOT_STAGGER = 0.14;
-const FOOT_SCALE = 1.5;
+const FOOT_SCALE = 1.05;
 
 const _footTmp = {
   east: new THREE.Vector3(),
@@ -569,6 +569,8 @@ export class WalkFootprints {
     this._forward.copy(this.fromDir).addScaledVector(this.targetDir, -this.targetDir.dot(this.fromDir));
     if (this._forward.lengthSq() < 1e-8) this._forward.copy(this._east);
     else this._forward.normalize();
+    // projekce fromDir míří k wizardovi — otočit: špičky po směru příchodu
+    this._forward.negate();
 
     this._right.crossVectors(this.targetDir, this._forward).normalize();
     if (this._right.lengthSq() < 1e-8) this._right.copy(this._east);

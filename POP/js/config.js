@@ -43,7 +43,7 @@ export const CONFIG = {
   /** Min. poloměr terénu — lze chodit i pod vodou */
   wizardMinTerrainR: PLANET_R * 0.72 + 0.08,
   /** Dojede na klik, když je blíž než tolik metrů po povrchu */
-  wizardArrive: 0.55,
+  wizardArrive: 0.12,
   /** GOD MODE — násobič rychlosti chůze (testování) */
   godModeSpeedMul: 10,
   /** Fog of war — default zapnutý; God mode ho vypíná */
