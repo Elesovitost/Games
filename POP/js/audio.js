@@ -218,7 +218,7 @@ export const SFX = {
     refDist: CONFIG.sfxRefDist,
     halfDist: CONFIG.sfxHalfDist,
     maxDist: CONFIG.sfxMaxDist,
-    gain: 0.9
+    gain: 0.25
   }
 };
 

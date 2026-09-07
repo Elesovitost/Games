@@ -374,6 +374,7 @@ export class FogOfWar {
 
       if (!fowOn) {
         live.visible = true;
+        if (t.waveRoot) t.waveRoot.visible = true;
         if (t.ghostGroup) t.ghostGroup.visible = false;
         continue;
       }
@@ -382,11 +383,13 @@ export class FogOfWar {
       if (inFov) {
         t.fowSeen = true;
         live.visible = true;
+        if (t.waveRoot) t.waveRoot.visible = true;
         disposeMagicTreeGhost(t);
         continue;
       }
 
       live.visible = false;
+      if (t.waveRoot) t.waveRoot.visible = false;
       if (t.fowSeen) {
         ensureMagicTreeGhost(t);
         if (t.ghostGroup) t.ghostGroup.visible = true;

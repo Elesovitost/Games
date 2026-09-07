@@ -355,6 +355,10 @@ export class MagicTree {
     this.fireflies = makeFireflies(rng);
     this.sfxGrow = null;
     this._growAudio = null;
+    this.waveRoot = null;
+    /** @type {{ mesh: THREE.Mesh, mat: THREE.MeshBasicMaterial, geo: THREE.BufferGeometry, t: number, life: number, r0: number, r1: number }[]} */
+    this.soundWaves = [];
+    this._waveEmitT = 0;
 
     this.group = new THREE.Group();
     this.group.frustumCulled = false;
@@ -528,6 +532,7 @@ export class MagicTree {
     if (this.disposed) return;
     this.disposed = true;
     this.clearGrowSfx();
+    this.disposeSoundWaves?.();
     disposeMagicTreeGhost(this);
     this.placement.gone = true;
     this.planetGroup.remove(this.group);

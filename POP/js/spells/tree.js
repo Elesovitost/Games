@@ -1,6 +1,6 @@
 import * as THREE from "../three.js";
 import { CONFIG } from "../config.js";
-import { slerpDirection } from "../utils.js";
+import { slerpDirection, tangentFrame, surfaceOffsetDir } from "../utils.js";
 import { surfaceDist } from "./fx-common.js";
 import { MagicTree, TREE_FIREFLY_GROW } from "../magic-tree.js";
 import { aoeFalloff, countTreeWorshippers } from "../animalsAI.js";
@@ -9,20 +9,217 @@ import { TREE_GROW_FLOOR } from "../tree-grow.js";
 const _world = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _aim = new THREE.Vector3();
+const _east = new THREE.Vector3();
+const _north = new THREE.Vector3();
+
+/** Max poloměr zvukové vlny u plně vzrostlého stromu (m). */
+const SOUND_WAVE_R1 = 6.2;
+const SOUND_WAVE_R0 = 0.28;
+const SOUND_WAVE_LIFE = 2.4;
+const SOUND_WAVE_SEGS = 48;
+const SOUND_WAVE_WIDTH = 0.7;
+const SOUND_WAVE_LIFT = 0.07;
+
+/** @type {THREE.CanvasTexture|null} */
+let _soundWaveMap = null;
+
+function ensureSoundWaveMap() {
+  if (_soundWaveMap) return _soundWaveMap;
+  const res = 64;
+  const c = document.createElement("canvas");
+  c.width = c.height = res;
+  const ctx = c.getContext("2d");
+  const img = ctx.createImageData(res, res);
+  const data = img.data;
+  for (let y = 0; y < res; y++) {
+    for (let x = 0; x < res; x++) {
+      const u = (x + 0.5) / res;
+      const v = (y + 0.5) / res;
+      // v: 0 vnitřní okraj pásu, 1 vnější — měkký pruh
+      const band = Math.exp(-((v - 0.5) ** 2) / 0.045);
+      const edge = Math.sin(Math.PI * v);
+      const a = Math.max(0, band * 0.55 + edge * 0.65);
+      const i = (y * res + x) * 4;
+      data[i] = 255;
+      data[i + 1] = 255;
+      data[i + 2] = 255;
+      data[i + 3] = Math.max(0, Math.min(255, a * 230));
+      void u;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  _soundWaveMap = new THREE.CanvasTexture(c);
+  _soundWaveMap.needsUpdate = true;
+  _soundWaveMap.wrapS = THREE.RepeatWrapping;
+  return _soundWaveMap;
+}
+
+function growWavePeriod(sys) {
+  const d = sys.audio?.buffers?.get("treegrow")?.duration;
+  if (d > 0.25) return d / 2;
+  return 0.9;
+}
+
+function ensureWaveRoot(t) {
+  if (t.waveRoot || t.disposed) return;
+  t.waveRoot = new THREE.Group();
+  t.waveRoot.frustumCulled = false;
+  t.planetGroup.add(t.waveRoot);
+}
+
+function makeWaveRibbonGeo() {
+  const n = SOUND_WAVE_SEGS;
+  const positions = new Float32Array(n * 2 * 3);
+  const uvs = new Float32Array(n * 2 * 2);
+  const indices = [];
+  for (let i = 0; i < n; i++) {
+    const i0 = i * 2;
+    const i1 = i0 + 1;
+    const j0 = ((i + 1) % n) * 2;
+    const j1 = j0 + 1;
+    indices.push(i0, i1, j1, i0, j1, j0);
+    const u = i / n;
+    uvs[i0 * 2] = u;
+    uvs[i0 * 2 + 1] = 0;
+    uvs[i1 * 2] = u;
+    uvs[i1 * 2 + 1] = 1;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.setDrawRange(0, indices.length);
+  return geo;
+}
+
+/** Přepíše ribbon na povrch terénu kolem středu (geodetický kruh). */
+function writeWaveOnTerrain(terrain, centerDir, radiusM, widthM, lift, posAttr) {
+  tangentFrame(centerDir, _east, _north);
+  const half = widthM * 0.5;
+  const rIn = Math.max(0.08, radiusM - half);
+  const rOut = radiusM + half;
+  for (let i = 0; i < SOUND_WAVE_SEGS; i++) {
+    const a = (i / SOUND_WAVE_SEGS) * Math.PI * 2;
+    surfaceOffsetDir(centerDir, _east, _north, a, rIn, _dir);
+    let h = terrain.height(_dir) + lift;
+    posAttr.setXYZ(i * 2, _dir.x * h, _dir.y * h, _dir.z * h);
+    surfaceOffsetDir(centerDir, _east, _north, a, rOut, _dir);
+    h = terrain.height(_dir) + lift;
+    posAttr.setXYZ(i * 2 + 1, _dir.x * h, _dir.y * h, _dir.z * h);
+  }
+  posAttr.needsUpdate = true;
+}
+
+function spawnTreeSoundWave(sys, t) {
+  ensureWaveRoot(t);
+  if (!t.waveRoot || !sys?.terrain) return;
+  const geo = makeWaveRibbonGeo();
+  const mat = new THREE.MeshBasicMaterial({
+    map: ensureSoundWaveMap(),
+    color: t.color || 0xffe566,
+    transparent: true,
+    opacity: 0.18,
+    depthWrite: false,
+    blending: THREE.NormalBlending,
+    side: THREE.DoubleSide
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 2;
+  const g = Math.min(1, Math.max(0, t.growth));
+  // malý strom = krátký dosah; plný o něco méně než dřívějších ~7.5 m
+  const size = 0.12 + 0.88 * Math.pow(g, 0.75);
+  const r0 = SOUND_WAVE_R0 * (0.7 + 0.3 * size);
+  const r1 = SOUND_WAVE_R1 * size;
+  writeWaveOnTerrain(sys.terrain, t.dir, r0, SOUND_WAVE_WIDTH * 0.55 * (0.65 + 0.35 * size), SOUND_WAVE_LIFT, geo.attributes.position);
+  geo.computeBoundingSphere();
+  t.waveRoot.add(mesh);
+  t.soundWaves.push({
+    mesh,
+    mat,
+    geo,
+    t: 0,
+    life: SOUND_WAVE_LIFE,
+    r0,
+    r1
+  });
+}
+
+function disposeTreeSoundWaves(t) {
+  if (!t) return;
+  for (const w of t.soundWaves || []) {
+    w.mesh.parent?.remove(w.mesh);
+    w.geo.dispose();
+    w.mat.dispose();
+  }
+  t.soundWaves = [];
+  if (t.waveRoot) {
+    t.planetGroup.remove(t.waveRoot);
+    t.waveRoot = null;
+  }
+  t._waveEmitT = 0;
+}
+
+/** Export pro MagicTree.dispose. */
+MagicTree.prototype.disposeSoundWaves = function disposeSoundWaves() {
+  disposeTreeSoundWaves(this);
+};
+
+function updateTreeSoundWaves(sys, t, dt, active) {
+  if (t.disposed) return;
+  if (active) {
+    t._waveEmitT += dt;
+    const period = growWavePeriod(sys);
+    while (t._waveEmitT >= period) {
+      t._waveEmitT -= period;
+      spawnTreeSoundWave(sys, t);
+    }
+  }
+
+  const waves = t.soundWaves;
+  if (!waves?.length) return;
+  const terrain = sys.terrain;
+  for (let i = waves.length - 1; i >= 0; i--) {
+    const w = waves[i];
+    w.t += dt;
+    const u = Math.min(1, w.t / w.life);
+    const ease = 1 - (1 - u) * (1 - u);
+    const r = w.r0 + (w.r1 - w.r0) * ease;
+    const width = SOUND_WAVE_WIDTH * (0.55 + u * 0.7);
+    writeWaveOnTerrain(terrain, t.dir, r, width, SOUND_WAVE_LIFT, w.geo.attributes.position);
+    w.geo.computeBoundingSphere();
+    w.mat.color.setHex(t.color || 0xffe566);
+    w.mat.opacity = Math.max(0, 0.18 * (1 - u));
+    if (u >= 1) {
+      w.mesh.parent?.remove(w.mesh);
+      w.geo.dispose();
+      w.mat.dispose();
+      waves.splice(i, 1);
+    }
+  }
+  if (!waves.length && !active && t.waveRoot) {
+    t.planetGroup.remove(t.waveRoot);
+    t.waveRoot = null;
+  }
+}
 
 function syncTreeGrowSfx(sys, t) {
   const want = !t.disposed && t.growth >= TREE_FIREFLY_GROW;
   if (!want) {
     t.clearGrowSfx?.(sys.audio);
-    return;
+    return false;
   }
   const listener = sys.getListenerDir?.();
-  if (!listener || !sys.audio) return;
+  if (!listener || !sys.audio) return false;
   if (!t.sfxGrow) {
     t.sfxGrow = sys.audio.startSfxLoop("treegrow", t.dir, listener);
-    if (t.sfxGrow) t._growAudio = sys.audio;
+    if (t.sfxGrow) {
+      t._growAudio = sys.audio;
+      t._waveEmitT = growWavePeriod(sys) * 0.15;
+    }
   }
   if (t.sfxGrow) sys.audio.updateSfxLoop(t.sfxGrow, t.dir, listener);
+  return !!t.sfxGrow || t.growth >= TREE_FIREFLY_GROW;
 }
 
 export function countMagicTreesForOwner(sys, ownerId) {
@@ -316,7 +513,8 @@ export function updateMagicTrees(sys, dt) {
       const n = countTreeWorshippers(t.dir, sys.critters?.list, sys.longnecks?.list, sys.worms?.list);
       t.update(dt, n);
     }
-    syncTreeGrowSfx(sys, t);
+    const sounding = syncTreeGrowSfx(sys, t);
+    updateTreeSoundWaves(sys, t, dt, sounding);
   }
   syncMagicTreeHealthUi(sys);
 }
@@ -325,6 +523,7 @@ export function disposeMagicTrees(sys) {
   if (!sys.magicTrees) return;
   for (const t of sys.magicTrees) {
     t.clearGrowSfx?.(sys.audio);
+    disposeTreeSoundWaves(t);
     t.dispose();
   }
   sys.magicTrees.length = 0;
