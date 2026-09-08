@@ -52,6 +52,11 @@ class Game {
     this._orbitPointerId = null;
     this._walkDrag = false;
     this._walkPointerId = null;
+    /** Aktivní pointery pro multi-touch (id → {x,y}). */
+    this._activePointers = new Map();
+    this._pinchOrbit = false;
+    this._pinchMidX = 0;
+    this._pinchMidY = 0;
     this._lastOrbitX = 0;
     this._lastOrbitY = 0;
     this._camFocus = CONFIG.focusDir.slice();
@@ -914,6 +919,34 @@ class Game {
     if (this._camFocus) placeCamera(this.camera, this._camFocus, this._camZoom);
   }
 
+  #pinchMidpoint() {
+    let x = 0;
+    let y = 0;
+    let n = 0;
+    for (const p of this._activePointers.values()) {
+      x += p.x;
+      y += p.y;
+      n++;
+    }
+    if (!n) return { x: 0, y: 0 };
+    return { x: x / n, y: y / n };
+  }
+
+  #beginPinchOrbit() {
+    this.#stopCamRecenter();
+    this.#endWalkDrag();
+    this._pinchOrbit = true;
+    const mid = this.#pinchMidpoint();
+    this._pinchMidX = mid.x;
+    this._pinchMidY = mid.y;
+    this.wizard?.hideWalkPreview?.();
+    this.spells.aim.hide();
+  }
+
+  #endPinchOrbit() {
+    this._pinchOrbit = false;
+  }
+
   #applyOrbitDrag(dx, dy) {
     this.camRight.setFromMatrixColumn(this.camera.matrixWorld, 0).normalize();
     this.camUp.setFromMatrixColumn(this.camera.matrixWorld, 1).normalize();
@@ -972,6 +1005,22 @@ class Game {
   }
 
   #onPointerMove(e) {
+    if (this._activePointers.has(e.pointerId)) {
+      this._activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    /** Dva prsty — rotace planety (střed mezi prsty). */
+    if (this._pinchOrbit && this._activePointers.size >= 2) {
+      const mid = this.#pinchMidpoint();
+      const dx = mid.x - this._pinchMidX;
+      const dy = mid.y - this._pinchMidY;
+      this._pinchMidX = mid.x;
+      this._pinchMidY = mid.y;
+      if (dx !== 0 || dy !== 0) this.#applyOrbitDrag(dx, dy);
+      e.preventDefault();
+      return;
+    }
+
     if (this._orbitDrag && e.pointerId === this._orbitPointerId) {
       const dx = e.clientX - this._lastOrbitX;
       const dy = e.clientY - this._lastOrbitY;
@@ -1013,18 +1062,35 @@ class Game {
   }
 
   #onPointerLeave() {
-    if (this._orbitDrag || this._walkDrag) return;
+    if (this._orbitDrag || this._walkDrag || this._pinchOrbit) return;
     if (!this.wizard || this.wizard.hasTarget || this.selectedSpell) return;
     this.wizard.hideWalkPreview();
   }
 
   #onPointerUp(e) {
+    this._activePointers.delete(e.pointerId);
+    if (this._pinchOrbit && this._activePointers.size < 2) this.#endPinchOrbit();
     if (e.button === 0) this.#endWalkDrag(e);
     if (e.button === 2) this.#endOrbitDrag(e);
   }
 
   #onPointerDown(e) {
     if (this.#isUiTarget(e.target)) return;
+
+    this._activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try {
+      this.canvas.setPointerCapture(e.pointerId);
+    } catch (_) {
+      /* noop */
+    }
+
+    /** Druhý prst (nebo víc) — orbit jako RMB. */
+    if (this._activePointers.size >= 2 && this.inputEnabled) {
+      if (this.selectedSpell) this.#selectSpell(null);
+      this.#beginPinchOrbit();
+      e.preventDefault();
+      return;
+    }
 
     if (e.button === 2) {
       if (!this.inputEnabled) return;
