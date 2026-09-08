@@ -939,6 +939,7 @@ class Game {
     const mid = this.#pinchMidpoint();
     this._pinchMidX = mid.x;
     this._pinchMidY = mid.y;
+    this.wizard?.clearDestination?.();
     this.wizard?.hideWalkPreview?.();
     this.spells.aim.hide();
   }

@@ -1033,3 +1033,57 @@ html, body {
     height: 30px;
   }
 }
+
+/* Telefon na šířku — levý panel se vejde odshora dolů */
+@media (orientation: landscape) and (max-height: 520px) {
+  #hud-left {
+    top: 4px;
+    left: 4px;
+    gap: 2px;
+    max-height: calc(100dvh - 8px);
+    transform-origin: top left;
+    transform: scale(clamp(0.42, calc((100dvh - 8px) / 620), 0.85));
+  }
+  #spell-bar {
+    gap: 2px;
+    padding: 3px;
+  }
+  .spell-group {
+    gap: 3px;
+  }
+  .spell-group + .spell-group {
+    padding-top: 3px;
+  }
+  .spell {
+    min-width: 40px;
+    padding: 3px 2px 2px;
+    gap: 2px;
+    font-size: 0.42rem;
+    letter-spacing: 0.08em;
+  }
+  .spell.spell-empty {
+    min-height: 32px;
+  }
+  .spell-icon {
+    width: 22px;
+    height: 22px;
+    transform: scale(0.72);
+    transform-origin: center center;
+  }
+  .game-bar {
+    padding: 2px;
+    gap: 2px;
+  }
+  .bar-btn {
+    height: 18px;
+    font-size: 0.5rem;
+  }
+  #health {
+    padding: 3px 4px;
+    gap: 2px;
+  }
+  .health-row {
+    min-height: 12px;
+    gap: 4px;
+  }
+}
