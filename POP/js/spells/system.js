@@ -581,6 +581,7 @@ export class SpellSystem {
           craterFloorRadius: def.craterFloorRadius,
           notchDrop: def.notchDrop,
           secondaryNotchDrop: def.secondaryNotchDrop,
+          rimBreach: def.rimBreach,
           duration: morphDur,
           onComplete: () => {
             this.#stopTrackedLoop(growSfx);

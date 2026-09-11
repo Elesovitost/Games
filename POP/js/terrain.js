@@ -752,6 +752,7 @@ export class Terrain {
     const flankPow = opts.flankPow ?? 1.4;
     const notchDrop = opts.notchDrop ?? 1;
     const secondaryNotchDrop = opts.secondaryNotchDrop ?? notchDrop * 0.45;
+    const rimBreach = opts.rimBreach ?? 0;
     const gullyAmp = opts.gullyAmp ?? 0.35;
     const gullyCount = opts.gullyCount ?? 9;
     const outlineAmp = opts.outlineAmp ?? 0.1;
@@ -817,12 +818,16 @@ export class Terrain {
       else if (dAz < -Math.PI) dAz += Math.PI * 2;
       const downhill = Math.max(0, Math.cos(dAz));
       const uphill = Math.max(0, -Math.cos(dAz));
+      const side = Math.max(0, Math.cos(2 * dAz));
+      /** Celý okraj níž + slabé zářezy kolem dokola (ne jen spád/protilehlá strana) */
       prof -= rimW * (
+        rimBreach +
         notchDrop * downhill * downhill +
-        secondaryNotchDrop * uphill * uphill
+        secondaryNotchDrop * uphill * uphill +
+        0.22 * side * side
       );
       /** Jemná nepravidelnost okraje — další slabá místa pro přelití */
-      prof -= rimW * 0.07 * (0.5 + 0.5 * Math.cos(3 * az + nz * 4.2));
+      prof -= rimW * 0.12 * (0.5 + 0.5 * Math.cos(5 * az + nz * 4.2));
 
       /** Kráter a okraj vodorovně, pata plynule do stávajícího terénu */
       const level = 1 - smoothFalloff(

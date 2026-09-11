@@ -100,22 +100,23 @@ export const SPELLS = {
     craterRadius: 3.4,
     craterDepth: 2.4,
     craterFloorRadius: 1.6,
-    /** Průlom v okraji kráteru na straně spádu (m) */
-    notchDrop: 0.72,
-    /** Menší protilehlý průlom — láva vyteče i na druhé straně */
-    secondaryNotchDrop: 0.4,
+    /** Rovnoměrné snížení celého okraje — láva přeteče do všech stran */
+    rimBreach: 0.7,
+    /** Jemné zářezy (dřív silně směrové) — jen mírná nepravidelnost */
+    notchDrop: 0.28,
+    secondaryNotchDrop: 0.28,
 
     /** Láva — simulace výškového pole (m, m³, s) */
     lavaRadius: 76,
-    /** Délka výlevu a objemový tok z jícnu — kráter (~49 m³) přeteče v 1,6 s */
-    eruptTime: 8,
-    eruptRate: 34,
+    /** Kratší a hustší výlev — kráter se rychle naplní a přeteče */
+    eruptTime: 5,
+    eruptRate: 62,
     /** Ztuhlá vrstva, která už nikdy neodteče — láva se šíří, neodtéká */
     lavaCrust: 0.06,
-    /** Kritický spád hladiny (mez tekutosti) — hustá tekutina, oblé laloky */
-    lavaYield: 0.035,
+    /** Kritický spád hladiny (mez tekutosti) — nižší = dřív teče i mírným spádem */
+    lavaYield: 0.018,
     /** Tekutost — vyšší = rychlejší tok po spádu */
-    lavaMobility: 160,
+    lavaMobility: 320,
     /** Chladnutí ležící lávy na kůru (s) */
     lavaHeatTime: 7,
     /** Tuhnutí do trvalé spáleniny po konci výlevu (s) */
@@ -123,7 +124,7 @@ export const SPELLS = {
     lavaDps: 20,
     /** Magický strom — DPS horké lávy */
     treeLavaDps: 40,
-    hint: "3 s kouzlení, pak sopka — láva teče po spádu ~30 m, 20 HP/s. Zůstane spáleniště."
+    hint: "3 s kouzlení, pak sopka — láva se rychle vyvalí kolem, 20 HP/s. Zůstane spáleniště."
   },
   comet: {
     id: "comet",
@@ -161,7 +162,7 @@ export const SPELLS = {
     id: "immortality",
     selfCast: true,
     range: 0,
-    castTime: 1,
+    castTime: 0.1,
     cooldown: 180,
     holdTime: 5,
     /** 2× rychlost chůze */
@@ -170,7 +171,7 @@ export const SPELLS = {
     /** Poloměr koule kolem kouzelníka (m) */
     radius: 1.18,
     color: 0xffe08a,
-    hint: "1 s kouzlení, 5 s nesmrtelnost. Klik = kutálení 2× chůze; po 100 m nebo čase koule praskne."
+    hint: "0,1 s kouzlení, 5 s nesmrtelnost. Klik = kutálení 2× chůze; po 100 m nebo čase koule praskne."
   },
   tree: {
     id: "tree",

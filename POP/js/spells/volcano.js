@@ -339,7 +339,7 @@ function flowStep(field, def, dt, mobility) {
 
       let out = (mobility * avail * Math.sqrt(avail) * sum * dt) / cell;
       if (out > avail) out = avail;
-      if (out > maxDrop * 0.85) out = maxDrop * 0.85;
+      if (out > maxDrop * 0.95) out = maxDrop * 0.95;
       if (out <= 1e-6) continue;
 
       if (!touch[i]) {
@@ -860,8 +860,8 @@ export function updateVolcanos(sys, dt) {
       def.lavaMobility *
       (1 - smoothstep(after / Math.max(0.1, def.lavaFreezeTime * 0.8)) * 0.97);
     const power = erupting
-      ? Math.min(1, volcano.elapsed / 0.8) *
-        (1 - 0.7 * smoothstep((volcano.elapsed - def.eruptTime * 0.75) / (def.eruptTime * 0.25)))
+      ? Math.min(1, volcano.elapsed / 0.35) *
+        (1 - 0.55 * smoothstep((volcano.elapsed - def.eruptTime * 0.7) / (def.eruptTime * 0.3)))
       : 0;
 
     const sub = dt / SUBSTEPS;
