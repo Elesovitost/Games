@@ -1,10 +1,19 @@
 import * as THREE from "../three.js";
+import { CONFIG } from "../config.js";
 import { SPELLS } from "./defs.js";
 import { surfaceDist } from "./fx-common.js";
 
 const _pos = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
 const _yUp = new THREE.Vector3(0, 1, 0);
+const _from = new THREE.Vector3();
+const _to = new THREE.Vector3();
+const _local = new THREE.Vector3();
+const _invQ = new THREE.Quaternion();
+const _arcMid = new THREE.Vector3();
+const _arcSide = new THREE.Vector3();
+const _arcSide2 = new THREE.Vector3();
+const _arcAlong = new THREE.Vector3();
 
 const VINE_RISE = 0.85;
 const CALYX_GROW = 0.5;
@@ -15,6 +24,9 @@ const EYE_R = 0.84;
 const HEAD_SPIN = 0.55;
 const EYE_LOOK_MAX = 0.45;
 const BLIND_SEC = 20;
+const ARC_POINTS = 18;
+const ARC_LOS_SAMPLES = 16;
+const ARC_LOS_CLEAR = 0.22;
 
 const COLOR_SCLERA = 0xf4f4ef;
 const COLOR_IRIS = 0xb8922e;
@@ -626,6 +638,7 @@ function disposeWatcher(sys, w) {
     sys.audio?.stopWatcherAlarm?.(w.alarmSfx, 0.15);
     w.alarmSfx = null;
   }
+  clearWatcherArc(sys, w);
   disposeWatcherGhost(sys, w);
   if (w.group?.parent) w.group.parent.remove(w.group);
   disposeGroupMeshes(w.vines);
@@ -698,6 +711,184 @@ function tickBlind(sys, w, dt) {
   restoreFow(sys, w);
 }
 
+/** Nejbližší cizí wizard v dosahu FOV hlídače. */
+function pickZapTarget(sys, tower) {
+  if (tower.corrupted || tower.blindT > 0) return null;
+  const radius = SPELLS.watcher?.radius ?? 35;
+  const oid = String(tower.ownerId);
+  let best = null;
+  let bestD = Infinity;
+  for (const w of sys.getWizards?.() || []) {
+    if (!w || w.dead || w.godMode) continue;
+    if (String(w.id) === oid) continue;
+    if (w.invis) continue;
+    const d = surfaceDist(tower.dir, w.dir);
+    if (d > radius || d >= bestD) continue;
+    bestD = d;
+    best = w;
+  }
+  return best;
+}
+
+function clearWatcherArc(sys, w) {
+  const arc = w.arc;
+  if (!arc) return;
+  if (arc.line?.parent) arc.line.parent.remove(arc.line);
+  arc.geo?.dispose?.();
+  arc.mat?.dispose?.();
+  w.arc = null;
+}
+
+function ensureWatcherArc(sys, w) {
+  if (w.arc) return w.arc;
+  const mat = new THREE.LineBasicMaterial({
+    color: 0xb8f0ff,
+    transparent: true,
+    opacity: 0.92,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  const positions = new Float32Array(ARC_POINTS * 3);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  const line = new THREE.Line(geo, mat);
+  line.frustumCulled = false;
+  line.renderOrder = 7;
+  sys.planetGroup.add(line);
+  w.arc = { line, geo, mat, positions };
+  return w.arc;
+}
+
+function slerpDir(a, b, t, out) {
+  const dot = Math.min(1, Math.max(-1, a.dot(b)));
+  const omega = Math.acos(dot);
+  if (omega < 1e-5) return out.copy(a);
+  const so = Math.sin(omega);
+  return out
+    .copy(a)
+    .multiplyScalar(Math.sin((1 - t) * omega) / so)
+    .addScaledVector(b, Math.sin(t * omega) / so);
+}
+
+/**
+ * Přímá viditelnost oko→cíl: chord nesmí zajít pod terén
+ * (schování za kopec = v bezpečí i v dosahu).
+ */
+function hasTerrainLos(terrain, fromPos, toPos) {
+  if (!terrain?.height) return true;
+  for (let i = 1; i < ARC_LOS_SAMPLES; i++) {
+    const u = i / ARC_LOS_SAMPLES;
+    _arcMid.copy(fromPos).lerp(toPos, u);
+    const r = _arcMid.length();
+    if (r < 1e-4) continue;
+    _local.copy(_arcMid).multiplyScalar(1 / r);
+    if (r < terrain.height(_local) + ARC_LOS_CLEAR) return false;
+  }
+  return true;
+}
+
+function watcherBeamEnds(sys, w, target) {
+  w.eye.updateWorldMatrix(true, false);
+  target.mesh.updateWorldMatrix(true, false);
+  w.eye.getWorldPosition(_from);
+  target.mesh.getWorldPosition(_to);
+  _to.addScaledVector(target.dir, CONFIG.wizardHeightM * 0.55);
+  sys.planetGroup.worldToLocal(_from);
+  sys.planetGroup.worldToLocal(_to);
+}
+
+/**
+ * Oblouk po geodéze nad povrchem (zahnutí planety) + lehký jitter.
+ * @returns {boolean} false = terén blokuje
+ */
+function updateWatcherArc(sys, w, target) {
+  watcherBeamEnds(sys, w, target);
+  if (!hasTerrainLos(sys.terrain, _from, _to)) {
+    clearWatcherArc(sys, w);
+    return false;
+  }
+
+  const arc = ensureWatcherArc(sys, w);
+  const fromLen = _from.length();
+  const toLen = _to.length();
+  if (fromLen < 1e-4 || toLen < 1e-4) {
+    clearWatcherArc(sys, w);
+    return false;
+  }
+
+  _arcAlong.copy(_from).multiplyScalar(1 / fromLen);
+  _arcSide.copy(_to).multiplyScalar(1 / toLen);
+
+  const pos = arc.positions;
+  pos[0] = _from.x;
+  pos[1] = _from.y;
+  pos[2] = _from.z;
+  const last = (ARC_POINTS - 1) * 3;
+  pos[last] = _to.x;
+  pos[last + 1] = _to.y;
+  pos[last + 2] = _to.z;
+
+  const t = w.idleT || 0;
+  const surfDist = surfaceDist(_arcAlong, _arcSide);
+  const jitter = Math.min(0.4, 0.08 + surfDist * 0.012);
+
+  for (let i = 1; i < ARC_POINTS - 1; i++) {
+    const u = i / (ARC_POINTS - 1);
+    slerpDir(_arcAlong, _arcSide, u, _local);
+    const ground = sys.terrain.height(_local);
+    const airR = fromLen * (1 - u) + toLen * u;
+    const lift = Math.max(0.18, airR - ground);
+    /** Výška nad povrchem → oblouk kopíruje zakřivení planety. */
+    const r = ground + lift;
+    _arcSide2.crossVectors(_local, _yUp);
+    if (_arcSide2.lengthSq() < 1e-8) _arcSide2.set(1, 0, 0);
+    else _arcSide2.normalize();
+    _arcMid.crossVectors(_arcSide2, _local).normalize();
+    const wave =
+      Math.sin(u * 11.3 + t * 28) * jitter * (0.35 + 0.65 * Math.sin(u * Math.PI)) +
+      Math.sin(u * 23.1 - t * 41 + i) * jitter * 0.35;
+    const wave2 = Math.cos(u * 17.7 + t * 33 + i * 0.7) * jitter * 0.45;
+    _pos.copy(_local).multiplyScalar(r);
+    _pos.addScaledVector(_arcSide2, wave);
+    _pos.addScaledVector(_arcMid, wave2);
+    const j = i * 3;
+    pos[j] = _pos.x;
+    pos[j + 1] = _pos.y;
+    pos[j + 2] = _pos.z;
+  }
+
+  arc.geo.attributes.position.needsUpdate = true;
+  arc.mat.opacity = 0.72 + 0.28 * (0.5 + 0.5 * Math.sin(t * 40));
+  arc.line.visible = true;
+  return true;
+}
+
+function lockLookAtTarget(w, target, dt) {
+  w.eye.updateWorldMatrix(true, false);
+  target.mesh.updateWorldMatrix(true, false);
+  w.eye.getWorldPosition(_from);
+  target.mesh.getWorldPosition(_to);
+  _to.addScaledVector(target.dir, 0.7);
+  _local.copy(_to).sub(_from);
+  _invQ.copy(w.group.quaternion).invert();
+  _local.applyQuaternion(_invQ);
+
+  const yaw = Math.atan2(_local.x, _local.z);
+  /** Plynulé otočení hlavy k cíli (bez idle spin). */
+  let dy = yaw - w.headPivot.rotation.y;
+  while (dy > Math.PI) dy -= Math.PI * 2;
+  while (dy < -Math.PI) dy += Math.PI * 2;
+  w.headPivot.rotation.y += dy * Math.min(1, dt * 10);
+
+  const horiz = Math.hypot(_local.x, _local.z);
+  const pitch = Math.atan2(_local.y, Math.max(1e-4, horiz));
+  const wantX = Math.max(-EYE_LOOK_MAX, Math.min(EYE_LOOK_MAX, -pitch * 0.5));
+  w.lookCur.x += (wantX - w.lookCur.x) * Math.min(1, dt * 14);
+  w.lookCur.y += (0 - w.lookCur.y) * Math.min(1, dt * 14);
+  w.eye.rotation.x = w.lookCur.x;
+  w.eye.rotation.y = w.lookCur.y;
+}
+
 function updateIdleMotion(w, dt) {
   w.idleT += dt;
   /** Otáčení dokola kolem svislé osy. */
@@ -712,6 +903,32 @@ function updateIdleMotion(w, dt) {
   w.eye.rotation.x = w.lookCur.x;
   w.eye.rotation.y = w.lookCur.y;
   if (look.hold <= 0) w.look = pickLookTarget();
+}
+
+/** Fixace pohledu + oblouk + DPS na cizího wizarda v dosahu (s LOS). */
+function updateWatchZap(sys, w, dt) {
+  const target = pickZapTarget(sys, w);
+  if (!target) {
+    clearWatcherArc(sys, w);
+    updateIdleMotion(w, dt);
+    return;
+  }
+
+  watcherBeamEnds(sys, w, target);
+  if (!hasTerrainLos(sys.terrain, _from, _to)) {
+    clearWatcherArc(sys, w);
+    updateIdleMotion(w, dt);
+    return;
+  }
+
+  w.idleT += dt;
+  lockLookAtTarget(w, target, dt);
+  updateWatcherArc(sys, w, target);
+
+  const dps = SPELLS.watcher?.arcDps ?? 3;
+  if (dps > 0) {
+    target.takeDamage?.(dps * dt, { fromDir: w.dir, knock: false });
+  }
 }
 
 export function updateWatchers(sys, dt) {
@@ -776,7 +993,7 @@ export function updateWatchers(sys, dt) {
       w.vines.scale.set(1, 1, 1);
       w.calyx.scale.setScalar(1);
       w.eye.scale.setScalar(EYE_R);
-      updateIdleMotion(w, dt);
+      updateWatchZap(sys, w, dt);
       scanEnemies(sys, w);
     }
   }
