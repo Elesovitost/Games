@@ -76,8 +76,6 @@ function syncWatcherOwnerColor(w, hex) {
   }
 }
 
-let _nextId = 1;
-
 function vineMat(color) {
   return new THREE.MeshStandardMaterial({
     color,
@@ -533,6 +531,7 @@ export function hurtWatchersNear(sys, centerDir, radiusM, dmgCenter, dmgEdge, op
   let hit = false;
   const hitSet = opts.hitSet;
   const hitKey = opts.hitKey ?? "watcher";
+  const force = !!opts.force;
   for (const w of list) {
     if (!w || w.corrupted || w.burying || w.gone) continue;
     if (hitSet) {
@@ -543,8 +542,8 @@ export function hurtWatchersNear(sys, centerDir, radiusM, dmgCenter, dmgEdge, op
     if (dist >= radiusM) continue;
     const t = dist / radiusM;
     const dmg = dmgCenter + (dmgEdge - dmgCenter) * t;
-    if (!(dmg > 0)) continue;
-    w.takeDamage?.(dmg, { fromDir: centerDir, ...opts });
+    if (!(dmg > 0) && !force) continue;
+    w.takeDamage?.(Math.max(dmg, force ? 1 : 0), { fromDir: centerDir, force, ...opts });
     if (hitSet) hitSet.add(`${hitKey}:${w.id}`);
     hit = true;
   }
@@ -561,7 +560,19 @@ export function spawnWatcher(sys, targetDir) {
   const ownerColor = owner?.color ?? def.color ?? 0xe8e0d0;
 
   const dir = targetDir.clone().normalize();
-  const id = `watcher-${ownerId}-${_nextId++}`;
+  /**
+   * Stabilní ID napříč klienty (stejný cast intent → stejné id).
+   * Lokální `_nextId` v MP desyncovalo world-sync (u jednoho blind, u druhého bury).
+   */
+  const qx = Math.round(dir.x * 1e5);
+  const qy = Math.round(dir.y * 1e5);
+  const qz = Math.round(dir.z * 1e5);
+  let id = `watcher-${ownerId}-${qx}_${qy}_${qz}`;
+  if (sys.watchers?.some((w) => w && String(w.id) === id && !w.gone)) {
+    let n = 2;
+    while (sys.watchers.some((w) => w && String(w.id) === `${id}-${n}` && !w.gone)) n++;
+    id = `${id}-${n}`;
+  }
 
   const group = new THREE.Group();
   group.frustumCulled = false;

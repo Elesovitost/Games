@@ -962,7 +962,8 @@ function applyLavaDamage(sys, field, list, def, dt, hotFactor) {
     }
   }
   for (const w of sys.watchers || []) {
-    if (!w || w.corrupted) continue;
+    if (!w || w.corrupted || w.burying || w.gone) continue;
+    if (sys.worldRemote) continue;
     if (!onHotLava(w.dir)) continue;
     w.takeDamage?.(def.lavaDps * dt, { fromDir: field.center });
   }

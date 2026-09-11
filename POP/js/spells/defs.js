@@ -156,7 +156,7 @@ export const SPELLS = {
     dustHold: 0.2,
     dustFade: 2.7,
     color: 0xff8a2a,
-    hint: "2 s kouzlení, 0,8 s přímý pád. Do 5 m vše zmizí, do 10 m damage 200→50 a hoří."
+    hint: "2 s kouzlení, 0,8 s přímý pád. Do 5 m zničí hlídače i stromy, do 10 m damage 200→50 a hoří."
   },
   immortality: {
     id: "immortality",

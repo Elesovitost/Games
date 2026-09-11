@@ -603,7 +603,8 @@ function applyCometLavaDamage(sys, comet, dt) {
     }
   }
   for (const w of sys.watchers || []) {
-    if (!w || w.corrupted) continue;
+    if (!w || w.corrupted || w.burying || w.gone) continue;
+    if (sys.worldRemote) continue;
     const heat = cometLavaHeat(comet, w.dir);
     if (heat <= 0) continue;
     w.takeDamage?.(SPELLS.volcano.lavaDps * dt, { fromDir: comet.target });
@@ -711,7 +712,9 @@ function applyCometBlast(sys, dir) {
   sys.critters?.blastNear(dir, def.craterRadius, def.damageRadius);
   sys.longnecks?.blastNear(dir, def.craterRadius, def.damageRadius);
   sys.worms?.blastNear(dir, def.craterRadius, def.damageRadius);
-  hurtWatchersNear(sys, dir, def.damageRadius, def.damageCenter, def.damageEdge);
+  hurtWatchersNear(sys, dir, def.damageRadius, def.damageCenter, def.damageEdge, {
+    force: true
+  });
   hurtMagicTreesNear(sys, dir, def.damageRadius, def.damageCenter, def.damageEdge);
   sys.trees?.vaporizeNear(dir, def.craterRadius);
   sys.trees?.igniteNear(dir, def.damageRadius);
