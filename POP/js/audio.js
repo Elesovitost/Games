@@ -219,6 +219,14 @@ export const SFX = {
     halfDist: CONFIG.sfxHalfDist,
     maxDist: CONFIG.sfxMaxDist,
     gain: 0.25
+  },
+  /** Sršení z oblouku Hlídače */
+  electricity: {
+    url: "./audio/electricity.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 0.55
   }
 };
 

@@ -27,6 +27,8 @@ const BLIND_SEC = 20;
 const ARC_POINTS = 18;
 const ARC_LOS_SAMPLES = 16;
 const ARC_LOS_CLEAR = 0.22;
+const ZAP_SPARKS = 12;
+const ZAP_PULSE = 0.14;
 
 const COLOR_SCLERA = 0xf4f4ef;
 const COLOR_IRIS = 0xb8922e;
@@ -929,6 +931,7 @@ function updateWatchZap(sys, w, dt) {
   w.idleT += dt;
   lockLookAtTarget(w, target, dt);
   updateWatcherArc(sys, w, target);
+  pulseWizardZapSparks(target);
 
   const dps = SPELLS.watcher?.arcDps ?? 3;
   if (dps > 0) {
@@ -936,9 +939,125 @@ function updateWatchZap(sys, w, dt) {
   }
 }
 
+function ensureWizardZapSparks(wizard) {
+  if (wizard._zapFx) return wizard._zapFx;
+  if (!wizard.mesh) return null;
+  const group = new THREE.Group();
+  group.position.set(0, 0.95, 0);
+  group.frustumCulled = false;
+  const sparks = [];
+  for (let i = 0; i < ZAP_SPARKS; i++) {
+    const mat = new THREE.LineBasicMaterial({
+      color: i % 3 === 0 ? 0xffffff : i % 3 === 1 ? 0xb8f0ff : 0xffe8a8,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    const positions = new Float32Array(6);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const line = new THREE.Line(geo, mat);
+    line.frustumCulled = false;
+    line.renderOrder = 8;
+    group.add(line);
+    sparks.push({ geo, mat, positions, line });
+  }
+  wizard.mesh.add(group);
+  wizard._zapFx = { group, sparks, t: 0 };
+  return wizard._zapFx;
+}
+
+function pulseWizardZapSparks(wizard) {
+  if (!wizard) return;
+  wizard._zapPulse = ZAP_PULSE;
+}
+
+function clearWizardZapSparks(wizard, sys = null) {
+  const fx = wizard?._zapFx;
+  if (fx) {
+    if (fx.group.parent) fx.group.parent.remove(fx.group);
+    for (const s of fx.sparks) {
+      s.geo.dispose();
+      s.mat.dispose();
+    }
+    wizard._zapFx = null;
+  }
+  if (wizard?._zapSfx) {
+    (sys?.audio || wizard._zapAudio)?.stopSfxLoop?.(wizard._zapSfx, 0.12);
+    wizard._zapSfx = null;
+    wizard._zapAudio = null;
+  }
+  if (wizard) wizard._zapPulse = 0;
+}
+
+/** Sršení po těle wizarda, dokud ho oblouk zasahuje. */
+function tickWizardZapSparks(sys, dt) {
+  const listener = sys.getListenerDir?.();
+  for (const wizard of sys.getWizards?.() || []) {
+    if (!wizard) continue;
+    if (!(wizard._zapPulse > 0)) {
+      if (wizard._zapFx || wizard._zapSfx) clearWizardZapSparks(wizard, sys);
+      continue;
+    }
+    wizard._zapPulse -= dt;
+    const fx = ensureWizardZapSparks(wizard);
+    if (fx) {
+      fx.t += dt;
+      const burst = 0.55 + 0.45 * Math.sin(fx.t * 55);
+      for (let i = 0; i < fx.sparks.length; i++) {
+        const s = fx.sparks[i];
+        /** Nový výboj každý frame — sršení / crackle. */
+        const az = Math.random() * Math.PI * 2;
+        const el = (Math.random() - 0.5) * 1.4;
+        const cosE = Math.cos(el);
+        const dx = Math.cos(az) * cosE;
+        const dy = Math.sin(el);
+        const dz = Math.sin(az) * cosE;
+        const r0 = 0.12 + Math.random() * 0.42;
+        const len = 0.12 + Math.random() * 0.5;
+        const fork = Math.random() < 0.35;
+        const p = s.positions;
+        p[0] = dx * r0;
+        p[1] = dy * r0 * 0.85;
+        p[2] = dz * r0;
+        if (fork) {
+          const az2 = az + (Math.random() - 0.5) * 1.2;
+          p[3] = Math.cos(az2) * cosE * (r0 + len * 0.7);
+          p[4] = dy * (r0 + len) * 0.7 + (Math.random() - 0.5) * 0.2;
+          p[5] = Math.sin(az2) * cosE * (r0 + len * 0.7);
+        } else {
+          p[3] = dx * (r0 + len);
+          p[4] = dy * (r0 + len);
+          p[5] = dz * (r0 + len);
+        }
+        s.geo.attributes.position.needsUpdate = true;
+        s.mat.opacity = (0.35 + Math.random() * 0.65) * burst;
+        s.line.visible = Math.random() > 0.12;
+      }
+    }
+
+    if (sys.audio && listener && wizard.dir) {
+      if (!wizard._zapSfx?.alive) {
+        wizard._zapSfx = sys.audio.startSfxLoop("electricity", wizard.dir, listener, {
+          volume: 0.85
+        });
+        wizard._zapAudio = sys.audio;
+      } else {
+        sys.audio.updateSfxLoop(wizard._zapSfx, wizard.dir, listener);
+      }
+    }
+
+    if (wizard._zapPulse <= 0) clearWizardZapSparks(wizard, sys);
+  }
+}
+
 export function updateWatchers(sys, dt) {
   const list = sys.watchers;
-  if (!list?.length) return;
+  if (!list?.length) {
+    tickWizardZapSparks(sys, dt);
+    return;
+  }
 
   const wizards = sys.getWizards?.() || [];
   const deadOwners = new Set();
@@ -1002,4 +1121,6 @@ export function updateWatchers(sys, dt) {
       scanEnemies(sys, w);
     }
   }
+
+  tickWizardZapSparks(sys, dt);
 }
