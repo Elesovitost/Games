@@ -597,11 +597,11 @@ export class Terrain {
       const patch = grain * 0.56 + beachN * 0.44;
       const mottle = patch * patch * (3 - 2 * patch);
       const core = this.scorchCoreMask[i];
-      const eff = Math.max(s * (0.72 + 0.28 * mottle), core * 0.94);
-      const tone = 0.016 + mottle * 0.042;
-      const br = tone * (0.72 + 0.28 * mottle);
-      const bg = tone * (0.97 + 0.03 * mottle);
-      const bb = tone * (0.9 + 0.08 * mottle);
+      const eff = Math.max(s * (0.48 + 0.22 * mottle), core * 0.62);
+      const tone = 0.07 + mottle * 0.075;
+      const br = tone * (0.78 + 0.22 * mottle);
+      const bg = tone * (0.95 + 0.05 * mottle);
+      const bb = tone * (0.88 + 0.1 * mottle);
       col[0] = col[0] * (1 - eff) + br * eff;
       col[1] = col[1] * (1 - eff) + bg * eff;
       col[2] = col[2] * (1 - eff) + bb * eff;

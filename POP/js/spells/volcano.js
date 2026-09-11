@@ -502,18 +502,18 @@ void main() {
   vec3 molten = mix(vec3(0.9, 0.14, 0.02), vec3(1.0, 0.8, 0.24), smoothstep(0.3, 1.0, glow));
   vec3 col = mix(rock, molten, smoothstep(0.04, 0.42, glow));
 
-  /* Žhavá → černá → lehce popel, pak stop. Pořád dost černé, skoro neprůhledné. */
+  /**
+   * Jedna plynulá křivka žhavá → tmavý popel (ne nejdřív pitch-black a pak zesvětlení).
+   * Finále: tmavé, ale částečně průhledné, ať pod tím prosvítá terén.
+   */
   float mottle = coarse * 0.62 + fine * 0.38;
   float speck = fract(fine * 7.31 + coarse * 3.17);
-  vec3 black = vec3(0.014, 0.013, 0.012);
-  vec3 ash = vec3(0.058, 0.054, 0.050);
-  float blacken = smoothstep(0.0, 0.62, uFreeze);
-  float pale = smoothstep(0.58, 1.0, uFreeze);
-  vec3 cooled = mix(black, mix(black, ash, mottle), pale);
-  cooled *= 0.88 + 0.14 * speck;
-  col = mix(col, cooled, blacken);
+  vec3 charcoal = mix(vec3(0.07, 0.062, 0.055), vec3(0.145, 0.132, 0.118), mottle);
+  charcoal *= 0.92 + 0.1 * speck;
+  col = mix(col, charcoal, uFreeze);
 
-  gl_FragColor = vec4(col, edge * uOpacity);
+  float coolAlpha = mix(1.0, 0.52, uFreeze);
+  gl_FragColor = vec4(col, edge * uOpacity * coolAlpha);
 }
 `;
 
@@ -540,8 +540,8 @@ void main() {
   float mottle = coarse * 0.62 + fine * 0.38;
 
   vChar = mix(
-    vec3(0.014, 0.013, 0.012),
-    vec3(0.058, 0.054, 0.050),
+    vec3(0.07, 0.062, 0.055),
+    vec3(0.145, 0.132, 0.118),
     mottle
   );
   vMask = vec3(smoothstep(0.04, 0.64, cov * (0.7 + 0.55 * coarse)), mottle, cov);
@@ -574,7 +574,7 @@ void main() {
   float edge = vMask.x;
   if (edge < 0.004) discard;
   float speck = fract(vnoise(vCoord * 2.6 - 11.0) * 7.31 + vMask.y * 3.17);
-  gl_FragColor = vec4(vChar * (0.88 + 0.14 * speck), edge);
+  gl_FragColor = vec4(vChar * (0.92 + 0.1 * speck), edge * 0.52);
 }
 `;
 
