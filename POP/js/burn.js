@@ -3,8 +3,13 @@ import * as THREE from "./three.js";
 export const BURN_DURATION = 10;
 export const CHAR_COLOR = 0x1a120e;
 
-const MAX_FIRE_LIGHTS = 10;
+const MAX_FIRE_LIGHTS = 8;
+/** Plný počet částic; nad tím se density škáluje dolů. */
+const MAX_FULL_FIRES = 8;
+/** Tvrdý strop živých ohňů (další jdou v lite režimu). */
+const MAX_LIVE_FIRES = 16;
 let _liveLights = 0;
+let _liveFires = 0;
 
 const _size = new THREE.Vector3();
 const _inv = new THREE.Matrix4();
@@ -150,11 +155,13 @@ export function createFireFx(sizeOrOpts = 1) {
   let size = Math.max(0.25, opts.size ?? 1);
   let strength = 1;
   let t = 0;
-  const density = clamp(opts.density ?? 1, 0.25, 1);
+  const density = clamp(opts.density ?? 1, 0.2, 1);
 
-  const nFlames = Math.round(clamp((5 + size * 2.4) * density, 5, 16));
-  const nEmbers = Math.round(clamp((5 + size * 2.2) * density, 4, 18));
-  const nSmoke = Math.round(clamp((3 + size * 1.3) * density, 3, 10));
+  /** Méně spriteů než dřív — vizuálně pořád oheň, levnější fill + update. */
+  const nFlames = Math.round(clamp((3.5 + size * 1.5) * density, 3, 8));
+  const nEmbers = Math.round(clamp((2.5 + size * 1.1) * density, 2, 7));
+  const nSmoke = Math.round(clamp((1.5 + size * 0.7) * density, 1, 4));
+  _liveFires++;
 
   const heatHex = [0xfff6c8, 0xffcc55, 0xff8a18, 0xff4a08, 0xff2200];
   const flames = [];
@@ -288,6 +295,7 @@ export function createFireFx(sizeOrOpts = 1) {
       strength = clamp(s, 0, 1);
     },
     update(dt) {
+      if (strength <= 0.001 || !group.visible) return;
       t += dt;
       const st = strength;
       const R = size * 0.4;
@@ -363,6 +371,7 @@ export function createFireFx(sizeOrOpts = 1) {
       }
     },
     dispose() {
+      _liveFires = Math.max(0, _liveFires - 1);
       if (light) {
         _liveLights = Math.max(0, _liveLights - 1);
         light = null;
@@ -386,7 +395,17 @@ export function attachFire(parent, opts = {}) {
   const pad = opts.pad ?? 1.22;
   const measured = fireSizeOf(parent);
   const size = opts.size ?? measured * pad;
-  const fx = createFireFx({ size, light: opts.light });
+  let density = opts.density ?? 1;
+  let light = opts.light;
+  /** Při masovém hoření (meteor) škáluj částice / světla dolů. */
+  if (_liveFires >= MAX_FULL_FIRES) {
+    density = Math.min(density, 0.45);
+    if (light !== true) light = false;
+  }
+  if (_liveFires >= MAX_LIVE_FIRES) {
+    density = Math.min(density, 0.28);
+  }
+  const fx = createFireFx({ size, light, density });
   if (opts.lift != null) fx.group.position.y = opts.lift;
   else if (!_box.isEmpty()) fx.group.position.y = _box.min.y + (_box.max.y - _box.min.y) * 0.38;
   parent.add(fx.group);
@@ -444,7 +463,7 @@ export function attachFireQueued(parent, opts = {}) {
  * stromů/zvířat najednou nevytvořil desítky sprite objektů v jednom
  * snímku. Volat jednou za snímek (main.js).
  */
-export function pumpFireQueue(maxPerFrame = 3) {
+export function pumpFireQueue(maxPerFrame = 2) {
   if (!_fireQueue.length) return;
   let n = Math.min(maxPerFrame, _fireQueue.length);
   while (n-- > 0) {

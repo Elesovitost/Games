@@ -458,7 +458,8 @@ export class Trees {
     leafMat.transparent = true;
     const wood = new THREE.Mesh(proto.wood, woodMat);
     const leaf = new THREE.Mesh(proto.leaf, leafMat);
-    wood.castShadow = true;
+    /** Bez stínů — desítky hořících stromů by zabily shadow map. */
+    wood.castShadow = false;
     wood.receiveShadow = false;
     leaf.castShadow = false;
     const group = new THREE.Group();
@@ -467,8 +468,9 @@ export class Trees {
     /**
      * Nižší pad než dřív — `fireSizeOf` bere celou výšku stromu (~4 m i s
      * korunou), takže pad 1.22 dělal plameny vyšší než strom samotný.
+     * density < 1: méně spriteů při hromadném zápalu (meteor).
      */
-    const fire = attachFireQueued(group, { pad: 0.4 });
+    const fire = attachFireQueued(group, { pad: 0.4, density: 0.65 });
     this.planetGroup.add(group);
 
     const entry = { p, group, leaf, woodMat, leafMat, fire, t: 0, charred: false };
@@ -510,7 +512,7 @@ export class Trees {
       const left = BURN_DURATION - entry.t;
       if (entry.fire) {
         entry.fire.setStrength(left < 1.2 ? Math.max(0, left / 1.2) : 1);
-        entry.fire.update(dt);
+        if (entry.group.visible) entry.fire.update(dt);
       }
       setBurnGlow([entry.woodMat, entry.leafMat], left < 1.2 ? Math.max(0, left / 1.2) : 1);
       if (left < 1.4) {
