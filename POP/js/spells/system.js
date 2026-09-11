@@ -58,6 +58,7 @@ export class SpellSystem {
     /** Callbacky alarmu Hlídače (main.js). */
     this.onWatcherAlarm = null;
     this.onWatcherAlarmClear = null;
+    this.onWatcherCountChange = null;
     this.activeSpellId = null;
     this._sfxLoops = new Set();
 

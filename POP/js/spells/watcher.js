@@ -23,7 +23,7 @@ const EYE_R = 0.84;
 /** Pomalá rotace kalichu+oka kolem svislé osy (rad/s). */
 const HEAD_SPIN = 0.55;
 const EYE_LOOK_MAX = 0.45;
-const BLIND_SEC = 20;
+const BLIND_SEC = 60;
 const ARC_POINTS = 18;
 const ARC_LOS_SAMPLES = 16;
 const ARC_LOS_CLEAR = 0.22;
@@ -417,36 +417,35 @@ function restoreFow(sys, w) {
 }
 
 function applyBlind(sys, w) {
-  if (w.corrupted) return;
+  if (w.corrupted || w.burying || w.gone) return;
   w.blindT = BLIND_SEC;
   setEyeColors(w, COLOR_BLIND_SCLERA, COLOR_BLIND_IRIS);
   dropFow(sys, w);
   w.seenIds?.clear?.();
+  clearWatcherArc(sys, w);
 }
 
-function applyCorrupt(sys, w) {
-  if (w.corrupted) return;
+/** Silný zásah — zaleze (opak vzniku) a zmizí, uvolní slot. */
+function beginBury(sys, w) {
+  if (!w || w.burying || w.gone) return;
+  w.burying = true;
   w.corrupted = true;
   w.blindT = 0;
   w.demonHold = false;
-  setEyeColors(w, COLOR_CORRUPT_SCLERA, COLOR_CORRUPT_IRIS);
-  /** Cévy, liány i kalich — černé. */
-  if (w.veinMat?.color) {
-    w.veinMat.color.setHex(0x050508);
-    if (w.veinMat.emissive) {
-      w.veinMat.emissive.setHex(0x000000);
-      w.veinMat.emissiveIntensity = 0;
-    }
-  }
-  blackenMats(w.vines?.userData?.mats);
-  blackenMats(w.calyx?.userData?.mats);
-  if (w.pupilMat?.color) w.pupilMat.color.setHex(0x050508);
+  w.phase = "buryEye";
+  w.t = 0;
   dropFow(sys, w);
   w.seenIds?.clear?.();
+  clearWatcherArc(sys, w);
   if (w.alarmSfx) {
     sys.audio?.stopWatcherAlarm?.(w.alarmSfx, 0.15);
     w.alarmSfx = null;
   }
+}
+
+/** @deprecated alias — dřív permanentní korupce, teď zničení. */
+function applyCorrupt(sys, w) {
+  beginBury(sys, w);
 }
 
 function bindWatcherCombat(sys, entry) {
@@ -454,6 +453,7 @@ function bindWatcherCombat(sys, entry) {
   entry.dead = false;
   entry.gone = false;
   entry.corrupted = false;
+  entry.burying = false;
   entry.demonHold = false;
   entry.blindT = 0;
   entry.scleraMat = entry.eye?.userData?.scleraMat ?? null;
@@ -462,9 +462,9 @@ function bindWatcherCombat(sys, entry) {
   entry.pupilMat = entry.eye?.userData?.pupilMat ?? null;
 
   entry.takeDamage = (_amount, opts = {}) => {
-    if (entry.corrupted) return false;
+    if (entry.corrupted || entry.burying || entry.gone) return false;
     if (opts.force) {
-      applyCorrupt(sys, entry);
+      beginBury(sys, entry);
       return true;
     }
     applyBlind(sys, entry);
@@ -472,19 +472,20 @@ function bindWatcherCombat(sys, entry) {
   };
 
   entry.die = (opts = {}) => {
-    if (opts.force) applyCorrupt(sys, entry);
+    if (opts.force) beginBury(sys, entry);
   };
 
-  entry.applyNetCorrupt = (s) => applyCorrupt(s || sys, entry);
+  entry.applyNetCorrupt = (s) => beginBury(s || sys, entry);
   entry.applyNetBlind = (s) => {
     const sp = s || sys;
-    if (entry.corrupted) return;
+    if (entry.corrupted || entry.burying || entry.gone) return;
     setEyeColors(entry, COLOR_BLIND_SCLERA, COLOR_BLIND_IRIS);
     dropFow(sp, entry);
+    clearWatcherArc(sp, entry);
   };
   entry.applyNetUnblind = (s) => {
     const sp = s || sys;
-    if (entry.corrupted || entry.blindT > 0) return;
+    if (entry.corrupted || entry.burying || entry.blindT > 0) return;
     setEyeColors(entry, COLOR_SCLERA, irisRestHex(entry));
     restoreFow(sp, entry);
   };
@@ -498,7 +499,7 @@ function bindWatcherCombat(sys, entry) {
   };
 
   entry.applyDemonCorrupt = () => {
-    applyCorrupt(sys, entry);
+    beginBury(sys, entry);
   };
 }
 
@@ -508,14 +509,20 @@ export function countWatchersForOwner(sys, ownerId) {
   const oid = String(ownerId);
   let n = 0;
   for (const w of list) {
+    if (!w || w.gone) continue;
     if (String(w.ownerId) === oid) n++;
   }
   return n;
 }
 
-export function canSpawnWatcher(sys, ownerId) {
+/** Kolik hlídačů ještě může hráč vykouzlit. */
+export function remainingWatchersForOwner(sys, ownerId) {
   const max = SPELLS.watcher?.maxCount ?? 5;
-  return countWatchersForOwner(sys, ownerId) < max;
+  return Math.max(0, max - countWatchersForOwner(sys, ownerId));
+}
+
+export function canSpawnWatcher(sys, ownerId) {
+  return remainingWatchersForOwner(sys, ownerId) > 0;
 }
 
 /** AOE hitbox — stejný falloff jako zvířata. */
@@ -527,7 +534,7 @@ export function hurtWatchersNear(sys, centerDir, radiusM, dmgCenter, dmgEdge, op
   const hitSet = opts.hitSet;
   const hitKey = opts.hitKey ?? "watcher";
   for (const w of list) {
-    if (!w || w.corrupted) continue;
+    if (!w || w.corrupted || w.burying || w.gone) continue;
     if (hitSet) {
       const key = `${hitKey}:${w.id}`;
       if (hitSet.has(key)) continue;
@@ -606,6 +613,7 @@ export function spawnWatcher(sys, targetDir) {
     entry.fowRegistered = true;
   }
 
+  sys.onWatcherCountChange?.();
   return entry;
 }
 
@@ -646,6 +654,8 @@ function disposeWatcher(sys, w) {
   disposeGroupMeshes(w.vines);
   disposeGroupMeshes(w.calyx);
   disposeGroupMeshes(w.eye);
+  w.gone = true;
+  sys.onWatcherCountChange?.();
 }
 
 export function disposeWatchersForOwner(sys, ownerId) {
@@ -678,7 +688,7 @@ function triggerAlarm(sys, tower) {
 }
 
 function scanEnemies(sys, tower) {
-  if (tower.corrupted || tower.blindT > 0 || !tower.fowRegistered) return;
+  if (tower.corrupted || tower.burying || tower.blindT > 0 || !tower.fowRegistered) return;
   if (!isLocalOwner(sys, tower.ownerId)) return;
 
   const local = (sys.getWizards?.() || []).find((w) => w && !w.remote);
@@ -715,7 +725,7 @@ function tickBlind(sys, w, dt) {
 
 /** Nejbližší cizí wizard v dosahu FOV hlídače. */
 function pickZapTarget(sys, tower) {
-  if (tower.corrupted || tower.blindT > 0) return null;
+  if (tower.corrupted || tower.burying || tower.blindT > 0) return null;
   const radius = SPELLS.watcher?.radius ?? 35;
   const oid = String(tower.ownerId);
   let best = null;
@@ -1038,13 +1048,20 @@ function tickWizardZapSparks(sys, dt) {
     }
 
     if (sys.audio && listener && wizard.dir) {
-      if (!wizard._zapSfx?.alive) {
-        wizard._zapSfx = sys.audio.startSfxLoop("electricity", wizard.dir, listener, {
+      /**
+       * Lokální zasažený: listener = vlastní dir → vždy plná hlasitost.
+       * Cizí (observer): klasická kamera. Když buffer/MP3 loop umře, restart.
+       */
+      const listenDir = wizard.remote ? listener : wizard.dir;
+      const dead = !wizard._zapSfx?.alive || wizard._zapSfx?.ended;
+      if (dead) {
+        if (wizard._zapSfx?.alive) sys.audio.stopSfxLoop(wizard._zapSfx, 0.02);
+        wizard._zapSfx = sys.audio.startSfxLoop("electricity", wizard.dir, listenDir, {
           volume: 0.85
         });
         wizard._zapAudio = sys.audio;
       } else {
-        sys.audio.updateSfxLoop(wizard._zapSfx, wizard.dir, listener);
+        sys.audio.updateSfxLoop(wizard._zapSfx, wizard.dir, listenDir);
       }
     }
 
@@ -1080,6 +1097,43 @@ export function updateWatchers(sys, dt) {
     poseWatcher(sys, w);
     if (!sys.worldRemote) tickBlind(sys, w, dt);
     if (w.fowRegistered && !isLocalOwner(sys, w.ownerId)) dropFow(sys, w);
+
+    /** Zničení — opak růstu: oko → kalich → stonek do země. */
+    if (w.burying || w.phase === "buryEye" || w.phase === "buryCalyx" || w.phase === "buryRise") {
+      clearWatcherArc(sys, w);
+      if (w.phase === "buryEye") {
+        const u = Math.min(1, w.t / EYE_GROW);
+        const ease = u * u;
+        w.vines.scale.set(1, 1, 1);
+        w.calyx.scale.setScalar(1);
+        w.eye.scale.setScalar(Math.max(0.001, (1 - ease) * EYE_R));
+        if (u >= 1) {
+          w.phase = "buryCalyx";
+          w.t = 0;
+        }
+      } else if (w.phase === "buryCalyx") {
+        const u = Math.min(1, w.t / CALYX_GROW);
+        const ease = u * u;
+        w.vines.scale.set(1, 1, 1);
+        w.calyx.scale.setScalar(Math.max(0.001, 1 - ease));
+        w.eye.scale.setScalar(0.001);
+        if (u >= 1) {
+          w.phase = "buryRise";
+          w.t = 0;
+        }
+      } else {
+        const u = Math.min(1, w.t / VINE_RISE);
+        const ease = u * u;
+        w.vines.scale.set(1, Math.max(0.001, 1 - ease), 1);
+        w.calyx.scale.setScalar(0.001);
+        w.eye.scale.setScalar(0.001);
+        if (u >= 1) {
+          disposeWatcher(sys, w);
+          list.splice(i, 1);
+        }
+      }
+      continue;
+    }
 
     if (w.phase === "rise") {
       const u = Math.min(1, w.t / VINE_RISE);

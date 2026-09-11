@@ -14,7 +14,7 @@ import { Blockers } from "./blockers.js";
 import { Wizard } from "./wizard.js";
 import { SPELLS, SpellSystem } from "./spells.js";
 import { burstImmortalShell } from "./spells/immortality.js";
-import { canSpawnWatcher, disposeWatchersForOwner } from "./spells/watcher.js";
+import { canSpawnWatcher, disposeWatchersForOwner, remainingWatchersForOwner } from "./spells/watcher.js";
 import { hasStandingTreeForOwner, getMagicTreeForOwner, canPlantMagicTreeForOwner } from "./spells/tree.js";
 import { TREE_MAX_HP, TREE_BASE_HP } from "./tree-grow.js";
 import { pumpFireQueue } from "./burn.js";
@@ -155,6 +155,7 @@ class Game {
       getPlanetViewAxis(this.camera, this.planetGroup, out);
     this.spells.onWatcherAlarm = (dir) => this.#showWatcherAlarm(dir);
     this.spells.onWatcherAlarmClear = () => this.#hideWatcherAlarm();
+    this.spells.onWatcherCountChange = () => this.#updateSpellBar();
     this._watcherAlarmT = 0;
     this._watcherAlarmDir = null;
     this._matchEnded = false;
@@ -424,6 +425,13 @@ class Game {
         ring.setAttribute("aria-hidden", "true");
         btn.prepend(ring);
       }
+      if (btn.getAttribute("data-spell") === "watcher" && !btn.querySelector(".spell-stock")) {
+        const stock = document.createElement("span");
+        stock.className = "spell-stock";
+        stock.setAttribute("aria-hidden", "true");
+        stock.textContent = String(SPELLS.watcher?.maxCount ?? 5);
+        btn.appendChild(stock);
+      }
     });
     bar.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-spell]");
@@ -465,6 +473,7 @@ class Game {
     if (!id || this._spellSpent[id]) return false;
     if (this._spellCd[id] > 0) return false;
     if (id === "tree" && !canPlantMagicTreeForOwner(this.spells, this.wizard?.id)) return false;
+    if (id === "watcher" && !canSpawnWatcher(this.spells, this.wizard?.id)) return false;
     return true;
   }
 
@@ -530,6 +539,14 @@ class Game {
       el.classList.toggle("ready", ready);
       const ring = el.querySelector(".spell-cd");
       if (ring) ring.style.setProperty("--p", String(this.#spellCharge(id)));
+      if (id === "watcher") {
+        const stock = el.querySelector(".spell-stock");
+        if (stock) {
+          const left = remainingWatchersForOwner(this.spells, this.wizard?.id);
+          stock.textContent = String(left);
+          stock.classList.toggle("empty", left <= 0);
+        }
+      }
     });
   }
 

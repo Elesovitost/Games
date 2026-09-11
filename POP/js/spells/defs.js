@@ -205,7 +205,7 @@ export const SPELLS = {
     /** Oblouk na cizího wizarda v FOV (HP/s) */
     arcDps: 3,
     color: 0xe8e0d0,
-    hint: "Klikni v dosahu — Hlídač (max 5). FOV 35 m, alarm + oblouk 3 HP/s na cizí. Do smrti majitele."
+    hint: "Klikni v dosahu — Hlídač (max 5). FOV 35 m, alarm + 3 HP/s. Zásah = 1 min slepota; silný zásah zničí."
   },
   invisibility: {
     id: "invisibility",

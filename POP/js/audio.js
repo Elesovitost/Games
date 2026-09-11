@@ -226,7 +226,7 @@ export const SFX = {
     refDist: CONFIG.sfxRefDist,
     halfDist: CONFIG.sfxHalfDist,
     maxDist: CONFIG.sfxMaxDist,
-    gain: 0.55
+    gain: 0.85
   }
 };
 
@@ -976,7 +976,17 @@ export class GameAudio {
 
     const src = ctx.createBufferSource();
     src.buffer = buf;
-    src.loop = opts.loop !== false;
+    const wantLoop = opts.loop !== false;
+    src.loop = wantLoop;
+    /**
+     * MP3 má encoder padding — bez ořezu loopStart/End prohlížeč často
+     * přehraje buffer jen jednou a dál mlčí, i když loop=true.
+     */
+    if (wantLoop && buf.duration > 0.08) {
+      const pad = Math.min(0.04, buf.duration * 0.015);
+      src.loopStart = pad;
+      src.loopEnd = Math.max(pad + 0.05, buf.duration - pad);
+    }
     if (opts.rate != null) src.playbackRate.value = opts.rate;
 
     const gain = ctx.createGain();
@@ -988,15 +998,20 @@ export class GameAudio {
     gain.connect(this.master);
     src.start();
 
-    return {
+    const handle = {
       kind: "sfxLoop",
       id,
       sourceDir: sourceDir.clone(),
       src,
       gain,
       base,
-      alive: true
+      alive: true,
+      ended: false
     };
+    src.onended = () => {
+      handle.ended = true;
+    };
+    return handle;
   }
 
   updateSfxLoop(handle, sourceDir, listenerDir, fadeMul = 1) {
