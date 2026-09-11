@@ -212,13 +212,13 @@ export const SFX = {
     maxDist: CONFIG.sfxMaxDist,
     gain: 1.05
   },
-  /** Tep spawnu — když vlastník stojí v kruhu (sync s pulzem run). */
-  heart: {
-    url: "./audio/heart.mp3",
+  /** Melodie spawnu — jednou při stání vlastníka v kruhu (ne loop). */
+  spawnMelody: {
+    url: "./audio/spawn-melody.mp3",
     refDist: CONFIG.sfxRefDist,
     halfDist: CONFIG.sfxHalfDist,
     maxDist: CONFIG.sfxMaxDist,
-    gain: 0.25
+    gain: 0.05
   },
   /** Sršení z oblouku Hlídače */
   electricity: {

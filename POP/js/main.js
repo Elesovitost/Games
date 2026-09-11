@@ -283,6 +283,7 @@ class Game {
     this.#stopCamRecenter();
     this.planetGroup.rotation.set(0, 0, 0);
     this.#clearWizards();
+    this.#resetWorld();
     const start = pickRandomSpawn(this.landSpawns);
     const profile = loadProfile();
     const w = new Wizard(this.planetGroup, this.terrain, start, {
@@ -301,9 +302,6 @@ class Game {
     this.#setCameraFocus(start, true);
     this.spawnMarkers?.show();
     this.spawnMarkers?.syncFromWizards(this.wizards);
-    this.critters?.spawn(this.landSpawns);
-    this.longnecks?.spawn(this.landSpawns);
-    this.worms?.spawn(this.landSpawns);
     this.#selectSpell(null);
     this.#resetSpellCooldowns();
     this.#syncWorldAuthority(false);
@@ -360,8 +358,8 @@ class Game {
     this.lobby?.hide();
     this.applyRoomColors({ players: list });
     this.spawnMarkers?.syncFromWizards(this.wizards);
-    document.getElementById("btn-1p")?.classList.add("active");
-    document.getElementById("btn-mp")?.classList.remove("active");
+    document.getElementById("btn-mp")?.classList.add("active");
+    document.getElementById("btn-1p")?.classList.remove("active");
     this.#syncWorldAuthority();
   }
 
@@ -737,6 +735,10 @@ class Game {
     });
 
     btnMp?.addEventListener("click", () => {
+      btnMp.classList.add("active");
+      btn1p?.classList.remove("active");
+      if (this.session.isMp) this.session.leave();
+      this.enterSolo();
       btnMp.classList.add("active");
       btn1p?.classList.remove("active");
       this.lobby.show();

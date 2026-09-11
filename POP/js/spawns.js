@@ -7,9 +7,8 @@ const RING_RADIUS = SPAWN_ZONE_RADIUS;
 const STONE_COUNT = 12;
 const SURFACE_LIFT = 0.02;
 const POOL_RADIUS = 0.95;
-/** Úhlová rychlost pulzu (rad/s) — peak ≈ heart beat. */
+/** Úhlová rychlost pulzu (rad/s). */
 const PULSE_RATE = 3.6;
-const PULSE_BEAT_THRESH = 0.92;
 /** Výchozí barvy prázdných slotů (bez hráče). */
 const DEFAULT_SLOT_COLORS = [0x66ffc8, 0xa8f0ff, 0xffd080, 0xe8a0ff];
 
@@ -292,9 +291,12 @@ export class SpawnMarkers {
     /** @type {number[]} */
     this.slotColors = spawnDirs.map((_, i) => DEFAULT_SLOT_COLORS[i % DEFAULT_SLOT_COLORS.length]);
     this.t = 0;
-    this._prevPulseSin = 0;
     /** @type {boolean[]} */
     this._slotOccupied = spawnDirs.map(() => false);
+    /** @type {(object|null)[]} SFX handle spawn melodie per slot */
+    this._melodySfx = spawnDirs.map(() => null);
+    /** Po dohrání už nerestartovat, dokud vlastník neodejde. */
+    this._melodyDone = spawnDirs.map(() => false);
 
     this._east = new THREE.Vector3();
     this._north = new THREE.Vector3();
@@ -479,7 +481,7 @@ export class SpawnMarkers {
 
   /**
    * Pulz run — výrazný jen když vlastník stojí ve svém kruhu.
-   * heart.mp3 na peak pulzu (prostorově ze středu spawnu).
+   * spawn-melody.mp3 jednou při přítomnosti (prostorově, ne loop).
    */
   update(dt, wizards, listenerDir, audio) {
     if (!this.group.visible) return;
@@ -506,18 +508,57 @@ export class SpawnMarkers {
       }
     }
 
-    const s = Math.sin(this.t * PULSE_RATE);
-    const beat = this._prevPulseSin < PULSE_BEAT_THRESH && s >= PULSE_BEAT_THRESH;
-    this._prevPulseSin = s;
-    if (beat && audio && listenerDir) {
-      for (let slot = 0; slot < this._slotOccupied.length; slot++) {
-        if (!this._slotOccupied[slot]) continue;
-        audio.playAt("heart", this.spawnCenters[slot], listenerDir);
+    this.#syncMelody(audio, listenerDir);
+  }
+
+  #syncMelody(audio, listenerDir) {
+    if (!audio || !listenerDir) return;
+    for (let slot = 0; slot < this._slotOccupied.length; slot++) {
+      const occ = this._slotOccupied[slot];
+      let h = this._melodySfx[slot];
+      if (h && (h.ended || !h.alive)) {
+        if (h.alive) audio.stopSfxLoop(h, 0.05);
+        this._melodySfx[slot] = null;
+        if (occ) this._melodyDone[slot] = true;
+        h = null;
+      }
+      if (occ) {
+        if (!h && !this._melodyDone[slot]) {
+          h = audio.startSfxLoop("spawnMelody", this.spawnCenters[slot], listenerDir, {
+            loop: false
+          });
+          this._melodySfx[slot] = h;
+        }
+        if (h?.alive) audio.updateSfxLoop(h, this.spawnCenters[slot], listenerDir);
+      } else if (h) {
+        if (h.alive) audio.stopSfxLoop(h, 0.25);
+        this._melodySfx[slot] = null;
+        this._melodyDone[slot] = false;
       }
     }
   }
 
+  #stopAllMelody(audio) {
+    for (let slot = 0; slot < this._melodySfx.length; slot++) {
+      const h = this._melodySfx[slot];
+      if (h?.alive) {
+        if (audio) audio.stopSfxLoop(h, 0.1);
+        else {
+          h.alive = false;
+          try {
+            h.src.stop();
+          } catch (_) {
+            /* noop */
+          }
+        }
+      }
+      this._melodySfx[slot] = null;
+      this._melodyDone[slot] = false;
+    }
+  }
+
   hide() {
+    this.#stopAllMelody(null);
     this.group.visible = false;
   }
 
