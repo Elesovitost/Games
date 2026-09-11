@@ -222,7 +222,7 @@ export const SPELLS = {
   },
   earthquake: {
     id: "earthquake",
-    range: 18,
+    range: 21,
     castTime: 3,
     cooldown: 300,
     effectRadius: 18,
