@@ -279,9 +279,7 @@ export class FogOfWar {
     for (const h of sys.hypnoses || []) push(h, h.dir);
     for (const d of sys.demons || []) push(d, d.dir);
     for (const s of sys.spirals || []) push(s, s.dir);
-    for (const w of sys.watchers || []) {
-      if (w?.arc?.line) push({ mesh: w.arc.line }, w.dir);
-    }
+    /** Oblouk hlídače záměrně ne — má být vidět i ze tmy (sync s DPS). */
     /** Magické stromy — `#applyMagicTrees` (šedý ghost). */
     for (const b of sys.bursts || []) push(b, b.dir);
     for (const p of sys.smokePuffs || []) push(p, p.dir);

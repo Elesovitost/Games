@@ -859,6 +859,11 @@ function updateWatcherArc(sys, w, target) {
 
   arc.geo.attributes.position.needsUpdate = true;
   arc.mat.opacity = 0.72 + 0.28 * (0.5 + 0.5 * Math.sin(t * 40));
+  /** FOW nesmí nechat oblouk skrytý ze starého frame. */
+  if (arc.line.userData._fowFxHidden) {
+    delete arc.line.userData._fowFxHidden;
+    delete arc.line.userData._fowFxWasVisible;
+  }
   arc.line.visible = true;
   return true;
 }
