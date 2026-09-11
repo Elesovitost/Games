@@ -134,18 +134,7 @@ function makeCalyx() {
   const geos = [];
   const mats = [mat, matDark];
 
-  /** Nízká miska — oko sedí nahoře, listy se otevírají ven a dolů (nepřekrývají bulbus). */
-  const cup = new THREE.Mesh(
-    new THREE.SphereGeometry(0.48, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.48),
-    matDark
-  );
-  cup.scale.set(1.1, 0.55, 1.1);
-  cup.position.y = -0.02;
-  cup.castShadow = true;
-  cup.receiveShadow = true;
-  root.add(cup);
-  geos.push(cup.geometry);
-
+  /** Jen listy kolem stonku — bez misky/disku mezi okem a stonkem. */
   const leafN = 5;
   for (let i = 0; i < leafN; i++) {
     const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), i % 2 ? mat : matDark);
