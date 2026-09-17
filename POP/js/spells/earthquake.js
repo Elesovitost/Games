@@ -301,7 +301,8 @@ function updateVictims(sys, quake, dt) {
   sys.worms?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "w" });
   sys.attackers?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "k" });
   hurtWatchersNear(sys, quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "watcher" });
-  hurtMagicTreesNear(sys, quake.centerDir, radius, dmg, dmg);
+  /** Stromům se sype poškození každý snímek → musí být za sekundu, ne `def.dps`. */
+  hurtMagicTreesNear(sys, quake.centerDir, radius, dmg * dt, dmg * dt);
   const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);
   const active = new Set();
 

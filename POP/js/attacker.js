@@ -216,11 +216,21 @@ export function createAttackerMesh(mats, geos) {
     }
   }
 
-  /** Rozměry celého těla včetně chodidel — ta určují rovinu, na které kudlanka stojí. */
+  /**
+   * Než se změří výška, složí se nohy do klidové pózy (stejné úhly, jaké nastavuje
+   * `#animate` v klidu). V bind póze totiž trčí kolmo vzhůru, takže by nejnižším
+   * bodem bylo břicho — kudlanka by pak stála zanořená po břicho.
+   */
+  for (const leg of legs) {
+    leg.hip.rotation.z = -leg.side * LEG_FEMUR_A;
+    leg.knee.rotation.z = -leg.side * LEG_KNEE_A;
+    leg.ankle.rotation.z = -leg.side * LEG_ANKLE_A;
+  }
+  /** Rozměry celého těla v klidové póze — chodidla určují rovinu, na které kudlanka stojí. */
   const b0 = new THREE.Box3().setFromObject(body);
   const s = BODY_LEN / Math.max(0.3, torso.max.z - torso.min.z);
-  /** Chodidla jsou nejnižší bod → stojí na terénu, břicho zůstává nad zemí. */
-  body.position.y -= b0.min.y + 0.02;
+  /** Chodidla na terénu (+ drobná marže, ať se špička nezaryje do svahu). */
+  body.position.y += -b0.min.y + 0.015;
   root.scale.setScalar(s);
   root.userData.height = (b0.max.y - b0.min.y) * s;
   root.userData.lieLift = Math.max(0.16, -torso.min.x);
@@ -484,7 +494,7 @@ class Attacker {
   #snap() {
     if (this.#inWater()) {
       /** Ve vodě plave — ponořený do poloviny těla (i když zrovna pronásleduje). */
-      this.mesh.position.copy(this.dir).multiplyScalar(CONFIG.waterLevel - this.bodyHalfHeight * 0.5);
+      this.mesh.position.copy(this.dir).multiplyScalar(CONFIG.waterLevel - this.bodyHalfHeight);
     } else {
       this.mesh.position.copy(this.dir).multiplyScalar(this.#height());
     }
@@ -507,7 +517,8 @@ class Attacker {
   }
 
   #slopePitch() {
-    if (this.state === "swim" || this.tornado) return 0;
+    /** Na hladině se neklání podle dna — pitch má smysl jen na souši. */
+    if (this.#inWater() || this.tornado) return 0;
     this._trial.copy(this.dir).addScaledVector(this.facing, 0.35).normalize();
     this._trial2.copy(this.dir).addScaledVector(this.facing, -0.35).normalize();
     const hF = this.terrain.height(this._trial);
@@ -633,6 +644,7 @@ class Attacker {
       this.stateT = 2.5 + this.rng() * 4;
     }
     const res = this.#stepToward(this.targetDir, this._speed * dt, false);
+    if (res.blocked) this.#startAvoid();
     if (res.arrived) {
       /** Došel — chvíli postoj (bloumání). */
       this._speed = 0;
