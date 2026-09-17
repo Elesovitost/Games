@@ -550,9 +550,8 @@ export function hurtWatchersNear(sys, centerDir, radiusM, dmgCenter, dmgEdge, op
   return hit;
 }
 
-export function spawnWatcher(sys, targetDir) {
+export function spawnWatcher(sys, targetDir, ownerId = sys._castOwnerId ?? sys.wizard?.id ?? null) {
   const def = SPELLS.watcher;
-  const ownerId = sys._castOwnerId ?? sys.wizard?.id ?? null;
   if (ownerId == null) return null;
   if (!canSpawnWatcher(sys, ownerId)) return null;
 
@@ -562,17 +561,14 @@ export function spawnWatcher(sys, targetDir) {
   const dir = targetDir.clone().normalize();
   /**
    * Stabilní ID napříč klienty (stejný cast intent → stejné id).
-   * Lokální `_nextId` v MP desyncovalo world-sync (u jednoho blind, u druhého bury).
+   * Bez lokálního `-n` — to desyncovalo world-sync mezi peerami.
+   * Kolize stejného místa u stejného ownera = skip (konzistentní všude).
    */
   const qx = Math.round(dir.x * 1e5);
   const qy = Math.round(dir.y * 1e5);
   const qz = Math.round(dir.z * 1e5);
-  let id = `watcher-${ownerId}-${qx}_${qy}_${qz}`;
-  if (sys.watchers?.some((w) => w && String(w.id) === id && !w.gone)) {
-    let n = 2;
-    while (sys.watchers.some((w) => w && String(w.id) === `${id}-${n}` && !w.gone)) n++;
-    id = `${id}-${n}`;
-  }
+  const id = `watcher-${ownerId}-${qx}_${qy}_${qz}`;
+  if (sys.watchers?.some((w) => w && String(w.id) === id && !w.gone)) return null;
 
   const group = new THREE.Group();
   group.frustumCulled = false;

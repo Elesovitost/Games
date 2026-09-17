@@ -463,8 +463,10 @@ export class SpellSystem {
     if (!def) return;
     const prev = this.wizard;
     const prevOwner = this._castOwnerId;
+    /** Closure — overlapping castAs must not steal owner at finish time. */
+    const castOwnerId = wizard.id;
     this.wizard = wizard;
-    this._castOwnerId = wizard.id;
+    this._castOwnerId = castOwnerId;
     const target = targetDir.clone().normalize();
     /** Zvířata reagují už na položení kouzla, ne až na výbuch/škodu. */
     const alertR = this.#castAlertRadius(spellId, def);
@@ -478,20 +480,33 @@ export class SpellSystem {
     };
 
     const finishFx = () => {
-      if (spellId === "tornado") doSpawnTornado(this, target);
-      if (spellId === "earthquake") doSpawnEarthquake(this, target);
-      if (spellId === "comet") doSpawnComet(this, target);
-      if (spellId === "hypnosis") spawnHypnosis(this, target);
-      if (spellId === "watcher") spawnWatcher(this, target);
-      if (spellId === "demon") spawnDemon(this, target);
-      this.clearSpiral(spiral);
-      if (spellId === "lightning") this.strikeLightning(target);
-      else if (spellId === "fireball") this.launchFireball(target);
-      else if (spellId === "iceball") this.launchIceball(target);
-      else if (spellId === "invisibility") applyInvisibility(this, wizard);
-      else if (spellId === "immortality") applyImmortality(this, wizard);
-      restore();
-      onDone?.();
+      const pinW = this.wizard;
+      const pinO = this._castOwnerId;
+      this.wizard = wizard;
+      this._castOwnerId = castOwnerId;
+      try {
+        if (spellId === "tornado") doSpawnTornado(this, target);
+        if (spellId === "earthquake") doSpawnEarthquake(this, target);
+        if (spellId === "comet") doSpawnComet(this, target);
+        if (spellId === "hypnosis") spawnHypnosis(this, target);
+        if (spellId === "watcher") spawnWatcher(this, target, castOwnerId);
+        if (spellId === "demon") spawnDemon(this, target);
+        this.clearSpiral(spiral);
+        if (spellId === "lightning") this.strikeLightning(target);
+        else if (spellId === "fireball") this.launchFireball(target);
+        else if (spellId === "iceball") this.launchIceball(target);
+        else if (spellId === "invisibility") applyInvisibility(this, wizard);
+        else if (spellId === "immortality") applyImmortality(this, wizard);
+      } finally {
+        this.wizard = pinW;
+        this._castOwnerId = pinO;
+        /**
+         * Pop jen když jsme pořád „vrchol“ stacku. Když mezitím začal jiný castAs,
+         * pin ≠ náš caster — restore by mu ukradl _castOwnerId.
+         */
+        if (pinW === wizard && String(pinO) === String(castOwnerId)) restore();
+        onDone?.();
+      }
     };
 
     const beginCast = (duration, onComplete, castOpts = {}) => {

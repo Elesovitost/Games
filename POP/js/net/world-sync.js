@@ -164,14 +164,130 @@ function packWatchers(list) {
   const out = [];
   for (const w of list) {
     if (!w || w.gone) continue;
+    const d = w.dir;
     out.push({
       id: String(w.id),
       o: String(w.ownerId ?? ""),
+      /** Stejná kvantizace jako spawnWatcher ID (int × 1e5). */
+      d: d
+        ? [Math.round(d.x * 1e5), Math.round(d.y * 1e5), Math.round(d.z * 1e5)]
+        : null,
       b: round4(Math.max(0, w.blindT || 0)),
       c: w.corrupted || w.burying ? 1 : 0
     });
   }
   return out;
+}
+
+/** Klíč z kvantizovaných intů (pack) nebo z dir (lokál). */
+function watcherDirKeyFromInts(qx, qy, qz) {
+  return `${qx}_${qy}_${qz}`;
+}
+
+function watcherRowDirKey(row) {
+  const d = row?.d;
+  if (!d || d.length < 3) return null;
+  return watcherDirKeyFromInts(d[0] | 0, d[1] | 0, d[2] | 0);
+}
+
+function watcherLocalDirKey(w) {
+  const d = w?.dir;
+  if (!d) return null;
+  return watcherDirKeyFromInts(
+    Math.round(d.x * 1e5),
+    Math.round(d.y * 1e5),
+    Math.round(d.z * 1e5)
+  );
+}
+
+const WATCHER_SYNC_MISS_BURY = 3;
+const WATCHER_GROW_PHASES = new Set(["rise", "calyx", "eye"]);
+
+function applyWatcherRow(game, w, row) {
+  if (row.o != null && String(row.o) !== "" && String(w.ownerId) !== String(row.o)) {
+    w.ownerId = String(row.o);
+  }
+  const wasBlind = w.blindT > 0;
+  if (row.c && !w.corrupted && !w.burying) {
+    w.applyNetCorrupt?.(game.spells);
+  }
+  if (w.burying || w.corrupted) return;
+  w.blindT = row.b > 0 ? row.b : 0;
+  if (w.blindT > 0 && !wasBlind) {
+    w.applyNetBlind?.(game.spells);
+  } else if (wasBlind && !(w.blindT > 0)) {
+    w.applyNetUnblind?.(game.spells);
+  }
+}
+
+function applyWatchers(game, rows) {
+  const list = game.spells?.watchers;
+  if (!list?.length) return;
+  const byId = new Map();
+  const unused = [];
+  for (const row of rows || []) {
+    if (row?.id == null) continue;
+    byId.set(String(row.id), row);
+    unused.push(row);
+  }
+
+  const claim = (row) => {
+    const i = unused.indexOf(row);
+    if (i >= 0) unused.splice(i, 1);
+  };
+
+  for (let i = list.length - 1; i >= 0; i--) {
+    const w = list[i];
+    if (!w || w.gone) {
+      if (w?.gone) list.splice(i, 1);
+      continue;
+    }
+
+    const rowHit = byId.get(String(w.id));
+    if (rowHit) {
+      claim(rowHit);
+      w._syncMiss = 0;
+      applyWatcherRow(game, w, rowHit);
+      continue;
+    }
+
+    /** Remap podle owner + kvantizovaný dir (staré -n ID / owner race). */
+    const localKey = watcherLocalDirKey(w);
+    const oid = String(w.ownerId ?? "");
+    let match = null;
+    for (const r of unused) {
+      if (String(r.o ?? "") !== oid) continue;
+      const rk = watcherRowDirKey(r);
+      if (rk && localKey && rk === localKey) {
+        match = r;
+        break;
+      }
+    }
+    if (!match && localKey) {
+      for (const r of unused) {
+        const rk = watcherRowDirKey(r);
+        if (rk && rk === localKey) {
+          match = r;
+          break;
+        }
+      }
+    }
+    if (match) {
+      claim(match);
+      if (w.fowRegistered) game.spells?.fow?.removeSource?.(w.id);
+      w.id = String(match.id);
+      if (w.fowRegistered) game.spells?.fow?.addSource?.(w.id, w.dir, 35);
+      w._syncMiss = 0;
+      applyWatcherRow(game, w, match);
+      continue;
+    }
+
+    w._syncMiss = (w._syncMiss || 0) + 1;
+    if (WATCHER_GROW_PHASES.has(w.phase)) continue;
+    if (w._syncMiss >= WATCHER_SYNC_MISS_BURY && !w.burying) {
+      w.applyNetCorrupt?.(game.spells);
+    }
+  }
 }
 
 function applyMagicTrees(game, rows) {
@@ -201,38 +317,6 @@ function applyMagicTrees(game, rows) {
     if (t.hp <= 0) {
       t.dispose();
       list.splice(i, 1);
-    }
-  }
-}
-
-function applyWatchers(game, rows) {
-  const list = game.spells?.watchers;
-  if (!list?.length) return;
-  const byId = new Map();
-  for (const row of rows || []) {
-    if (row?.id != null) byId.set(String(row.id), row);
-  }
-  for (let i = list.length - 1; i >= 0; i--) {
-    const w = list[i];
-    if (!w || w.gone) {
-      if (w?.gone) list.splice(i, 1);
-      continue;
-    }
-    const row = byId.get(String(w.id));
-    if (!row) {
-      if (!w.burying) w.applyNetCorrupt?.(game.spells);
-      continue;
-    }
-    const wasBlind = w.blindT > 0;
-    if (row.c && !w.corrupted && !w.burying) {
-      w.applyNetCorrupt?.(game.spells);
-    }
-    if (w.burying || w.corrupted) continue;
-    w.blindT = row.b > 0 ? row.b : 0;
-    if (w.blindT > 0 && !wasBlind) {
-      w.applyNetBlind?.(game.spells);
-    } else if (wasBlind && !(w.blindT > 0)) {
-      w.applyNetUnblind?.(game.spells);
     }
   }
 }
