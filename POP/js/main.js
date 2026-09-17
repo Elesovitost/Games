@@ -7,6 +7,7 @@ import { SPAWN_SEEDS, resolveLandSpawns, pickRandomSpawn, landSegmentIndex } fro
 import { SpawnMarkers } from "./spawns.js";
 import { Trees } from "./trees.js";
 import { CritterHerd } from "./critter.js";
+import { AttackerHerd } from "./attacker.js";
 import { WaterLife } from "./water-life.js";
 import { LongneckHerd } from "./longneck.js";
 import { WormHerd } from "./worm.js";
@@ -117,18 +118,22 @@ class Game {
     this.longnecks = new LongneckHerd(this.planetGroup, this.terrain);
     this.longnecks.trees = this.trees;
     this.worms = new WormHerd(this.planetGroup, this.terrain);
+    this.attackers = new AttackerHerd(this.planetGroup, this.terrain);
 
     this.blockers = new Blockers();
     this.blockers.trees = this.trees;
     this.blockers.critters = this.critters;
     this.blockers.longnecks = this.longnecks;
     this.blockers.worms = this.worms;
+    this.blockers.attackers = this.attackers;
     this.critters.blockers = this.blockers;
     this.longnecks.blockers = this.blockers;
+    this.attackers.blockers = this.blockers;
     /** Po napojení blockerů znovu rozmísti zvířata mimo kmeny. */
     this.critters.spawn(this.landSpawns);
     this.longnecks.spawn(this.landSpawns);
     this.worms.spawn(this.landSpawns);
+    this.attackers.spawn(this.landSpawns);
 
     this.fow = new FogOfWar(this);
 
@@ -143,11 +148,13 @@ class Game {
     this.spells.trees = this.trees;
     this.spells.longnecks = this.longnecks;
     this.spells.worms = this.worms;
+    this.spells.attackers = this.attackers;
     this.spells.blockers = this.blockers;
     this.spells.fow = this.fow;
     this.critters.fx = this.spells;
     this.longnecks.fx = this.spells;
     this.worms.fx = this.spells;
+    this.attackers.fx = this.spells;
     this.waterLife.fx = this.spells;
     this.spells.audio = this.audio;
     this.spells.camera = this.camera;
@@ -167,6 +174,8 @@ class Game {
     this.critters.onDied = (c) => this.#sendBeastDeath("c", c);
     this.longnecks.onDied = (c) => this.#sendBeastDeath("l", c);
     this.worms.onDied = (c) => this.#sendBeastDeath("w", c);
+    this.attackers.onDied = (c) => this.#sendBeastDeath("a", c);
+    this.attackers.session = this.session;
 
     this.enterSolo();
 
@@ -206,6 +215,7 @@ class Game {
     this.waterLife?.spawn();
     this.longnecks?.spawn(this.landSpawns);
     this.worms?.spawn(this.landSpawns);
+    this.attackers?.spawn(this.landSpawns);
     this.fow?.reset();
     this.#hideWatcherAlarm();
   }
@@ -388,6 +398,7 @@ class Game {
     markHerdRemote(this.critters, remote);
     markHerdRemote(this.longnecks, remote);
     markHerdRemote(this.worms, remote);
+    markHerdRemote(this.attackers, remote);
     markHerdRemote(this.waterLife, remote);
     if (this.spells) this.spells.worldRemote = remote;
   }
@@ -1306,6 +1317,7 @@ class Game {
       assignTreeTrance(this.critters?.list, this.longnecks?.list, this.trees, dt, this.worms?.list);
     }
     this.critters?.update(dt, [...this.wizards.values()]);
+    this.attackers?.update(dt, [...this.wizards.values()]);
     this.longnecks?.update(dt);
     this.worms?.update(dt);
     this.waterLife?.update(dt);

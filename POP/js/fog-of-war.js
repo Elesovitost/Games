@@ -152,6 +152,7 @@ export class FogOfWar {
       g.critters?.list || [],
       g.longnecks?.list || [],
       g.worms?.list || [],
+      g.attackers?.list || [],
       g.waterLife?.list || []
     ];
   }

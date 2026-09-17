@@ -586,6 +586,15 @@ function applyCometLavaDamage(sys, comet, dt) {
       c.takeDamage(SPELLS.volcano.lavaDps * dt, { fromDir: comet.target, noSlide: true });
     }
   }
+  if (sys.attackers) {
+    for (const a of sys.attackers.list) {
+      if (a.dead || a.gone) continue;
+      const heat = cometLavaHeat(comet, a.dir);
+      if (heat <= 0) continue;
+      a.ignite();
+      a.takeDamage(SPELLS.volcano.lavaDps * dt, { fromDir: comet.target, noSlide: true });
+    }
+  }
   if (sys.longnecks) {
     for (const c of sys.longnecks.list) {
       if (c.dead || c.gone) continue;
@@ -711,6 +720,7 @@ function applyCometBlast(sys, dir) {
   }
   sys.critters?.blastNear(dir, def.craterRadius, def.damageRadius);
   sys.longnecks?.blastNear(dir, def.craterRadius, def.damageRadius);
+  sys.attackers?.blastNear(dir, def.craterRadius, def.damageRadius);
   sys.worms?.blastNear(dir, def.craterRadius, def.damageRadius);
   hurtWatchersNear(sys, dir, def.damageRadius, def.damageCenter, def.damageEdge, {
     force: true

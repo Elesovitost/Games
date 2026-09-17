@@ -46,8 +46,28 @@ export function createGameIntentHandlers(game) {
     beast(_fromId, intent) {
       if (game.session?.isHost) return;
       const kind = intent.who || "c";
-      const herd = kind === "l" ? game.longnecks : kind === "w" ? game.worms : game.critters;
+      const herd =
+        kind === "l"
+          ? game.longnecks
+          : kind === "w"
+            ? game.worms
+            : kind === "a"
+              ? game.attackers
+              : game.critters;
       herd?.kill?.(intent.id, intent.dir, intent.from);
+    },
+
+    /**
+     * Klovnutí kudlanky zasáhlo wizarda, který je pro hosta remote.
+     * Simulaci vede host, poškození si aplikuje jen oběť na svém lokálním wizardovi.
+     */
+    bite(_fromId, intent) {
+      if (!game.session?.isMp || game.session?.isHost) return;
+      const w = game.wizards.get(String(intent.target));
+      if (!w || w.remote || w.dead) return;
+      const f = intent.from;
+      const fromDir = Array.isArray(f) && f.length === 3 ? new THREE.Vector3(f[0], f[1], f[2]) : undefined;
+      w.takeDamage(intent.amount ?? 10, { fromDir, knock: false });
     },
 
     /** Hostovský snímek zvířat a vodního života. */

@@ -29,6 +29,12 @@ export function wormBodyRadius(c) {
   return Math.max(0.18, 0.26 * (c?.size ?? 1));
 }
 
+/** Poloměr kudlanky (attacker) podle size. */
+export function attackerBodyRadius(c) {
+  if (c?.blockR != null) return c.blockR;
+  return Math.max(0.3, 0.42 * (c?.size ?? 1));
+}
+
 /**
  * Neviditelné „boxy“ kolem kmenů a zvířat.
  * Jeden lookup pro scatter, spawn i pohyb (wizard / critter / longneck).
@@ -39,6 +45,7 @@ export class Blockers {
     this.critters = null;
     this.longnecks = null;
     this.worms = null;
+    this.attackers = null;
   }
 
   /**
@@ -82,6 +89,12 @@ export class Blockers {
           const r = wormBodyRadius(c);
           if (r <= 0) continue;
           if (surfaceDist(dir, c.dir) < r + selfR) return false;
+        }
+      }
+      if (this.attackers?.list) {
+        for (const a of this.attackers.list) {
+          if (!a || a.dead || a.gone || a === ignore) continue;
+          if (surfaceDist(dir, a.dir) < attackerBodyRadius(a) + selfR) return false;
         }
       }
     }
@@ -147,6 +160,12 @@ export class Blockers {
         if (!c || c.dead || c.gone || !c.exposed) continue;
         const r = wormBodyRadius(c);
         if (r > 0) consider(c.dir, r);
+      }
+    }
+    if (this.attackers?.list) {
+      for (const a of this.attackers.list) {
+        if (!a || a.dead || a.gone) continue;
+        consider(a.dir, attackerBodyRadius(a));
       }
     }
     return best;

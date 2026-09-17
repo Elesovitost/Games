@@ -299,6 +299,7 @@ function updateVictims(sys, quake, dt) {
   sys.critters?.stunNear?.(quake.centerDir, radius);
   sys.longnecks?.stunNear?.(quake.centerDir, radius);
   sys.worms?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "w" });
+  sys.attackers?.hurtNear(quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "k" });
   hurtWatchersNear(sys, quake.centerDir, radius, dmg, dmg, { hitSet: hits, hitKey: "watcher" });
   hurtMagicTreesNear(sys, quake.centerDir, radius, dmg, dmg);
   const list = sys.getWizards?.() || (sys.wizard ? [sys.wizard] : []);

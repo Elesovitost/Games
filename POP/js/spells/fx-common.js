@@ -20,6 +20,7 @@ export function applyAoeDamage(sys, centerDir, radiusM, dmgCenter, dmgEdge) {
   }
   sys.critters?.hurtNear(centerDir, radiusM, dmgCenter, dmgEdge);
   sys.longnecks?.hurtNear(centerDir, radiusM, dmgCenter, dmgEdge);
+  sys.attackers?.hurtNear(centerDir, radiusM, dmgCenter, dmgEdge);
   sys.worms?.hurtNear(centerDir, radiusM, dmgCenter, dmgEdge);
   /** Hlídači — jen host (stejně jako hurtWatchersNear), ať MP nesyncuje blind vs bury. */
   if (!sys.worldRemote) {

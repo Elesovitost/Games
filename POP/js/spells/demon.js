@@ -236,6 +236,7 @@ function pickPrey(sys, fromDir) {
   for (const w of sys.getWizards?.() || []) consider(w);
   for (const c of sys.critters?.list || []) consider(c);
   for (const c of sys.longnecks?.list || []) consider(c);
+  for (const c of sys.attackers?.list || []) consider(c);
   for (const c of sys.worms?.list || []) {
     if (c.exposed) consider(c);
   }

@@ -134,6 +134,7 @@ export function updateIceball(sys, p, dt) {
     if (
       sys.critters?.hurtNear(p.dir, touchR, SPELLS.iceball.contactDamage, SPELLS.iceball.contactDamage) ||
       sys.longnecks?.hurtNear(p.dir, touchR, SPELLS.iceball.contactDamage, SPELLS.iceball.contactDamage) ||
+      sys.attackers?.hurtNear(p.dir, touchR, SPELLS.iceball.contactDamage, SPELLS.iceball.contactDamage) ||
       sys.worms?.hurtNear(p.dir, touchR, SPELLS.iceball.contactDamage, SPELLS.iceball.contactDamage) ||
       hurtWatchersNear(sys, p.dir, touchR, SPELLS.iceball.contactDamage, SPELLS.iceball.contactDamage) ||
       hurtMagicTreesNear(sys, p.dir, touchR, SPELLS.iceball.contactDamage, SPELLS.iceball.contactDamage) ||

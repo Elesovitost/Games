@@ -100,6 +100,30 @@ export const SFX = {
     maxDist: CONFIG.sfxMaxDist,
     gain: 1.1
   },
+  /** Kudlanka (attacker) — zavrčení při zahájení útoku, 20 % hlasitosti. */
+  attackerAttack: {
+    url: "./audio/attacker-attack.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 0.2
+  },
+  /** Smyčka běhu kudlanky, 20 % hlasitosti. */
+  attackerRun: {
+    url: "./audio/attacker-running.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 0.2
+  },
+  /** Klovnutí pařáty, 20 % hlasitosti. */
+  attackerClaw: {
+    url: "./audio/attacker-claw.mp3",
+    refDist: CONFIG.sfxRefDist,
+    halfDist: CONFIG.sfxHalfDist,
+    maxDist: CONFIG.sfxMaxDist,
+    gain: 0.2
+  },
   scream1: {
     url: "./audio/scream1.mp3",
     refDist: CONFIG.sfxRefDist,

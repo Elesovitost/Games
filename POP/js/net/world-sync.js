@@ -30,7 +30,9 @@ const LAND_STATES = [
   "dodge",
   "browse",
   "tunnel",
-  "peek"
+  "peek",
+  "hunt",
+  "attack"
 ];
 
 const PEEK_STAGES = [null, "rise", "hold", "dive"];
@@ -138,6 +140,8 @@ export function buildWorldPacket(game) {
     c: packList(game.critters?.list || [], packLand),
     l: packList(game.longnecks?.list || [], packLand),
     w: packList(game.worms?.list || [], packLand),
+    /** k = útočníci (attacker) */
+    k: packList(game.attackers?.list || [], packLand),
     a: packList(game.waterLife?.list || [], packWater),
     t: packMagicTrees(game.spells?.magicTrees),
     u: packWatchers(game.spells?.watchers)
@@ -327,6 +331,7 @@ export function applyWorldPacket(game, intent) {
   applyHerdSnaps(game.critters?.list, intent.c);
   applyHerdSnaps(game.longnecks?.list, intent.l);
   applyHerdSnaps(game.worms?.list, intent.w);
+  applyHerdSnaps(game.attackers?.list, intent.k);
   applyHerdSnaps(game.waterLife?.list, intent.a);
   if (game.spells?.worldRemote) {
     applyMagicTrees(game, intent.t);

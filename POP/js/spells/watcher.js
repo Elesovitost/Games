@@ -730,7 +730,7 @@ function tickBlind(sys, w, dt) {
   restoreFow(sys, w);
 }
 
-/** Nejbližší cizí wizard v dosahu FOV hlídače. */
+/** Nejbližší platný cíl v dosahu hlídače — cizí wizard, nebo kudlanka (attacker). */
 function pickZapTarget(sys, tower) {
   if (tower.corrupted || tower.burying || tower.blindT > 0) return null;
   const radius = SPELLS.watcher?.radius ?? 35;
@@ -745,6 +745,14 @@ function pickZapTarget(sys, tower) {
     if (d > radius || d >= bestD) continue;
     bestD = d;
     best = w;
+  }
+  /** Kudlanky smaží stejnou optikou — bere se prostě to, co je blíž. */
+  for (const a of sys.attackers?.list || []) {
+    if (!a || a.dead || a.gone) continue;
+    const d = surfaceDist(tower.dir, a.dir);
+    if (d > radius || d >= bestD) continue;
+    bestD = d;
+    best = a;
   }
   return best;
 }
@@ -948,11 +956,15 @@ function updateWatchZap(sys, w, dt) {
   w.idleT += dt;
   lockLookAtTarget(w, target, dt);
   updateWatcherArc(sys, w, target);
-  pulseWizardZapSparks(target);
+  /** Sršení po těle má jen wizard; kudlanka dostane jen oblouk. */
+  if (!target.isAttacker) pulseWizardZapSparks(target);
 
-  const dps = SPELLS.watcher?.arcDps ?? 3;
+  const def = SPELLS.watcher ?? {};
+  const dps = target.isAttacker ? (def.beastArcDps ?? 2) : (def.arcDps ?? 3);
   if (dps > 0) {
     target.takeDamage?.(dps * dt, { fromDir: w.dir, knock: false });
+    /** Kudlanka se lekne a běží pryč (než ji přebije hon za kouzelníkem). */
+    target.onZapped?.(w.dir);
   }
 }
 

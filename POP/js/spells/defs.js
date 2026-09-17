@@ -204,8 +204,10 @@ export const SPELLS = {
     maxCount: 5,
     /** Oblouk na cizího wizarda v FOV (HP/s) */
     arcDps: 3,
+    /** Oblouk na kudlanku (attacker) v dosahu (HP/s) — kouzelník má přednost */
+    beastArcDps: 2,
     color: 0xe8e0d0,
-    hint: "Klikni v dosahu — Hlídač (max 5). FOV 35 m, alarm + 3 HP/s. Zásah = 1 min slepota; silný zásah zničí."
+    hint: "Klikni v dosahu — Hlídač (max 5). FOV 35 m, alarm + 3 HP/s (kudlanky 2 HP/s). Zásah = 1 min slepota; silný zásah zničí."
   },
   invisibility: {
     id: "invisibility",

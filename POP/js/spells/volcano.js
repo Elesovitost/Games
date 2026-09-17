@@ -947,6 +947,14 @@ function applyLavaDamage(sys, field, list, def, dt, hotFactor) {
       c.takeDamage(def.lavaDps * dt, { fromDir: field.center, noSlide: true });
     }
   }
+  if (sys.attackers) {
+    for (const a of sys.attackers.list) {
+      if (a.dead || a.gone) continue;
+      if (!onHotLava(a.dir)) continue;
+      a.ignite();
+      a.takeDamage(def.lavaDps * dt, { fromDir: field.center, noSlide: true });
+    }
+  }
   if (sys.longnecks) {
     for (const c of sys.longnecks.list) {
       if (c.dead || c.gone) continue;

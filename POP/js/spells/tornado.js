@@ -423,6 +423,9 @@ function collectTossables(sys) {
   if (sys.longnecks?.list) {
     for (const c of sys.longnecks.list) if (c) list.push(c);
   }
+  if (sys.attackers?.list) {
+    for (const c of sys.attackers.list) if (c) list.push(c);
+  }
   return list;
 }
 

@@ -76,6 +76,7 @@ export function spawnHypnosis(sys, targetDir) {
 
   poseHypnosis(sys, sys.hypnoses[sys.hypnoses.length - 1]);
   charmNear(sys, dir, def.radius, def.holdTime);
+  sys.attackers?.freezeNear?.(dir, def.radius, def.holdTime);
   const listener = sys.getListenerDir?.();
   if (listener) sys.audio?.playAt("hypno", dir, listener);
 }
